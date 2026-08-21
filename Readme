@@ -1,0 +1,590 @@
+borek-ai-platform/
+
+├── README.md
+
+├── .env.example
+
+├── Dockerfile
+
+├── docker-compose.yml
+
+├── pyproject.toml                         # or requirements.txt
+
+│
+
+├── app/
+
+│   ├── main.py                            # FastAPI factory; mounts all routers
+
+│   ├── config.py                          # Single settings module (env vars only)
+
+│   │
+
+│   ├── db/
+
+│   │   ├── session.py
+
+│   │   ├── base.py
+
+│   │   ├── models/
+
+│   │   │   ├── __init__.py
+
+│   │   │   │
+
+│   │   │   ├── shared/
+
+│   │   │   │   ├── job.py                 # queued → running → succeeded/failed
+
+│   │   │   │   └── generation_audit.py    # LLM calls, cost, duration, versions
+
+│   │   │   │
+
+│   │   │   ├── data_analyst/              # ── Project 4 ──
+
+│   │   │   │   ├── dataset.py             # Versioned, immutable CSV storage
+
+│   │   │   │   ├── column_semantic.py     # Model vs user-corrected descriptions
+
+│   │   │   │   ├── analysis_session.py
+
+│   │   │   │   ├── question.py
+
+│   │   │   │   ├── plan.py                # Plan + validation outcome
+
+│   │   │   │   ├── execution.py           # Trace, rows processed, duration
+
+│   │   │   │   ├── result.py              # Verified result payload
+
+│   │   │   │   └── narrative.py           # Finding vs interpretation
+
+│   │   │   │
+
+│   │   │   └── pitch_factory/             # ── Pitch Factory + Framework Engine ──
+
+│   │   │       ├── opportunity.py
+
+│   │   │       ├── meeting_source.py
+
+│   │   │       ├── project_record_version.py
+
+│   │   │       ├── technical_validation.py
+
+│   │   │       ├── knowledge_item.py
+
+│   │   │       ├── case_study.py
+
+│   │   │       ├── team_member.py
+
+│   │   │       ├── framework.py
+
+│   │   │       ├── framework_version.py   # Immutable framework.v2 JSON
+
+│   │   │       ├── framework_diff.py
+
+│   │   │       ├── framework_artifact.py  # Customer/technical PDF, JSON
+
+│   │   │       └── presentation_version.py
+
+│   │   │
+
+│   │   └── alembic/
+
+│   │       └── versions/
+
+│   │
+
+│   ├── api/                               # HTTP only: parse → service → response
+
+│   │   ├── health.py
+
+│   │   │
+
+│   │   ├── data_analyst/
+
+│   │   │   ├── datasets.py                # POST upload, GET profile, PATCH column
+
+│   │   │   ├── questions.py               # POST ask, GET plan, POST execute, GET result
+
+│   │   │   └── sessions.py                # GET history
+
+│   │   │
+
+│   │   └── pitch_factory/
+
+│   │       ├── opportunities.py
+
+│   │       ├── records.py                 # Transcript ingest + meeting intelligence
+
+│   │       ├── frameworks.py              # generate, readiness, gaps, corrections, approve
+
+│   │       ├── presentations.py           # derive + render deck
+
+│   │       ├── knowledge.py
+
+│   │       └── artifacts.py
+
+│   │
+
+│   ├── schemas/                           # Pydantic request/response + LLM output schemas
+
+│   │   ├── shared/
+
+│   │   │   └── job.py
+
+│   │   │
+
+│   │   ├── data_analyst/
+
+│   │   │   ├── dataset.py
+
+│   │   │   ├── profile.py
+
+│   │   │   ├── semantic.py
+
+│   │   │   ├── plan.py                    # Step, Plan, Operation enum, Filter
+
+│   │   │   ├── result.py
+
+│   │   │   └── narrative.py
+
+│   │   │
+
+│   │   └── pitch_factory/
+
+│   │       ├── project_record.py
+
+│   │       ├── gap_item.py
+
+│   │       ├── framework_v2.py            # Canonical framework.v2 model
+
+│   │       ├── presentation_spec.py
+
+│   │       ├── consistency_result.py
+
+│   │       └── generation_audit.py
+
+│   │
+
+│   ├── services/                          # Business logic; one module per capability
+
+│   │   ├── shared/
+
+│   │   │   ├── jobs.py                    # Async job orchestration
+
+│   │   │   ├── storage.py                 # Object/file storage abstraction
+
+│   │   │   └── audit.py                   # Generation audit logging
+
+│   │   │
+
+│   │   ├── data_analyst/
+
+│   │   │   ├── ingestion.py               # CSV parse, encoding, delimiter, validation
+
+│   │   │   ├── profiling.py               # Deterministic column statistics
+
+│   │   │   ├── semantic_layer.py          # LLM descriptions + user corrections
+
+│   │   │   ├── query_planner.py           # Question → plan or refusal
+
+│   │   │   ├── plan_validator.py          # Hard rejection rules
+
+│   │   │   ├── execution.py               # Plan → approved ops → trace
+
+│   │   │   ├── verification.py            # Reconciliation, empty sets, denominators
+
+│   │   │   ├── narrative.py               # Verified payload → explanation
+
+│   │   │   └── visualization.py           # Rule-based chart selection
+
+│   │   │
+
+│   │   └── pitch_factory/
+
+│   │       ├── record_service.py          # Transcript → confirmed project_record
+
+│   │       ├── knowledge_service.py       # Approved Borek retrieval (pgvector)
+
+│   │       ├── framework_engine.py        # 7-stage pipeline orchestrator
+
+│   │       ├── framework_renderer.py      # Customer + technical PDF/HTML/JSON
+
+│   │       ├── presentation_engine.py     # Storyline + slide derivation
+
+│   │       ├── presentation_validator.py  # Framework-to-slide consistency
+
+│   │       └── correction_service.py      # Versioning, diffs, re-gating
+
+│   │
+
+│   ├── core/                              # Pure functions: in → out, no DB/network/clock
+
+│   │   ├── data_analyst/
+
+│   │   │   ├── operations/                # Approved operation library
+
+│   │   │   │   ├── __init__.py            # Operation registry
+
+│   │   │   │   ├── aggregations.py        # count, sum, avg, median, min, max
+
+│   │   │   │   ├── grouping.py            # group_by, filter, sort
+
+│   │   │   │   ├── comparison.py          # period_comparison, pct_change
+
+│   │   │   │   ├── contribution.py
+
+│   │   │   │   ├── correlation.py
+
+│   │   │   │   ├── quality.py             # missing, duplicates, outliers
+
+│   │   │   │   └── ranking.py             # top_n, bottom_n, trend
+
+│   │   │   ├── type_inference.py
+
+│   │   │   ├── chart_rules.py             # Result shape → chart type
+
+│   │   │   ├── plan_validation.py         # Column/op/type/period/cost checks
+
+│   │   │   ├── result_verification.py     # Totals reconcile, denominators, empty sets
+
+│   │   │   └── guardrails/
+
+│   │   │       ├── orphan_number_check.py # Narrative numbers ⊆ payload
+
+│   │   │       └── causal_vocabulary.py   # Ban causal language in findings
+
+│   │   │
+
+│   │   └── pitch_factory/
+
+│   │       ├── framework/
+
+│   │       │   ├── eligibility_gate.py    # Stage 1
+
+│   │       │   ├── deterministic_assembly.py
+
+│   │       │   ├── decision_table_builder.py
+
+│   │       │   ├── connector_mapper.py
+
+│   │       │   ├── computation_engines.py # Stage 4: scoring, estimate, business case
+
+│   │       │   ├── evolution_generator.py # Stage 5
+
+│   │       │   ├── consistency_validation.py
+
+│   │       │   └── gap_report.py
+
+│   │       ├── engines/
+
+│   │       │   ├── opportunity_rating.py
+
+│   │       │   ├── conversation_quality.py
+
+│   │       │   ├── build_readiness.py
+
+│   │       │   ├── estimation.py
+
+│   │       │   └── business_case.py
+
+│   │       └── presentation/
+
+│   │           ├── slide_mapper.py        # Framework blocks → slide archetypes
+
+│   │           └── overflow_handler.py    # Content compression, not layout change
+
+│   │
+
+│   ├── llm/                               # ONLY place that calls model providers
+
+│   │   ├── client.py                      # Provider abstraction (OpenAI / Claude / Gemini)
+
+│   │   ├── runner.py                      # Structured output, retries, cost, logging
+
+│   │   └── prompts/
+
+│   │       ├── data_analyst/
+
+│   │       │   ├── semantic_description_v1.txt
+
+│   │       │   ├── plan_generation_v1.txt
+
+│   │       │   └── narrative_v1.txt
+
+│   │       └── pitch_factory/
+
+│   │           ├── record_extraction_v1.txt
+
+│   │           ├── framework_blocks/      # One prompt per framework block
+
+│   │           │   ├── business_context_v1.txt
+
+│   │           │   ├── functional_spec_v1.txt
+
+│   │           │   ├── technical_design_v1.txt
+
+│   │           │   └── ...
+
+│   │           └── presentation/
+
+│   │               ├── slide_writer_v1.txt
+
+│   │               └── storyline_v1.txt
+
+│   │
+
+│   ├── providers/                         # External service adapters
+
+│   │   └── presentation/
+
+│   │       ├── gamma_provider.py
+
+│   │       └── pptx_provider.py           # PptxGenJS / python-pptx fallback
+
+│   │
+
+│   ├── events/                            # Internal event bus
+
+│   │   ├── bus.py
+
+│   │   ├── data_analyst_events.py         # question.answered, plan.rejected, etc.
+
+│   │   └── pitch_factory_events.py        # framework.generated, gaps.updated, presentation.stale
+
+│   │
+
+│   └── workers/
+
+│       └── background_tasks.py            # Model calls, large files, generation jobs
+
+│
+
+├── config/                                # Versioned, external configuration
+
+│   ├── data_analyst/
+
+│   │   └── operations.yaml                # Operation signatures, type rules, cost ceilings
+
+│   │
+
+│   └── pitch_factory/
+
+│       ├── scoring.config.json
+
+│       ├── estimation.config.json
+
+│       ├── business_case.config.json
+
+│       ├── connector_library/
+
+│       ├── component_library/
+
+│       ├── archetype_library/
+
+│       ├── slot_question_map.json         # Framework field → follow-up route
+
+│       ├── routing_table.json             # Gap → sales/technical/confirmation route
+
+│       └── client_glossary/
+
+│
+
+├── schemas/                               # JSON Schema (canonical contracts)
+
+│   ├── framework.v2.schema.json
+
+│   ├── plan.schema.json                   # Data analyst plan schema
+
+│   └── presentation_spec.schema.json
+
+│
+
+├── templates/
+
+│   ├── data_analyst/
+
+│   │   └── narrative_fallback.html        # Template summary when LLM narrative fails
+
+│   │
+
+│   └── pitch_factory/
+
+│       ├── framework/
+
+│       │   ├── customer_report/           # Navy/teal PDF template (DE/EN)
+
+│       │   └── technical_report/          # PDF + HTML
+
+│       └── presentation/
+
+│           ├── layout_contracts/          # Cover, context, scope, timeline, team, etc.
+
+│           ├── borek_ci_assets/
+
+│           └── pptx_master/
+
+│
+
+├── frontend/                              # Next.js or React (single app, two sections)
+
+│   └── src/
+
+│       ├── app/
+
+│       │   ├── data-analyst/
+
+│       │   │   ├── upload/page.tsx
+
+│       │   │   ├── profile/page.tsx
+
+│       │   │   ├── descriptions/page.tsx
+
+│       │   │   ├── analyze/page.tsx       # Chat + chart + trace panel
+
+│       │   │   └── history/page.tsx
+
+│       │   │
+
+│       │   └── pitch-factory/
+
+│       │       ├── dashboard/page.tsx
+
+│       │       ├── source-record/page.tsx
+
+│       │       ├── meeting-intelligence/page.tsx
+
+│       │       ├── framework-workspace/page.tsx
+
+│       │       ├── corrections-review/page.tsx
+
+│       │       ├── presentation-draft/page.tsx
+
+│       │       └── export/page.tsx
+
+│       │
+
+│       └── components/
+
+│           ├── shared/                    # Job status, audit trail, etc.
+
+│           ├── data-analyst/
+
+│           │   ├── PlanTraceViewer.tsx
+
+│           │   ├── FindingInterpretation.tsx
+
+│           │   └── ChartRenderer.tsx
+
+│           └── pitch-factory/
+
+│               ├── FrameworkBlockView.tsx
+
+│               ├── ReadinessScores.tsx
+
+│               ├── GapReport.tsx
+
+│               └── SlidePreview.tsx
+
+│
+
+├── tests/
+
+│   ├── unit/
+
+│   │   ├── data_analyst/
+
+│   │   │   ├── operations/                # Hand-computed fixtures (100% exact)
+
+│   │   │   ├── plan_validation/
+
+│   │   │   ├── result_verification/
+
+│   │   │   └── guardrails/
+
+│   │   │
+
+│   │   └── pitch_factory/
+
+│   │       ├── engines/                   # Exact scores/business-case fixtures
+
+│   │       ├── assembly/
+
+│   │       ├── consistency_validation/
+
+│   │       └── evolution/
+
+│   │
+
+│   ├── integration/
+
+│   │   ├── data_analyst/
+
+│   │   │   └── pipeline/                  # Question → answer with recorded LLM
+
+│   │   └── pitch_factory/
+
+│   │       └── pipeline/                  # Transcript → framework → deck
+
+│   │
+
+│   ├── eval/
+
+│   │   ├── data_analyst/
+
+│   │   │   ├── datasets/                  # ≥3 real CSVs
+
+│   │   │   ├── questions.jsonl            # 25+ labelled questions
+
+│   │   │   └── run_eval.py
+
+│   │   │
+
+│   │   └── pitch_factory/
+
+│   │       ├── golden_project_record/
+
+│   │       ├── three_e2e_scenarios/
+
+│   │       └── run_eval.py
+
+│   │
+
+│   └── fixtures/
+
+│       ├── data_analyst/
+
+│       │   └── malformed_plans/           # Validator rejection corpus
+
+│       └── pitch_factory/
+
+│           └── req-fin-031-invmatch/      # Golden record from Framework spec
+
+│
+
+└── docs/
+
+    ├── architecture.md                    # Unified architecture + domain boundaries
+
+    ├── api.md                             # All endpoints (OpenAPI is source of truth)
+
+    ├── data_analyst/
+
+    │   ├── prd.md
+
+    │   ├── prompts.md
+
+    │   └── evaluation.md
+
+    ├── pitch_factory/
+
+    │   ├── prd.md
+
+    │   ├── framework_engine.md            # Maps to Framework Engine spec
+
+    │   ├── workstreams.md
+
+    │   └── acceptance_criteria.md
+
+    └── deployment.md
+ 
