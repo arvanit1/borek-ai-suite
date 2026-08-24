@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Client delivery gate: schema tickets (AT-1..AT-6) and codegen checks must pass."""
+"""Client delivery gate: schema tickets (AT-1..AT-9) and codegen checks must pass."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ def run(command: list[str], *, shell: bool = False) -> None:
 
 
 def main() -> int:
-    run([sys.executable, "-m", "pytest", "tests/unit/contracts", "-v"])
+    run([sys.executable, "-m", "pytest", "tests/unit", "-v"])
     run([sys.executable, "scripts/generate_pydantic.py"])
     run(["node", "scripts/generate_typescript.js"])
     run([sys.executable, "-c", "import generated.python.contracts.framework_object as fo; import generated.python.contracts.presentation_plan as pp; import generated.python.contracts.slide_spec_base as ss; print('python codegen imports ok')"])
@@ -25,6 +25,7 @@ def main() -> int:
         if not ts_path.is_file():
             raise SystemExit(f"TypeScript codegen did not produce {ts_name}")
     run(["npm", "run", "typecheck", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:at9", "--workspace", "borek-renderer"], shell=True)
     print("typescript codegen ok")
     print("renderer contract types ok")
     print("ALL CHECKS PASSED")

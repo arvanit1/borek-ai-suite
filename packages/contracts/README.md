@@ -26,6 +26,9 @@ py -3 scripts/validate_all.py
 
 Must pass before marking schema tickets complete:
 - contract unit tests under `tests/unit/contracts/`
+- AT-7 constraint validator tests (`tests/unit/validation/test_constraint_validator.py`)
+- AT-8 compression/retry tests (`tests/unit/validation/test_compression_retry.py`)
+- AT-9 LibreOffice preview pipeline tests (`tests/unit/renderer/test_libreoffice_pipeline.py`)
 - AT-4 Pydantic codegen tests (`test_pydantic_codegen.py`)
 - AT-5 TypeScript codegen tests (`test_typescript_codegen.py`)
 - AT-6 schema consumer tests (`test_schema_consumer.py`)
@@ -61,7 +64,7 @@ Produces importable TypeScript types in `generated/typescript/contracts/` for:
 
 The renderer service imports these via `apps/renderer/src/contracts.ts`. Never edit generated files.
 
-## AT-6 ó schema_version + additive fields
+## AT-6 ù schema_version + additive fields
 
 Forward-compatible consumers for canonical contracts (technical plan section 7, AT-6 backlog):
 
