@@ -1,490 +1,535 @@
-borek-ai-platform/
+borek-ai-suite/                            # Framework & Presentation Generation Pipeline
+                                           # Aligned to Development Task Backlog v1.0 (Aug 2026)
 
 ├── README.md
 
-├── .env.example
+├── .env.example                           # AT-51 — every env var documented
 
-├── Dockerfile
+├── docker-compose.yml                     # AT-50 — web / api / worker / renderer / redis
 
-├── docker-compose.yml
-
-├── pyproject.toml                         # or requirements.txt
+├── pyproject.toml
 
 │
 
-├── app/
+├── packages/
 
-│   ├── main.py                            # FastAPI factory; mounts all routers
+│   └── contracts/                         # AT-1, AT-2, AT-3 — canonical JSON Schema (SSOT)
 
-│   ├── config.py                          # Single settings module (env vars only)
+│       ├── framework_object.schema.json   # AT-1 — 14 chapters, quality scores, source_refs
 
-│   │
+│       ├── knowledge_model.schema.json    # ES-5 — facts, constraints, risks, unknowns
 
-│   ├── db/
+│       ├── presentation_plan.schema.json  # AT-2 — slide order, purpose, layoutId, frameworkRefs
 
-│   │   ├── session.py
+│       ├── slide_spec/
 
-│   │   ├── base.py
-
-│   │   ├── models/
-
-│   │   │   ├── __init__.py
-
-│   │   │   │
-
-│   │   │   ├── shared/
-
-│   │   │   │   ├── job.py                 # queued → running → succeeded/failed
-
-│   │   │   │   └── generation_audit.py    # LLM calls, cost, duration, versions
-
-│   │   │   │
-
-│   │   │   ├── data_analyst/              # ── Project 4 ──
-
-│   │   │   │   ├── dataset.py             # Versioned, immutable CSV storage
-
-│   │   │   │   ├── column_semantic.py     # Model vs user-corrected descriptions
-
-│   │   │   │   ├── analysis_session.py
-
-│   │   │   │   ├── question.py
-
-│   │   │   │   ├── plan.py                # Plan + validation outcome
-
-│   │   │   │   ├── execution.py           # Trace, rows processed, duration
-
-│   │   │   │   ├── result.py              # Verified result payload
-
-│   │   │   │   └── narrative.py           # Finding vs interpretation
-
-│   │   │   │
-
-│   │   │   └── pitch_factory/             # ── Pitch Factory + Framework Engine ──
-
-│   │   │       ├── opportunity.py
-
-│   │   │       ├── meeting_source.py
-
-│   │   │       ├── project_record_version.py
-
-│   │   │       ├── technical_validation.py
-
-│   │   │       ├── knowledge_item.py
-
-│   │   │       ├── case_study.py
-
-│   │   │       ├── team_member.py
-
-│   │   │       ├── framework.py
-
-│   │   │       ├── framework_version.py   # Immutable framework.v2 JSON
-
-│   │   │       ├── framework_diff.py
-
-│   │   │       ├── framework_artifact.py  # Customer/technical PDF, JSON
-
-│   │   │       └── presentation_version.py
-
-│   │   │
-
-│   │   └── alembic/
-
-│   │       └── versions/
-
-│   │
-
-│   ├── api/                               # HTTP only: parse → service → response
-
-│   │   ├── health.py
-
-│   │   │
-
-│   │   ├── data_analyst/
-
-│   │   │   ├── datasets.py                # POST upload, GET profile, PATCH column
-
-│   │   │   ├── questions.py               # POST ask, GET plan, POST execute, GET result
-
-│   │   │   └── sessions.py                # GET history
-
-│   │   │
-
-│   │   └── pitch_factory/
-
-│   │       ├── opportunities.py
-
-│   │       ├── records.py                 # Transcript ingest + meeting intelligence
-
-│   │       ├── frameworks.py              # generate, readiness, gaps, corrections, approve
-
-│   │       ├── presentations.py           # derive + render deck
-
-│   │       ├── knowledge.py
-
-│   │       └── artifacts.py
-
-│   │
-
-│   ├── schemas/                           # Pydantic request/response + LLM output schemas
-
-│   │   ├── shared/
-
-│   │   │   └── job.py
-
-│   │   │
-
-│   │   ├── data_analyst/
-
-│   │   │   ├── dataset.py
-
-│   │   │   ├── profile.py
-
-│   │   │   ├── semantic.py
-
-│   │   │   ├── plan.py                    # Step, Plan, Operation enum, Filter
-
-│   │   │   ├── result.py
-
-│   │   │   └── narrative.py
-
-│   │   │
-
-│   │   └── pitch_factory/
-
-│   │       ├── project_record.py
-
-│   │       ├── gap_item.py
-
-│   │       ├── framework_v2.py            # Canonical framework.v2 model
-
-│   │       ├── presentation_spec.py
-
-│   │       ├── consistency_result.py
-
-│   │       └── generation_audit.py
-
-│   │
-
-│   ├── services/                          # Business logic; one module per capability
-
-│   │   ├── shared/
-
-│   │   │   ├── jobs.py                    # Async job orchestration
-
-│   │   │   ├── storage.py                 # Object/file storage abstraction
-
-│   │   │   └── audit.py                   # Generation audit logging
-
-│   │   │
-
-│   │   ├── data_analyst/
-
-│   │   │   ├── ingestion.py               # CSV parse, encoding, delimiter, validation
-
-│   │   │   ├── profiling.py               # Deterministic column statistics
-
-│   │   │   ├── semantic_layer.py          # LLM descriptions + user corrections
-
-│   │   │   ├── query_planner.py           # Question → plan or refusal
-
-│   │   │   ├── plan_validator.py          # Hard rejection rules
-
-│   │   │   ├── execution.py               # Plan → approved ops → trace
-
-│   │   │   ├── verification.py            # Reconciliation, empty sets, denominators
-
-│   │   │   ├── narrative.py               # Verified payload → explanation
-
-│   │   │   └── visualization.py           # Rule-based chart selection
-
-│   │   │
-
-│   │   └── pitch_factory/
-
-│   │       ├── record_service.py          # Transcript → confirmed project_record
-
-│   │       ├── knowledge_service.py       # Approved Borek retrieval (pgvector)
-
-│   │       ├── framework_engine.py        # 7-stage pipeline orchestrator
-
-│   │       ├── framework_renderer.py      # Customer + technical PDF/HTML/JSON
-
-│   │       ├── presentation_engine.py     # Storyline + slide derivation
-
-│   │       ├── presentation_validator.py  # Framework-to-slide consistency
-
-│   │       └── correction_service.py      # Versioning, diffs, re-gating
-
-│   │
-
-│   ├── core/                              # Pure functions: in → out, no DB/network/clock
-
-│   │   ├── data_analyst/
-
-│   │   │   ├── operations/                # Approved operation library
-
-│   │   │   │   ├── __init__.py            # Operation registry
-
-│   │   │   │   ├── aggregations.py        # count, sum, avg, median, min, max
-
-│   │   │   │   ├── grouping.py            # group_by, filter, sort
-
-│   │   │   │   ├── comparison.py          # period_comparison, pct_change
-
-│   │   │   │   ├── contribution.py
-
-│   │   │   │   ├── correlation.py
-
-│   │   │   │   ├── quality.py             # missing, duplicates, outliers
-
-│   │   │   │   └── ranking.py             # top_n, bottom_n, trend
-
-│   │   │   ├── type_inference.py
-
-│   │   │   ├── chart_rules.py             # Result shape → chart type
-
-│   │   │   ├── plan_validation.py         # Column/op/type/period/cost checks
-
-│   │   │   ├── result_verification.py     # Totals reconcile, denominators, empty sets
-
-│   │   │   └── guardrails/
-
-│   │   │       ├── orphan_number_check.py # Narrative numbers ⊆ payload
-
-│   │   │       └── causal_vocabulary.py   # Ban causal language in findings
-
-│   │   │
-
-│   │   └── pitch_factory/
-
-│   │       ├── framework/
-
-│   │       │   ├── eligibility_gate.py    # Stage 1
-
-│   │       │   ├── deterministic_assembly.py
-
-│   │       │   ├── decision_table_builder.py
-
-│   │       │   ├── connector_mapper.py
-
-│   │       │   ├── computation_engines.py # Stage 4: scoring, estimate, business case
-
-│   │       │   ├── evolution_generator.py # Stage 5
-
-│   │       │   ├── consistency_validation.py
-
-│   │       │   └── gap_report.py
-
-│   │       ├── engines/
-
-│   │       │   ├── opportunity_rating.py
-
-│   │       │   ├── conversation_quality.py
-
-│   │       │   ├── build_readiness.py
-
-│   │       │   ├── estimation.py
-
-│   │       │   └── business_case.py
-
-│   │       └── presentation/
-
-│   │           ├── slide_mapper.py        # Framework blocks → slide archetypes
-
-│   │           └── overflow_handler.py    # Content compression, not layout change
-
-│   │
-
-│   ├── llm/                               # ONLY place that calls model providers
-
-│   │   ├── client.py                      # Provider abstraction (OpenAI / Claude / Gemini)
-
-│   │   ├── runner.py                      # Structured output, retries, cost, logging
-
-│   │   └── prompts/
-
-│   │       ├── data_analyst/
-
-│   │       │   ├── semantic_description_v1.txt
-
-│   │       │   ├── plan_generation_v1.txt
-
-│   │       │   └── narrative_v1.txt
-
-│   │       └── pitch_factory/
-
-│   │           ├── record_extraction_v1.txt
-
-│   │           ├── framework_blocks/      # One prompt per framework block
-
-│   │           │   ├── business_context_v1.txt
-
-│   │           │   ├── functional_spec_v1.txt
-
-│   │           │   ├── technical_design_v1.txt
-
-│   │           │   └── ...
-
-│   │           └── presentation/
-
-│   │               ├── slide_writer_v1.txt
-
-│   │               └── storyline_v1.txt
-
-│   │
-
-│   ├── providers/                         # External service adapters
-
-│   │   └── presentation/
-
-│   │       ├── gamma_provider.py
-
-│   │       └── pptx_provider.py           # PptxGenJS / python-pptx fallback
-
-│   │
-
-│   ├── events/                            # Internal event bus
-
-│   │   ├── bus.py
-
-│   │   ├── data_analyst_events.py         # question.answered, plan.rejected, etc.
-
-│   │   └── pitch_factory_events.py        # framework.generated, gaps.updated, presentation.stale
-
-│   │
-
-│   └── workers/
-
-│       └── background_tasks.py            # Model calls, large files, generation jobs
-
-│
-
-├── config/                                # Versioned, external configuration
-
-│   ├── data_analyst/
-
-│   │   └── operations.yaml                # Operation signatures, type rules, cost ceilings
-
-│   │
-
-│   └── pitch_factory/
-
-│       ├── scoring.config.json
-
-│       ├── estimation.config.json
-
-│       ├── business_case.config.json
-
-│       ├── connector_library/
-
-│       ├── component_library/
-
-│       ├── archetype_library/
-
-│       ├── slot_question_map.json         # Framework field → follow-up route
-
-│       ├── routing_table.json             # Gap → sales/technical/confirmation route
-
-│       └── client_glossary/
-
-│
-
-├── schemas/                               # JSON Schema (canonical contracts)
-
-│   ├── framework.v2.schema.json
-
-│   ├── plan.schema.json                   # Data analyst plan schema
-
-│   └── presentation_spec.schema.json
-
-│
-
-├── templates/
-
-│   ├── data_analyst/
-
-│   │   └── narrative_fallback.html        # Template summary when LLM narrative fails
-
-│   │
-
-│   └── pitch_factory/
-
-│       ├── framework/
-
-│       │   ├── customer_report/           # Navy/teal PDF template (DE/EN)
-
-│       │   └── technical_report/          # PDF + HTML
-
-│       └── presentation/
-
-│           ├── layout_contracts/          # Cover, context, scope, timeline, team, etc.
-
-│           ├── borek_ci_assets/
-
-│           └── pptx_master/
-
-│
-
-├── frontend/                              # Next.js or React (single app, two sections)
-
-│   └── src/
-
-│       ├── app/
-
-│       │   ├── data-analyst/
-
-│       │   │   ├── upload/page.tsx
-
-│       │   │   ├── profile/page.tsx
-
-│       │   │   ├── descriptions/page.tsx
-
-│       │   │   ├── analyze/page.tsx       # Chat + chart + trace panel
-
-│       │   │   └── history/page.tsx
+│       │   ├── base.schema.json           # AT-3 — shared fields incl. sourceChapterIds
 
 │       │   │
 
-│       │   └── pitch-factory/
+│       │   ├── group_a/                   # Blenard — BT-4..BT-8
 
-│       │       ├── dashboard/page.tsx
+│       │   │   ├── cover_01.schema.json
 
-│       │       ├── source-record/page.tsx
+│       │   │   ├── context_01.schema.json
 
-│       │       ├── meeting-intelligence/page.tsx
+│       │   │   ├── problem_solution_01.schema.json
 
-│       │       ├── framework-workspace/page.tsx
+│       │   │   ├── scope_01.schema.json
 
-│       │       ├── corrections-review/page.tsx
+│       │   │   └── requirements_matrix_01.schema.json
 
-│       │       ├── presentation-draft/page.tsx
+│       │   │
 
-│       │       └── export/page.tsx
+│       │   ├── group_b/                   # Jaya — JJ-1..JJ-4
+
+│       │   │   ├── process_flow_01.schema.json
+
+│       │   │   ├── timeline_01.schema.json
+
+│       │   │   ├── milestones_01.schema.json
+
+│       │   │   └── team_fte_01.schema.json
+
+│       │   │
+
+│       │   └── group_c/                   # Mayank — MS-1..MS-5
+
+│       │       ├── architecture_01.schema.json
+
+│       │       ├── compliance_01.schema.json
+
+│       │       ├── success_metrics_01.schema.json
+
+│       │       ├── open_questions_01.schema.json
+
+│       │       └── next_steps_01.schema.json
 
 │       │
 
-│       └── components/
+│       ├── layout_registry.json           # BT-2 — allowed layoutIds only
 
-│           ├── shared/                    # Job status, audit trail, etc.
+│       ├── chapter_layout_map.json        # BT-3 — §13.2 default chapter → layout guidance
 
-│           ├── data-analyst/
+│       └── constraints/                   # BT-15, JJ-10, MS-12 — per-layout limits
 
-│           │   ├── PlanTraceViewer.tsx
+│           ├── group_a.yaml
 
-│           │   ├── FindingInterpretation.tsx
+│           ├── group_b.yaml
 
-│           │   └── ChartRenderer.tsx
+│           └── group_c.yaml
 
-│           └── pitch-factory/
+│
 
-│               ├── FrameworkBlockView.tsx
+├── scripts/
 
-│               ├── ReadinessScores.tsx
+│   ├── generate_pydantic.py               # AT-4 — FrameworkObject, PresentationPlan, SlideSpecs
 
-│               ├── GapReport.tsx
+│   └── generate_typescript.py           # AT-5 — same schemas → renderer types
 
-│               └── SlidePreview.tsx
+│
+
+├── generated/
+
+│   ├── python/                            # AT-4 output — do not hand-edit
+
+│   │   └── contracts/
+
+│   └── typescript/                        # AT-5 output — do not hand-edit
+
+│       └── contracts/
+
+│
+
+├── apps/
+
+│   ├── api/                               # AT-34 — FastAPI
+
+│   │   ├── main.py
+
+│   │   ├── config.py
+
+│   │   ├── dependencies.py                # DI, auth, db session
+
+│   │   ├── errors.py                      # Consistent error-response format
+
+│   │   │
+
+│   │   ├── routes/
+
+│   │   │   ├── health.py
+
+│   │   │   ├── opportunities.py           # AT-40 — §22.1
+
+│   │   │   ├── transcripts.py             # AT-40 — upload, list, regenerate
+
+│   │   │   ├── framework.py               # AT-41 — generate / regenerate_chapter / confirm / render
+
+│   │   │   ├── presentation_plan.py       # AT-42 — plan from confirmed FrameworkObject
+
+│   │   │   ├── presentation.py            # AT-43, AT-44 — generate, regenerate slide, change layout
+
+│   │   │   └── jobs.py                    # AT-45 — stage, status, structured errors
+
+│   │   │
+
+│   │   ├── services/
+
+│   │   │   ├── transcript/
+
+│   │   │   │   ├── ingestion.py           # ES-1 — .txt/.vtt/.srt/.docx validate + normalize
+
+│   │   │   │   ├── speaker_turns.py         # ES-2 — one entry per turn + speaker label
+
+│   │   │   │   ├── conversation_ids.py    # ES-3 — stable ids across regeneration
+
+│   │   │   │   └── pii_redaction.py       # ES-4 — strip PII before any LLM call (toggle per opp)
+
+│   │   │   │
+
+│   │   │   ├── knowledge_model/
+
+│   │   │   │   ├── extraction.py          # ES-5 — Claude: transcript → KnowledgeModel
+
+│   │   │   │   ├── source_refs.py         # ES-6 — conversation_id + turn pointer on every fact
+
+│   │   │   │   ├── origin_classification.py  # ES-7 — SOURCE_FACT / USER_INPUT / AI_INFERENCE + confidence
+
+│   │   │   │   └── contradictions.py      # ES-8 — structured conflict objects, never silent merge
+
+│   │   │   │
+
+│   │   │   ├── framework/
+
+│   │   │   │   ├── synthesis.py           # ES-9 — Claude: KnowledgeModel → FrameworkObject (14 chapters)
+
+│   │   │   │   ├── conflict_resolution.py # ES-10 — later source wins; else → open item
+
+│   │   │   │   ├── quality_scores.py      # ES-11 — opportunity rating, conversation quality, build-readiness
+
+│   │   │   │   ├── regenerate_chapter.py  # ES-12 — single chapter update + change log
+
+│   │   │   │   ├── pre_confirm_check.py   # ES-13 — block ch.6 AI-used contradiction
+
+│   │   │   │   │
+
+│   │   │   │   └── chapter_validators/    # ES-14..ES-27 — acceptance spec per chapter
+
+│   │   │   │       ├── ch00_about.py
+
+│   │   │   │       ├── ch01_management_summary.py
+
+│   │   │   │       ├── ch02_process_today.py
+
+│   │   │   │       ├── ch03_aim_success.py
+
+│   │   │   │       ├── ch04_solution_tobe.py
+
+│   │   │   │       ├── ch05_how_it_works.py
+
+│   │   │   │       ├── ch06_how_built.py
+
+│   │   │   │       ├── ch07_client_needs.py
+
+│   │   │   │       ├── ch08_security.py
+
+│   │   │   │       ├── ch09_business_case.py
+
+│   │   │   │       ├── ch10_complexity_timeline.py
+
+│   │   │   │       ├── ch11_trustworthiness.py
+
+│   │   │   │       ├── ch12_evolution_stages.py
+
+│   │   │   │       └── ch13_next_steps_glossary.py
+
+│   │   │   │
+
+│   │   │   │   └── cross_chapter_rules.py # ES-28 no invented facts; ES-29 one opportunity per object
+
+│   │   │   │
+
+│   │   │   ├── presentation/
+
+│   │   │   │   ├── planner.py             # BT-1 — OpenAI: FrameworkObject → PresentationPlan
+
+│   │   │   │   └── layout_registry_guard.py  # BT-2 — reject unknown layoutId
+
+│   │   │   │
+
+│   │   │   ├── slides/
+
+│   │   │   │   ├── content_generation/    # One OpenAI call per layout
+
+│   │   │   │   │   ├── group_a/           # BT-9..BT-13
+
+│   │   │   │   │   │   ├── cover_01.py
+
+│   │   │   │   │   │   ├── context_01.py
+
+│   │   │   │   │   │   ├── problem_solution_01.py
+
+│   │   │   │   │   │   ├── scope_01.py
+
+│   │   │   │   │   │   └── requirements_matrix_01.py
+
+│   │   │   │   │   │
+
+│   │   │   │   │   ├── group_b/           # JJ-5..JJ-8
+
+│   │   │   │   │   │   ├── process_flow_01.py
+
+│   │   │   │   │   │   ├── timeline_01.py
+
+│   │   │   │   │   │   ├── milestones_01.py
+
+│   │   │   │   │   │   └── team_fte_01.py
+
+│   │   │   │   │   │
+
+│   │   │   │   │   └── group_c/           # MS-6..MS-10
+
+│   │   │   │   │       ├── architecture_01.py
+
+│   │   │   │   │       ├── compliance_01.py
+
+│   │   │   │   │       ├── success_metrics_01.py  # MS-14 — hard filter: no currency
+
+│   │   │   │   │       ├── open_questions_01.py
+
+│   │   │   │   │       └── next_steps_01.py
+
+│   │   │   │   │
+
+│   │   │   │   ├── source_chapter_enforcement.py  # BT-14, JJ-9, MS-11
+
+│   │   │   │   └── business_rules/        # JJ-11..JJ-13, MS-13
+
+│   │   │   │
+
+│   │   │   ├── validation/
+
+│   │   │   │   ├── constraint_validator.py    # AT-7 — generic required/type/count checks
+
+│   │   │   │   ├── schema_validator.py        # AT-6 — schema_version + additive fields
+
+│   │   │   │   ├── schema_retry.py            # ES-31, AT-15 — reject + retry on missing source_refs
+
+│   │   │   │   └── compression_retry.py       # AT-8 — up to 2 AI-shortening passes
+
+│   │   │   │
+
+│   │   │   ├── jobs/
+
+│   │   │   │   └── state_machine.py       # AT-36 — QUEUED → … → COMPLETED/FAILED (§24)
+
+│   │   │   │
+
+│   │   │   ├── audit/
+
+│   │   │   │   └── audit_log.py           # AT-52 — actor + action + timestamp on state changes
+
+│   │   │   │
+
+│   │   │   └── observability/
+
+│   │   │       └── llm_logger.py          # AT-53 — request id, stage, model, prompt version, tokens, latency
+
+│   │   │
+
+│   │   ├── llm/
+
+│   │   │   ├── client.py                  # Provider abstraction
+
+│   │   │   ├── claude/                    # ES-5, ES-9 — extraction + synthesis
+
+│   │   │   │   └── prompts/
+
+│   │   │   │       ├── extraction_v1.txt
+
+│   │   │   │       └── synthesis_v1.txt   # ES-30 — layered blocks + chapter checklist
+
+│   │   │   │
+
+│   │   │   └── openai/                    # BT-1, slide content, AT-8 compression
+
+│   │   │       └── prompts/
+
+│   │   │           ├── presentation_planner_v1.txt
+
+│   │   │           ├── slide_content/     # One prompt per layoutId
+
+│   │   │           └── compression_v1.txt
+
+│   │   │
+
+│   │   └── db/                            # Supabase client / SQLAlchemy models mirroring §23
+
+│   │       ├── models/
+
+│   │       │   ├── opportunity.py
+
+│   │       │   ├── transcript.py
+
+│   │       │   ├── knowledge_model.py
+
+│   │       │   ├── framework_object.py    # versioned; 14 chapters as JSONB
+
+│   │       │   ├── presentation_plan.py
+
+│   │       │   ├── slide_spec.py
+
+│   │       │   ├── generation_job.py      # stage + status
+
+│   │       │   ├── audit_log.py
+
+│   │       │   └── llm_call_log.py
+
+│   │       └── repositories/
+
+│   │
+
+│   ├── worker/                            # AT-35 — Celery + Redis
+
+│   │   ├── celery_app.py
+
+│   │   └── tasks/
+
+│   │       ├── framework_extract.py       # ES-5 pipeline
+
+│   │       ├── framework_synthesize.py    # ES-9 pipeline
+
+│   │       ├── presentation_plan.py       # BT-1
+
+│   │       ├── slide_generate.py          # BT/JJ/MS content calls
+
+│   │       ├── slide_compress.py          # AT-8
+
+│   │       └── deck_render.py             # dispatch → renderer service
+
+│   │
+
+│   ├── web/                               # AT-46..AT-49 — Next.js
+
+│   │   └── src/
+
+│   │       ├── app/
+
+│   │       │   ├── upload/                # AT-46 — multi-file, client-side format reject
+
+│   │       │   ├── framework-review/      # AT-47 — 14 chapters, source_refs, inline edit
+
+│   │       │   ├── plan-preview/          # AT-48 — slide list before full generation
+
+│   │       │   └── deck-center/           # AT-49 — per-slide PNG preview, pptx/pdf download
+
+│   │       │
+
+│   │       └── components/
+
+│   │           ├── FrameworkChapterView.tsx
+
+│   │           ├── SourceRefBadge.tsx
+
+│   │           ├── PresentationPlanList.tsx
+
+│   │           ├── SlidePreviewGrid.tsx
+
+│   │           └── JobStatusTracker.tsx
+
+│   │
+
+│   └── renderer/                          # TypeScript — PPTX generation (AT-5 types)
+
+│       ├── design_system/
+
+│       │   ├── tokens/
+
+│       │   │   ├── colors.ts              # AT-11 — no hardcoded hex in layouts
+
+│       │   │   ├── typography.ts          # AT-12
+
+│       │   │   └── spacing.ts             # AT-13
+
+│       │   │
+
+│       │   ├── masters/                   # AT-14..AT-18
+
+│       │   │   ├── MASTER_DEFAULT.ts
+
+│       │   │   ├── MASTER_COVER.ts
+
+│       │   │   ├── MASTER_SECTION.ts
+
+│       │   │   ├── MASTER_CONTENT.ts
+
+│       │   │   └── MASTER_CLOSING.ts
+
+│       │   │
+
+│       │   └── components/                # AT-19..AT-32 — shared only, no per-layout styling
+
+│       │       ├── addSlideTitle.ts
+
+│       │       ├── addSectionLabel.ts
+
+│       │       ├── addFooter.ts
+
+│       │       ├── addContentCard.ts
+
+│       │       ├── addKpiCard.ts
+
+│       │       ├── addNumberBadge.ts
+
+│       │       ├── addBulletList.ts
+
+│       │       ├── addDataTable.ts
+
+│       │       ├── addChart.ts
+
+│       │       ├── addTimeline.ts
+
+│       │       ├── addArchitectureNode.ts
+
+│       │       ├── addConnector.ts
+
+│       │       ├── addProcessStep.ts
+
+│       │       └── addMilestone.ts
+
+│       │
+
+│       ├── layouts/
+
+│       │   ├── group_a/                   # Blenard — BT-17..BT-21
+
+│       │   │   ├── renderCover01.ts
+
+│       │   │   ├── renderContext01.ts
+
+│       │   │   ├── renderProblemSolution01.ts
+
+│       │   │   ├── renderScope01.ts
+
+│       │   │   └── renderRequirementsMatrix01.ts
+
+│       │   │
+
+│       │   ├── group_b/                   # Jaya — JJ-15..JJ-18
+
+│       │   │   ├── renderProcessFlow01.ts
+
+│       │   │   ├── renderTimeline01.ts
+
+│       │   │   ├── renderMilestones01.ts
+
+│       │   │   └── renderTeamFte01.ts
+
+│       │   │
+
+│       │   └── group_c/                   # Mayank — MS-16..MS-20
+
+│       │       ├── renderArchitecture01.ts
+
+│       │       ├── renderCompliance01.ts
+
+│       │       ├── renderSuccessMetrics01.ts
+
+│       │       ├── renderOpenQuestions01.ts
+
+│       │       └── renderNextSteps01.ts
+
+│       │
+
+│       ├── dispatcher.ts                  # AT-33, BT-22, JJ-19, MS-21 — layoutId → render fn
+
+│       │
+
+│       ├── validation/                    # AT-9, AT-10
+
+│       │   ├── libreoffice_pipeline.ts    # pptx → pdf + per-slide png
+
+│       │   └── render_checks.ts           # slide count, blank slides, exceptions
+
+│       │
+
+│       └── server.ts                      # HTTP entry for worker deck_render task
+
+│
+
+├── supabase/
+
+│   ├── migrations/                        # AT-37 — §23 tables, re-runnable
+
+│   └── policies/                          # AT-38 — RLS; negative test required
+
+│
+
+├── config/
+
+│   ├── tone_voice.yaml                    # ES-30 — loaded externally, never hardcoded
+
+│   └── pii_redaction.yaml                 # ES-4 — per-opportunity toggle defaults
 
 │
 
@@ -492,99 +537,76 @@ borek-ai-platform/
 
 │   ├── unit/
 
-│   │   ├── data_analyst/
+│   │   ├── knowledge_model/               # ES-6, ES-7, ES-8
 
-│   │   │   ├── operations/                # Hand-computed fixtures (100% exact)
+│   │   ├── framework/
 
-│   │   │   ├── plan_validation/
+│   │   │   ├── chapter_validators/        # ES-14..ES-27
 
-│   │   │   ├── result_verification/
+│   │   │   ├── quality_scores.py          # ES-11
 
-│   │   │   └── guardrails/
+│   │   │   └── cross_chapter_rules.py     # ES-28, ES-29
 
-│   │   │
+│   │   ├── validation/                    # AT-7, AT-8
 
-│   │   └── pitch_factory/
+│   │   ├── slides/
 
-│   │       ├── engines/                   # Exact scores/business-case fixtures
+│   │   │   ├── group_a/                   # BT-23
 
-│   │       ├── assembly/
+│   │   │   ├── group_b/                   # JJ-20, JJ-21
 
-│   │       ├── consistency_validation/
+│   │   │   └── group_c/                   # MS-22
 
-│   │       └── evolution/
+│   │   └── renderer/
+
+│   │       └── dispatcher.test.ts
 
 │   │
 
 │   ├── integration/
 
-│   │   ├── data_analyst/
+│   │   ├── extraction_synthesis/          # ES-34 — ES-33 fixtures, all 14 chapters
 
-│   │   │   └── pipeline/                  # Question → answer with recorded LLM
-
-│   │   └── pitch_factory/
-
-│   │       └── pipeline/                  # Transcript → framework → deck
+│   │   └── full_pipeline/                 # AT-54 — upload → confirm → plan → slides → pptx
 
 │   │
 
 │   ├── eval/
 
-│   │   ├── data_analyst/
+│   │   ├── framework/                     # ES-35 — 10–20 transcripts + expected-behavior notes
 
-│   │   │   ├── datasets/                  # ≥3 real CSVs
+│   │   └── fixtures/
 
-│   │   │   ├── questions.jsonl            # 25+ labelled questions
-
-│   │   │   └── run_eval.py
-
-│   │   │
-
-│   │   └── pitch_factory/
-
-│   │       ├── golden_project_record/
-
-│   │       ├── three_e2e_scenarios/
-
-│   │       └── run_eval.py
+│   │       └── transcripts/               # ES-33 — 2–3 hand-verified FrameworkObjects
 
 │   │
 
-│   └── fixtures/
+│   └── golden_deck/                       # AT-55, BT-24, JJ-22, MS-23
 
-│       ├── data_analyst/
+│       ├── reference/                     # Approved PNG per layout (14 layouts)
 
-│       │   └── malformed_plans/           # Validator rejection corpus
+│       ├── group_a/
 
-│       └── pitch_factory/
+│       ├── group_b/
 
-│           └── req-fin-031-invmatch/      # Golden record from Framework spec
+│       ├── group_c/
+
+│       └── run_regression.ts              # spacing / font / alignment / color diff
 
 │
 
 └── docs/
 
-    ├── architecture.md                    # Unified architecture + domain boundaries
+    ├── architecture.md                    # Pipeline diagram + domain boundaries
 
-    ├── api.md                             # All endpoints (OpenAPI is source of truth)
+    ├── api.md                             # §22 endpoints; OpenAPI is source of truth
 
-    ├── data_analyst/
+    ├── ticket_map.md                      # ES/AT/BT/JJ/MS ticket → folder mapping
 
-    │   ├── prd.md
+    ├── framework_engine.md                # 2-pass: KnowledgeModel → FrameworkObject
 
-    │   ├── prompts.md
+    ├── presentation_pipeline.md           # Plan → SlideSpec → Render → Validate
 
-    │   └── evaluation.md
+    ├── design_system.md                   # Tokens, masters, component contract
 
-    ├── pitch_factory/
-
-    │   ├── prd.md
-
-    │   ├── framework_engine.md            # Maps to Framework Engine spec
-
-    │   ├── workstreams.md
-
-    │   └── acceptance_criteria.md
-
-    └── deployment.md
- 
+    └── deployment.md                      # Docker Compose + Supabase setup
