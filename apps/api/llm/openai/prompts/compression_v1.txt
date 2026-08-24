@@ -1,0 +1,9 @@
+Rewrite only the offending SlideSpec text fields to be shorter while preserving meaning
+and keeping sourceChapterIds unchanged. Prompt version: compression:v1 (technical plan section 27).
+
+Input:
+- SlideSpec JSON
+- List of constraint violations (field paths and max lengths)
+
+Output:
+- Updated SlideSpec JSON with shortened offending fields only

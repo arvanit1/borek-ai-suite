@@ -39,4 +39,6 @@ Thumbs.db
 # Render / test artifacts
 *.pptx
 *.pdf
+!tests/fixtures/**/*.pptx
 tests/golden_deck/**/output/
+tmp/
