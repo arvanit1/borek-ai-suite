@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate Pydantic models from canonical JSON Schemas (AT-4 partial: AT-1 + AT-2 + AT-3)."""
+"""AT-4: Generate Pydantic v2 models from canonical JSON Schemas (AT-1, AT-2, AT-3)."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CONTRACTS = ROOT / "packages" / "contracts"
 OUT_DIR = ROOT / "generated" / "python" / "contracts"
 
+# Single registry for AT-4 scope. Extend when new core schemas land (e.g. layout SlideSpecs).
 SCHEMAS = [
     ("framework_object.schema.json", "framework_object.py"),
     ("presentation_plan.schema.json", "presentation_plan.py"),
@@ -44,6 +45,9 @@ def main() -> int:
             "--use-union-operator",
             "--field-constraints",
             "--use-default",
+            "--formatters",
+            "builtin",
+            "--disable-timestamp",
         ]
         subprocess.run(cmd, check=True)
 

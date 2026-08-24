@@ -10,6 +10,7 @@ dependencies = []
 dev = [
     "jsonschema>=4.23.0",
     "pytest>=8.3.0",
+    "pydantic>=2.0",
     "datamodel-code-generator>=0.26.0",
 ]
 
