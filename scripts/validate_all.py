@@ -1,0 +1,33 @@
+#!/usr/bin/env python3
+"""Client delivery gate: all Step 0 / AT-1 / AT-2 / AT-3 checks must pass."""
+
+from __future__ import annotations
+
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def run(command: list[str]) -> None:
+    print("+", " ".join(command))
+    subprocess.run(command, cwd=ROOT, check=True)
+
+
+def main() -> int:
+    run([sys.executable, "-m", "pytest", "tests/unit/contracts", "-v"])
+    run([sys.executable, "scripts/generate_pydantic.py"])
+    run(["node", "scripts/generate_typescript.js"])
+    run([sys.executable, "-c", "import generated.python.contracts.framework_object as fo; import generated.python.contracts.presentation_plan as pp; import generated.python.contracts.slide_spec_base as ss; print('python codegen imports ok')"])
+    for ts_name in ("framework_object.ts", "presentation_plan.ts", "slide_spec_base.ts"):
+        ts_path = ROOT / "generated" / "typescript" / "contracts" / ts_name
+        if not ts_path.is_file():
+            raise SystemExit(f"TypeScript codegen did not produce {ts_name}")
+    print("typescript codegen ok")
+    print("ALL CHECKS PASSED")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

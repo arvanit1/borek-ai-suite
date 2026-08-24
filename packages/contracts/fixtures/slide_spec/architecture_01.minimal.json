@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "slideId": "slide_06",
+  "layoutId": "ARCHITECTURE_01",
+  "sectionLabel": "ARCHITECTURE",
+  "title": "How It Is Built",
+  "subtitle": "Systems, data flow & integration",
+  "sourceChapterIds": ["6", "7"],
+  "components": [
+    {
+      "number": 1,
+      "title": "AP Mailbox",
+      "description": "Source of invoices, read-only"
+    },
+    {
+      "number": 2,
+      "title": "ERP",
+      "description": "Purchase orders, goods receipts, postings"
+    },
+    {
+      "number": 3,
+      "title": "Framework Engine",
+      "description": "Extraction, matching, exception queue"
+    },
+    {
+      "number": 4,
+      "title": "Approval App",
+      "description": "Human decisions on exceptions"
+    }
+  ]
+}

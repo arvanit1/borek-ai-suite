@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://borek.ai/schemas/presentation_plan/v1.0",
+  "title": "PresentationPlan",
+  "description": "Stage B step 1 output: ordered slide plan from a confirmed FrameworkObject. Technical plan section 12.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "title", "slides"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Contract version for codegen and forward compatibility (AT-6)."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Presentation title, typically derived from the opportunity."
+    },
+    "slides": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Ordered planned slides. Normal decks target 8-15 slides (section 12).",
+      "items": { "$ref": "#/$defs/PlannedSlide" }
+    }
+  },
+  "$defs": {
+    "LayoutId": {
+      "type": "string",
+      "enum": [
+        "COVER_01",
+        "EXECUTIVE_SUMMARY_01",
+        "CONTEXT_01",
+        "PROBLEM_SOLUTION_01",
+        "SCOPE_01",
+        "REQUIREMENTS_MATRIX_01",
+        "PROCESS_FLOW_01",
+        "TIMELINE_01",
+        "MILESTONES_01",
+        "TEAM_FTE_01",
+        "ARCHITECTURE_01",
+        "COMPLIANCE_01",
+        "SUCCESS_METRICS_01",
+        "OPEN_QUESTIONS_01",
+        "NEXT_STEPS_01"
+      ],
+      "description": "Must match a layout in layout_registry.json (section 13.1)."
+    },
+    "FrameworkReference": {
+      "type": "string",
+      "pattern": "^(opportunity|chapter_([0-9]|1[0-3]))$",
+      "description": "Pointer to FrameworkObject content, e.g. opportunity, chapter_1, chapter_10."
+    },
+    "PlannedSlide": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["order", "purpose", "layoutId", "frameworkReferences"],
+      "properties": {
+        "order": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based slide sequence in the final deck."
+        },
+        "purpose": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Why this slide exists, e.g. cover, context, timeline."
+        },
+        "layoutId": {
+          "$ref": "#/$defs/LayoutId"
+        },
+        "frameworkReferences": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/FrameworkReference" },
+          "description": "FrameworkObject fields/chapters this slide draws from."
+        }
+      }
+    }
+  }
+}

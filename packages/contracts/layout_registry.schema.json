@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://borek.ai/schemas/layout_registry/v1.0",
+  "title": "LayoutRegistry",
+  "description": "MVP Borek Slide Library v1 layout IDs (technical plan section 13.1). Supports BT-2 registry-only layout selection.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "layouts"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "layouts": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    }
+  }
+}

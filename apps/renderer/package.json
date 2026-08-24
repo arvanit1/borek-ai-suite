@@ -1,0 +1,6 @@
+{
+  "name": "borek-renderer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TypeScript PPTX renderer (AT-5 types, AT-11..AT-33 design system)"
+}

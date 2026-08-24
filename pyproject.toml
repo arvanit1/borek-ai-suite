@@ -1,0 +1,22 @@
+[project]
+name = "borek-ai-suite"
+version = "0.1.0"
+description = "Framework and Presentation Generation Pipeline for Borek AI Suite"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "jsonschema>=4.23.0",
+    "pytest>=8.3.0",
+    "datamodel-code-generator>=0.26.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [".", "apps/api"]
+
+[build-system]
+requires = ["setuptools>=75.0"]
+build-backend = "setuptools.build_meta"
