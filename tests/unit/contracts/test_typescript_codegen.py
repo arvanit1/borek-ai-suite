@@ -1,0 +1,95 @@
+"""AT-5: TypeScript generation from AT-1 / AT-2 / AT-3 canonical JSON Schemas."""
+
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parents[3]
+CONTRACTS_DIR = ROOT / "packages" / "contracts"
+FIXTURES_DIR = CONTRACTS_DIR / "fixtures"
+GENERATED_DIR = ROOT / "generated" / "typescript" / "contracts"
+TS_TEST_DIR = ROOT / "tests" / "typescript"
+RENDERER_DIR = ROOT / "apps" / "renderer"
+
+AT5_SCHEMA_OUTPUTS = [
+    ("framework_object.schema.json", "framework_object.ts", "FrameworkObject"),
+    ("presentation_plan.schema.json", "presentation_plan.ts", "PresentationPlan"),
+    ("slide_spec/base.schema.json", "slide_spec_base.ts", "SlideSpecBase"),
+]
+
+
+def _run_shell(command: str) -> None:
+    """Run npm/npx on Windows (requires shell=True)."""
+    subprocess.run(command, cwd=ROOT, check=True, shell=True)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def run_typescript_codegen() -> None:
+    """AT-5 generation step must succeed before type tests."""
+    subprocess.run(["node", "scripts/generate_typescript.js"], cwd=ROOT, check=True)
+
+
+def test_at5_generates_all_three_modules() -> None:
+    """Maps to AT-5 done-when: valid TypeScript types from AT-1, AT-2, AT-3."""
+    for _schema, output_name, _export_name in AT5_SCHEMA_OUTPUTS:
+        assert (GENERATED_DIR / output_name).is_file(), f"missing generated module {output_name}"
+    assert (GENERATED_DIR / "index.ts").is_file(), "missing generated barrel index.ts"
+
+
+def test_at5_framework_object_chapters_are_not_never() -> None:
+    """json-schema-to-typescript bug: prefixItems becomes never[] unless patched."""
+    source = (GENERATED_DIR / "framework_object.ts").read_text(encoding="utf-8")
+    assert "chapters: never[]" not in source
+    assert "chapters: FrameworkObjectChapters;" in source
+    assert "export type FrameworkObjectChapters =" in source
+    assert "export type ChapterAtIndex0 =" in source
+    assert "export type ChapterAtIndex13 =" in source
+
+
+def test_at5_chapter_tuple_matches_registry() -> None:
+    registry = json.loads((CONTRACTS_DIR / "chapter_registry.json").read_text(encoding="utf-8"))
+    source = (GENERATED_DIR / "framework_object.ts").read_text(encoding="utf-8")
+    for index, chapter in enumerate(registry["chapters"]):
+        assert f'chapter_id: "{chapter["chapter_id"]}"' in source
+        assert f'title: {json.dumps(chapter["title"])}' in source
+        assert f"ChapterAtIndex{index}" in source
+
+
+def test_at5_barrel_avoids_duplicate_layout_id_exports() -> None:
+    index_source = (GENERATED_DIR / "index.ts").read_text(encoding="utf-8")
+    assert 'export * from "./framework_object"' in index_source
+    assert 'export type { ChapterId, SlideSpecBase } from "./slide_spec_base"' in index_source
+    assert index_source.count("LayoutId") == 1
+
+
+def test_at5_fixture_typecheck_passes() -> None:
+    """Contract fixtures must assign to generated interfaces under strict TypeScript."""
+    tsconfig = TS_TEST_DIR / "tsconfig.json"
+    _run_shell(f'npx tsc --noEmit -p "{tsconfig}"')
+
+
+def test_at5_renderer_consumes_generated_types() -> None:
+    """Maps to AT-5 done-when: types are used by the renderer service."""
+    _run_shell("npm run typecheck --workspace borek-renderer")
+
+
+def test_regeneration_is_deterministic_enough_for_ci() -> None:
+    """No manual edits: re-running codegen keeps stable TypeScript modules."""
+    before = {
+        name: (GENERATED_DIR / name).read_text(encoding="utf-8")
+        for _, name, _ in AT5_SCHEMA_OUTPUTS
+    }
+    before["index.ts"] = (GENERATED_DIR / "index.ts").read_text(encoding="utf-8")
+    subprocess.run(["node", "scripts/generate_typescript.js"], cwd=ROOT, check=True)
+    after = {
+        name: (GENERATED_DIR / name).read_text(encoding="utf-8")
+        for _, name, _ in AT5_SCHEMA_OUTPUTS
+    }
+    after["index.ts"] = (GENERATED_DIR / "index.ts").read_text(encoding="utf-8")
+    for module_name in before:
+        assert before[module_name] == after[module_name]

@@ -85,7 +85,7 @@ borek-ai-suite/                            # Framework & Presentation Generation
 
 │   ├── generate_pydantic.py               # AT-4 — FrameworkObject, PresentationPlan, SlideSpecs
 
-│   └── generate_typescript.py           # AT-5 — same schemas → renderer types
+│   └── generate_typescript.js           # AT-5 — same schemas → renderer types
 
 │
 

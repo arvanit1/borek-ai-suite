@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Client delivery gate: all Step 0 / AT-1 / AT-2 / AT-3 checks must pass."""
+"""Client delivery gate: schema tickets (AT-1..AT-6) and codegen checks must pass."""
 
 from __future__ import annotations
 
@@ -10,9 +10,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def run(command: list[str]) -> None:
-    print("+", " ".join(command))
-    subprocess.run(command, cwd=ROOT, check=True)
+def run(command: list[str], *, shell: bool = False) -> None:
+    print("+", " ".join(command) if isinstance(command, list) else command)
+    subprocess.run(command, cwd=ROOT, check=True, shell=shell)
 
 
 def main() -> int:
@@ -24,7 +24,9 @@ def main() -> int:
         ts_path = ROOT / "generated" / "typescript" / "contracts" / ts_name
         if not ts_path.is_file():
             raise SystemExit(f"TypeScript codegen did not produce {ts_name}")
+    run(["npm", "run", "typecheck", "--workspace", "borek-renderer"], shell=True)
     print("typescript codegen ok")
+    print("renderer contract types ok")
     print("ALL CHECKS PASSED")
     return 0
 

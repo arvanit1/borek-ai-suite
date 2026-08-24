@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Generate TypeScript types from canonical JSON Schemas (AT-5 partial: AT-1 + AT-2 + AT-3).
+ * AT-5: Generate TypeScript types from canonical JSON Schemas (AT-1 + AT-2 + AT-3).
  */
 const { execSync } = require("node:child_process");
 const fs = require("node:fs");
@@ -16,8 +16,74 @@ const SCHEMAS = [
   ["slide_spec/base.schema.json", "slide_spec_base.ts"],
 ];
 
+function loadChapterRegistry() {
+  const registryPath = path.join(CONTRACTS, "chapter_registry.json");
+  const registry = JSON.parse(fs.readFileSync(registryPath, "utf8"));
+  if (!Array.isArray(registry.chapters) || registry.chapters.length !== 14) {
+    throw new Error("chapter_registry.json must define exactly 14 chapters");
+  }
+  return registry;
+}
+
+/**
+ * json-schema-to-typescript does not emit usable types for prefixItems tuples.
+ * Patch FrameworkObject.chapters using chapter_registry.json (aligned with AT-1 schema).
+ */
+function buildFrameworkObjectChapterTypes(registry) {
+  const chapterTypes = registry.chapters.map((chapter, index) => {
+    const idLiteral = JSON.stringify(chapter.chapter_id);
+    const titleLiteral = JSON.stringify(chapter.title);
+    return `export type ChapterAtIndex${index} = ChapterBase & { chapter_id: ${idLiteral}; title: ${titleLiteral}; };`;
+  });
+  const tupleMembers = registry.chapters.map((_chapter, index) => `ChapterAtIndex${index}`).join(", ");
+
+  return `/**
+ * Chapter tuple types for FrameworkObject.chapters (AT-1 prefixItems).
+ * Patched by scripts/generate_typescript.js because json-schema-to-typescript emits never[].
+ */
+export interface ConversationRef {
+  conversation_id: string;
+  speaker_role: string;
+  excerpt_pointer: string;
+}
+export interface ChapterBase {
+  body: string | Array<Record<string, unknown>>;
+  source_refs: ConversationRef[];
+}
+${chapterTypes.join("\n")}
+export type FrameworkObjectChapters = [${tupleMembers}];
+`;
+}
+
+function patchFrameworkObjectTypes(source, registry) {
+  if (!source.includes("chapters: never[];")) {
+    throw new Error(
+      "Expected framework_object.ts to contain chapters: never[]; apply patch after json-schema-to-typescript",
+    );
+  }
+
+  const chapterTypes = buildFrameworkObjectChapterTypes(registry);
+  return source
+    .replace("export interface FrameworkObject {", `${chapterTypes}\nexport interface FrameworkObject {`)
+    .replace("  chapters: never[];", "  chapters: FrameworkObjectChapters;");
+}
+
+function writeIndex() {
+  const indexContent = `export * from "./framework_object";
+export type {
+  LayoutId,
+  FrameworkReference,
+  PresentationPlan,
+  PlannedSlide,
+} from "./presentation_plan";
+export type { ChapterId, SlideSpecBase } from "./slide_spec_base";
+`;
+  fs.writeFileSync(path.join(OUT_DIR, "index.ts"), `${indexContent}\n`, "utf8");
+}
+
 function main() {
   fs.mkdirSync(OUT_DIR, { recursive: true });
+  const chapterRegistry = loadChapterRegistry();
 
   for (const [schemaName, outputName] of SCHEMAS) {
     const schemaPath = path.join(CONTRACTS, schemaName);
@@ -27,10 +93,14 @@ function main() {
       cwd: ROOT,
       shell: true,
     });
+
+    if (outputName === "framework_object.ts") {
+      const generated = fs.readFileSync(outputPath, "utf8");
+      fs.writeFileSync(outputPath, patchFrameworkObjectTypes(generated, chapterRegistry), "utf8");
+    }
   }
 
-  const indexExports = SCHEMAS.map(([, out]) => `export * from "./${out.replace(".ts", "")}";`).join("\n");
-  fs.writeFileSync(path.join(OUT_DIR, "index.ts"), `${indexExports}\n`, "utf8");
+  writeIndex();
   console.log(`Generated ${SCHEMAS.length} TypeScript modules in ${OUT_DIR}`);
 }
 
