@@ -1,0 +1,8 @@
+{
+  "schema_version": "1.0",
+  "layoutId": "PROBLEM_SOLUTION_01",
+  "title": "Problem and solution",
+  "sourceChapterIds": ["2", "4"],
+  "problem": { "title": "Problem", "description": "The standard case is checked manually." },
+  "solution": { "title": "Solution", "description": "The agent checks the standard case by rule." }
+}

@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "slideId": "slide_03",
+  "layoutId": "PROBLEM_SOLUTION_01",
+  "sectionLabel": "SOLUTION",
+  "title": "Remove repetitive checking without removing human control",
+  "sourceChapterIds": ["2", "4"],
+  "problem": {
+    "title": "Manual matching slows the close",
+    "description": "AP staff download invoices, correct extracted fields and compare each line against ERP records."
+  },
+  "solution": {
+    "title": "Automate the confirmed standard case",
+    "description": "The agent extracts fields, applies approved matching rules and routes every exception with evidence."
+  }
+}

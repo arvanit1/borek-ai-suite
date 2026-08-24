@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "slideId": "slide_01",
+  "layoutId": "COVER_01",
+  "sectionLabel": "AUTOMATION FRAMEWORK",
+  "title": "Invoice 3-Way Match",
+  "subtitle": "From manual checking to controlled automation",
+  "sourceChapterIds": ["1"],
+  "statBadges": [
+    { "value": "85%", "label": "Target auto-match rate" },
+    { "value": "94/100", "label": "Build readiness" },
+    { "value": "Human", "label": "Exceptions stay controlled" }
+  ]
+}

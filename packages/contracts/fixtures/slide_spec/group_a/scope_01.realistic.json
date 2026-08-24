@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "slideId": "slide_04",
+  "layoutId": "SCOPE_01",
+  "sectionLabel": "SCOPE",
+  "title": "Focused scope for the first release",
+  "sourceChapterIds": ["3", "5"],
+  "included": [
+    "Invoice intake from the shared mailbox",
+    "Field extraction with confidence",
+    "Invoice, purchase-order and goods-receipt matching",
+    "Duplicate detection",
+    "Reasoned exception queue"
+  ],
+  "later": [
+    "Automated supplier communication",
+    "Credit-note automation"
+  ]
+}

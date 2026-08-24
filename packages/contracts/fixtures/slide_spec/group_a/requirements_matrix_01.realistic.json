@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "slideId": "slide_05",
+  "layoutId": "REQUIREMENTS_MATRIX_01",
+  "sectionLabel": "REQUIREMENTS",
+  "title": "Requirements mapping",
+  "sourceChapterIds": ["5"],
+  "requirements": [
+    { "category": "A", "title": "Invoice field extraction", "status": "included" },
+    { "category": "B", "title": "Three-way matching", "status": "included" },
+    { "category": "C", "title": "Duplicate detection", "status": "included" },
+    { "category": "D", "title": "Approval cases", "status": "partial" },
+    { "category": "E", "title": "Exception handling", "status": "partial" },
+    { "category": "F", "title": "Supplier communication", "status": "later" }
+  ]
+}

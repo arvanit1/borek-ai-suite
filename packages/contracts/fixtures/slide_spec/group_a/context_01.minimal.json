@@ -1,0 +1,10 @@
+{
+  "schema_version": "1.0",
+  "layoutId": "CONTEXT_01",
+  "title": "Context",
+  "sourceChapterIds": ["1", "2"],
+  "problem": { "title": "Problem", "description": "Invoice checks are manual." },
+  "solution": { "title": "Solution", "description": "Automate the rule-based checks." },
+  "currentState": { "title": "Current state", "description": "Every invoice needs review." },
+  "targetState": { "title": "Target state", "description": "Only exceptions need review." }
+}

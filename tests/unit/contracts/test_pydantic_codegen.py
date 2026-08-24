@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import json
 import subprocess
 import sys
@@ -19,6 +20,47 @@ AT4_SCHEMA_OUTPUTS = [
     ("framework_object.schema.json", "framework_object.py", "FrameworkObject"),
     ("presentation_plan.schema.json", "presentation_plan.py", "PresentationPlan"),
     ("slide_spec/base.schema.json", "slide_spec_base.py", "SlideSpecBase"),
+    (
+        "slide_spec/group_a/cover_01.schema.json",
+        "slide_spec_group_a_cover_01.py",
+        "Cover01SlideSpec",
+    ),
+    (
+        "slide_spec/group_a/context_01.schema.json",
+        "slide_spec_group_a_context_01.py",
+        "Context01SlideSpec",
+    ),
+    (
+        "slide_spec/group_a/problem_solution_01.schema.json",
+        "slide_spec_group_a_problem_solution_01.py",
+        "ProblemSolution01SlideSpec",
+    ),
+    (
+        "slide_spec/group_a/scope_01.schema.json",
+        "slide_spec_group_a_scope_01.py",
+        "Scope01SlideSpec",
+    ),
+    (
+        "slide_spec/group_a/requirements_matrix_01.schema.json",
+        "slide_spec_group_a_requirements_matrix_01.py",
+        "RequirementsMatrix01SlideSpec",
+    ),
+]
+
+GROUP_A_MODELS = [
+    ("cover_01", "slide_spec_group_a_cover_01", "Cover01SlideSpec"),
+    ("context_01", "slide_spec_group_a_context_01", "Context01SlideSpec"),
+    (
+        "problem_solution_01",
+        "slide_spec_group_a_problem_solution_01",
+        "ProblemSolution01SlideSpec",
+    ),
+    ("scope_01", "slide_spec_group_a_scope_01", "Scope01SlideSpec"),
+    (
+        "requirements_matrix_01",
+        "slide_spec_group_a_requirements_matrix_01",
+        "RequirementsMatrix01SlideSpec",
+    ),
 ]
 
 
@@ -53,8 +95,8 @@ def slide_spec_base_model():
     return SlideSpecBase
 
 
-def test_at4_generates_all_three_modules() -> None:
-    """Maps to AT-4 done-when: valid Pydantic models from AT-1, AT-2, AT-3."""
+def test_at4_generates_all_registered_modules() -> None:
+    """Every canonical schema registered for Python codegen produces a module."""
     for _schema, output_name, _model_name in AT4_SCHEMA_OUTPUTS:
         assert (GENERATED_DIR / output_name).is_file(), f"missing generated module {output_name}"
 
@@ -124,6 +166,45 @@ def test_slide_spec_base_rejects_empty_source_chapter_ids(slide_spec_base_model)
     payload["sourceChapterIds"] = []
     with pytest.raises(ValidationError):
         slide_spec_base_model.model_validate(payload)
+
+
+@pytest.mark.parametrize("fixture_name,module_name,model_name", GROUP_A_MODELS)
+@pytest.mark.parametrize("variant", ["minimal", "realistic"])
+def test_group_a_fixture_validates_with_generated_pydantic_model(
+    fixture_name: str, module_name: str, model_name: str, variant: str
+) -> None:
+    module = importlib.import_module(f"generated.python.contracts.{module_name}")
+    model = getattr(module, model_name)
+    fixture_path = FIXTURES_DIR / "slide_spec" / "group_a" / f"{fixture_name}.{variant}.json"
+    payload = json.loads(fixture_path.read_text(encoding="utf-8"))
+    generated = model.model_validate(payload)
+    assert generated.layoutId == payload["layoutId"]
+
+
+@pytest.mark.parametrize("fixture_name,module_name,model_name", GROUP_A_MODELS)
+def test_group_a_generated_model_rejects_wrong_layout_id(
+    fixture_name: str, module_name: str, model_name: str
+) -> None:
+    module = importlib.import_module(f"generated.python.contracts.{module_name}")
+    model = getattr(module, model_name)
+    fixture_path = FIXTURES_DIR / "slide_spec" / "group_a" / f"{fixture_name}.minimal.json"
+    payload = json.loads(fixture_path.read_text(encoding="utf-8"))
+    payload["layoutId"] = "ARCHITECTURE_01"
+    with pytest.raises(ValidationError):
+        model.model_validate(payload)
+
+
+@pytest.mark.parametrize("fixture_name,module_name,model_name", GROUP_A_MODELS)
+def test_group_a_generated_model_rejects_unexpected_root_field(
+    fixture_name: str, module_name: str, model_name: str
+) -> None:
+    module = importlib.import_module(f"generated.python.contracts.{module_name}")
+    model = getattr(module, model_name)
+    fixture_path = FIXTURES_DIR / "slide_spec" / "group_a" / f"{fixture_name}.minimal.json"
+    payload = json.loads(fixture_path.read_text(encoding="utf-8"))
+    payload["color"] = "#00FF00"
+    with pytest.raises(ValidationError):
+        model.model_validate(payload)
 
 
 def test_regeneration_is_deterministic_enough_for_ci() -> None:
