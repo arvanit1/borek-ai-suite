@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "layouts": {
+    "COVER_01": { "category": "cover" },
+    "EXECUTIVE_SUMMARY_01": { "category": "summary" },
+    "CONTEXT_01": { "category": "context" },
+    "PROBLEM_SOLUTION_01": { "category": "problem_solution" },
+    "SCOPE_01": { "category": "scope" },
+    "REQUIREMENTS_MATRIX_01": { "category": "requirements" },
+    "PROCESS_FLOW_01": { "category": "process" },
+    "TIMELINE_01": { "category": "timeline" },
+    "MILESTONES_01": { "category": "milestones" },
+    "TEAM_FTE_01": { "category": "team" },
+    "ARCHITECTURE_01": { "category": "architecture" },
+    "COMPLIANCE_01": { "category": "compliance" },
+    "SUCCESS_METRICS_01": { "category": "metrics" },
+    "OPEN_QUESTIONS_01": { "category": "questions" },
+    "NEXT_STEPS_01": { "category": "closing" }
+  }
+}

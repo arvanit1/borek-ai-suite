@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "description": "Canonical chapter ids and titles for FrameworkObject (technical plan section 8).",
+  "chapters": [
+    { "chapter_id": "0", "title": "About this document" },
+    { "chapter_id": "1", "title": "Management summary" },
+    { "chapter_id": "2", "title": "Starting point: the process today" },
+    { "chapter_id": "3", "title": "Aim & success measurement" },
+    { "chapter_id": "4", "title": "The solution and the to-be process" },
+    { "chapter_id": "5", "title": "How it works in detail" },
+    { "chapter_id": "6", "title": "How it is built - systems, data flow, integration" },
+    { "chapter_id": "7", "title": "What we need from the client" },
+    { "chapter_id": "8", "title": "Security, data protection & human control" },
+    { "chapter_id": "9", "title": "Business case & ROI" },
+    { "chapter_id": "10", "title": "Complexity, effort & timeline" },
+    { "chapter_id": "11", "title": "Trustworthiness - quality gates" },
+    { "chapter_id": "12", "title": "Evolution stages" },
+    { "chapter_id": "13", "title": "Next steps & glossary" }
+  ]
+}

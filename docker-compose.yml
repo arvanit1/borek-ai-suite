@@ -1,0 +1,8 @@
+# Placeholder compose file - full stack wiring is AT-50.
+# Services: web, api, worker, renderer, redis
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"

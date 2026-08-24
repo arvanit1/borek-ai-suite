@@ -1,0 +1,42 @@
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+.next/
+out/
+dist/
+*.tsbuildinfo
+
+# Generated (AT-4 / AT-5 output — do not commit hand-edits)
+generated/python/
+generated/typescript/
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Temp extraction
+.tmp_extract/
+
+# Render / test artifacts
+*.pptx
+*.pdf
+tests/golden_deck/**/output/

@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "title": "Invoice 3-Way Match - Automation Proposal",
+  "slides": [
+    {
+      "order": 1,
+      "purpose": "cover",
+      "layoutId": "COVER_01",
+      "frameworkReferences": ["opportunity"]
+    },
+    {
+      "order": 2,
+      "purpose": "context",
+      "layoutId": "CONTEXT_01",
+      "frameworkReferences": ["chapter_1", "chapter_2"]
+    },
+    {
+      "order": 3,
+      "purpose": "scope",
+      "layoutId": "SCOPE_01",
+      "frameworkReferences": ["chapter_3", "chapter_5"]
+    },
+    {
+      "order": 4,
+      "purpose": "process_flow",
+      "layoutId": "PROCESS_FLOW_01",
+      "frameworkReferences": ["chapter_2", "chapter_4"]
+    },
+    {
+      "order": 5,
+      "purpose": "timeline",
+      "layoutId": "TIMELINE_01",
+      "frameworkReferences": ["chapter_10"]
+    }
+  ]
+}

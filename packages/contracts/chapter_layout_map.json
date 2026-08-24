@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "description": "Default chapter-to-layout guidance (technical plan section 13.2). Planner guidance only.",
+  "mappings": [
+    { "chapters": ["1"], "layoutIds": ["COVER_01", "EXECUTIVE_SUMMARY_01", "CONTEXT_01"] },
+    { "chapters": ["2", "4"], "layoutIds": ["PROBLEM_SOLUTION_01", "PROCESS_FLOW_01"] },
+    { "chapters": ["3", "5"], "layoutIds": ["SCOPE_01", "REQUIREMENTS_MATRIX_01"] },
+    { "chapters": ["6", "7"], "layoutIds": ["ARCHITECTURE_01"] },
+    { "chapters": ["8"], "layoutIds": ["COMPLIANCE_01"] },
+    { "chapters": ["10"], "layoutIds": ["TIMELINE_01", "MILESTONES_01", "TEAM_FTE_01"] },
+    { "chapters": ["3", "9"], "layoutIds": ["SUCCESS_METRICS_01"], "excludeMonetaryFields": true },
+    { "chapters": ["11"], "layoutIds": ["OPEN_QUESTIONS_01"] },
+    { "chapters": ["13"], "layoutIds": ["NEXT_STEPS_01"] }
+  ]
+}

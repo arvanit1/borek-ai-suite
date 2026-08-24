@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://borek.ai/schemas/slide_spec/base/v1.0",
+  "title": "SlideSpecBase",
+  "description": "AT-3: shared fields every layout-specific SlideSpec extends. Technical plan section 14.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "layoutId", "title", "sourceChapterIds"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Contract version for codegen and forward compatibility (section 32, AT-6)."
+    },
+    "slideId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable slide identifier within a presentation version (section 14 example, section 22 API)."
+    },
+    "layoutId": {
+      "$ref": "#/$defs/LayoutId"
+    },
+    "sectionLabel": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Small eyebrow label above the title, e.g. ARCHITECTURE (section 14)."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Primary slide heading."
+    },
+    "subtitle": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Secondary heading under the title when the layout supports it (section 14)."
+    },
+    "sourceChapterIds": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/ChapterId" },
+      "description": "Mandatory traceability to FrameworkObject chapters (section 14)."
+    }
+  },
+  "$defs": {
+    "LayoutId": {
+      "type": "string",
+      "enum": [
+        "COVER_01",
+        "EXECUTIVE_SUMMARY_01",
+        "CONTEXT_01",
+        "PROBLEM_SOLUTION_01",
+        "SCOPE_01",
+        "REQUIREMENTS_MATRIX_01",
+        "PROCESS_FLOW_01",
+        "TIMELINE_01",
+        "MILESTONES_01",
+        "TEAM_FTE_01",
+        "ARCHITECTURE_01",
+        "COMPLIANCE_01",
+        "SUCCESS_METRICS_01",
+        "OPEN_QUESTIONS_01",
+        "NEXT_STEPS_01"
+      ],
+      "description": "Must match a layout in layout_registry.json (section 13.1)."
+    },
+    "ChapterId": {
+      "type": "string",
+      "pattern": "^([0-9]|1[0-3])$",
+      "description": "FrameworkObject chapter_id (0-13). Used in sourceChapterIds (section 14)."
+    },
+    "SlideSpecBase": {
+      "$ref": "#"
+    }
+  }
+}

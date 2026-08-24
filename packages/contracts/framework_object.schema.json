@@ -1,0 +1,517 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://borek.ai/schemas/framework_object/v1.0",
+  "title": "FrameworkObject",
+  "description": "Canonical Stage A artifact: 14-chapter Customer Framework Report. Single source of truth for document and presentation generation. Technical plan section 7.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_version",
+    "opportunity_id",
+    "title",
+    "department",
+    "status",
+    "priority_rank",
+    "quality_scores",
+    "kpis",
+    "systems",
+    "rules",
+    "exceptions",
+    "access_needs",
+    "evolution_stages",
+    "open_items",
+    "chapters",
+    "version",
+    "generated_from",
+    "previous_version_id",
+    "change_log",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Contract version. Consumers must ignore unrecognized additive fields (AT-6)."
+    },
+    "opportunity_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "UUID or stable identifier of the parent opportunity."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Automation opportunity title, e.g. 'Invoice 3-Way Match'."
+    },
+    "department": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "in_review", "confirmed"],
+      "description": "Stage B is blocked unless status is confirmed (section 11)."
+    },
+    "priority_rank": {
+      "type": ["integer", "null"],
+      "minimum": 1
+    },
+    "quality_scores": {
+      "$ref": "#/$defs/QualityScores"
+    },
+    "kpis": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/KpiRecord" }
+    },
+    "systems": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/SystemRecord" }
+    },
+    "rules": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/RuleRecord" }
+    },
+    "exceptions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/ExceptionRecord" }
+    },
+    "access_needs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/AccessNeed" }
+    },
+    "evolution_stages": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/EvolutionStage" }
+    },
+    "open_items": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/OpenItem" }
+    },
+    "chapters": {
+      "type": "array",
+      "minItems": 14,
+      "maxItems": 14,
+      "description": "Exactly 14 chapters in fixed section-8 order; ids and titles must match chapter_registry.json.",
+      "prefixItems": [
+        { "$ref": "#/$defs/ChapterAtIndex0" },
+        { "$ref": "#/$defs/ChapterAtIndex1" },
+        { "$ref": "#/$defs/ChapterAtIndex2" },
+        { "$ref": "#/$defs/ChapterAtIndex3" },
+        { "$ref": "#/$defs/ChapterAtIndex4" },
+        { "$ref": "#/$defs/ChapterAtIndex5" },
+        { "$ref": "#/$defs/ChapterAtIndex6" },
+        { "$ref": "#/$defs/ChapterAtIndex7" },
+        { "$ref": "#/$defs/ChapterAtIndex8" },
+        { "$ref": "#/$defs/ChapterAtIndex9" },
+        { "$ref": "#/$defs/ChapterAtIndex10" },
+        { "$ref": "#/$defs/ChapterAtIndex11" },
+        { "$ref": "#/$defs/ChapterAtIndex12" },
+        { "$ref": "#/$defs/ChapterAtIndex13" }
+      ],
+      "items": false
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic version number; confirmed objects are immutable (section 21)."
+    },
+    "generated_from": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Transcript IDs used to produce this object."
+    },
+    "previous_version_id": {
+      "type": ["string", "null"],
+      "description": "Prior framework_versions row id when this is a new version."
+    },
+    "change_log": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "ConversationRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["conversation_id", "speaker_role", "excerpt_pointer"],
+      "properties": {
+        "conversation_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Transcript conversation id, e.g. C1, C2."
+        },
+        "speaker_role": {
+          "type": "string",
+          "minLength": 1,
+          "description": "e.g. dept_head, operator, it."
+        },
+        "excerpt_pointer": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Offset or anchor into stored transcript text."
+        }
+      }
+    },
+    "OpenItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["description", "item_type", "owner", "consequence_if_different"],
+      "properties": {
+        "description": { "type": "string", "minLength": 1 },
+        "item_type": {
+          "type": "string",
+          "enum": ["dependency", "assumption"]
+        },
+        "owner": { "type": "string", "minLength": 1 },
+        "consequence_if_different": { "type": "string", "minLength": 1 }
+      }
+    },
+    "KpiRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "baseline", "target", "measured_via"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "baseline": { "type": "string" },
+        "target": { "type": "string" },
+        "measured_via": { "type": "string", "minLength": 1 }
+      }
+    },
+    "SystemRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "role",
+        "direction",
+        "access_path",
+        "data_classification",
+        "status"
+      ],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "role": { "type": "string", "minLength": 1 },
+        "direction": {
+          "type": "string",
+          "enum": ["read", "write", "read_write", "internal"]
+        },
+        "access_path": { "type": "string" },
+        "data_classification": { "type": "string" },
+        "status": {
+          "type": "string",
+          "enum": ["available", "open_dependency"]
+        }
+      }
+    },
+    "RuleRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "logic"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "logic": { "type": "string", "minLength": 1 }
+      }
+    },
+    "ExceptionRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "frequency", "handling"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "frequency": { "type": "string" },
+        "handling": { "type": "string", "minLength": 1 }
+      }
+    },
+    "AccessNeed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["category", "detail", "status", "owner"],
+      "properties": {
+        "category": { "type": "string", "minLength": 1 },
+        "detail": { "type": "string" },
+        "status": { "type": "string" },
+        "owner": { "type": "string" }
+      }
+    },
+    "EvolutionStage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage_name",
+        "agent_does",
+        "human_does",
+        "benefit",
+        "extra_effort",
+        "recommended"
+      ],
+      "properties": {
+        "stage_name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Today, Stage 1, Stage 2, or Stage 3."
+        },
+        "agent_does": { "type": "string" },
+        "human_does": { "type": "string" },
+        "benefit": { "type": "string" },
+        "extra_effort": { "type": "string" },
+        "recommended": { "type": "boolean" }
+      }
+    },
+    "QualityScores": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "opportunity_rating",
+        "conversation_quality",
+        "build_readiness",
+        "rationale"
+      ],
+      "properties": {
+        "opportunity_rating": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "conversation_quality": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "build_readiness": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "rationale": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "required": [
+            "opportunity_rating",
+            "conversation_quality",
+            "build_readiness"
+          ],
+          "description": "One-line rationale per score (ES-11)."
+        }
+      }
+    },
+    "Chapter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["chapter_id", "title", "body", "source_refs"],
+      "properties": {
+        "chapter_id": {
+          "type": "string",
+          "pattern": "^(0|1[0-3]|[1-9])$",
+          "description": "Chapter index 0-13 per section 8."
+        },
+        "title": { "type": "string", "minLength": 1 },
+        "body": {
+          "description": "Narrative prose (string) or structured blocks (array) for tables/flows.",
+          "oneOf": [
+            { "type": "string" },
+            {
+              "type": "array",
+              "items": { "type": "object", "additionalProperties": true }
+            }
+          ]
+        },
+        "source_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ConversationRef" },
+          "description": "Traceability to transcript turns; required for factual claims (ES-28)."
+        }
+      }
+    },
+    "ChapterAtIndex0": {
+      "allOf": [
+        { "$ref": "#/$defs/Chapter" },
+        {
+          "type": "object",
+          "properties": {
+            "chapter_id": { "const": "0" },
+            "title": { "const": "About this document" }
+          },
+          "required": ["chapter_id", "title"]
+        }
+      ]
+    },
+    "ChapterAtIndex1": {
+      "allOf": [
+        { "$ref": "#/$defs/Chapter" },
+        {
+          "type": "object",
+          "properties": {
+            "chapter_id": { "const": "1" },
+            "title": { "const": "Management summary" }
+          },
+          "required": ["chapter_id", "title"]
+        }
+      ]
+    },
+    "ChapterAtIndex2": {
+      "allOf": [
+        { "$ref": "#/$defs/Chapter" },
+        {
+          "type": "object",
+          "properties": {
+            "chapter_id": { "const": "2" },
+            "title": { "const": "Starting point: the process today" }
+          },
+          "required": ["chapter_id", "title"]
+        }
+      ]
+    },
+    "ChapterAtIndex3": {
+      "allOf": [
+        { "$ref": "#/$defs/Chapter" },
+        {
+          "type": "object",
+          "properties": {
+            "chapter_id": { "const": "3" },
+            "title": { "const": "Aim & success measurement" }
+          },
+          "required": ["chapter_id", "title"]
+        }
+      ]
+    },
+    "ChapterAtIndex4": {
+      "allOf": [
+        { "$ref": "#/$defs/Chapter" },
+        {
+          "type": "object",
+          "properties": {
+            "chapter_id": { "const": "4" },
+            "title": { "const": "The solution and the to-be process" }
+          },
+          "required": ["chapter_id", "title"]
+        }
+      ]
+    },
+    "ChapterAtIndex5": {
+      "allOf": [
+        { "$ref": "#/$defs/Chapter" },
+        {
+          "type": "object",
+          "properties": {
+            "chapter_id": { "const": "5" },
+            "title": { "const": "How it works in detail" }
+          },
+          "required": ["chapter_id", "title"]
+        }
+      ]
+    },
+    "ChapterAtIndex6": {
+      "allOf": [
+        { "$ref": "#/$defs/Chapter" },
+        {
+          "type": "object",
+          "properties": {
+            "chapter_id": { "const": "6" },
+            "title": { "const": "How it is built - systems, data flow, integration" }
+          },
+          "required": ["chapter_id", "title"]
+        }
+      ]
+    },
+    "ChapterAtIndex7": {
+      "allOf": [
+        { "$ref": "#/$defs/Chapter" },
+        {
+          "type": "object",
+          "properties": {
+            "chapter_id": { "const": "7" },
+            "title": { "const": "What we need from the client" }
+          },
+          "required": ["chapter_id", "title"]
+        }
+      ]
+    },
+    "ChapterAtIndex8": {
+      "allOf": [
+        { "$ref": "#/$defs/Chapter" },
+        {
+          "type": "object",
+          "properties": {
+            "chapter_id": { "const": "8" },
+            "title": { "const": "Security, data protection & human control" }
+          },
+          "required": ["chapter_id", "title"]
+        }
+      ]
+    },
+    "ChapterAtIndex9": {
+      "allOf": [
+        { "$ref": "#/$defs/Chapter" },
+        {
+          "type": "object",
+          "properties": {
+            "chapter_id": { "const": "9" },
+            "title": { "const": "Business case & ROI" }
+          },
+          "required": ["chapter_id", "title"]
+        }
+      ]
+    },
+    "ChapterAtIndex10": {
+      "allOf": [
+        { "$ref": "#/$defs/Chapter" },
+        {
+          "type": "object",
+          "properties": {
+            "chapter_id": { "const": "10" },
+            "title": { "const": "Complexity, effort & timeline" }
+          },
+          "required": ["chapter_id", "title"]
+        }
+      ]
+    },
+    "ChapterAtIndex11": {
+      "allOf": [
+        { "$ref": "#/$defs/Chapter" },
+        {
+          "type": "object",
+          "properties": {
+            "chapter_id": { "const": "11" },
+            "title": { "const": "Trustworthiness - quality gates" }
+          },
+          "required": ["chapter_id", "title"]
+        }
+      ]
+    },
+    "ChapterAtIndex12": {
+      "allOf": [
+        { "$ref": "#/$defs/Chapter" },
+        {
+          "type": "object",
+          "properties": {
+            "chapter_id": { "const": "12" },
+            "title": { "const": "Evolution stages" }
+          },
+          "required": ["chapter_id", "title"]
+        }
+      ]
+    },
+    "ChapterAtIndex13": {
+      "allOf": [
+        { "$ref": "#/$defs/Chapter" },
+        {
+          "type": "object",
+          "properties": {
+            "chapter_id": { "const": "13" },
+            "title": { "const": "Next steps & glossary" }
+          },
+          "required": ["chapter_id", "title"]
+        }
+      ]
+    }
+  }
+}
