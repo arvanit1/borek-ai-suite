@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://borek.ai/schemas/slide_spec/group_a/requirements_matrix_01/v1.0",
+  "title": "RequirementsMatrix01SlideSpec",
+  "description": "BT-8: semantic requirements grid contract for the REQUIREMENTS_MATRIX_01 Borek layout.",
+  "type": "object",
+  "additionalProperties": false,
+  "allOf": [
+    { "$ref": "../base.schema.json#/$defs/SlideSpecBase" }
+  ],
+  "properties": {
+    "schema_version": { "$ref": "../base.schema.json#/properties/schema_version" },
+    "slideId": { "$ref": "../base.schema.json#/properties/slideId" },
+    "layoutId": { "const": "REQUIREMENTS_MATRIX_01" },
+    "sectionLabel": { "$ref": "../base.schema.json#/properties/sectionLabel" },
+    "title": { "$ref": "../base.schema.json#/properties/title" },
+    "subtitle": { "$ref": "../base.schema.json#/properties/subtitle" },
+    "sourceChapterIds": { "$ref": "../base.schema.json#/properties/sourceChapterIds" },
+    "requirements": {
+      "type": "array",
+      "description": "Requirement items; item-count limits are defined separately in BT-15.",
+      "items": { "$ref": "#/$defs/RequirementItem" }
+    }
+  },
+  "required": ["schema_version", "layoutId", "title", "sourceChapterIds", "requirements"],
+  "$defs": {
+    "RequirementItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["category", "title", "status"],
+      "properties": {
+        "category": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Customer-facing requirement category or category code."
+        },
+        "title": { "type": "string", "minLength": 1 },
+        "status": {
+          "type": "string",
+          "enum": ["included", "partial", "later"],
+          "description": "Semantic status mapped to Borek design tokens by the renderer; never an arbitrary color value."
+        }
+      }
+    }
+  }
+}

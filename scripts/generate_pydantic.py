@@ -16,6 +16,17 @@ SCHEMAS = [
     ("framework_object.schema.json", "framework_object.py"),
     ("presentation_plan.schema.json", "presentation_plan.py"),
     ("slide_spec/base.schema.json", "slide_spec_base.py"),
+    ("slide_spec/group_a/cover_01.schema.json", "slide_spec_group_a_cover_01.py"),
+    ("slide_spec/group_a/context_01.schema.json", "slide_spec_group_a_context_01.py"),
+    (
+        "slide_spec/group_a/problem_solution_01.schema.json",
+        "slide_spec_group_a_problem_solution_01.py",
+    ),
+    ("slide_spec/group_a/scope_01.schema.json", "slide_spec_group_a_scope_01.py"),
+    (
+        "slide_spec/group_a/requirements_matrix_01.schema.json",
+        "slide_spec_group_a_requirements_matrix_01.py",
+    ),
 ]
 
 
@@ -45,6 +56,7 @@ def main() -> int:
             "--use-union-operator",
             "--field-constraints",
             "--use-default",
+            "--allow-remote-refs",
             "--formatters",
             "builtin",
             "--disable-timestamp",

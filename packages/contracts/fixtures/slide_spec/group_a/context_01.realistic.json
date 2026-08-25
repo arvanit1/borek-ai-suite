@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "slideId": "slide_02",
+  "layoutId": "CONTEXT_01",
+  "sectionLabel": "CONTEXT",
+  "title": "Starting point and target state",
+  "subtitle": "Why the current process is ready for controlled automation",
+  "sourceChapterIds": ["1", "2"],
+  "problem": {
+    "title": "Problem",
+    "description": "High-volume manual matching creates month-end bottlenecks and avoidable errors."
+  },
+  "solution": {
+    "title": "Solution",
+    "description": "A deterministic 3-way match handles clean invoices and explains every exception."
+  },
+  "currentState": {
+    "title": "Current state",
+    "description": "AP staff compare invoice, purchase-order and goods-receipt data line by line."
+  },
+  "targetState": {
+    "title": "Target state",
+    "description": "Clean matches flow automatically while exceptions and approval cases remain human-controlled."
+  }
+}

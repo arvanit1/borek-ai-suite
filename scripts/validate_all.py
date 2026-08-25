@@ -19,8 +19,33 @@ def main() -> int:
     run([sys.executable, "-m", "pytest", "tests/unit", "-v"])
     run([sys.executable, "scripts/generate_pydantic.py"])
     run(["node", "scripts/generate_typescript.js"])
-    run([sys.executable, "-c", "import generated.python.contracts.framework_object as fo; import generated.python.contracts.presentation_plan as pp; import generated.python.contracts.slide_spec_base as ss; print('python codegen imports ok')"])
-    for ts_name in ("framework_object.ts", "presentation_plan.ts", "slide_spec_base.ts"):
+    run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import generated.python.contracts.framework_object; "
+                "import generated.python.contracts.presentation_plan; "
+                "import generated.python.contracts.slide_spec_base; "
+                "import generated.python.contracts.slide_spec_group_a_cover_01; "
+                "import generated.python.contracts.slide_spec_group_a_context_01; "
+                "import generated.python.contracts.slide_spec_group_a_problem_solution_01; "
+                "import generated.python.contracts.slide_spec_group_a_scope_01; "
+                "import generated.python.contracts.slide_spec_group_a_requirements_matrix_01; "
+                "print('python codegen imports ok')"
+            ),
+        ]
+    )
+    for ts_name in (
+        "framework_object.ts",
+        "presentation_plan.ts",
+        "slide_spec_base.ts",
+        "slide_spec_group_a_cover_01.ts",
+        "slide_spec_group_a_context_01.ts",
+        "slide_spec_group_a_problem_solution_01.ts",
+        "slide_spec_group_a_scope_01.ts",
+        "slide_spec_group_a_requirements_matrix_01.ts",
+    ):
         ts_path = ROOT / "generated" / "typescript" / "contracts" / ts_name
         if not ts_path.is_file():
             raise SystemExit(f"TypeScript codegen did not produce {ts_name}")

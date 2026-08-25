@@ -20,6 +20,31 @@ AT5_SCHEMA_OUTPUTS = [
     ("framework_object.schema.json", "framework_object.ts", "FrameworkObject"),
     ("presentation_plan.schema.json", "presentation_plan.ts", "PresentationPlan"),
     ("slide_spec/base.schema.json", "slide_spec_base.ts", "SlideSpecBase"),
+    (
+        "slide_spec/group_a/cover_01.schema.json",
+        "slide_spec_group_a_cover_01.ts",
+        "Cover01SlideSpec",
+    ),
+    (
+        "slide_spec/group_a/context_01.schema.json",
+        "slide_spec_group_a_context_01.ts",
+        "Context01SlideSpec",
+    ),
+    (
+        "slide_spec/group_a/problem_solution_01.schema.json",
+        "slide_spec_group_a_problem_solution_01.ts",
+        "ProblemSolution01SlideSpec",
+    ),
+    (
+        "slide_spec/group_a/scope_01.schema.json",
+        "slide_spec_group_a_scope_01.ts",
+        "Scope01SlideSpec",
+    ),
+    (
+        "slide_spec/group_a/requirements_matrix_01.schema.json",
+        "slide_spec_group_a_requirements_matrix_01.ts",
+        "RequirementsMatrix01SlideSpec",
+    ),
 ]
 
 
@@ -34,8 +59,8 @@ def run_typescript_codegen() -> None:
     subprocess.run(["node", "scripts/generate_typescript.js"], cwd=ROOT, check=True)
 
 
-def test_at5_generates_all_three_modules() -> None:
-    """Maps to AT-5 done-when: valid TypeScript types from AT-1, AT-2, AT-3."""
+def test_at5_generates_all_registered_modules() -> None:
+    """Every canonical schema registered for TypeScript codegen produces a module."""
     for _schema, output_name, _export_name in AT5_SCHEMA_OUTPUTS:
         assert (GENERATED_DIR / output_name).is_file(), f"missing generated module {output_name}"
     assert (GENERATED_DIR / "index.ts").is_file(), "missing generated barrel index.ts"
@@ -65,6 +90,18 @@ def test_at5_barrel_avoids_duplicate_layout_id_exports() -> None:
     assert 'export * from "./framework_object"' in index_source
     assert 'export type { ChapterId, SlideSpecBase } from "./slide_spec_base"' in index_source
     assert index_source.count("LayoutId") == 1
+    assert 'export type { Cover01SlideSpec } from "./slide_spec_group_a_cover_01"' in index_source
+    assert 'export type { Context01SlideSpec } from "./slide_spec_group_a_context_01"' in index_source
+    assert (
+        'export type { ProblemSolution01SlideSpec } from "./slide_spec_group_a_problem_solution_01"'
+        in index_source
+    )
+    assert 'export type { Scope01SlideSpec } from "./slide_spec_group_a_scope_01"' in index_source
+    assert (
+        'export type { RequirementsMatrix01SlideSpec } '
+        'from "./slide_spec_group_a_requirements_matrix_01"'
+        in index_source
+    )
 
 
 def test_at5_fixture_typecheck_passes() -> None:

@@ -14,6 +14,17 @@ const SCHEMAS = [
   ["framework_object.schema.json", "framework_object.ts"],
   ["presentation_plan.schema.json", "presentation_plan.ts"],
   ["slide_spec/base.schema.json", "slide_spec_base.ts"],
+  ["slide_spec/group_a/cover_01.schema.json", "slide_spec_group_a_cover_01.ts"],
+  ["slide_spec/group_a/context_01.schema.json", "slide_spec_group_a_context_01.ts"],
+  [
+    "slide_spec/group_a/problem_solution_01.schema.json",
+    "slide_spec_group_a_problem_solution_01.ts",
+  ],
+  ["slide_spec/group_a/scope_01.schema.json", "slide_spec_group_a_scope_01.ts"],
+  [
+    "slide_spec/group_a/requirements_matrix_01.schema.json",
+    "slide_spec_group_a_requirements_matrix_01.ts",
+  ],
 ];
 
 function loadChapterRegistry() {
@@ -77,6 +88,11 @@ export type {
   PlannedSlide,
 } from "./presentation_plan";
 export type { ChapterId, SlideSpecBase } from "./slide_spec_base";
+export type { Cover01SlideSpec } from "./slide_spec_group_a_cover_01";
+export type { Context01SlideSpec } from "./slide_spec_group_a_context_01";
+export type { ProblemSolution01SlideSpec } from "./slide_spec_group_a_problem_solution_01";
+export type { Scope01SlideSpec } from "./slide_spec_group_a_scope_01";
+export type { RequirementsMatrix01SlideSpec } from "./slide_spec_group_a_requirements_matrix_01";
 `;
   fs.writeFileSync(path.join(OUT_DIR, "index.ts"), `${indexContent}\n`, "utf8");
 }
@@ -88,11 +104,14 @@ function main() {
   for (const [schemaName, outputName] of SCHEMAS) {
     const schemaPath = path.join(CONTRACTS, schemaName);
     const outputPath = path.join(OUT_DIR, outputName);
-    execSync(`npx --yes json-schema-to-typescript -i "${schemaPath}" -o "${outputPath}"`, {
-      stdio: "inherit",
-      cwd: ROOT,
-      shell: true,
-    });
+    execSync(
+      `npx --yes json-schema-to-typescript --cwd="${path.dirname(schemaPath)}" -i "${schemaPath}" -o "${outputPath}"`,
+      {
+        stdio: "inherit",
+        cwd: ROOT,
+        shell: true,
+      },
+    );
 
     if (outputName === "framework_object.ts") {
       const generated = fs.readFileSync(outputPath, "utf8");

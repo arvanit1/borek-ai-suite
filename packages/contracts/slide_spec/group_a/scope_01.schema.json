@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://borek.ai/schemas/slide_spec/group_a/scope_01/v1.0",
+  "title": "Scope01SlideSpec",
+  "description": "BT-7: independent included/later content lists for the SCOPE_01 Borek layout.",
+  "type": "object",
+  "additionalProperties": false,
+  "allOf": [
+    { "$ref": "../base.schema.json#/$defs/SlideSpecBase" }
+  ],
+  "properties": {
+    "schema_version": { "$ref": "../base.schema.json#/properties/schema_version" },
+    "slideId": { "$ref": "../base.schema.json#/properties/slideId" },
+    "layoutId": { "const": "SCOPE_01" },
+    "sectionLabel": { "$ref": "../base.schema.json#/properties/sectionLabel" },
+    "title": { "$ref": "../base.schema.json#/properties/title" },
+    "subtitle": { "$ref": "../base.schema.json#/properties/subtitle" },
+    "sourceChapterIds": { "$ref": "../base.schema.json#/properties/sourceChapterIds" },
+    "included": {
+      "type": "array",
+      "description": "Items included in the current scope.",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "later": {
+      "type": "array",
+      "description": "Items intentionally deferred to a later stage.",
+      "items": { "type": "string", "minLength": 1 }
+    }
+  },
+  "required": ["schema_version", "layoutId", "title", "sourceChapterIds", "included", "later"]
+}
