@@ -6,10 +6,17 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test:at9": "tsx validation/libreoffice_pipeline.test.ts"
+    "test:at9": "tsx validation/libreoffice_pipeline.test.ts",
+    "test:at10": "tsx validation/render_checks.test.ts",
+    "test:at11": "tsx design_system/tokens/colors.test.ts",
+    "test:at12": "tsx design_system/tokens/typography.test.ts"
+  },
+  "dependencies": {
+    "pngjs": "^7.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",
+    "@types/pngjs": "^6.0.5",
     "tsx": "^4.19.3",
     "typescript": "^5.8.0"
   }
