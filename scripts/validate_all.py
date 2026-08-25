@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Client delivery gate: schema tickets (AT-1..AT-12) and codegen checks must pass."""
+"""Client delivery gate: schema tickets (AT-1..AT-22) and codegen checks must pass."""
 
 from __future__ import annotations
 
@@ -72,6 +72,19 @@ def main() -> int:
     run(["npm", "run", "test:at10", "--workspace", "borek-renderer"], shell=True)
     run(["npm", "run", "test:at11", "--workspace", "borek-renderer"], shell=True)
     run(["npm", "run", "test:at12", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:at13", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:grid", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:borders", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:branding", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:at14", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:at15", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:at16", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:at17", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:at18", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:at19", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:at20", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:at21", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:at22", "--workspace", "borek-renderer"], shell=True)
     print("typescript codegen ok")
     print("renderer contract types ok")
     print("ALL CHECKS PASSED")

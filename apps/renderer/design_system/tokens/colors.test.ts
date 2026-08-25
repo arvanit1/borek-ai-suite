@@ -14,6 +14,7 @@ const TECHNICAL_PLAN_V2_COLORS: Record<BorekColorToken, string> = {
   mutedText: "667085",
   border: "E4E7EC",
   primary: "0057B8",
+  coverBackground: "182230",
 };
 
 const HEX_WITHOUT_HASH = /^[0-9A-Fa-f]{6}$/;
