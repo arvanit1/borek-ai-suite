@@ -13,6 +13,8 @@ export const BorekColors = {
   mutedText: "667085",
   border: "E4E7EC",
   primary: "0057B8",
+  /** Dark navy cover slide field — same hex as text for now; calibrate at AT-55 golden deck. */
+  coverBackground: "182230",
 } as const;
 
 export type BorekColorToken = keyof typeof BorekColors;

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Client delivery gate: schema tickets (AT-1..AT-12) and codegen checks must pass."""
+"""Client delivery gate: schema tickets (AT-1..AT-22) and codegen checks must pass."""
 
 from __future__ import annotations
 
@@ -32,6 +32,15 @@ def main() -> int:
                 "import generated.python.contracts.slide_spec_group_a_problem_solution_01; "
                 "import generated.python.contracts.slide_spec_group_a_scope_01; "
                 "import generated.python.contracts.slide_spec_group_a_requirements_matrix_01; "
+                "import generated.python.contracts.slide_spec_group_b_process_flow_01; "
+                "import generated.python.contracts.slide_spec_group_b_timeline_01; "
+                "import generated.python.contracts.slide_spec_group_b_milestones_01; "
+                "import generated.python.contracts.slide_spec_group_b_team_fte_01; "
+                "import generated.python.contracts.slide_spec_group_c_architecture_01; "
+                "import generated.python.contracts.slide_spec_group_c_compliance_01; "
+                "import generated.python.contracts.slide_spec_group_c_success_metrics_01; "
+                "import generated.python.contracts.slide_spec_group_c_open_questions_01; "
+                "import generated.python.contracts.slide_spec_group_c_next_steps_01; "
                 "print('python codegen imports ok')"
             ),
         ]
@@ -45,6 +54,15 @@ def main() -> int:
         "slide_spec_group_a_problem_solution_01.ts",
         "slide_spec_group_a_scope_01.ts",
         "slide_spec_group_a_requirements_matrix_01.ts",
+        "slide_spec_group_b_process_flow_01.ts",
+        "slide_spec_group_b_timeline_01.ts",
+        "slide_spec_group_b_milestones_01.ts",
+        "slide_spec_group_b_team_fte_01.ts",
+        "slide_spec_group_c_architecture_01.ts",
+        "slide_spec_group_c_compliance_01.ts",
+        "slide_spec_group_c_success_metrics_01.ts",
+        "slide_spec_group_c_open_questions_01.ts",
+        "slide_spec_group_c_next_steps_01.ts",
     ):
         ts_path = ROOT / "generated" / "typescript" / "contracts" / ts_name
         if not ts_path.is_file():
@@ -54,6 +72,19 @@ def main() -> int:
     run(["npm", "run", "test:at10", "--workspace", "borek-renderer"], shell=True)
     run(["npm", "run", "test:at11", "--workspace", "borek-renderer"], shell=True)
     run(["npm", "run", "test:at12", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:at13", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:grid", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:borders", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:branding", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:at14", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:at15", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:at16", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:at17", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:at18", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:at19", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:at20", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:at21", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:at22", "--workspace", "borek-renderer"], shell=True)
     print("typescript codegen ok")
     print("renderer contract types ok")
     print("ALL CHECKS PASSED")
