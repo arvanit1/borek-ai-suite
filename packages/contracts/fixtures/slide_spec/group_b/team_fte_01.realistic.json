@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "slideId": "slide_12",
+  "layoutId": "TEAM_FTE_01",
+  "sectionLabel": "TEAM",
+  "title": "Who is needed and for how long",
+  "subtitle": "Client and delivery roles for the first release",
+  "sourceChapterIds": ["10"],
+  "roles": [
+    {
+      "role": "Process owner",
+      "fte": "0.3",
+      "responsibility": "Approve matching rules and exception decisions"
+    },
+    {
+      "role": "AP operator",
+      "fte": "0.5",
+      "responsibility": "Work the exception queue during pilot"
+    },
+    {
+      "role": "ERP specialist",
+      "fte": "0.4",
+      "responsibility": "Confirm posting path and test data"
+    },
+    {
+      "role": "Delivery lead",
+      "fte": "0.6",
+      "responsibility": "Coordinate build, pilot and handover"
+    }
+  ],
+  "summary": [
+    { "label": "Total FTE", "value": "1.8" },
+    { "label": "Milestones", "value": "4" },
+    { "label": "Duration", "value": "14 weeks" }
+  ]
+}

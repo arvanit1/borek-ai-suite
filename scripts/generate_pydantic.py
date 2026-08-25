@@ -27,6 +27,10 @@ SCHEMAS = [
         "slide_spec/group_a/requirements_matrix_01.schema.json",
         "slide_spec_group_a_requirements_matrix_01.py",
     ),
+    ("slide_spec/group_b/process_flow_01.schema.json", "slide_spec_group_b_process_flow_01.py"),
+    ("slide_spec/group_b/timeline_01.schema.json", "slide_spec_group_b_timeline_01.py"),
+    ("slide_spec/group_b/milestones_01.schema.json", "slide_spec_group_b_milestones_01.py"),
+    ("slide_spec/group_b/team_fte_01.schema.json", "slide_spec_group_b_team_fte_01.py"),
 ]
 
 

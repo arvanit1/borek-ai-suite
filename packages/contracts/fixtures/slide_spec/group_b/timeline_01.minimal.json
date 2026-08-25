@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "layoutId": "TIMELINE_01",
+  "title": "Delivery timeline",
+  "sourceChapterIds": ["10"],
+  "phases": [
+    { "id": "p1", "name": "Discover", "description": "Confirm scope and access" }
+  ],
+  "milestones": [
+    { "id": "m1", "name": "Access confirmed", "phaseId": "p1" }
+  ]
+}

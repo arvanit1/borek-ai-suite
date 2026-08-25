@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "slideId": "slide_11",
+  "layoutId": "MILESTONES_01",
+  "sectionLabel": "MILESTONES",
+  "title": "Delivery checkpoints",
+  "subtitle": "Standalone list when the dual-band timeline is not used",
+  "sourceChapterIds": ["10"],
+  "milestones": [
+    {
+      "name": "ERP access confirmed",
+      "description": "Read-only purchase-order and goods-receipt data available",
+      "date": "Week 2"
+    },
+    {
+      "name": "Matching rules signed off",
+      "description": "Standard-case rules and exception reasons approved",
+      "date": "Week 6"
+    },
+    {
+      "name": "Pilot go-live",
+      "description": "Live sample invoices run with human review on exceptions",
+      "date": "Week 10"
+    },
+    {
+      "name": "Operations handover",
+      "description": "Runbook, quality gates and named owners accepted",
+      "date": "Week 14"
+    }
+  ]
+}

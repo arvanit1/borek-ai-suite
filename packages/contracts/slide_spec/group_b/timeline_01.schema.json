@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://borek.ai/schemas/slide_spec/group_b/timeline_01/v1.0",
+  "title": "Timeline01SlideSpec",
+  "description": "JJ-2: dual-band roadmap contract — phases and milestones as two related, synchronizable lists.",
+  "type": "object",
+  "additionalProperties": false,
+  "allOf": [
+    { "$ref": "../base.schema.json#/$defs/SlideSpecBase" }
+  ],
+  "properties": {
+    "schema_version": { "$ref": "../base.schema.json#/properties/schema_version" },
+    "slideId": { "$ref": "../base.schema.json#/properties/slideId" },
+    "layoutId": { "const": "TIMELINE_01" },
+    "sectionLabel": { "$ref": "../base.schema.json#/properties/sectionLabel" },
+    "title": { "$ref": "../base.schema.json#/properties/title" },
+    "subtitle": { "$ref": "../base.schema.json#/properties/subtitle" },
+    "sourceChapterIds": { "$ref": "../base.schema.json#/properties/sourceChapterIds" },
+    "phases": {
+      "type": "array",
+      "description": "Upper-band timeline phases; item-count limits are defined separately in JJ-10.",
+      "items": { "$ref": "#/$defs/TimelinePhase" }
+    },
+    "milestones": {
+      "type": "array",
+      "description": "Lower-band milestones synchronized to phases via phaseId.",
+      "items": { "$ref": "#/$defs/TimelineMilestone" }
+    }
+  },
+  "required": ["schema_version", "layoutId", "title", "sourceChapterIds", "phases", "milestones"],
+  "$defs": {
+    "TimelinePhase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "description"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable phase id referenced by milestones[].phaseId."
+        },
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 }
+      }
+    },
+    "TimelineMilestone": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "phaseId"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "phaseId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Must match a phases[].id so the two bands stay aligned."
+        },
+        "date": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Optional relative or calendar label, e.g. Week 2 or 2026-09."
+        },
+        "description": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

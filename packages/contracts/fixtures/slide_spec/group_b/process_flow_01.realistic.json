@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "slideId": "slide_04",
+  "layoutId": "PROCESS_FLOW_01",
+  "sectionLabel": "PROCESS",
+  "title": "From mailbox to posting",
+  "subtitle": "Confirmed standard case with human-controlled exceptions",
+  "sourceChapterIds": ["2", "4"],
+  "phases": [
+    {
+      "number": 1,
+      "name": "Receive invoice",
+      "description": "Shared mailbox is read-only source of incoming invoices"
+    },
+    {
+      "number": 2,
+      "name": "Extract fields",
+      "description": "Capture supplier, amounts, PO and line items with confidence"
+    },
+    {
+      "number": 3,
+      "name": "Match records",
+      "description": "Compare invoice, purchase-order and goods-receipt data"
+    },
+    {
+      "number": 4,
+      "name": "Route exceptions",
+      "description": "Unmatched or low-confidence cases go to a reasoned queue"
+    },
+    {
+      "number": 5,
+      "name": "Post clean matches",
+      "description": "Confirmed matches post in ERP; humans keep approval control"
+    }
+  ]
+}
