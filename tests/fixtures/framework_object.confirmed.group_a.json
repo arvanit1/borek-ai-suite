@@ -1,0 +1,162 @@
+{
+  "schema_version": "1.0",
+  "opportunity_id": "00000000-0000-4000-8000-000000000009",
+  "title": "Invoice 3-Way Match Automation",
+  "department": "Finance",
+  "status": "confirmed",
+  "priority_rank": 1,
+  "quality_scores": {
+    "opportunity_rating": 82,
+    "conversation_quality": 78,
+    "build_readiness": 74,
+    "rationale": {
+      "opportunity_rating": "High-volume repeatable process.",
+      "conversation_quality": "The current process and exceptions are documented.",
+      "build_readiness": "Read-only system access still needs confirmation."
+    }
+  },
+  "kpis": [
+    {
+      "name": "Automation rate",
+      "baseline": "0%",
+      "target": "80%",
+      "measured_via": "Monthly operations report"
+    }
+  ],
+  "systems": [],
+  "rules": [
+    { "name": "Three-way match", "logic": "Invoice, purchase order, and receipt must agree." }
+  ],
+  "exceptions": [],
+  "access_needs": [],
+  "evolution_stages": [],
+  "open_items": [],
+  "chapters": [
+    {
+      "chapter_id": "0",
+      "title": "About this document",
+      "body": "Confirmed automation framework generated from reviewed conversations.",
+      "source_refs": []
+    },
+    {
+      "chapter_id": "1",
+      "title": "Management summary",
+      "body": [
+        { "summary": "Automate the confirmed standard Invoice 3-Way Match case while exceptions remain human-controlled." },
+        { "automationRate": "80%" },
+        { "targetAutoMatchRate": "85%" },
+        { "buildReadiness": "94/100" },
+        { "deliveryDuration": "12 weeks" },
+        { "teamSize": "4 people" },
+        { "investment": "EUR 80,000" },
+        { "payback": "10 months" },
+        { "roi": "25%" },
+        { "commercialSummary": "Expected operating cost savings are EUR 120,000 per year." }
+      ],
+      "source_refs": [
+        { "conversation_id": "C1", "speaker_role": "dept_head", "excerpt_pointer": "turn-12" }
+      ]
+    },
+    {
+      "chapter_id": "2",
+      "title": "Starting point: the process today",
+      "body": [
+        { "problem": "Analysts manually compare invoices, purchase orders, and goods receipts." },
+        { "currentState": "Exceptions are identified late and routed through email." }
+      ],
+      "source_refs": [
+        { "conversation_id": "C1", "speaker_role": "operator", "excerpt_pointer": "turn-20" }
+      ]
+    },
+    {
+      "chapter_id": "3",
+      "title": "Aim & success measurement",
+      "body": [
+        { "included": "Measure automatic handling rate and exception cycle time." },
+        { "later": "Add supplier-response measurement after the initial stage." }
+      ],
+      "source_refs": [
+        { "conversation_id": "C1", "speaker_role": "dept_head", "excerpt_pointer": "turn-26" }
+      ]
+    },
+    {
+      "chapter_id": "4",
+      "title": "The solution and the to-be process",
+      "body": [
+        { "solution": "Read invoice and ERP data, apply confirmed matching rules, and queue exceptions for human review." },
+        { "targetState": "Standard matches are prepared automatically; people decide exception cases." }
+      ],
+      "source_refs": [
+        { "conversation_id": "C1", "speaker_role": "it", "excerpt_pointer": "turn-34" }
+      ]
+    },
+    {
+      "chapter_id": "5",
+      "title": "How it works in detail",
+      "body": [
+        { "category": "Match", "requirement": "Compare invoice, purchase order, and goods receipt.", "status": "included" },
+        { "category": "Duplicate", "requirement": "Flag duplicate invoice numbers for review.", "status": "included" },
+        { "category": "Approval", "requirement": "Route tolerance exceptions to a human approver.", "status": "partial" },
+        { "category": "Supplier", "requirement": "Supplier communication remains for a later stage.", "status": "later" },
+        { "category": "Threshold", "requirement": "Invoices above EUR 10,000 require human approval.", "status": "partial", "amount": "EUR 10,000" }
+      ],
+      "source_refs": [
+        { "conversation_id": "C1", "speaker_role": "operator", "excerpt_pointer": "turn-40" }
+      ]
+    },
+    {
+      "chapter_id": "6",
+      "title": "How it is built - systems, data flow, integration",
+      "body": [],
+      "source_refs": []
+    },
+    {
+      "chapter_id": "7",
+      "title": "What we need from the client",
+      "body": [],
+      "source_refs": []
+    },
+    {
+      "chapter_id": "8",
+      "title": "Security, data protection & human control",
+      "body": "Exceptions and guardrail breaches remain under human control.",
+      "source_refs": []
+    },
+    {
+      "chapter_id": "9",
+      "title": "Business case & ROI",
+      "body": [],
+      "source_refs": []
+    },
+    {
+      "chapter_id": "10",
+      "title": "Complexity, effort & timeline",
+      "body": [],
+      "source_refs": []
+    },
+    {
+      "chapter_id": "11",
+      "title": "Trustworthiness - quality gates",
+      "body": [],
+      "source_refs": []
+    },
+    {
+      "chapter_id": "12",
+      "title": "Evolution stages",
+      "body": [],
+      "source_refs": []
+    },
+    {
+      "chapter_id": "13",
+      "title": "Next steps & glossary",
+      "body": [],
+      "source_refs": []
+    }
+  ],
+  "version": 1,
+  "generated_from": ["transcript-group-a-001"],
+  "previous_version_id": null,
+  "change_log": ["Confirmed for Group A content-generation tests"],
+  "created_at": "2026-08-25T10:00:00Z",
+  "updated_at": "2026-08-25T11:00:00Z"
+}
