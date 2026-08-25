@@ -45,6 +45,31 @@ AT5_SCHEMA_OUTPUTS = [
         "slide_spec_group_a_requirements_matrix_01.ts",
         "RequirementsMatrix01SlideSpec",
     ),
+    (
+        "slide_spec/group_c/architecture_01.schema.json",
+        "slide_spec_group_c_architecture_01.ts",
+        "Architecture01SlideSpec",
+    ),
+    (
+        "slide_spec/group_c/compliance_01.schema.json",
+        "slide_spec_group_c_compliance_01.ts",
+        "Compliance01SlideSpec",
+    ),
+    (
+        "slide_spec/group_c/success_metrics_01.schema.json",
+        "slide_spec_group_c_success_metrics_01.ts",
+        "SuccessMetrics01SlideSpec",
+    ),
+    (
+        "slide_spec/group_c/open_questions_01.schema.json",
+        "slide_spec_group_c_open_questions_01.ts",
+        "OpenQuestions01SlideSpec",
+    ),
+    (
+        "slide_spec/group_c/next_steps_01.schema.json",
+        "slide_spec_group_c_next_steps_01.ts",
+        "NextSteps01SlideSpec",
+    ),
 ]
 
 
@@ -100,6 +125,28 @@ def test_at5_barrel_avoids_duplicate_layout_id_exports() -> None:
     assert (
         'export type { RequirementsMatrix01SlideSpec } '
         'from "./slide_spec_group_a_requirements_matrix_01"'
+        in index_source
+    )
+    assert (
+        'export type { Architecture01SlideSpec } from "./slide_spec_group_c_architecture_01"'
+        in index_source
+    )
+    assert (
+        'export type { Compliance01SlideSpec } from "./slide_spec_group_c_compliance_01"'
+        in index_source
+    )
+    assert (
+        'export type { SuccessMetrics01SlideSpec } '
+        'from "./slide_spec_group_c_success_metrics_01"'
+        in index_source
+    )
+    assert (
+        'export type { OpenQuestions01SlideSpec } '
+        'from "./slide_spec_group_c_open_questions_01"'
+        in index_source
+    )
+    assert (
+        'export type { NextSteps01SlideSpec } from "./slide_spec_group_c_next_steps_01"'
         in index_source
     )
 

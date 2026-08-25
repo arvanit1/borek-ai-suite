@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://borek.ai/schemas/slide_spec/group_c/compliance_01/v1.0",
+  "title": "Compliance01SlideSpec",
+  "description": "MS-2: content contract for the COMPLIANCE_01 Borek layout.",
+  "type": "object",
+  "additionalProperties": false,
+  "allOf": [
+    { "$ref": "../base.schema.json#/$defs/SlideSpecBase" }
+  ],
+  "properties": {
+    "schema_version": { "$ref": "../base.schema.json#/properties/schema_version" },
+    "slideId": { "$ref": "../base.schema.json#/properties/slideId" },
+    "layoutId": { "const": "COMPLIANCE_01" },
+    "sectionLabel": { "$ref": "../base.schema.json#/properties/sectionLabel" },
+    "title": { "$ref": "../base.schema.json#/properties/title" },
+    "subtitle": { "$ref": "../base.schema.json#/properties/subtitle" },
+    "sourceChapterIds": { "$ref": "../base.schema.json#/properties/sourceChapterIds" },
+    "items": {
+      "type": "array",
+      "description": "Compliance cards; item-count limits are defined separately in MS-12.",
+      "items": { "$ref": "#/$defs/ComplianceItem" }
+    },
+    "darkBackground": {
+      "type": "boolean",
+      "description": "When true the renderer uses MASTER_CLOSING."
+    }
+  },
+  "required": [
+    "schema_version",
+    "layoutId",
+    "title",
+    "sourceChapterIds",
+    "items",
+    "darkBackground"
+  ],
+  "$defs": {
+    "ComplianceItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["icon", "text"],
+      "properties": {
+        "icon": { "type": "string", "minLength": 1 },
+        "text": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

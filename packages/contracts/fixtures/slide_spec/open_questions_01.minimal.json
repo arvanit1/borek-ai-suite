@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "slideId": "slide_11",
+  "layoutId": "OPEN_QUESTIONS_01",
+  "sectionLabel": "OPEN QUESTIONS",
+  "title": "What Still Needs Confirmation",
+  "sourceChapterIds": ["11"],
+  "left": {
+    "heading": "Open questions",
+    "items": [
+      "Which ERP fields are the source of truth for PO and goods receipt?"
+    ]
+  },
+  "right": {
+    "heading": "Assumptions",
+    "items": [
+      "Mailbox access stays read-only during the first rollout"
+    ]
+  }
+}

@@ -27,6 +27,17 @@ SCHEMAS = [
         "slide_spec/group_a/requirements_matrix_01.schema.json",
         "slide_spec_group_a_requirements_matrix_01.py",
     ),
+    ("slide_spec/group_c/architecture_01.schema.json", "slide_spec_group_c_architecture_01.py"),
+    ("slide_spec/group_c/compliance_01.schema.json", "slide_spec_group_c_compliance_01.py"),
+    (
+        "slide_spec/group_c/success_metrics_01.schema.json",
+        "slide_spec_group_c_success_metrics_01.py",
+    ),
+    (
+        "slide_spec/group_c/open_questions_01.schema.json",
+        "slide_spec_group_c_open_questions_01.py",
+    ),
+    ("slide_spec/group_c/next_steps_01.schema.json", "slide_spec_group_c_next_steps_01.py"),
 ]
 
 

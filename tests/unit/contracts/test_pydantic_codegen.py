@@ -45,6 +45,31 @@ AT4_SCHEMA_OUTPUTS = [
         "slide_spec_group_a_requirements_matrix_01.py",
         "RequirementsMatrix01SlideSpec",
     ),
+    (
+        "slide_spec/group_c/architecture_01.schema.json",
+        "slide_spec_group_c_architecture_01.py",
+        "Architecture01SlideSpec",
+    ),
+    (
+        "slide_spec/group_c/compliance_01.schema.json",
+        "slide_spec_group_c_compliance_01.py",
+        "Compliance01SlideSpec",
+    ),
+    (
+        "slide_spec/group_c/success_metrics_01.schema.json",
+        "slide_spec_group_c_success_metrics_01.py",
+        "SuccessMetrics01SlideSpec",
+    ),
+    (
+        "slide_spec/group_c/open_questions_01.schema.json",
+        "slide_spec_group_c_open_questions_01.py",
+        "OpenQuestions01SlideSpec",
+    ),
+    (
+        "slide_spec/group_c/next_steps_01.schema.json",
+        "slide_spec_group_c_next_steps_01.py",
+        "NextSteps01SlideSpec",
+    ),
 ]
 
 GROUP_A_MODELS = [
@@ -61,6 +86,22 @@ GROUP_A_MODELS = [
         "slide_spec_group_a_requirements_matrix_01",
         "RequirementsMatrix01SlideSpec",
     ),
+]
+
+GROUP_C_MODELS = [
+    ("architecture_01", "slide_spec_group_c_architecture_01", "Architecture01SlideSpec"),
+    ("compliance_01", "slide_spec_group_c_compliance_01", "Compliance01SlideSpec"),
+    (
+        "success_metrics_01",
+        "slide_spec_group_c_success_metrics_01",
+        "SuccessMetrics01SlideSpec",
+    ),
+    (
+        "open_questions_01",
+        "slide_spec_group_c_open_questions_01",
+        "OpenQuestions01SlideSpec",
+    ),
+    ("next_steps_01", "slide_spec_group_c_next_steps_01", "NextSteps01SlideSpec"),
 ]
 
 
@@ -176,6 +217,18 @@ def test_group_a_fixture_validates_with_generated_pydantic_model(
     module = importlib.import_module(f"generated.python.contracts.{module_name}")
     model = getattr(module, model_name)
     fixture_path = FIXTURES_DIR / "slide_spec" / "group_a" / f"{fixture_name}.{variant}.json"
+    payload = json.loads(fixture_path.read_text(encoding="utf-8"))
+    generated = model.model_validate(payload)
+    assert generated.layoutId == payload["layoutId"]
+
+
+@pytest.mark.parametrize("fixture_name,module_name,model_name", GROUP_C_MODELS)
+def test_group_c_fixture_validates_with_generated_pydantic_model(
+    fixture_name: str, module_name: str, model_name: str
+) -> None:
+    module = importlib.import_module(f"generated.python.contracts.{module_name}")
+    model = getattr(module, model_name)
+    fixture_path = FIXTURES_DIR / "slide_spec" / f"{fixture_name}.minimal.json"
     payload = json.loads(fixture_path.read_text(encoding="utf-8"))
     generated = model.model_validate(payload)
     assert generated.layoutId == payload["layoutId"]

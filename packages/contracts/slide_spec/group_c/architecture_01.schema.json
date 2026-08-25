@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://borek.ai/schemas/slide_spec/group_c/architecture_01/v1.0",
+  "title": "Architecture01SlideSpec",
+  "description": "MS-1: content contract for the ARCHITECTURE_01 Borek layout.",
+  "type": "object",
+  "additionalProperties": false,
+  "allOf": [
+    { "$ref": "../base.schema.json#/$defs/SlideSpecBase" }
+  ],
+  "properties": {
+    "schema_version": { "$ref": "../base.schema.json#/properties/schema_version" },
+    "slideId": { "$ref": "../base.schema.json#/properties/slideId" },
+    "layoutId": { "const": "ARCHITECTURE_01" },
+    "sectionLabel": { "$ref": "../base.schema.json#/properties/sectionLabel" },
+    "title": { "$ref": "../base.schema.json#/properties/title" },
+    "subtitle": { "$ref": "../base.schema.json#/properties/subtitle" },
+    "sourceChapterIds": { "$ref": "../base.schema.json#/properties/sourceChapterIds" },
+    "components": {
+      "type": "array",
+      "description": "Architecture nodes; item-count limits are defined separately in MS-12 / MS-13.",
+      "items": { "$ref": "#/$defs/ArchitectureComponent" }
+    }
+  },
+  "required": ["schema_version", "layoutId", "title", "sourceChapterIds", "components"],
+  "$defs": {
+    "ArchitectureComponent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["number", "title", "description"],
+      "properties": {
+        "number": { "type": "integer" },
+        "title": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}
