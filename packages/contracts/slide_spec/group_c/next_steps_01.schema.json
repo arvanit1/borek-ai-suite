@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://borek.ai/schemas/slide_spec/group_c/next_steps_01/v1.0",
+  "title": "NextSteps01SlideSpec",
+  "description": "MS-5: content contract for the NEXT_STEPS_01 Borek layout.",
+  "type": "object",
+  "additionalProperties": false,
+  "allOf": [
+    { "$ref": "../base.schema.json#/$defs/SlideSpecBase" }
+  ],
+  "properties": {
+    "schema_version": { "$ref": "../base.schema.json#/properties/schema_version" },
+    "slideId": { "$ref": "../base.schema.json#/properties/slideId" },
+    "layoutId": { "const": "NEXT_STEPS_01" },
+    "sectionLabel": { "$ref": "../base.schema.json#/properties/sectionLabel" },
+    "title": { "$ref": "../base.schema.json#/properties/title" },
+    "subtitle": { "$ref": "../base.schema.json#/properties/subtitle" },
+    "sourceChapterIds": { "$ref": "../base.schema.json#/properties/sourceChapterIds" },
+    "checklist": {
+      "type": "array",
+      "description": "Closing checklist items; item-count limits are defined separately in MS-12.",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "steps": {
+      "type": "array",
+      "description": "Numbered next steps; item-count limits are defined separately in MS-12.",
+      "items": { "$ref": "#/$defs/NextStep" }
+    },
+    "darkBackground": {
+      "type": "boolean",
+      "description": "When true the renderer uses MASTER_CLOSING."
+    }
+  },
+  "required": [
+    "schema_version",
+    "layoutId",
+    "title",
+    "sourceChapterIds",
+    "checklist",
+    "steps",
+    "darkBackground"
+  ],
+  "$defs": {
+    "NextStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["number", "text"],
+      "properties": {
+        "number": { "type": "integer" },
+        "text": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

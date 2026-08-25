@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://borek.ai/schemas/slide_spec/group_b/milestones_01/v1.0",
+  "title": "Milestones01SlideSpec",
+  "description": "JJ-3: standalone milestone list for the MILESTONES_01 Borek layout, usable independently of TIMELINE_01.",
+  "type": "object",
+  "additionalProperties": false,
+  "allOf": [
+    { "$ref": "../base.schema.json#/$defs/SlideSpecBase" }
+  ],
+  "properties": {
+    "schema_version": { "$ref": "../base.schema.json#/properties/schema_version" },
+    "slideId": { "$ref": "../base.schema.json#/properties/slideId" },
+    "layoutId": { "const": "MILESTONES_01" },
+    "sectionLabel": { "$ref": "../base.schema.json#/properties/sectionLabel" },
+    "title": { "$ref": "../base.schema.json#/properties/title" },
+    "subtitle": { "$ref": "../base.schema.json#/properties/subtitle" },
+    "sourceChapterIds": { "$ref": "../base.schema.json#/properties/sourceChapterIds" },
+    "milestones": {
+      "type": "array",
+      "description": "Standalone milestone items; item-count limits are defined separately in JJ-10.",
+      "items": { "$ref": "#/$defs/MilestoneItem" }
+    }
+  },
+  "required": ["schema_version", "layoutId", "title", "sourceChapterIds", "milestones"],
+  "$defs": {
+    "MilestoneItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "description"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "date": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Optional relative or calendar label. No phaseId — this layout is independent of TIMELINE_01."
+        }
+      }
+    }
+  }
+}

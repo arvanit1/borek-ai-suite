@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "slideId": "slide_08",
+  "layoutId": "COMPLIANCE_01",
+  "sectionLabel": "COMPLIANCE",
+  "title": "Security, Data Protection & Human Control",
+  "sourceChapterIds": ["8"],
+  "items": [
+    {
+      "icon": "lock",
+      "text": "Mailbox access is read-only"
+    },
+    {
+      "icon": "shield",
+      "text": "Exceptions stay in a human approval queue"
+    }
+  ],
+  "darkBackground": true
+}

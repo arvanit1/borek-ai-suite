@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "slideId": "slide_13",
+  "layoutId": "NEXT_STEPS_01",
+  "sectionLabel": "NEXT STEPS",
+  "title": "What Happens Next",
+  "sourceChapterIds": ["13"],
+  "checklist": [
+    "Confirm mailbox access path",
+    "Provide ERP field map"
+  ],
+  "steps": [
+    {
+      "number": 1,
+      "text": "Workshop exception rules"
+    },
+    {
+      "number": 2,
+      "text": "Connect mailbox and ERP in a test environment"
+    }
+  ],
+  "darkBackground": true
+}

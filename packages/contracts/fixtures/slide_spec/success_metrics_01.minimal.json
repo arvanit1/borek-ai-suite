@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "slideId": "slide_09",
+  "layoutId": "SUCCESS_METRICS_01",
+  "sectionLabel": "SUCCESS METRICS",
+  "title": "How We Measure Success",
+  "sourceChapterIds": ["3", "9"],
+  "criteria": [
+    {
+      "title": "Auto-match rate",
+      "description": "Invoices matched without a manual check"
+    },
+    {
+      "title": "Exception control",
+      "description": "Unmatched invoices stay visible in a human queue"
+    }
+  ]
+}
