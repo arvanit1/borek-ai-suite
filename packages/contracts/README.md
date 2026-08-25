@@ -29,6 +29,7 @@ Must pass before marking schema tickets complete:
 - AT-7 constraint validator tests (`tests/unit/validation/test_constraint_validator.py`)
 - AT-8 compression/retry tests (`tests/unit/validation/test_compression_retry.py`)
 - AT-9 LibreOffice preview pipeline tests (`tests/unit/renderer/test_libreoffice_pipeline.py`)
+- AT-10 render checks tests (`tests/unit/renderer/test_render_checks.py`)
 - AT-4 Pydantic codegen tests (`test_pydantic_codegen.py`)
 - AT-5 TypeScript codegen tests (`test_typescript_codegen.py`)
 - AT-6 schema consumer tests (`test_schema_consumer.py`)

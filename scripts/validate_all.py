@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Client delivery gate: schema tickets (AT-1..AT-9) and codegen checks must pass."""
+"""Client delivery gate: schema tickets (AT-1..AT-12) and codegen checks must pass."""
 
 from __future__ import annotations
 
@@ -51,6 +51,9 @@ def main() -> int:
             raise SystemExit(f"TypeScript codegen did not produce {ts_name}")
     run(["npm", "run", "typecheck", "--workspace", "borek-renderer"], shell=True)
     run(["npm", "run", "test:at9", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:at10", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:at11", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:at12", "--workspace", "borek-renderer"], shell=True)
     print("typescript codegen ok")
     print("renderer contract types ok")
     print("ALL CHECKS PASSED")
