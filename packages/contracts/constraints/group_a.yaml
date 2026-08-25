@@ -1,0 +1,138 @@
+{
+  "schema_version": "1.0",
+  "ticket": "BT-15",
+  "limit_classification": "CALIBRATED",
+  "calibration_basis": {
+    "COVER_01": "Reference slide 1 uses a two-line cover title, two subtitle lines, and 3 stat badges.",
+    "CONTEXT_01": "Reference slide 2 uses 4 cards with descriptions of 108-113 characters.",
+    "PROBLEM_SOLUTION_01": "Calibrated from the wider paired-card pattern and the CONTEXT_01 copy density.",
+    "SCOPE_01": "Reference slide 3 uses 7 included items and 5 later items; the longest item is 47 characters.",
+    "REQUIREMENTS_MATRIX_01": "Reference slide 4 uses 6 requirement cards, one-character categories, titles up to 26 characters, and status copy up to 33 characters."
+  },
+  "layouts": {
+    "COVER_01": {
+      "properties": {
+        "sectionLabel": { "type": "string", "max_length": 40 },
+        "title": { "required": true, "type": "string", "max_length": 60 },
+        "subtitle": { "required": true, "type": "string", "max_length": 100 },
+        "statBadges": {
+          "required": true,
+          "type": "array",
+          "min_items": 1,
+          "max_items": 3,
+          "items": {
+            "type": "object",
+            "properties": {
+              "value": { "required": true, "type": "string", "max_length": 16 },
+              "label": { "required": true, "type": "string", "max_length": 32 }
+            }
+          }
+        }
+      }
+    },
+    "CONTEXT_01": {
+      "properties": {
+        "sectionLabel": { "type": "string", "max_length": 32 },
+        "title": { "required": true, "type": "string", "max_length": 72 },
+        "subtitle": { "type": "string", "max_length": 100 },
+        "problem": {
+          "required": true,
+          "type": "object",
+          "properties": {
+            "title": { "required": true, "type": "string", "max_length": 32 },
+            "description": { "required": true, "type": "string", "max_length": 160 }
+          }
+        },
+        "solution": {
+          "required": true,
+          "type": "object",
+          "properties": {
+            "title": { "required": true, "type": "string", "max_length": 32 },
+            "description": { "required": true, "type": "string", "max_length": 160 }
+          }
+        },
+        "currentState": {
+          "required": true,
+          "type": "object",
+          "properties": {
+            "title": { "required": true, "type": "string", "max_length": 32 },
+            "description": { "required": true, "type": "string", "max_length": 160 }
+          }
+        },
+        "targetState": {
+          "required": true,
+          "type": "object",
+          "properties": {
+            "title": { "required": true, "type": "string", "max_length": 32 },
+            "description": { "required": true, "type": "string", "max_length": 160 }
+          }
+        }
+      }
+    },
+    "PROBLEM_SOLUTION_01": {
+      "properties": {
+        "sectionLabel": { "type": "string", "max_length": 32 },
+        "title": { "required": true, "type": "string", "max_length": 72 },
+        "subtitle": { "type": "string", "max_length": 100 },
+        "problem": {
+          "required": true,
+          "type": "object",
+          "properties": {
+            "title": { "required": true, "type": "string", "max_length": 48 },
+            "description": { "required": true, "type": "string", "max_length": 220 }
+          }
+        },
+        "solution": {
+          "required": true,
+          "type": "object",
+          "properties": {
+            "title": { "required": true, "type": "string", "max_length": 48 },
+            "description": { "required": true, "type": "string", "max_length": 220 }
+          }
+        }
+      }
+    },
+    "SCOPE_01": {
+      "properties": {
+        "sectionLabel": { "type": "string", "max_length": 32 },
+        "title": { "required": true, "type": "string", "max_length": 72 },
+        "subtitle": { "type": "string", "max_length": 100 },
+        "included": {
+          "required": true,
+          "type": "array",
+          "min_items": 1,
+          "max_items": 7,
+          "items": { "type": "string", "max_length": 72 }
+        },
+        "later": {
+          "required": true,
+          "type": "array",
+          "min_items": 1,
+          "max_items": 5,
+          "items": { "type": "string", "max_length": 72 }
+        }
+      }
+    },
+    "REQUIREMENTS_MATRIX_01": {
+      "properties": {
+        "sectionLabel": { "type": "string", "max_length": 32 },
+        "title": { "required": true, "type": "string", "max_length": 72 },
+        "subtitle": { "type": "string", "max_length": 100 },
+        "requirements": {
+          "required": true,
+          "type": "array",
+          "min_items": 1,
+          "max_items": 6,
+          "items": {
+            "type": "object",
+            "properties": {
+              "category": { "required": true, "type": "string", "max_length": 12 },
+              "title": { "required": true, "type": "string", "max_length": 48 },
+              "status": { "required": true, "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}
