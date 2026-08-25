@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "slideId": "slide_10",
+  "layoutId": "TIMELINE_01",
+  "sectionLabel": "TIMELINE",
+  "title": "Implementation roadmap",
+  "subtitle": "Phases and checkpoints stay aligned on one dual-band slide",
+  "sourceChapterIds": ["10"],
+  "phases": [
+    { "id": "p1", "name": "Discover", "description": "Confirm scope, systems and access paths" },
+    { "id": "p2", "name": "Build", "description": "Matching rules, exception queue and ERP write path" },
+    { "id": "p3", "name": "Pilot", "description": "Controlled run on a live invoice sample" },
+    { "id": "p4", "name": "Handover", "description": "Operations take ownership with quality gates" }
+  ],
+  "milestones": [
+    { "id": "m1", "name": "Access confirmed", "phaseId": "p1", "date": "Week 2" },
+    { "id": "m2", "name": "Rules signed off", "phaseId": "p2", "date": "Week 6" },
+    { "id": "m3", "name": "Pilot go-live", "phaseId": "p3", "date": "Week 10" },
+    { "id": "m4", "name": "Runbook accepted", "phaseId": "p4", "date": "Week 14" }
+  ]
+}

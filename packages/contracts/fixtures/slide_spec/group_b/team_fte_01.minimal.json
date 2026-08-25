@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "layoutId": "TEAM_FTE_01",
+  "title": "Team composition",
+  "sourceChapterIds": ["10"],
+  "roles": [
+    { "role": "Process owner", "fte": "0.3", "responsibility": "Exception decisions" }
+  ],
+  "summary": [
+    { "label": "Total FTE", "value": "0.3" }
+  ]
+}

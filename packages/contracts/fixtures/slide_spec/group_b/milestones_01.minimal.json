@@ -1,0 +1,9 @@
+{
+  "schema_version": "1.0",
+  "layoutId": "MILESTONES_01",
+  "title": "Key milestones",
+  "sourceChapterIds": ["10"],
+  "milestones": [
+    { "name": "ERP access confirmed", "description": "Read-only PO and goods-receipt data" }
+  ]
+}

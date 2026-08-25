@@ -1,0 +1,9 @@
+{
+  "schema_version": "1.0",
+  "layoutId": "PROCESS_FLOW_01",
+  "title": "To-be process",
+  "sourceChapterIds": ["2", "4"],
+  "phases": [
+    { "number": 1, "name": "Receive invoice", "description": "Mailbox intake, read-only" }
+  ]
+}
