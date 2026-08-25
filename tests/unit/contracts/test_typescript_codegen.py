@@ -46,7 +46,26 @@ AT5_SCHEMA_OUTPUTS = [
         "RequirementsMatrix01SlideSpec",
     ),
     (
-<<<<<<< HEAD
+        "slide_spec/group_b/process_flow_01.schema.json",
+        "slide_spec_group_b_process_flow_01.ts",
+        "ProcessFlow01SlideSpec",
+    ),
+    (
+        "slide_spec/group_b/timeline_01.schema.json",
+        "slide_spec_group_b_timeline_01.ts",
+        "Timeline01SlideSpec",
+    ),
+    (
+        "slide_spec/group_b/milestones_01.schema.json",
+        "slide_spec_group_b_milestones_01.ts",
+        "Milestones01SlideSpec",
+    ),
+    (
+        "slide_spec/group_b/team_fte_01.schema.json",
+        "slide_spec_group_b_team_fte_01.ts",
+        "TeamFte01SlideSpec",
+    ),
+    (
         "slide_spec/group_c/architecture_01.schema.json",
         "slide_spec_group_c_architecture_01.ts",
         "Architecture01SlideSpec",
@@ -70,26 +89,6 @@ AT5_SCHEMA_OUTPUTS = [
         "slide_spec/group_c/next_steps_01.schema.json",
         "slide_spec_group_c_next_steps_01.ts",
         "NextSteps01SlideSpec",
-=======
-        "slide_spec/group_b/process_flow_01.schema.json",
-        "slide_spec_group_b_process_flow_01.ts",
-        "ProcessFlow01SlideSpec",
-    ),
-    (
-        "slide_spec/group_b/timeline_01.schema.json",
-        "slide_spec_group_b_timeline_01.ts",
-        "Timeline01SlideSpec",
-    ),
-    (
-        "slide_spec/group_b/milestones_01.schema.json",
-        "slide_spec_group_b_milestones_01.ts",
-        "Milestones01SlideSpec",
-    ),
-    (
-        "slide_spec/group_b/team_fte_01.schema.json",
-        "slide_spec_group_b_team_fte_01.ts",
-        "TeamFte01SlideSpec",
->>>>>>> origin/main
     ),
 ]
 
@@ -152,7 +151,12 @@ def test_at5_barrel_avoids_duplicate_layout_id_exports() -> None:
         'export type { ProcessFlow01SlideSpec } from "./slide_spec_group_b_process_flow_01"'
         in index_source
     )
-<<<<<<< HEAD
+    assert 'export type { Timeline01SlideSpec } from "./slide_spec_group_b_timeline_01"' in index_source
+    assert (
+        'export type { Milestones01SlideSpec } from "./slide_spec_group_b_milestones_01"'
+        in index_source
+    )
+    assert 'export type { TeamFte01SlideSpec } from "./slide_spec_group_b_team_fte_01"' in index_source
     assert (
         'export type { Architecture01SlideSpec } from "./slide_spec_group_c_architecture_01"'
         in index_source
@@ -175,14 +179,6 @@ def test_at5_barrel_avoids_duplicate_layout_id_exports() -> None:
         'export type { NextSteps01SlideSpec } from "./slide_spec_group_c_next_steps_01"'
         in index_source
     )
-=======
-    assert 'export type { Timeline01SlideSpec } from "./slide_spec_group_b_timeline_01"' in index_source
-    assert (
-        'export type { Milestones01SlideSpec } from "./slide_spec_group_b_milestones_01"'
-        in index_source
-    )
-    assert 'export type { TeamFte01SlideSpec } from "./slide_spec_group_b_team_fte_01"' in index_source
->>>>>>> origin/main
 
 
 def test_at5_fixture_typecheck_passes() -> None:

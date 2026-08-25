@@ -32,18 +32,15 @@ def main() -> int:
                 "import generated.python.contracts.slide_spec_group_a_problem_solution_01; "
                 "import generated.python.contracts.slide_spec_group_a_scope_01; "
                 "import generated.python.contracts.slide_spec_group_a_requirements_matrix_01; "
-<<<<<<< HEAD
+                "import generated.python.contracts.slide_spec_group_b_process_flow_01; "
+                "import generated.python.contracts.slide_spec_group_b_timeline_01; "
+                "import generated.python.contracts.slide_spec_group_b_milestones_01; "
+                "import generated.python.contracts.slide_spec_group_b_team_fte_01; "
                 "import generated.python.contracts.slide_spec_group_c_architecture_01; "
                 "import generated.python.contracts.slide_spec_group_c_compliance_01; "
                 "import generated.python.contracts.slide_spec_group_c_success_metrics_01; "
                 "import generated.python.contracts.slide_spec_group_c_open_questions_01; "
                 "import generated.python.contracts.slide_spec_group_c_next_steps_01; "
-=======
-                "import generated.python.contracts.slide_spec_group_b_process_flow_01; "
-                "import generated.python.contracts.slide_spec_group_b_timeline_01; "
-                "import generated.python.contracts.slide_spec_group_b_milestones_01; "
-                "import generated.python.contracts.slide_spec_group_b_team_fte_01; "
->>>>>>> origin/main
                 "print('python codegen imports ok')"
             ),
         ]
@@ -57,18 +54,15 @@ def main() -> int:
         "slide_spec_group_a_problem_solution_01.ts",
         "slide_spec_group_a_scope_01.ts",
         "slide_spec_group_a_requirements_matrix_01.ts",
-<<<<<<< HEAD
+        "slide_spec_group_b_process_flow_01.ts",
+        "slide_spec_group_b_timeline_01.ts",
+        "slide_spec_group_b_milestones_01.ts",
+        "slide_spec_group_b_team_fte_01.ts",
         "slide_spec_group_c_architecture_01.ts",
         "slide_spec_group_c_compliance_01.ts",
         "slide_spec_group_c_success_metrics_01.ts",
         "slide_spec_group_c_open_questions_01.ts",
         "slide_spec_group_c_next_steps_01.ts",
-=======
-        "slide_spec_group_b_process_flow_01.ts",
-        "slide_spec_group_b_timeline_01.ts",
-        "slide_spec_group_b_milestones_01.ts",
-        "slide_spec_group_b_team_fte_01.ts",
->>>>>>> origin/main
     ):
         ts_path = ROOT / "generated" / "typescript" / "contracts" / ts_name
         if not ts_path.is_file():
