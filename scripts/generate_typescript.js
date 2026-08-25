@@ -25,6 +25,7 @@ const SCHEMAS = [
     "slide_spec/group_a/requirements_matrix_01.schema.json",
     "slide_spec_group_a_requirements_matrix_01.ts",
   ],
+<<<<<<< HEAD
   ["slide_spec/group_c/architecture_01.schema.json", "slide_spec_group_c_architecture_01.ts"],
   ["slide_spec/group_c/compliance_01.schema.json", "slide_spec_group_c_compliance_01.ts"],
   [
@@ -36,6 +37,12 @@ const SCHEMAS = [
     "slide_spec_group_c_open_questions_01.ts",
   ],
   ["slide_spec/group_c/next_steps_01.schema.json", "slide_spec_group_c_next_steps_01.ts"],
+=======
+  ["slide_spec/group_b/process_flow_01.schema.json", "slide_spec_group_b_process_flow_01.ts"],
+  ["slide_spec/group_b/timeline_01.schema.json", "slide_spec_group_b_timeline_01.ts"],
+  ["slide_spec/group_b/milestones_01.schema.json", "slide_spec_group_b_milestones_01.ts"],
+  ["slide_spec/group_b/team_fte_01.schema.json", "slide_spec_group_b_team_fte_01.ts"],
+>>>>>>> origin/main
 ];
 
 function loadChapterRegistry() {
@@ -104,11 +111,18 @@ export type { Context01SlideSpec } from "./slide_spec_group_a_context_01";
 export type { ProblemSolution01SlideSpec } from "./slide_spec_group_a_problem_solution_01";
 export type { Scope01SlideSpec } from "./slide_spec_group_a_scope_01";
 export type { RequirementsMatrix01SlideSpec } from "./slide_spec_group_a_requirements_matrix_01";
+<<<<<<< HEAD
 export type { Architecture01SlideSpec } from "./slide_spec_group_c_architecture_01";
 export type { Compliance01SlideSpec } from "./slide_spec_group_c_compliance_01";
 export type { SuccessMetrics01SlideSpec } from "./slide_spec_group_c_success_metrics_01";
 export type { OpenQuestions01SlideSpec } from "./slide_spec_group_c_open_questions_01";
 export type { NextSteps01SlideSpec } from "./slide_spec_group_c_next_steps_01";
+=======
+export type { ProcessFlow01SlideSpec } from "./slide_spec_group_b_process_flow_01";
+export type { Timeline01SlideSpec } from "./slide_spec_group_b_timeline_01";
+export type { Milestones01SlideSpec } from "./slide_spec_group_b_milestones_01";
+export type { TeamFte01SlideSpec } from "./slide_spec_group_b_team_fte_01";
+>>>>>>> origin/main
 `;
   fs.writeFileSync(path.join(OUT_DIR, "index.ts"), `${indexContent}\n`, "utf8");
 }

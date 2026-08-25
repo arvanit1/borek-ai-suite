@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://borek.ai/schemas/slide_spec/group_b/team_fte_01/v1.0",
+  "title": "TeamFte01SlideSpec",
+  "description": "JJ-4: role cards plus a summary stat row for the TEAM_FTE_01 Borek layout.",
+  "type": "object",
+  "additionalProperties": false,
+  "allOf": [
+    { "$ref": "../base.schema.json#/$defs/SlideSpecBase" }
+  ],
+  "properties": {
+    "schema_version": { "$ref": "../base.schema.json#/properties/schema_version" },
+    "slideId": { "$ref": "../base.schema.json#/properties/slideId" },
+    "layoutId": { "const": "TEAM_FTE_01" },
+    "sectionLabel": { "$ref": "../base.schema.json#/properties/sectionLabel" },
+    "title": { "$ref": "../base.schema.json#/properties/title" },
+    "subtitle": { "$ref": "../base.schema.json#/properties/subtitle" },
+    "sourceChapterIds": { "$ref": "../base.schema.json#/properties/sourceChapterIds" },
+    "roles": {
+      "type": "array",
+      "description": "Role cards; item-count limits are defined separately in JJ-10.",
+      "items": { "$ref": "#/$defs/RoleCard" }
+    },
+    "summary": {
+      "type": "array",
+      "description": "Summary stat row (total FTE, milestone count, and similar).",
+      "items": { "$ref": "#/$defs/SummaryStat" }
+    }
+  },
+  "required": ["schema_version", "layoutId", "title", "sourceChapterIds", "roles", "summary"],
+  "$defs": {
+    "RoleCard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "fte", "responsibility"],
+      "properties": {
+        "role": { "type": "string", "minLength": 1 },
+        "fte": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Effort as a display string, e.g. 0.3 or 1–2."
+        },
+        "responsibility": { "type": "string", "minLength": 1 }
+      }
+    },
+    "SummaryStat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "value"],
+      "properties": {
+        "label": { "type": "string", "minLength": 1 },
+        "value": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

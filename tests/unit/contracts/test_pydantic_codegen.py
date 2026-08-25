@@ -46,6 +46,7 @@ AT4_SCHEMA_OUTPUTS = [
         "RequirementsMatrix01SlideSpec",
     ),
     (
+<<<<<<< HEAD
         "slide_spec/group_c/architecture_01.schema.json",
         "slide_spec_group_c_architecture_01.py",
         "Architecture01SlideSpec",
@@ -69,6 +70,26 @@ AT4_SCHEMA_OUTPUTS = [
         "slide_spec/group_c/next_steps_01.schema.json",
         "slide_spec_group_c_next_steps_01.py",
         "NextSteps01SlideSpec",
+=======
+        "slide_spec/group_b/process_flow_01.schema.json",
+        "slide_spec_group_b_process_flow_01.py",
+        "ProcessFlow01SlideSpec",
+    ),
+    (
+        "slide_spec/group_b/timeline_01.schema.json",
+        "slide_spec_group_b_timeline_01.py",
+        "Timeline01SlideSpec",
+    ),
+    (
+        "slide_spec/group_b/milestones_01.schema.json",
+        "slide_spec_group_b_milestones_01.py",
+        "Milestones01SlideSpec",
+    ),
+    (
+        "slide_spec/group_b/team_fte_01.schema.json",
+        "slide_spec_group_b_team_fte_01.py",
+        "TeamFte01SlideSpec",
+>>>>>>> origin/main
     ),
 ]
 
@@ -88,6 +109,7 @@ GROUP_A_MODELS = [
     ),
 ]
 
+<<<<<<< HEAD
 GROUP_C_MODELS = [
     ("architecture_01", "slide_spec_group_c_architecture_01", "Architecture01SlideSpec"),
     ("compliance_01", "slide_spec_group_c_compliance_01", "Compliance01SlideSpec"),
@@ -102,6 +124,13 @@ GROUP_C_MODELS = [
         "OpenQuestions01SlideSpec",
     ),
     ("next_steps_01", "slide_spec_group_c_next_steps_01", "NextSteps01SlideSpec"),
+=======
+GROUP_B_MODELS = [
+    ("process_flow_01", "slide_spec_group_b_process_flow_01", "ProcessFlow01SlideSpec"),
+    ("timeline_01", "slide_spec_group_b_timeline_01", "Timeline01SlideSpec"),
+    ("milestones_01", "slide_spec_group_b_milestones_01", "Milestones01SlideSpec"),
+    ("team_fte_01", "slide_spec_group_b_team_fte_01", "TeamFte01SlideSpec"),
+>>>>>>> origin/main
 ]
 
 
@@ -222,6 +251,7 @@ def test_group_a_fixture_validates_with_generated_pydantic_model(
     assert generated.layoutId == payload["layoutId"]
 
 
+<<<<<<< HEAD
 @pytest.mark.parametrize("fixture_name,module_name,model_name", GROUP_C_MODELS)
 def test_group_c_fixture_validates_with_generated_pydantic_model(
     fixture_name: str, module_name: str, model_name: str
@@ -229,6 +259,16 @@ def test_group_c_fixture_validates_with_generated_pydantic_model(
     module = importlib.import_module(f"generated.python.contracts.{module_name}")
     model = getattr(module, model_name)
     fixture_path = FIXTURES_DIR / "slide_spec" / f"{fixture_name}.minimal.json"
+=======
+@pytest.mark.parametrize("fixture_name,module_name,model_name", GROUP_B_MODELS)
+@pytest.mark.parametrize("variant", ["minimal", "realistic"])
+def test_group_b_fixture_validates_with_generated_pydantic_model(
+    fixture_name: str, module_name: str, model_name: str, variant: str
+) -> None:
+    module = importlib.import_module(f"generated.python.contracts.{module_name}")
+    model = getattr(module, model_name)
+    fixture_path = FIXTURES_DIR / "slide_spec" / "group_b" / f"{fixture_name}.{variant}.json"
+>>>>>>> origin/main
     payload = json.loads(fixture_path.read_text(encoding="utf-8"))
     generated = model.model_validate(payload)
     assert generated.layoutId == payload["layoutId"]
@@ -254,6 +294,32 @@ def test_group_a_generated_model_rejects_unexpected_root_field(
     module = importlib.import_module(f"generated.python.contracts.{module_name}")
     model = getattr(module, model_name)
     fixture_path = FIXTURES_DIR / "slide_spec" / "group_a" / f"{fixture_name}.minimal.json"
+    payload = json.loads(fixture_path.read_text(encoding="utf-8"))
+    payload["color"] = "#00FF00"
+    with pytest.raises(ValidationError):
+        model.model_validate(payload)
+
+
+@pytest.mark.parametrize("fixture_name,module_name,model_name", GROUP_B_MODELS)
+def test_group_b_generated_model_rejects_wrong_layout_id(
+    fixture_name: str, module_name: str, model_name: str
+) -> None:
+    module = importlib.import_module(f"generated.python.contracts.{module_name}")
+    model = getattr(module, model_name)
+    fixture_path = FIXTURES_DIR / "slide_spec" / "group_b" / f"{fixture_name}.minimal.json"
+    payload = json.loads(fixture_path.read_text(encoding="utf-8"))
+    payload["layoutId"] = "ARCHITECTURE_01"
+    with pytest.raises(ValidationError):
+        model.model_validate(payload)
+
+
+@pytest.mark.parametrize("fixture_name,module_name,model_name", GROUP_B_MODELS)
+def test_group_b_generated_model_rejects_unexpected_root_field(
+    fixture_name: str, module_name: str, model_name: str
+) -> None:
+    module = importlib.import_module(f"generated.python.contracts.{module_name}")
+    model = getattr(module, model_name)
+    fixture_path = FIXTURES_DIR / "slide_spec" / "group_b" / f"{fixture_name}.minimal.json"
     payload = json.loads(fixture_path.read_text(encoding="utf-8"))
     payload["color"] = "#00FF00"
     with pytest.raises(ValidationError):
