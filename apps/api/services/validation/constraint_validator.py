@@ -181,6 +181,8 @@ def _validate_field(
                 item_type = item_rules.get("type")
                 if item_type is not None:
                     _validate_type(item, item_type, path=item_path, violations=violations)
+                if item_type == "string" and isinstance(item, str):
+                    _validate_string_length(item, item_rules, path=item_path, violations=violations)
                 item_properties = item_rules.get("properties")
                 if isinstance(item_properties, dict) and isinstance(item, dict):
                     for nested_name, nested_rules in item_properties.items():
