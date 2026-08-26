@@ -1,0 +1,13 @@
+{
+  "working_days_mo": 21,
+  "automation_rate_default": 0.85,
+  "loaded_hourly_cost_eur": 45,
+  "run_cost_model": "archetype_volume_lookup",
+  "sensitivity": {
+    "low_rate": 0.70,
+    "high_rate": 0.92
+  },
+  "roi_horizon_months": 36,
+  "gross_round_to_eur": 100,
+  "payback_decimals": 1
+}

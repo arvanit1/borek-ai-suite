@@ -1,0 +1,26 @@
+{
+  "hours_mo": 40,
+  "automatable_hours_mo": 25,
+  "monthly_volume": 200,
+  "step_count": 4,
+  "system_count": 1,
+  "rule_count": 0,
+  "hard_integration_count": 0,
+  "data_readiness": "partial",
+  "reuse": [],
+  "builder_count": 1,
+  "write_available": true,
+  "has_sample": false,
+  "result_quality": 70,
+  "information_richness": 60,
+  "engagement": 55,
+  "strategic_fit_level": 2,
+  "feasibility_level": 2,
+  "risk_inverted_level": 2,
+  "automation_rate": 0.7,
+  "loaded_hourly_cost_eur": 45,
+  "qualitative": [
+    "Less manual matching on clean invoices",
+    "Team stays in control of every posting"
+  ]
+}

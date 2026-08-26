@@ -1,0 +1,27 @@
+{
+  "hours_mo": 306,
+  "automatable_hours_mo": 73,
+  "monthly_volume": 3000,
+  "step_count": 5,
+  "system_count": 2,
+  "rule_count": 6,
+  "hard_integration_count": 0,
+  "data_readiness": "ready",
+  "reuse": ["library_component"],
+  "builder_count": 1,
+  "write_available": false,
+  "has_sample": true,
+  "result_quality": 90,
+  "information_richness": 85,
+  "engagement": 65,
+  "strategic_fit_level": 3,
+  "feasibility_level": 2,
+  "risk_inverted_level": 2,
+  "automation_rate": 0.85,
+  "loaded_hourly_cost_eur": 45,
+  "qualitative": [
+    "Fewer wrong and duplicate payments",
+    "Month-end relief exactly at peak",
+    "Capacity moves to clarification cases that need judgement"
+  ]
+}

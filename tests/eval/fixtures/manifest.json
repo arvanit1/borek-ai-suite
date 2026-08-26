@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "ticket": "ES-33",
+  "description": "Hand-verified expected FrameworkObject outputs for eval transcripts.",
+  "cases": [
+    {
+      "id": "invoice_3way_match",
+      "transcript": "tests/eval/fixtures/transcripts/invoice_3way_match.txt",
+      "knowledge_model": "packages/contracts/fixtures/knowledge_model.invoice_3way.json",
+      "engine_overrides": "packages/contracts/fixtures/engine_overrides.invoice_3way.json",
+      "expected_framework": "tests/eval/fixtures/expected/invoice_3way_match.framework.json",
+      "opportunity_id": "OPP-142",
+      "title_hint": "Invoice 3-Way Match",
+      "verified_notes": "Rich AP case with rules, security, ROI, and stage-2 recommendation.",
+      "verified_at": "2026-08-26T10:00:00Z",
+      "verified_by": "ES-33 fixture build (deterministic builder, hand-reviewed structure)"
+    },
+    {
+      "id": "minimal_invoice_match",
+      "transcript": "tests/eval/fixtures/transcripts/minimal_invoice_match.txt",
+      "knowledge_model": "tests/eval/fixtures/knowledge_models/minimal_invoice_match.km.json",
+      "engine_overrides": "tests/eval/fixtures/engine_overrides/minimal_invoice_match.json",
+      "expected_framework": "tests/eval/fixtures/expected/minimal_invoice_match.framework.json",
+      "opportunity_id": "OPP-MIN-001",
+      "title_hint": "Minimal AP Invoice Match",
+      "verified_notes": "Small-team case with sample gap and human approval on every posting.",
+      "verified_at": "2026-08-26T10:00:00Z",
+      "verified_by": "ES-33 fixture build (deterministic builder, hand-reviewed structure)"
+    },
+    {
+      "id": "warehouse_delivery_match",
+      "transcript": "tests/eval/fixtures/transcripts/warehouse_delivery_match.txt",
+      "knowledge_model": "tests/eval/fixtures/knowledge_models/warehouse_delivery_match.km.json",
+      "engine_overrides": "tests/eval/fixtures/engine_overrides/warehouse_delivery_match.json",
+      "expected_framework": "tests/eval/fixtures/expected/warehouse_delivery_match.framework.json",
+      "opportunity_id": "OPP-WARE-001",
+      "title_hint": "Warehouse Delivery-Note Match",
+      "verified_notes": "Write path and sample gaps; open dependencies expected in chapter 11.",
+      "verified_at": "2026-08-26T10:00:00Z",
+      "verified_by": "ES-33 fixture build (deterministic builder, hand-reviewed structure)"
+    }
+  ]
+}

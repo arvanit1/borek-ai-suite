@@ -1,0 +1,9 @@
+Agent: Requirements capture for a small Accounts Payable team automating invoice matching.
+
+Maria: We receive about 200 supplier invoices per month. Two people match them to purchase orders in the ERP by hand. A clean case takes about five minutes.
+
+Maria: Invoices arrive by email. Today we download the PDF, check the PO in the ERP, and post manually if it matches. Exceptions stay with the team.
+
+Maria: Success means reaching at least 70 percent auto-match. Every posting still needs a human one-click approval. Data is confidential and must stay in the EU.
+
+Maria: Our only system is the ERP with read and write via REST API. IT says sandbox access is available. We have not provided sample invoices yet.

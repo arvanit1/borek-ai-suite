@@ -1,0 +1,27 @@
+# Per-client terminology. Untranslated tokens stay as written in DE and EN.
+untranslated:
+  - 3-Way-Match
+  - 3-way match
+  - HITL
+  - ERP
+  - OCR
+  - SSO
+  - GDPR
+  - IBAN
+  - PDF
+  - API
+  - PO
+  - GR
+
+en:
+  auto_match_rate: Auto-match rate
+  exception_queue: Exception queue
+  build_readiness: Build-readiness
+  confidence: Confidence
+
+de:
+  auto_match_rate: Auto-Match-Quote
+  exception_queue: Ausnahme-Warteschlange
+  build_readiness: Build-Readiness
+  confidence: Konfidenz
+  "3-Way-Match": 3-Way-Match

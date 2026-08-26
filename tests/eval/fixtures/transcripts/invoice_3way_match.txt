@@ -1,0 +1,17 @@
+Agent: This is the requirements capture for invoice 3-way match automation in Finance / Accounts Payable.
+
+Sandra: We match around 3,000 incoming invoices per month against purchase orders and goods receipts. Clean cases take 2 to 3 minutes. Exceptions take 15 to 20 minutes. About 25 percent of invoices go to clarification. That is about 73 hours per month in the automatable core and about 306 hours per month for the whole team.
+
+Sandra: A supplier invoice PDF arrives in the shared AP mailbox. Today we download it, run OCR, correct line items by hand, look up the PO and goods receipt in the ERP, and compare quantity, price and total. If it matches we post for payment. If not we email the buyer and wait days.
+
+Sandra: Quantity must match exactly. Unit price must match exactly unless there is a stored discount agreement. Total has a rounding tolerance up to EUR 0.50. If the amount deviation versus the PO is more than 2 percent we always hold for review. If the invoice number is already posted we never post, we flag a duplicate. Postings above EUR 5,000 always need human one-click approval.
+
+Sandra: Exceptions are price difference without discount agreement, partial delivery, no purchase order found, duplicates, and credit notes about 5 percent. Credit notes stay out of scope for now, that is a later stage. The agent must not email suppliers on its own.
+
+Sandra: Success means auto-match rate from 0 percent today to at least 85 percent. Manual handling time from about 73 hours per month to at most 12 hours. Zero wrong postings outside tolerance. 100 percent of duplicates detected before posting. Clean-case cycle time under 30 minutes. This supports the company goal of a 5-day month-end close, which is a C1 Finance priority.
+
+Sandra: Systems are the AP shared mailbox on Microsoft 365, read via Microsoft Graph, and the ERP for purchase orders, goods receipts, posted invoices and discount agreements via REST API. ERP write for payment postings still needs formal approval from the IT lead. We have an ERP sandbox. I already provided 1 sample invoice and we will provide 30 to 50 real invoices with bank details masked.
+
+IT: Data classification is confidential because invoices contain supplier bank details. Processing and storage in the EU only. Raw PDFs are not kept after extraction. IBAN is masked outside the ERP. Least-privilege technical user. Every decision is logged. Kill switch at any time. The agent must never evaluate employees.
+
+Sandra: Loaded cost is EUR 45 per hour. We want stage 1 assistive first, then stage 2 autonomous with human control as the recommended build. Stage 3 could add credit-note check path and automatic clarification emails after we have telemetry.

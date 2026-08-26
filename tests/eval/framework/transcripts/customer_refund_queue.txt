@@ -1,0 +1,7 @@
+Agent: Customer service refund automation discovery call.
+
+Tom: We receive around 600 refund requests per month by email and web form. Agents copy details into Zendesk and check the billing system manually.
+
+Tom: Matching rules are simple when order id and amount match. Anything else goes to a senior agent. Average handle time is 6 minutes.
+
+Tom: Target is 60 percent straight-through preparation with human release on every payout. Billing API read is available; write needs compliance sign-off next quarter.

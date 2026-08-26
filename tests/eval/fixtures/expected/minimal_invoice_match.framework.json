@@ -1,0 +1,1897 @@
+{
+  "id": "FW-OPP-MIN-001-v1",
+  "framework_id": "FW-OPP-MIN-001-v1",
+  "schema_version": "1.0",
+  "opportunity_id": "OPP-MIN-001",
+  "title": "Minimal AP Invoice Match",
+  "department": "AP",
+  "status": "draft",
+  "priority_rank": 1,
+  "quality_scores": {
+    "opportunity_rating": 60,
+    "conversation_quality": 63,
+    "build_readiness": 72,
+    "rationale": {
+      "opportunity_rating": "Opportunity rating 60/100 from 40 hours/month and a 1.6-week path.",
+      "conversation_quality": "Conversation quality 63/100 (usable).",
+      "build_readiness": "Build-readiness 72/100 (ready with assumptions)."
+    }
+  },
+  "kpis": [
+    {
+      "name": "Success means reaching at least 70 percent",
+      "baseline": "as named in the conversation",
+      "target": "Success means reaching at least 70 percent auto-match.",
+      "measured_via": "as named in the conversation"
+    },
+    {
+      "name": "Automation rate",
+      "baseline": "Not named in the conversations. Recorded as an open item rather than guessed.",
+      "target": "Not named in the conversations. Recorded as an open item rather than guessed.",
+      "measured_via": "agent statistics per case"
+    },
+    {
+      "name": "Manual handling time",
+      "baseline": "Not named in the conversations. Recorded as an open item rather than guessed.",
+      "target": "Not named in the conversations. Recorded as an open item rather than guessed.",
+      "measured_via": "exception-queue time tracking"
+    },
+    {
+      "name": "Cycle time",
+      "baseline": "Not named in the conversations. Recorded as an open item rather than guessed.",
+      "target": "Not named in the conversations. Recorded as an open item rather than guessed.",
+      "measured_via": "process timestamps / month-end tracking"
+    }
+  ],
+  "systems": [
+    {
+      "name": "ERP with read and write via REST API",
+      "role": "Posting / write-back",
+      "direction": "write",
+      "access_path": "ERP with read and write via REST API.",
+      "data_classification": "as reported",
+      "status": "available"
+    }
+  ],
+  "rules": [],
+  "exceptions": [],
+  "access_needs": [
+    {
+      "category": "Access approval",
+      "detail": "Every posting still needs a human one-click approval.",
+      "status": "named in conversation",
+      "owner": "Business"
+    },
+    {
+      "category": "Read access",
+      "detail": "Not named in the conversations. Recorded as an open item rather than guessed.",
+      "status": "open",
+      "owner": "Business"
+    },
+    {
+      "category": "Write access",
+      "detail": "Not named in the conversations. Recorded as an open item rather than guessed.",
+      "status": "open",
+      "owner": "Business"
+    },
+    {
+      "category": "Sample / test data",
+      "detail": "Not named in the conversations. Recorded as an open item rather than guessed.",
+      "status": "open",
+      "owner": "Business"
+    },
+    {
+      "category": "Rule confirmation",
+      "detail": "Not named in the conversations. Recorded as an open item rather than guessed.",
+      "status": "open",
+      "owner": "Business"
+    },
+    {
+      "category": "Identity / SSO",
+      "detail": "Not named in the conversations. Recorded as an open item rather than guessed.",
+      "status": "open",
+      "owner": "Business"
+    }
+  ],
+  "evolution_stages": [
+    {
+      "stage_name": "Today",
+      "agent_does": "Nothing — fully manual process.",
+      "human_does": "The AP team receives about 200 supplier invoices per month and matches them to purchase orders in the ERP by hand.",
+      "benefit": "—",
+      "extra_effort": "—",
+      "recommended": false
+    },
+    {
+      "stage_name": "Stage 1 · Assistive",
+      "agent_does": "Captures, extracts, checks, and prepares complete proposals with reasons. No write/actuating actions.",
+      "human_does": "Confirms every posting or action with one click.",
+      "benefit": "~40 % of time; full visibility",
+      "extra_effort": "included in base build (interim milestone)",
+      "recommended": false
+    },
+    {
+      "stage_name": "Stage 2 · Autonomous with HITL",
+      "agent_does": "Runs the named standard case within confirmed rules; exceptions go to people.",
+      "human_does": "Exceptions, gated approvals, spot checks.",
+      "benefit": "~18 h/month · full business case from chapter 9",
+      "extra_effort": "base build (1.6 weeks, EUR 8000)",
+      "recommended": true
+    },
+    {
+      "stage_name": "Stage 3 · End-to-end (option)",
+      "agent_does": "Additionally (proposal only; requires telemetry_3mo and targeted C6 deep-dives): Invoices arrive by email as PDFs.",
+      "human_does": "Releases outbound messages; decides on any rule-tuning proposals.",
+      "benefit": "Exception effort down; cycle time days to hours. Proposal only — not in the committed business case.",
+      "extra_effort": "~2-3 weeks more, own business case after 3 months of stage-2 data",
+      "recommended": false
+    }
+  ],
+  "open_items": [
+    {
+      "description": "Sample invoices have not been provided yet.",
+      "item_type": "assumption",
+      "owner": "Business",
+      "consequence_if_different": "Missing data is never guessed. Confirm before build, or keep as an assumption."
+    },
+    {
+      "description": "Claim in chapter 1 is not supported because it has no cited conversation excerpt: Generated automatically from the captured conversations. Missing facts are listed, never guessed.. Recorded as an open item rather than accepted.",
+      "item_type": "assumption",
+      "owner": "Business",
+      "consequence_if_different": "Unsupported claims are never published. Confirm the statement against the conversation."
+    },
+    {
+      "description": "Claim in chapter 10 is not supported because it has no cited conversation excerpt: The week plan is for the recommended evolution stage in chapter 12, not for unsourced stage-3 scope.. Recorded as an open item rather than accepted.",
+      "item_type": "assumption",
+      "owner": "Business",
+      "consequence_if_different": "Unsupported claims are never published. Confirm the statement against the conversation."
+    },
+    {
+      "description": "Claim in chapter 11 is not supported because it has no cited conversation excerpt: Before anything is built, every automation must pass three independent checks. You see all three results openly.. Recorded as an open item rather than accepted.",
+      "item_type": "assumption",
+      "owner": "Business",
+      "consequence_if_different": "Unsupported claims are never published. Confirm the statement against the conversation."
+    },
+    {
+      "description": "Claim in chapter 11 is not supported because it has no cited conversation excerpt: Missing information is never guessed. Every gap appears here as an open item with an owner.. Recorded as an open item rather than accepted.",
+      "item_type": "assumption",
+      "owner": "Business",
+      "consequence_if_different": "Unsupported claims are never published. Confirm the statement against the conversation."
+    },
+    {
+      "description": "Claim in chapter 12 is not supported because it has no cited conversation excerpt: Stage-3 elements are proposals only. They are never included in the committed business case.. Recorded as an open item rather than accepted.",
+      "item_type": "assumption",
+      "owner": "Business",
+      "consequence_if_different": "Unsupported claims are never published. Confirm the statement against the conversation."
+    }
+  ],
+  "chapters": [
+    {
+      "chapter_id": "0",
+      "title": "About this document",
+      "body": [
+        {
+          "block": "prose",
+          "text": "For every automation opportunity it identifies, the Borek AI Suite generates exactly one framework report like this. It is generated from the conversations with your team and is human-confirmed before it is the signed customer report. No consultant writes it. Every number in this report is traceable to its source. Estimates are shown as ranges with a confidence level, never as false precision.",
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Maria",
+              "excerpt_pointer": "turn:3"
+            }
+          ]
+        },
+        {
+          "block": "bullets",
+          "items": [
+            "What is it? — the task today (chapters 1-2)",
+            "Why do it? — aim, benefit and measurable success (chapter 3)",
+            "How does it work? — the solution, the to-be process, the rules (chapters 4-5)",
+            "How is it built technically? — systems and integrations at CIO depth (chapter 6)",
+            "What do we need from you? — access, data, people (chapter 7)",
+            "Is it safe? — data protection, compliance, human control (chapter 8)",
+            "Does it pay? — business case, ROI, complexity (chapters 9-10)",
+            "Can we trust the numbers? — quality gates, open points, evolution (chapters 11-12)"
+          ]
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:3"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:4"
+        }
+      ]
+    },
+    {
+      "chapter_id": "1",
+      "title": "Management summary",
+      "body": [
+        {
+          "block": "prose",
+          "text": "The AP team receives about 200 supplier invoices per month and matches them to purchase orders in the ERP by hand.",
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Maria",
+              "excerpt_pointer": "turn:1"
+            }
+          ]
+        },
+        {
+          "block": "kv_rows",
+          "caption": "At a glance",
+          "rows": [
+            {
+              "label": "Automation",
+              "value": "Minimal AP Invoice Match"
+            },
+            {
+              "label": "Expected benefit",
+              "value": "~18 h/month capacity reclaimed · ~EUR 650 net value/month"
+            },
+            {
+              "label": "Investment",
+              "value": "~EUR 8000 build (1.6 weeks) · ~EUR 150/month run cost"
+            },
+            {
+              "label": "Payback",
+              "value": "~12.3 months · ROI over 36 months: ~192 %"
+            },
+            {
+              "label": "Complexity",
+              "value": "Tier T1 · 1 systems · 0 named rules"
+            },
+            {
+              "label": "Human in the loop",
+              "value": "Exceptions are always decided by people."
+            },
+            {
+              "label": "Security",
+              "value": "As named in the conversations; see chapter 8."
+            },
+            {
+              "label": "Data basis",
+              "value": "Opportunity rating 60/100 · conversation quality 63/100 · build-readiness 72/100"
+            }
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Maria",
+              "excerpt_pointer": "turn:1"
+            }
+          ]
+        },
+        {
+          "block": "callout",
+          "tone": "open_item",
+          "text": "This point is recorded as an open item because it is not supported by a conversation excerpt."
+        },
+        {
+          "block": "callout",
+          "kind": "recommendation",
+          "text": "Release for build at evolution stage 2 (autonomous with human control) only if all three quality gates pass. Blocking items are listed in chapter 11; numbered next steps are in chapter 13."
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:3"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:4"
+        }
+      ]
+    },
+    {
+      "chapter_id": "2",
+      "title": "Starting point: the process today",
+      "body": [
+        {
+          "block": "prose",
+          "text": "This is how the work runs today — captured with the people who do it, not reconstructed later."
+        },
+        {
+          "block": "process_flow",
+          "caption": "As-is process",
+          "nodes": [
+            {
+              "id": "n0",
+              "label": "Intake",
+              "kind": "system"
+            },
+            {
+              "id": "n1",
+              "label": "Capture",
+              "kind": "human"
+            },
+            {
+              "id": "n2",
+              "label": "Check",
+              "kind": "system"
+            },
+            {
+              "id": "n3",
+              "label": "Post or clarify",
+              "kind": "human"
+            }
+          ],
+          "edges": [
+            {
+              "from": "n0",
+              "to": "n1",
+              "label": ""
+            },
+            {
+              "from": "n1",
+              "to": "n2",
+              "label": ""
+            },
+            {
+              "from": "n2",
+              "to": "n3",
+              "label": ""
+            }
+          ]
+        },
+        {
+          "block": "kv_rows",
+          "caption": "What the current process costs",
+          "rows": [
+            {
+              "label": "Volume",
+              "value": "~200/month"
+            },
+            {
+              "label": "Capacity tied up",
+              "value": "~25.0 hours/month in the automatable core"
+            },
+            {
+              "label": "Clean-case handling time",
+              "value": "Not named in the conversations. Recorded as an open item rather than guessed."
+            },
+            {
+              "label": "Exception handling time",
+              "value": "Not named in the conversations. Recorded as an open item rather than guessed."
+            },
+            {
+              "label": "Exception rate",
+              "value": "70 %"
+            },
+            {
+              "label": "Staff involved",
+              "value": "Exceptions stay with the team."
+            },
+            {
+              "label": "Quality risk",
+              "value": "Not named in the conversations. Recorded as an open item rather than guessed."
+            }
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Maria",
+              "excerpt_pointer": "turn:1"
+            }
+          ]
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:3"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:4"
+        }
+      ]
+    },
+    {
+      "chapter_id": "3",
+      "title": "Aim & success measurement",
+      "body": [
+        {
+          "block": "prose",
+          "text": "The aim is a measurable state. These KPIs are a conservative derivation from the conversations; empty cells are open items, not guesses."
+        },
+        {
+          "block": "table",
+          "caption": "Aim & success measurement",
+          "columns": [
+            "KPI",
+            "Today (baseline)",
+            "Target after 3 months",
+            "Measured via"
+          ],
+          "rows": [
+            [
+              "Success means reaching at least 70 percent",
+              "as named in the conversation",
+              "Success means reaching at least 70 percent auto-match.",
+              "as named in the conversation"
+            ],
+            [
+              "Automation rate",
+              "Not named in the conversations. Recorded as an open item rather than guessed.",
+              "Not named in the conversations. Recorded as an open item rather than guessed.",
+              "agent statistics per case"
+            ],
+            [
+              "Manual handling time",
+              "Not named in the conversations. Recorded as an open item rather than guessed.",
+              "Not named in the conversations. Recorded as an open item rather than guessed.",
+              "exception-queue time tracking"
+            ],
+            [
+              "Cycle time",
+              "Not named in the conversations. Recorded as an open item rather than guessed.",
+              "Not named in the conversations. Recorded as an open item rather than guessed.",
+              "process timestamps / month-end tracking"
+            ]
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Maria",
+              "excerpt_pointer": "turn:3"
+            }
+          ]
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:3"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:4"
+        }
+      ]
+    },
+    {
+      "chapter_id": "4",
+      "title": "The solution and the to-be process",
+      "body": [
+        {
+          "block": "prose",
+          "text": "The workflow handles the standard case and pre-sorts everything else — with a reason, so clarification is quick."
+        },
+        {
+          "block": "process_flow",
+          "caption": "To-be process (stage 2)",
+          "nodes": [
+            {
+              "id": "n0",
+              "label": "Intake",
+              "kind": "system"
+            },
+            {
+              "id": "n1",
+              "label": "Extract",
+              "kind": "human"
+            },
+            {
+              "id": "n2",
+              "label": "Match",
+              "kind": "system"
+            },
+            {
+              "id": "n3",
+              "label": "Post or queue",
+              "kind": "human"
+            }
+          ],
+          "edges": [
+            {
+              "from": "n0",
+              "to": "n1",
+              "label": ""
+            },
+            {
+              "from": "n1",
+              "to": "n2",
+              "label": ""
+            },
+            {
+              "from": "n2",
+              "to": "n3",
+              "label": ""
+            }
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Maria",
+              "excerpt_pointer": "turn:3"
+            }
+          ]
+        },
+        {
+          "block": "table",
+          "caption": "Today vs with the agent",
+          "columns": [
+            "Today",
+            "With the agent"
+          ],
+          "rows": [
+            [
+              "Intake",
+              "Intake"
+            ],
+            [
+              "Capture",
+              "Extract"
+            ],
+            [
+              "Check",
+              "Match"
+            ],
+            [
+              "Post or clarify",
+              "Post or queue"
+            ]
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Maria",
+              "excerpt_pointer": "turn:3"
+            }
+          ]
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:3"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:4"
+        }
+      ]
+    },
+    {
+      "chapter_id": "5",
+      "title": "How it works in detail",
+      "body": [
+        {
+          "block": "prose",
+          "text": "The rules below come from the conversations. The agent invents no rules — it applies only what was named and confirmed."
+        },
+        {
+          "block": "kv_rows",
+          "caption": "Trigger, inputs, result",
+          "rows": [
+            {
+              "label": "Trigger",
+              "value": "Not named in the conversations. Recorded as an open item rather than guessed."
+            },
+            {
+              "label": "Inputs",
+              "value": "The AP team receives about 200 supplier invoices per month and matches them to purchase orders in the ERP by hand."
+            },
+            {
+              "label": "Result",
+              "value": "Not named in the conversations. Recorded as an open item rather than guessed."
+            }
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Maria",
+              "excerpt_pointer": "turn:1"
+            }
+          ]
+        },
+        {
+          "block": "table",
+          "caption": "The checking rules",
+          "columns": [
+            "Rule",
+            "How the agent decides"
+          ],
+          "rows": [
+            [
+              "Not named in the conversations. Recorded as an open item rather than guessed.",
+              "—"
+            ]
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Maria",
+              "excerpt_pointer": "turn:4"
+            }
+          ]
+        },
+        {
+          "block": "table",
+          "caption": "The exceptions and how they are handled",
+          "columns": [
+            "Exception",
+            "Frequency",
+            "Handling"
+          ],
+          "rows": [
+            [
+              "Not named in the conversations. Recorded as an open item rather than guessed.",
+              "—",
+              "—"
+            ]
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Maria",
+              "excerpt_pointer": "turn:4"
+            }
+          ]
+        },
+        {
+          "block": "callout",
+          "kind": "important",
+          "text": "In no exception does the agent act on its own toward counterparties. It prepares the decision; your team decides."
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:3"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:4"
+        }
+      ]
+    },
+    {
+      "chapter_id": "6",
+      "title": "How it is built - systems, data flow, integration",
+      "body": [
+        {
+          "block": "prose",
+          "text": "This chapter gives IT and the system owner the technical picture at the depth needed to say yes — without implementation detail."
+        },
+        {
+          "block": "table",
+          "caption": "Systems landscape and data flow",
+          "columns": [
+            "System",
+            "Role in the automation",
+            "Dir.",
+            "Access path",
+            "Data"
+          ],
+          "rows": [
+            [
+              "ERP with read and write via REST API",
+              "Posting / write-back",
+              "write",
+              "ERP with read and write via REST API.",
+              "as reported"
+            ]
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Maria",
+              "excerpt_pointer": "turn:4"
+            }
+          ]
+        },
+        {
+          "block": "table",
+          "caption": "Building blocks",
+          "columns": [
+            "Building block",
+            "Role in the automation",
+            "How it is protected"
+          ],
+          "rows": [
+            [
+              "ERP with read and write via REST API",
+              "Posting / write-back",
+              "As named in chapter 8"
+            ]
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Maria",
+              "excerpt_pointer": "turn:4"
+            }
+          ]
+        },
+        {
+          "block": "ai_split",
+          "used_for": [
+            "Reading variable documents into structured fields with a confidence per field"
+          ],
+          "not_used_for": [
+            "Deciding whether a case matches",
+            "Evaluating tolerances or thresholds",
+            "Assessing any employee"
+          ]
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:3"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:4"
+        }
+      ]
+    },
+    {
+      "chapter_id": "7",
+      "title": "What we need from the client",
+      "body": [
+        {
+          "block": "prose",
+          "text": "To deliver we need the following access, data and people on your side. Nothing here is invented."
+        },
+        {
+          "block": "table",
+          "caption": "What we need from the client",
+          "columns": [
+            "Category",
+            "Specifically",
+            "Status",
+            "Owner",
+            "Hours"
+          ],
+          "rows": [
+            [
+              "Access approval",
+              "Every posting still needs a human one-click approval.",
+              "named in conversation",
+              "Business",
+              "Not named in the conversations. Recorded as an open item rather than guessed."
+            ],
+            [
+              "Read access",
+              "Not named in the conversations. Recorded as an open item rather than guessed.",
+              "open",
+              "Business",
+              "Not named in the conversations. Recorded as an open item rather than guessed."
+            ],
+            [
+              "Write access",
+              "Not named in the conversations. Recorded as an open item rather than guessed.",
+              "open",
+              "Business",
+              "Not named in the conversations. Recorded as an open item rather than guessed."
+            ],
+            [
+              "Sample / test data",
+              "Not named in the conversations. Recorded as an open item rather than guessed.",
+              "open",
+              "Business",
+              "Not named in the conversations. Recorded as an open item rather than guessed."
+            ],
+            [
+              "Rule confirmation",
+              "Not named in the conversations. Recorded as an open item rather than guessed.",
+              "open",
+              "Business",
+              "Not named in the conversations. Recorded as an open item rather than guessed."
+            ],
+            [
+              "Identity / SSO",
+              "Not named in the conversations. Recorded as an open item rather than guessed.",
+              "open",
+              "Business",
+              "Not named in the conversations. Recorded as an open item rather than guessed."
+            ]
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Maria",
+              "excerpt_pointer": "turn:3"
+            }
+          ]
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:3"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:4"
+        }
+      ]
+    },
+    {
+      "chapter_id": "8",
+      "title": "Security, data protection & human control",
+      "body": [
+        {
+          "block": "kv_rows",
+          "caption": "Binding guardrails",
+          "rows": [
+            {
+              "label": "Data classification",
+              "value": "Data is confidential and must stay in the EU."
+            },
+            {
+              "label": "Data residency",
+              "value": "Data is confidential and must stay in the EU."
+            },
+            {
+              "label": "Data minimization",
+              "value": "Not named in the conversations. Recorded as an open item rather than guessed."
+            },
+            {
+              "label": "Access",
+              "value": "Not named in the conversations. Recorded as an open item rather than guessed."
+            },
+            {
+              "label": "Audit",
+              "value": "Every decision logged."
+            },
+            {
+              "label": "Retention",
+              "value": "Retention follows the named classification and residency guardrails; no extra copies beyond audit need."
+            },
+            {
+              "label": "Human control",
+              "value": "Exceptions are always decided by people."
+            },
+            {
+              "label": "What the agent never does",
+              "value": "No evaluation of employees — the agent measures work, never people. No unsourced rule changes."
+            },
+            {
+              "label": "Breach",
+              "value": "A breach of these guardrails is a failed acceptance test."
+            }
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Maria",
+              "excerpt_pointer": "turn:3"
+            }
+          ]
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:3"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:4"
+        }
+      ]
+    },
+    {
+      "chapter_id": "9",
+      "title": "Business case & ROI",
+      "body": [
+        {
+          "block": "prose",
+          "text": "All values are calculated from the volumes and times your team reported — formulas disclosed, assumptions marked."
+        },
+        {
+          "block": "table",
+          "caption": "Business case",
+          "columns": [
+            "Item",
+            "Calculation",
+            "Value"
+          ],
+          "rows": [
+            [
+              "Effort today",
+              "automatable hours/month from the conversations",
+              "~25.0 h/month"
+            ],
+            [
+              "Automation rate",
+              "named auto-match / automation target",
+              "~70 %"
+            ],
+            [
+              "Hours saved / month",
+              "round(automatable_hours_mo * automation_rate)",
+              "~18 h"
+            ],
+            [
+              "Gross value",
+              "round(hours_saved_mo * loaded_hourly_cost_eur to 100 EUR)",
+              "~EUR 800/month"
+            ],
+            [
+              "Run cost",
+              "archetype volume lookup",
+              "~EUR 150/month"
+            ],
+            [
+              "Net value",
+              "gross_eur_mo - run_cost_eur_mo",
+              "~EUR 650/month"
+            ],
+            [
+              "Build cost",
+              "effort weeks x builder rate",
+              "~EUR 8000 one-off"
+            ],
+            [
+              "Payback",
+              "build_cost_eur / net_eur_mo",
+              "~12.3 months"
+            ],
+            [
+              "ROI 36 months",
+              "(36 * net_eur_mo - build_cost_eur) / build_cost_eur",
+              "~192 %"
+            ]
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Maria",
+              "excerpt_pointer": "turn:3"
+            }
+          ]
+        },
+        {
+          "block": "bullets",
+          "items": [
+            "Less manual matching on clean invoices",
+            "Team stays in control of every posting"
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Maria",
+              "excerpt_pointer": "turn:1"
+            }
+          ]
+        },
+        {
+          "block": "sensitivity",
+          "rows": [
+            {
+              "label": "Pessimistic",
+              "detail": "Auto-match 70 % · net ~EUR 650/month · payback ~12.3 months"
+            },
+            {
+              "label": "Expected",
+              "detail": "Auto-match 70 % · net ~EUR 650/month · payback ~12.3 months"
+            },
+            {
+              "label": "Optimistic",
+              "detail": "Auto-match 92 % · net ~EUR 850/month · payback ~9.4 months"
+            }
+          ]
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:3"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:4"
+        }
+      ]
+    },
+    {
+      "chapter_id": "10",
+      "title": "Complexity, effort & timeline",
+      "body": [
+        {
+          "block": "callout",
+          "tone": "open_item",
+          "text": "This point is recorded as an open item because it is not supported by a conversation excerpt."
+        },
+        {
+          "block": "kv_rows",
+          "caption": "Classification",
+          "rows": [
+            {
+              "label": "Complexity tier",
+              "value": "T1"
+            },
+            {
+              "label": "Effort",
+              "value": "1.1 – 1.6 – 2.1 weeks (min / likely / max) · confidence: medium"
+            },
+            {
+              "label": "Team",
+              "value": "1 builder"
+            },
+            {
+              "label": "Drivers",
+              "value": "archetype=doc_extraction; data_readiness=partial; reuse_discount_pct=10; builder_weekly_rate_eur=5000"
+            },
+            {
+              "label": "Build cost",
+              "value": "~EUR 8000"
+            }
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Maria",
+              "excerpt_pointer": "turn:1"
+            }
+          ]
+        },
+        {
+          "block": "timeline",
+          "weeks": [
+            {
+              "id": "W1",
+              "items": [
+                "Weeks 1–1: connect intake, read paths, and samples"
+              ]
+            },
+            {
+              "id": "W2",
+              "items": [
+                "Weeks 2–2: rules, exception queue, tests"
+              ]
+            },
+            {
+              "id": "W3",
+              "items": [
+                "Weeks 3–3: gated writes, audit, acceptance, go-live approval (chapter 12 stage 2)"
+              ]
+            }
+          ]
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:3"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:4"
+        }
+      ]
+    },
+    {
+      "chapter_id": "11",
+      "title": "Trustworthiness - quality gates",
+      "body": [
+        {
+          "block": "callout",
+          "tone": "open_item",
+          "text": "This point is recorded as an open item because it is not supported by a conversation excerpt."
+        },
+        {
+          "block": "score_bars",
+          "items": [
+            {
+              "name": "Opportunity rating",
+              "score": 60,
+              "max": 100,
+              "band": "Is it worth doing?",
+              "explanation": "Opportunity rating 60/100 from 40 hours/month and a 1.6-week path."
+            },
+            {
+              "name": "Conversation quality",
+              "score": 63,
+              "max": 100,
+              "band": "Can we trust the data?",
+              "explanation": "Conversation quality 63/100 (usable)."
+            },
+            {
+              "name": "Build-readiness",
+              "score": 72,
+              "max": 100,
+              "band": "Is the concept buildable?",
+              "explanation": "Build-readiness 72/100 (ready with assumptions)."
+            }
+          ]
+        },
+        {
+          "block": "table",
+          "caption": "Open items and assumptions",
+          "columns": [
+            "Open item / assumption",
+            "Type",
+            "Owner",
+            "Consequence if different"
+          ],
+          "rows": [
+            [
+              "Sample invoices have not been provided yet.",
+              "assumption",
+              "Business",
+              "Missing data is never guessed. Confirm before build, or keep as an assumption."
+            ],
+            [
+              "Claim in chapter 1 is not supported because it has no cited conversation excerpt: Generated automatically from the captured conversations. Missing facts are listed, never guessed.. Recorded as an open item rather than accepted.",
+              "assumption",
+              "Business",
+              "Unsupported claims are never published. Confirm the statement against the conversation."
+            ],
+            [
+              "Claim in chapter 10 is not supported because it has no cited conversation excerpt: The week plan is for the recommended evolution stage in chapter 12, not for unsourced stage-3 scope.. Recorded as an open item rather than accepted.",
+              "assumption",
+              "Business",
+              "Unsupported claims are never published. Confirm the statement against the conversation."
+            ],
+            [
+              "Claim in chapter 11 is not supported because it has no cited conversation excerpt: Before anything is built, every automation must pass three independent checks. You see all three results openly.. Recorded as an open item rather than accepted.",
+              "assumption",
+              "Business",
+              "Unsupported claims are never published. Confirm the statement against the conversation."
+            ],
+            [
+              "Claim in chapter 11 is not supported because it has no cited conversation excerpt: Missing information is never guessed. Every gap appears here as an open item with an owner.. Recorded as an open item rather than accepted.",
+              "assumption",
+              "Business",
+              "Unsupported claims are never published. Confirm the statement against the conversation."
+            ],
+            [
+              "Claim in chapter 12 is not supported because it has no cited conversation excerpt: Stage-3 elements are proposals only. They are never included in the committed business case.. Recorded as an open item rather than accepted.",
+              "assumption",
+              "Business",
+              "Unsupported claims are never published. Confirm the statement against the conversation."
+            ]
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Maria",
+              "excerpt_pointer": "turn:4"
+            }
+          ]
+        },
+        {
+          "block": "callout",
+          "tone": "open_item",
+          "text": "This point is recorded as an open item because it is not supported by a conversation excerpt."
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:3"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:4"
+        }
+      ]
+    },
+    {
+      "chapter_id": "12",
+      "title": "Evolution stages",
+      "body": [
+        {
+          "block": "prose",
+          "text": "Every automation is designed as a path, not an end state. You decide anew at each stage."
+        },
+        {
+          "block": "table",
+          "caption": "Evolution stages",
+          "columns": [
+            "Stage",
+            "What the agent does",
+            "Human",
+            "Benefit",
+            "Extra effort"
+          ],
+          "rows": [
+            [
+              "Today",
+              "Nothing — fully manual process.",
+              "The AP team receives about 200 supplier invoices per month and matches them to purchase orders in the ERP by hand.",
+              "—",
+              "—"
+            ],
+            [
+              "Stage 1 · Assistive",
+              "Captures, extracts, checks, and prepares complete proposals with reasons. No write/actuating actions.",
+              "Confirms every posting or action with one click.",
+              "~40 % of time; full visibility",
+              "included in base build (interim milestone)"
+            ],
+            [
+              "Stage 2 · Autonomous with HITL",
+              "Runs the named standard case within confirmed rules; exceptions go to people.",
+              "Exceptions, gated approvals, spot checks.",
+              "~18 h/month · full business case from chapter 9",
+              "base build (1.6 weeks, EUR 8000)"
+            ],
+            [
+              "Stage 3 · End-to-end (option)",
+              "Additionally (proposal only; requires telemetry_3mo and targeted C6 deep-dives): Invoices arrive by email as PDFs.",
+              "Releases outbound messages; decides on any rule-tuning proposals.",
+              "Exception effort down; cycle time days to hours. Proposal only — not in the committed business case.",
+              "~2-3 weeks more, own business case after 3 months of stage-2 data"
+            ]
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Maria",
+              "excerpt_pointer": "turn:1"
+            }
+          ]
+        },
+        {
+          "block": "callout",
+          "tone": "open_item",
+          "text": "This point is recorded as an open item because it is not supported by a conversation excerpt."
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:3"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:4"
+        }
+      ]
+    },
+    {
+      "chapter_id": "13",
+      "title": "Next steps & glossary",
+      "body": [
+        {
+          "block": "table",
+          "caption": "Next steps",
+          "columns": [
+            "#",
+            "Step",
+            "Who",
+            "When"
+          ],
+          "rows": [
+            [
+              "1",
+              "Business confirmation of the captured process",
+              "Business owner",
+              "Before go"
+            ],
+            [
+              "2",
+              "Go decision in Deployment Control (this report is the decision basis)",
+              "Sponsor",
+              "This week"
+            ],
+            [
+              "3",
+              "Build with interim acceptance of stage 1",
+              "Borek delivery + business",
+              "1.6 weeks"
+            ]
+          ]
+        },
+        {
+          "block": "glossary",
+          "terms": [
+            {
+              "term": "Auto-match rate",
+              "meaning": "Share of cases the workflow completes without a human step."
+            },
+            {
+              "term": "Exception queue",
+              "meaning": "Cases that could not be resolved by rule, each with reason and a suggested action."
+            },
+            {
+              "term": "Build-readiness",
+              "meaning": "A 0-100 score of whether the concept is complete enough to build."
+            },
+            {
+              "term": "Stage 1 / 2 / 3",
+              "meaning": "Assistive · autonomous with human control · end-to-end (proposal)."
+            },
+            {
+              "term": "ERP with read and write via REST API",
+              "meaning": "As named in the conversations: ERP with read and write via REST API."
+            },
+            {
+              "term": "Success means reaching at least 70 percent",
+              "meaning": "As named in the conversations: Success means reaching at least 70 percent."
+            },
+            {
+              "term": "Automation rate",
+              "meaning": "As named in the conversations: Automation rate."
+            },
+            {
+              "term": "Manual handling time",
+              "meaning": "As named in the conversations: Manual handling time."
+            },
+            {
+              "term": "Cycle time",
+              "meaning": "As named in the conversations: Cycle time."
+            },
+            {
+              "term": "The AP team receives about 200 supplier",
+              "meaning": "As named in the conversations: The AP team receives about 200 supplier invoices per month and matches them to purchase orders in the ERP by hand.."
+            },
+            {
+              "term": "A clean invoice case takes about five minutes.",
+              "meaning": "As named in the conversations: A clean invoice case takes about five minutes.."
+            },
+            {
+              "term": "Invoices arrive by email as PDFs.",
+              "meaning": "As named in the conversations: Invoices arrive by email as PDFs.."
+            }
+          ]
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:3"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:4"
+        }
+      ]
+    }
+  ],
+  "version": 1,
+  "generated_from": [
+    "00000000-0000-4000-8000-000000000201"
+  ],
+  "previous_version_id": null,
+  "change_log": [
+    "Initial customer-report generation"
+  ],
+  "created_at": "2026-08-26T10:00:00Z",
+  "updated_at": "2026-08-26T10:00:00Z",
+  "language_master": "en",
+  "render_languages": [
+    "de",
+    "en"
+  ],
+  "estimate": {
+    "tier": "T1",
+    "effort_weeks": {
+      "min": 1.1,
+      "likely": 1.6,
+      "max": 2.1
+    },
+    "confidence": "medium",
+    "team": [
+      "1 builder"
+    ],
+    "timeline_weeks": 1.6,
+    "build_cost_eur": 8000,
+    "assumptions": [
+      "archetype=doc_extraction",
+      "data_readiness=partial",
+      "reuse_discount_pct=10",
+      "builder_weekly_rate_eur=5000"
+    ],
+    "inputs": {
+      "archetype": "doc_extraction",
+      "step_count": 4,
+      "system_count": 1,
+      "rule_count": 0,
+      "hard_integration_count": 0,
+      "data_readiness": "partial",
+      "reuse": [
+        "library_component"
+      ],
+      "builder_count": 1
+    }
+  },
+  "business_case": {
+    "hours_saved_mo": 18,
+    "gross_eur_mo": 800,
+    "run_cost_eur_mo": 150,
+    "net_eur_mo": 650,
+    "payback_months": 12.3,
+    "roi_36m_pct": 192,
+    "sensitivity": {
+      "low": {
+        "automation_rate": 0.7,
+        "hours_saved_mo": 18,
+        "net_eur_mo": 650,
+        "payback_months": 12.3,
+        "roi_36m_pct": 192
+      },
+      "expected": {
+        "automation_rate": 0.7,
+        "hours_saved_mo": 18,
+        "net_eur_mo": 650,
+        "payback_months": 12.3,
+        "roi_36m_pct": 192
+      },
+      "high": {
+        "automation_rate": 0.92,
+        "hours_saved_mo": 23,
+        "net_eur_mo": 850,
+        "payback_months": 9.4,
+        "roi_36m_pct": 282
+      }
+    },
+    "qualitative": [
+      "Less manual matching on clean invoices",
+      "Team stays in control of every posting"
+    ],
+    "assumptions": [
+      "automation_rate=0.7",
+      "loaded_hourly_cost_eur=45.0",
+      "automatable_hours_mo=25.0",
+      "run_cost_eur_mo=150",
+      "build_cost_eur=8000",
+      "archetype=doc_extraction",
+      "data_readiness=partial",
+      "reuse_discount_pct=10",
+      "builder_weekly_rate_eur=5000"
+    ],
+    "formulas": {
+      "hours_saved_mo": "round(automatable_hours_mo * automation_rate)",
+      "gross_eur_mo": "round(hours_saved_mo * loaded_hourly_cost_eur to 100 EUR)",
+      "net_eur_mo": "gross_eur_mo - run_cost_eur_mo",
+      "payback_months": "build_cost_eur / net_eur_mo",
+      "roi_36m_pct": "(36 * net_eur_mo - build_cost_eur) / build_cost_eur"
+    },
+    "inputs": {
+      "automatable_hours_mo": 25.0,
+      "monthly_volume": 200.0,
+      "automation_rate": 0.7,
+      "loaded_hourly_cost_eur": 45.0,
+      "build_cost_eur": 8000,
+      "archetype": "doc_extraction"
+    }
+  },
+  "assessments": {
+    "opportunity": {
+      "score": 60,
+      "dims": {
+        "impact": 50,
+        "strategic_fit": 50,
+        "speed": 100,
+        "feasibility": 50,
+        "risk_inverted": 50
+      },
+      "levels": {
+        "impact": 2,
+        "speed": 3,
+        "strategic_fit": 2,
+        "feasibility": 2,
+        "risk_inverted": 2
+      },
+      "evidence": [
+        "impact from 40.0 h/month → level 2",
+        "speed from 1.6 weeks → level 3",
+        "strategic_fit level 2",
+        "feasibility level 2",
+        "risk_inverted level 2"
+      ],
+      "inputs": {
+        "hours_mo": 40.0,
+        "timeline_weeks": 1.6,
+        "strategic_fit_level": 2,
+        "feasibility_level": 2,
+        "risk_inverted_level": 2
+      }
+    },
+    "conversation_quality": {
+      "score": 63,
+      "dims": {
+        "result_quality": 70.0,
+        "information_richness": 60.0,
+        "engagement": 55.0
+      },
+      "band": "usable",
+      "richness_level": 2,
+      "evidence": [
+        "result_quality=70.0",
+        "information_richness=60.0",
+        "engagement=55.0"
+      ],
+      "inputs": {
+        "result_quality": 70.0,
+        "information_richness": 60.0,
+        "engagement": 55.0
+      }
+    },
+    "build_readiness": {
+      "score": 72,
+      "blocks": {
+        "aim_metric": 12,
+        "functional_spec": 0,
+        "sample": 0,
+        "integrations": 18,
+        "data_compliance": 12,
+        "estimate": 10,
+        "business_case": 8,
+        "acceptance": 8,
+        "open_questions": 4
+      },
+      "band": "ready_with_assumptions",
+      "evidence": [
+        "aim_metric=12/12",
+        "functional_spec=0/20",
+        "sample=0/8",
+        "integrations=18/18",
+        "data_compliance=12/12",
+        "estimate=10/10",
+        "business_case=8/8",
+        "acceptance=8/8",
+        "open_questions=4/4"
+      ],
+      "inputs": {
+        "has_aim_metric": true,
+        "functional_spec_complete": false,
+        "has_sample": false,
+        "intake_read_available": true,
+        "system_read_available": true,
+        "system_write_available": true,
+        "data_compliance_complete": true,
+        "estimate_complete": true,
+        "business_case_complete": true,
+        "acceptance_complete": true,
+        "blocker_open_questions": 0
+      }
+    }
+  },
+  "cover": {
+    "title": "Minimal AP Invoice Match",
+    "automation": "Minimal AP Invoice Match",
+    "tagline": "The framework report from the customer's point of view.",
+    "sources_line": "Sources C1",
+    "how_produced": "Generated automatically from the captured conversations. Missing facts are listed, never guessed.",
+    "volume": "~200/month",
+    "capacity": "~25.0 hours/month in the automatable core",
+    "clean_handling_time": "",
+    "exception_handling_time": "",
+    "exception_rate": "70 %",
+    "staff_description": "Exceptions stay with the team.",
+    "hitl": "Exceptions are always decided by people.",
+    "recommendation": "Release for build at evolution stage 2 (autonomous with human control) only if all three quality gates pass. Blocking items are listed in chapter 11; numbered next steps are in chapter 13.",
+    "classification": "Data is confidential and must stay in the EU.",
+    "residency": "Data is confidential and must stay in the EU.",
+    "retention": "",
+    "minimization": "",
+    "access": "",
+    "audit": "",
+    "trigger": "",
+    "inputs": "The AP team receives about 200 supplier invoices per month and matches them to purchase orders in the ERP by hand.",
+    "result": "",
+    "status_label": "READY WITH ASSUMPTIONS"
+  },
+  "numbers": {
+    "monthly_volume": 200,
+    "hours_mentions": [],
+    "eur_mentions": [],
+    "percent_mentions": [
+      70.0
+    ],
+    "all_tokens": [
+      "200",
+      "70"
+    ],
+    "blob": "The AP team receives about 200 supplier invoices per month and matches them to purchase orders in the ERP by hand. A clean invoice case takes about five minutes. Invoices arrive by email as PDFs. Data is confidential and must stay in the EU. Success means reaching at least 70 percent auto-match. Every posting still needs a human one-click approval. Exceptions stay with the team. ERP with read and write via REST API. Sample invoices have not been provided yet."
+  },
+  "source_entries": [
+    {
+      "statement": "The AP team receives about 200 supplier invoices per month and matches them to purchase orders in the ERP by hand.",
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:1"
+        }
+      ],
+      "bucket": "facts"
+    },
+    {
+      "statement": "A clean invoice case takes about five minutes.",
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:1"
+        }
+      ],
+      "bucket": "facts"
+    },
+    {
+      "statement": "Invoices arrive by email as PDFs.",
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:2"
+        }
+      ],
+      "bucket": "facts"
+    },
+    {
+      "statement": "Data is confidential and must stay in the EU.",
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:3"
+        }
+      ],
+      "bucket": "facts"
+    },
+    {
+      "statement": "Success means reaching at least 70 percent auto-match.",
+      "origin": "USER_INPUT",
+      "confidence": "high",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:3"
+        }
+      ],
+      "bucket": "stated_requirements"
+    },
+    {
+      "statement": "Every posting still needs a human one-click approval.",
+      "origin": "USER_INPUT",
+      "confidence": "high",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:3"
+        }
+      ],
+      "bucket": "stated_requirements"
+    },
+    {
+      "statement": "Exceptions stay with the team.",
+      "origin": "USER_INPUT",
+      "confidence": "high",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:2"
+        }
+      ],
+      "bucket": "constraints"
+    },
+    {
+      "statement": "ERP with read and write via REST API.",
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:4"
+        }
+      ],
+      "bucket": "named_systems"
+    },
+    {
+      "statement": "Sample invoices have not been provided yet.",
+      "origin": "OPEN_QUESTION",
+      "confidence": "medium",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Maria",
+          "excerpt_pointer": "turn:4"
+        }
+      ],
+      "bucket": "unknowns"
+    }
+  ],
+  "generation_meta": {
+    "engine_version": "customer-report-v1",
+    "ruleset_version": "scoring.config.json",
+    "config_version": "estimation.config.json+business_case.config.json",
+    "llm_model": "deterministic-builder",
+    "prompt_version": "framework-synthesis:v1",
+    "llm_used": false,
+    "generated_at": "2026-08-26T10:00:00Z",
+    "llm_job_log": [],
+    "process_scope": null
+  },
+  "render": {
+    "allowed": true,
+    "assumptions_banner": true,
+    "band": "ready_with_assumptions",
+    "reason": null
+  },
+  "readiness_band": "ready_with_assumptions"
+}

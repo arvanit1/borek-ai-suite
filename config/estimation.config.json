@@ -1,0 +1,32 @@
+{
+  "base_weeks": {
+    "doc_extraction": 1.5,
+    "classification": 1.5,
+    "system_to_system": 2.5,
+    "rag": 2.0,
+    "orchestration": 4.0
+  },
+  "factors": {
+    "per_step_over_3": 0.06,
+    "per_system_over_1": 0.25,
+    "per_rule": 0.04,
+    "per_hard_integration": 0.5
+  },
+  "data_readiness_factor": {
+    "ready": 0.9,
+    "partial": 1.15,
+    "blockers": 1.4
+  },
+  "reuse_discount_pct": {
+    "library_component": 10,
+    "existing_similar_agent": 25
+  },
+  "range_pct": 30,
+  "builder_weekly_rate_eur": 5000,
+  "tiers": {
+    "T1": [0, 2],
+    "T2": [2, 4],
+    "T3": [4, 8],
+    "T4": [6, 999]
+  }
+}

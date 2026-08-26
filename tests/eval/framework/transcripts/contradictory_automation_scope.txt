@@ -1,0 +1,7 @@
+Agent: Finance automation scope discussion.
+
+Alex: We want full autonomous invoice posting with no humans involved. The agent should decide everything.
+
+Alex: Actually, finance policy says every posting above EUR 100 needs human one-click approval and the agent must never decide on its own.
+
+Alex: We still want 90 percent automation on clean cases. ERP read is live; write is blocked until audit completes.

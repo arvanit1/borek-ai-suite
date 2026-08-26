@@ -1,0 +1,293 @@
+{
+  "schema_version": "1.0",
+  "ticket": "ES-35",
+  "description": "Shared eval transcript set (10–20) with expected-behavior notes for manual QA and regression tagging.",
+  "quality_tiers": ["rich", "usable", "sparse", "contradictory", "incomplete", "security_focus"],
+  "cases": [
+    {
+      "id": "invoice_3way_match",
+      "transcript": "tests/eval/fixtures/transcripts/invoice_3way_match.txt",
+      "quality_tier": "rich",
+      "department": "Finance",
+      "process": "AP 3-way invoice match",
+      "es33_overlap": true,
+      "expected_behavior": {
+        "summary": "Golden-path AP case: volume, rules, security, ROI, stage-2 recommendation.",
+        "must_extract_topics": ["invoice volume", "matching rules", "ERP integration", "EU residency", "human approval thresholds"],
+        "must_surface_open_items": false,
+        "must_detect_contradiction": false,
+        "must_flag_multi_process": false,
+        "conversation_quality_band": "strong",
+        "build_readiness_band": "ready_to_build",
+        "chapter_focus": ["business case with payback", "security residency", "evolution stage 2 recommended"],
+        "eval_notes": "Overlaps ES-33 fixture; use for golden regression and live Claude eval."
+      }
+    },
+    {
+      "id": "minimal_invoice_match",
+      "transcript": "tests/eval/fixtures/transcripts/minimal_invoice_match.txt",
+      "quality_tier": "usable",
+      "department": "AP",
+      "process": "Small-team invoice match",
+      "es33_overlap": true,
+      "expected_behavior": {
+        "summary": "Small AP team; sample gap and human approval on every posting.",
+        "must_extract_topics": ["monthly volume", "ERP REST", "EU confidentiality", "human approval"],
+        "must_surface_open_items": true,
+        "must_detect_contradiction": false,
+        "must_flag_multi_process": false,
+        "conversation_quality_band": "usable",
+        "build_readiness_band": "ready_with_assumptions",
+        "chapter_focus": ["open items for missing samples", "lower build-readiness score"],
+        "eval_notes": "Overlaps ES-33; expect sample-related open items."
+      }
+    },
+    {
+      "id": "warehouse_delivery_match",
+      "transcript": "tests/eval/fixtures/transcripts/warehouse_delivery_match.txt",
+      "quality_tier": "usable",
+      "department": "Warehouse",
+      "process": "Delivery-note match",
+      "es33_overlap": true,
+      "expected_behavior": {
+        "summary": "Warehouse matching with SAP read-only and write path not approved.",
+        "must_extract_topics": ["delivery note volume", "SAP read API", "exceptions to warehouse lead"],
+        "must_surface_open_items": true,
+        "must_detect_contradiction": false,
+        "must_flag_multi_process": false,
+        "conversation_quality_band": "usable",
+        "build_readiness_band": "not_ready",
+        "chapter_focus": ["trustworthiness open dependencies", "write path blocked"],
+        "eval_notes": "Overlaps ES-33; expect low build-readiness and open write/sample items."
+      }
+    },
+    {
+      "id": "hr_onboarding_documents",
+      "transcript": "tests/eval/framework/transcripts/hr_onboarding_documents.txt",
+      "quality_tier": "usable",
+      "department": "HR",
+      "process": "Onboarding document collection",
+      "es33_overlap": false,
+      "expected_behavior": {
+        "summary": "HR document intake with EU constraint and HRIS write pending approval.",
+        "must_extract_topics": ["hire volume", "document classification", "HRIS API", "human approval"],
+        "must_surface_open_items": true,
+        "must_detect_contradiction": false,
+        "must_flag_multi_process": false,
+        "conversation_quality_band": "usable",
+        "build_readiness_band": "ready_with_assumptions",
+        "chapter_focus": ["client needs hours table", "security EU-only"],
+        "eval_notes": "Cross-domain eval; write access should stay open until IT approves."
+      }
+    },
+    {
+      "id": "customer_refund_queue",
+      "transcript": "tests/eval/framework/transcripts/customer_refund_queue.txt",
+      "quality_tier": "usable",
+      "department": "Customer Service",
+      "process": "Refund request handling",
+      "es33_overlap": false,
+      "expected_behavior": {
+        "summary": "Zendesk + billing read; write blocked until compliance sign-off.",
+        "must_extract_topics": ["request volume", "matching rules", "billing API read", "human release on payout"],
+        "must_surface_open_items": true,
+        "must_detect_contradiction": false,
+        "must_flag_multi_process": false,
+        "conversation_quality_band": "usable",
+        "build_readiness_band": "ready_with_assumptions",
+        "chapter_focus": ["how it works exception routing", "open write dependency"],
+        "eval_notes": "Service-desk pattern; no supplier email automation requested."
+      }
+    },
+    {
+      "id": "procurement_vendor_onboarding",
+      "transcript": "tests/eval/framework/transcripts/procurement_vendor_onboarding.txt",
+      "quality_tier": "sparse",
+      "department": "Procurement",
+      "process": "Vendor onboarding",
+      "es33_overlap": false,
+      "expected_behavior": {
+        "summary": "Very early discovery; almost no metrics or systems named.",
+        "must_extract_topics": ["vendor PDFs", "legal review mentioned"],
+        "must_surface_open_items": true,
+        "must_detect_contradiction": false,
+        "must_flag_multi_process": false,
+        "conversation_quality_band": "needs_human_followup",
+        "build_readiness_band": "not_ready",
+        "chapter_focus": ["many assumptions", "low conversation quality"],
+        "eval_notes": "Sparse transcript; pipeline should not invent volume or ROI."
+      }
+    },
+    {
+      "id": "contradictory_automation_scope",
+      "transcript": "tests/eval/framework/transcripts/contradictory_automation_scope.txt",
+      "quality_tier": "contradictory",
+      "department": "Finance",
+      "process": "Invoice posting automation",
+      "es33_overlap": false,
+      "expected_behavior": {
+        "summary": "Speaker contradicts full autonomy vs human approval policy.",
+        "must_extract_topics": ["automation target", "human approval threshold", "ERP read", "write blocked"],
+        "must_surface_open_items": true,
+        "must_detect_contradiction": true,
+        "must_flag_multi_process": false,
+        "conversation_quality_band": "usable",
+        "build_readiness_band": "ready_with_assumptions",
+        "chapter_focus": ["conflicts surfaced in KM", "human-in-the-loop in solution chapter"],
+        "eval_notes": "ES-7/ES-8 should capture autonomy vs approval contradiction."
+      }
+    },
+    {
+      "id": "dual_process_expense_and_invoice",
+      "transcript": "tests/eval/framework/transcripts/dual_process_expense_and_invoice.txt",
+      "quality_tier": "contradictory",
+      "department": "Finance",
+      "process": "AP invoices + expense reports",
+      "es33_overlap": false,
+      "expected_behavior": {
+        "summary": "Two distinct processes on one call; explicit do-not-merge instruction.",
+        "must_extract_topics": ["invoice volume in SAP", "expense reports in Concur"],
+        "must_surface_open_items": false,
+        "must_detect_contradiction": false,
+        "must_flag_multi_process": true,
+        "conversation_quality_band": "usable",
+        "build_readiness_band": "not_ready",
+        "chapter_focus": ["ES-29 multi-process flag if merged", "single process per framework object"],
+        "eval_notes": "Use when testing ES-29; merging both KMs should raise MultiProcessError."
+      }
+    },
+    {
+      "id": "no_metrics_workshop",
+      "transcript": "tests/eval/framework/transcripts/no_metrics_workshop.txt",
+      "quality_tier": "incomplete",
+      "department": "Operations",
+      "process": "Supplier inquiry mailbox",
+      "es33_overlap": false,
+      "expected_behavior": {
+        "summary": "No volume, hours, or systems — leadership wants a proposal anyway.",
+        "must_extract_topics": ["shared mailbox", "unmeasured workload"],
+        "must_surface_open_items": true,
+        "must_detect_contradiction": false,
+        "must_flag_multi_process": false,
+        "conversation_quality_band": "needs_human_followup",
+        "build_readiness_band": "not_ready",
+        "chapter_focus": ["payback open item", "no invented numbers in business case"],
+        "eval_notes": "ES-28 guardrail eval; numbers without sources become open items."
+      }
+    },
+    {
+      "id": "security_review_only",
+      "transcript": "tests/eval/framework/transcripts/security_review_only.txt",
+      "quality_tier": "security_focus",
+      "department": "Cross-functional",
+      "process": "Agent security gate",
+      "es33_overlap": false,
+      "expected_behavior": {
+        "summary": "Security/compliance rich; business process not described on the call.",
+        "must_extract_topics": ["EU residency", "audit log", "kill switch", "DPIA in progress", "no write access"],
+        "must_surface_open_items": true,
+        "must_detect_contradiction": false,
+        "must_flag_multi_process": false,
+        "conversation_quality_band": "needs_human_followup",
+        "build_readiness_band": "not_ready",
+        "chapter_focus": ["chapter 8 security populated", "thin process chapters"],
+        "eval_notes": "Security-heavy partial intake; expect follow-up C6 needed."
+      }
+    },
+    {
+      "id": "it_password_reset",
+      "transcript": "tests/eval/framework/transcripts/it_password_reset.txt",
+      "quality_tier": "sparse",
+      "department": "IT",
+      "process": "Password reset",
+      "es33_overlap": false,
+      "expected_behavior": {
+        "summary": "Low-volume IT helpdesk task; speaker doubts automation fit.",
+        "must_extract_topics": ["password resets", "Active Directory", "self-service portal"],
+        "must_surface_open_items": true,
+        "must_detect_contradiction": false,
+        "must_flag_multi_process": false,
+        "conversation_quality_band": "needs_human_followup",
+        "build_readiness_band": "not_ready",
+        "chapter_focus": ["low opportunity rating", "short management summary"],
+        "eval_notes": "Small opportunity eval; useful for eligibility/scoring edge cases."
+      }
+    },
+    {
+      "id": "manufacturing_incoming_qc",
+      "transcript": "tests/eval/framework/transcripts/manufacturing_incoming_qc.txt",
+      "quality_tier": "rich",
+      "department": "Manufacturing",
+      "process": "Incoming QC inspection",
+      "es33_overlap": false,
+      "expected_behavior": {
+        "summary": "Rich manufacturing QC with rules, volume, SAP, and stage-2 preference.",
+        "must_extract_topics": ["batch volume", "inspection rules", "certificate checks", "SAP API", "loaded cost"],
+        "must_surface_open_items": true,
+        "must_detect_contradiction": false,
+        "must_flag_multi_process": false,
+        "conversation_quality_band": "strong",
+        "build_readiness_band": "ready_with_assumptions",
+        "chapter_focus": ["business case hours saved", "evolution stage 2", "write dependency open"],
+        "eval_notes": "Second rich golden-path style case outside AP domain."
+      }
+    },
+    {
+      "id": "legal_contract_intake",
+      "transcript": "tests/eval/framework/transcripts/legal_contract_intake.txt",
+      "quality_tier": "usable",
+      "department": "Legal",
+      "process": "Contract intake triage",
+      "es33_overlap": false,
+      "expected_behavior": {
+        "summary": "Legal triage with explicit out-of-scope credit checks.",
+        "must_extract_topics": ["contract volume", "NDA/MSA checklists", "SharePoint Graph read", "lawyer confirmation"],
+        "must_surface_open_items": true,
+        "must_detect_contradiction": false,
+        "must_flag_multi_process": false,
+        "conversation_quality_band": "usable",
+        "build_readiness_band": "ready_with_assumptions",
+        "chapter_focus": ["scope boundary for credit checks", "stage 1 assistive fit"],
+        "eval_notes": "Out-of-scope items must not appear as committed build scope."
+      }
+    },
+    {
+      "id": "expense_report_approval",
+      "transcript": "tests/eval/framework/transcripts/expense_report_approval.txt",
+      "quality_tier": "usable",
+      "department": "Finance",
+      "process": "Expense report approval",
+      "es33_overlap": false,
+      "expected_behavior": {
+        "summary": "Concur approval with policy rules and controller sign-off on write.",
+        "must_extract_topics": ["report volume", "policy thresholds", "Concur API", "EU confidentiality"],
+        "must_surface_open_items": true,
+        "must_detect_contradiction": false,
+        "must_flag_multi_process": false,
+        "conversation_quality_band": "usable",
+        "build_readiness_band": "ready_with_assumptions",
+        "chapter_focus": ["rules and exceptions tables", "business case from named hours"],
+        "eval_notes": "Distinct from invoice matching; tests policy-heavy exception lists."
+      }
+    },
+    {
+      "id": "collections_dunning_email",
+      "transcript": "tests/eval/framework/transcripts/collections_dunning_email.txt",
+      "quality_tier": "usable",
+      "department": "Finance",
+      "process": "AR dunning email preparation",
+      "es33_overlap": false,
+      "expected_behavior": {
+        "summary": "AR dunning drafts only; no autonomous send; ERP read.",
+        "must_extract_topics": ["overdue accounts volume", "aging report", "human release on send", "ERP REST"],
+        "must_surface_open_items": false,
+        "must_detect_contradiction": false,
+        "must_flag_multi_process": false,
+        "conversation_quality_band": "usable",
+        "build_readiness_band": "ready_to_build",
+        "chapter_focus": ["no outbound send without human", "stage 2 recommended"],
+        "eval_notes": "Outbound communication guardrail eval — agent prepares, human releases."
+      }
+    }
+  ]
+}

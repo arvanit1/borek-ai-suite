@@ -1,4 +1,4 @@
-# packages/contracts ù Canonical JSON Schemas (SSOT)
+# packages/contracts ÔøΩ Canonical JSON Schemas (SSOT)
 
 Single source of truth for all cross-service data contracts.
 
@@ -14,7 +14,7 @@ Single source of truth for all cross-service data contracts.
 | `layout_registry.json` | section 13.1 / BT-2 prep | Complete |
 | `chapter_layout_map.json` | BT-3 prep | Complete |
 | `slide_spec/group_*/*.schema.json` | BT/JJ/MS | Pending |
-| `knowledge_model.schema.json` | ES-5 (Endrit) | Pending |
+| `knowledge_model.schema.json` | ES-5 (Endrit) | Complete |
 
 ## Validation gate
 
@@ -34,7 +34,7 @@ Must pass before marking schema tickets complete:
 - AT-5 TypeScript codegen tests (`test_typescript_codegen.py`)
 - AT-6 schema consumer tests (`test_schema_consumer.py`)
 
-## AT-4 ù Pydantic generation
+## AT-4 ÔøΩ Pydantic generation
 
 From repo root:
 
@@ -49,7 +49,7 @@ Produces importable Pydantic v2 models in `generated/python/contracts/` for:
 
 Never edit generated files. Change schemas in this directory, then re-run codegen.
 
-## AT-5 ù TypeScript generation
+## AT-5 ÔøΩ TypeScript generation
 
 From repo root:
 
@@ -65,7 +65,7 @@ Produces importable TypeScript types in `generated/typescript/contracts/` for:
 
 The renderer service imports these via `apps/renderer/src/contracts.ts`. Never edit generated files.
 
-## AT-6 ù schema_version + additive fields
+## AT-6 ÔøΩ schema_version + additive fields
 
 Forward-compatible consumers for canonical contracts (technical plan section 7, AT-6 backlog):
 
@@ -85,7 +85,7 @@ Behavior:
 
 ## Rules
 
-- Edit schemas here only ù never hand-edit `generated/`.
+- Edit schemas here only ÔøΩ never hand-edit `generated/`.
 - `chapter_registry.json` must stay aligned with `framework_object.schema.json` chapter prefixItems.
 - `layout_registry.json` must stay aligned with `LayoutId` enums in `presentation_plan.schema.json` and `slide_spec/base.schema.json`.
 - Layout developers: see `slide_spec/README.md` for extending `SlideSpecBase`.

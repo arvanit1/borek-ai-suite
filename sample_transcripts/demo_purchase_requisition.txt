@@ -1,0 +1,17 @@
+Agent: Requirements capture for purchase requisition approval automation in Procurement.
+
+Elena: We process about 850 purchase requisitions per month across three business units. Standard requests take 10 to 15 minutes to check budget, supplier status, and policy. Non-standard requests take 45 minutes and go to a category manager. That is roughly 95 hours per month in the repeatable core and about 220 hours for the whole procurement team.
+
+Elena: Today a request arrives in the Teams channel or by email. The buyer opens the ERP, checks the cost center budget, verifies the supplier is active, compares the quote to the catalog price, and either approves in the workflow tool or sends it back for clarification. Legal contracts above EUR 25,000 need a separate check.
+
+Elena: Rules are simple when the supplier is on the approved list, the cost center has budget, and the unit price matches the catalog within 2 percent. If the supplier is new, always hold for procurement. If budget is insufficient, reject with a reason. If the total is above EUR 10,000, a manager must one-click approve even when everything matches.
+
+Elena: Exceptions are new suppliers, split deliveries, missing budget, catalog price mismatch, and rush orders about 12 percent of volume. Rush orders still need human release same day. The agent must not place orders or sign contracts on its own.
+
+Elena: Success means cutting manual checking time from 95 hours per month to under 20 hours, first-touch approval rate from 55 percent today to at least 80 percent, and zero approvals when budget is insufficient. This supports the CFO target to close month-end procurement accruals two days faster.
+
+Elena: Systems are Microsoft Teams for intake via Graph API read, SAP S/4HANA for requisitions, budgets, suppliers, and catalog prices via OData read, and our workflow tool for approvals via REST read and write after IT signs the write scope. We have an SAP sandbox and can provide 20 anonymized requisition exports.
+
+IT: Data is internal confidential. Processing and storage in the EU only. No personal employee performance scoring. Every recommendation is logged with reason codes. Kill switch required. Write access to the workflow tool is pending security review until next month.
+
+Elena: Loaded cost is EUR 48 per hour. We want stage 1 assistive first, then stage 2 autonomous with human control as the recommended build. Stage 3 could add automatic supplier onboarding checks after we have six months of telemetry.

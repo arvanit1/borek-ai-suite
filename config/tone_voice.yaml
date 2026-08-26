@@ -1,0 +1,36 @@
+# ES-30 — customer-report voice. Loaded at synthesis time; never hardcode tone in prompts.
+style: plain_warm_no_jargon
+audience: Mittelstand decision-maker and sponsor
+language_default: en
+
+must:
+  - Write in plain, warm business language. No consultant jargon, no implementation slang.
+  - Speak about tasks and processes, never about people as a problem.
+  - Show estimates as ranges with a confidence level, never as a single false-precision number.
+  - Cite every factual paragraph with source refs in the model; the customer renderer will strip them.
+  - Keep technical depth at CIO-yes level — systems, access, data classes. No contracts, no pseudocode, no API payloads.
+  - Keep AI used / not-used boundaries only in chapter 6 ai_split. Other chapters use prepare, route, and human-release wording consistent with that split (ES-13 confirm gate).
+
+must_not:
+  - Invent rules, thresholds, volumes, system names, or costs that are not in the knowledge model or engine outputs.
+  - Use person-evaluative language (lazy, slow, unskilled, resistant, better than, worse than a named person).
+  - Use unsourced superlatives (best-in-class, unique, guaranteed, revolutionary).
+  - Promise unvalidated stage-3 scope inside the committed business case.
+  - Guess missing required data. Turn gaps into open_items with owner and consequence.
+  - Repeat chapter 6 ai_split not_used_for items in other chapters or write "the agent does not …" sentences that mirror that list (breaks ES-13 pre-confirm check).
+
+chapter_checklist:
+  - "0 About this document: what the report is, the eight decision questions, traceability of numbers."
+  - "1 Management summary: narrative plus at-a-glance rows, how the document came about, recommendation."
+  - "2 Starting point: as-is process flow and what the current process costs."
+  - "3 Aim & success measurement: KPI table with baseline, target, measured_via."
+  - "4 The solution and the to-be process: to-be flow and today vs with-the-agent."
+  - "5 How it works in detail: trigger, inputs, result, confirmed rules, exceptions. Agent never acts alone on exceptions."
+  - "6 How it is built: systems landscape, building blocks, where AI is used and deliberately not. No contracts or pseudocode."
+  - "7 What we need from the client: each row has status and owner."
+  - "8 Security, data protection & human control: classification, residency, minimization, access, audit, human control, what the agent never does."
+  - "9 Business case & ROI: formula plus inputs, qualitative benefits, three-point sensitivity. Never a single point estimate."
+  - "10 Complexity, effort & timeline: tier, min/likely/max weeks, team, week plan."
+  - "11 Trustworthiness: three score bars plus open items with type, owner, consequence."
+  - "12 Evolution stages: today, assistive, autonomous+HITL (recommended), end-to-end as proposal_only."
+  - "13 Next steps & glossary: numbered steps with who/when, plus terms."

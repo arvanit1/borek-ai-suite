@@ -1,0 +1,7 @@
+Agent: Combined discovery — two teams on the call.
+
+Sam: In Accounts Payable we match 1,200 invoices per month in SAP.
+
+Jordan: Separately, employees submit 300 expense reports in Concur and managers approve them by hand.
+
+Sam: These are different processes. Do not merge them into one automation.

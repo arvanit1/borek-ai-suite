@@ -1,0 +1,76 @@
+{
+  "schema_version": "1.0",
+  "prompt_version": "framework-extraction:v1",
+  "opportunity_id": "OPP-WARE-001",
+  "transcript_id": "00000000-0000-4000-8000-000000000301",
+  "conversation_id": "C1",
+  "facts": [
+    {
+      "statement": "The warehouse team matches about 500 delivery notes per month to outbound shipments.",
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "source_refs": [{ "conversation_id": "C1", "speaker_role": "Tom", "excerpt_pointer": "turn:1" }]
+    },
+    {
+      "statement": "Clean matches take three minutes and exceptions take twenty minutes.",
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "source_refs": [{ "conversation_id": "C1", "speaker_role": "Tom", "excerpt_pointer": "turn:1" }]
+    },
+    {
+      "statement": "Delivery notes arrive as PDF scans in a shared mailbox.",
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "source_refs": [{ "conversation_id": "C1", "speaker_role": "Tom", "excerpt_pointer": "turn:2" }]
+    },
+    {
+      "statement": "Data is internal only and processing stays in the EU.",
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "source_refs": [{ "conversation_id": "C1", "speaker_role": "Tom", "excerpt_pointer": "turn:4" }]
+    }
+  ],
+  "stated_requirements": [
+    {
+      "statement": "People decide every exception; the agent must never act alone on mismatches.",
+      "origin": "USER_INPUT",
+      "confidence": "high",
+      "source_refs": [{ "conversation_id": "C1", "speaker_role": "Tom", "excerpt_pointer": "turn:4" }]
+    }
+  ],
+  "constraints": [],
+  "named_systems": [
+    {
+      "statement": "SAP with read access through an approved API.",
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "source_refs": [{ "conversation_id": "C1", "speaker_role": "Tom", "excerpt_pointer": "turn:3" }]
+    }
+  ],
+  "named_rules": [],
+  "named_exceptions": [
+    {
+      "statement": "Exceptions go to the warehouse lead.",
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "source_refs": [{ "conversation_id": "C1", "speaker_role": "Tom", "excerpt_pointer": "turn:1" }]
+    }
+  ],
+  "people_and_roles": [],
+  "timeline_mentions": [],
+  "risks": [],
+  "unknowns": [
+    {
+      "statement": "The write path for automatic posting is not approved yet.",
+      "origin": "OPEN_QUESTION",
+      "confidence": "medium",
+      "source_refs": [{ "conversation_id": "C1", "speaker_role": "Tom", "excerpt_pointer": "turn:3" }]
+    },
+    {
+      "statement": "Sample documents have not been shared.",
+      "origin": "OPEN_QUESTION",
+      "confidence": "medium",
+      "source_refs": [{ "conversation_id": "C1", "speaker_role": "Tom", "excerpt_pointer": "turn:3" }]
+    }
+  ]
+}

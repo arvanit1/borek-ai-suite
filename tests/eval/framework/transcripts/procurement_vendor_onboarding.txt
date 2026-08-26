@@ -1,0 +1,5 @@
+Agent: Vendor onboarding — early notes.
+
+Pat: Vendors email PDFs. We probably need something automated.
+
+Pat: Legal checks contracts. IT creates accounts. Not sure about volumes yet.

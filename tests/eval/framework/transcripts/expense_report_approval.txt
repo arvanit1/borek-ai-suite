@@ -1,0 +1,9 @@
+Agent: Expense report approval in Concur.
+
+Jordan: About 300 expense reports per month. Managers open each report, check policy limits, and approve in Concur.
+
+Jordan: Policy: meals above EUR 80 need receipt attachment; travel above EUR 500 needs director approval; duplicate receipts are rejected.
+
+Jordan: Concur API read is available. Write for posting approvals needs controller sign-off. Success means cutting manager time from 90 hours per month to 20.
+
+Jordan: Loaded cost EUR 40 per hour. Data confidential, EU only.

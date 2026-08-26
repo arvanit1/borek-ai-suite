@@ -1,0 +1,1902 @@
+{
+  "id": "FW-OPP-WARE-001-v1",
+  "framework_id": "FW-OPP-WARE-001-v1",
+  "schema_version": "1.0",
+  "opportunity_id": "OPP-WARE-001",
+  "title": "Warehouse Delivery-Note Match",
+  "department": "HR",
+  "status": "draft",
+  "priority_rank": 1,
+  "quality_scores": {
+    "opportunity_rating": 70,
+    "conversation_quality": 58,
+    "build_readiness": 54,
+    "rationale": {
+      "opportunity_rating": "Opportunity rating 70/100 from 120 hours/month and a 2.2-week path.",
+      "conversation_quality": "Conversation quality 58/100 (usable).",
+      "build_readiness": "Build-readiness 54/100 (not ready)."
+    }
+  },
+  "kpis": [
+    {
+      "name": "Automation rate",
+      "baseline": "Not named in the conversations. Recorded as an open item rather than guessed.",
+      "target": "Not named in the conversations. Recorded as an open item rather than guessed.",
+      "measured_via": "agent statistics per case"
+    },
+    {
+      "name": "Manual handling time",
+      "baseline": "Not named in the conversations. Recorded as an open item rather than guessed.",
+      "target": "Not named in the conversations. Recorded as an open item rather than guessed.",
+      "measured_via": "exception-queue time tracking"
+    },
+    {
+      "name": "Quality / error rate",
+      "baseline": "Not named in the conversations. Recorded as an open item rather than guessed.",
+      "target": "Not named in the conversations. Recorded as an open item rather than guessed.",
+      "measured_via": "audit log and spot checks"
+    },
+    {
+      "name": "Cycle time",
+      "baseline": "Not named in the conversations. Recorded as an open item rather than guessed.",
+      "target": "Not named in the conversations. Recorded as an open item rather than guessed.",
+      "measured_via": "process timestamps / month-end tracking"
+    }
+  ],
+  "systems": [
+    {
+      "name": "SAP with read access through an approved API",
+      "role": "SAP with read access through an approved API.",
+      "direction": "internal",
+      "access_path": "SAP with read access through an approved API.",
+      "data_classification": "as reported",
+      "status": "available"
+    }
+  ],
+  "rules": [],
+  "exceptions": [
+    {
+      "name": "Exceptions go to the warehouse lead",
+      "frequency": "named in conversation",
+      "handling": "Exceptions go to the warehouse lead."
+    }
+  ],
+  "access_needs": [
+    {
+      "category": "Read access",
+      "detail": "Not named in the conversations. Recorded as an open item rather than guessed.",
+      "status": "open",
+      "owner": "Business"
+    },
+    {
+      "category": "Write access",
+      "detail": "Not named in the conversations. Recorded as an open item rather than guessed.",
+      "status": "open",
+      "owner": "Business"
+    },
+    {
+      "category": "Sample / test data",
+      "detail": "Not named in the conversations. Recorded as an open item rather than guessed.",
+      "status": "open",
+      "owner": "Business"
+    },
+    {
+      "category": "Rule confirmation",
+      "detail": "Not named in the conversations. Recorded as an open item rather than guessed.",
+      "status": "open",
+      "owner": "Business"
+    },
+    {
+      "category": "Identity / SSO",
+      "detail": "Not named in the conversations. Recorded as an open item rather than guessed.",
+      "status": "open",
+      "owner": "Business"
+    }
+  ],
+  "evolution_stages": [
+    {
+      "stage_name": "Today",
+      "agent_does": "Nothing — fully manual process.",
+      "human_does": "The warehouse team matches about 500 delivery notes per month to outbound shipments.",
+      "benefit": "—",
+      "extra_effort": "—",
+      "recommended": false
+    },
+    {
+      "stage_name": "Stage 1 · Assistive",
+      "agent_does": "Captures, extracts, checks, and prepares complete proposals with reasons. No write/actuating actions.",
+      "human_does": "Confirms every posting or action with one click.",
+      "benefit": "~40 % of time; full visibility",
+      "extra_effort": "included in base build (interim milestone)",
+      "recommended": false
+    },
+    {
+      "stage_name": "Stage 2 · Autonomous with HITL",
+      "agent_does": "Runs the named standard case within confirmed rules; exceptions go to people.",
+      "human_does": "Exceptions, gated approvals, spot checks.",
+      "benefit": "~45 h/month · full business case from chapter 9",
+      "extra_effort": "base build (2.2 weeks, EUR 11000)",
+      "recommended": true
+    },
+    {
+      "stage_name": "Stage 3 · End-to-end (option)",
+      "agent_does": "No sourced stage-3 candidates. Nothing is proposed beyond the specified build.",
+      "human_does": "Releases outbound messages; decides on any rule-tuning proposals.",
+      "benefit": "—",
+      "extra_effort": "—",
+      "recommended": false
+    }
+  ],
+  "open_items": [
+    {
+      "description": "The write path for automatic posting is not approved yet.",
+      "item_type": "assumption",
+      "owner": "Business",
+      "consequence_if_different": "Missing data is never guessed. Confirm before build, or keep as an assumption."
+    },
+    {
+      "description": "Sample documents have not been shared.",
+      "item_type": "assumption",
+      "owner": "Business",
+      "consequence_if_different": "Missing data is never guessed. Confirm before build, or keep as an assumption."
+    },
+    {
+      "description": "Claim in chapter 1 is not supported because it has no cited conversation excerpt: Generated automatically from the captured conversations. Missing facts are listed, never guessed.. Recorded as an open item rather than accepted.",
+      "item_type": "assumption",
+      "owner": "Business",
+      "consequence_if_different": "Unsupported claims are never published. Confirm the statement against the conversation."
+    },
+    {
+      "description": "Claim in chapter 10 is not supported because it has no cited conversation excerpt: The week plan is for the recommended evolution stage in chapter 12, not for unsourced stage-3 scope.. Recorded as an open item rather than accepted.",
+      "item_type": "assumption",
+      "owner": "Business",
+      "consequence_if_different": "Unsupported claims are never published. Confirm the statement against the conversation."
+    },
+    {
+      "description": "Claim in chapter 12 is not supported because it has no cited conversation excerpt: Stage-3 elements are proposals only. They are never included in the committed business case.. Recorded as an open item rather than accepted.",
+      "item_type": "assumption",
+      "owner": "Business",
+      "consequence_if_different": "Unsupported claims are never published. Confirm the statement against the conversation."
+    }
+  ],
+  "chapters": [
+    {
+      "chapter_id": "0",
+      "title": "About this document",
+      "body": [
+        {
+          "block": "prose",
+          "text": "For every automation opportunity it identifies, the Borek AI Suite generates exactly one framework report like this. It is generated from the conversations with your team and is human-confirmed before it is the signed customer report. No consultant writes it. Every number in this report is traceable to its source. Estimates are shown as ranges with a confidence level, never as false precision.",
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Tom",
+              "excerpt_pointer": "turn:4"
+            }
+          ]
+        },
+        {
+          "block": "bullets",
+          "items": [
+            "What is it? — the task today (chapters 1-2)",
+            "Why do it? — aim, benefit and measurable success (chapter 3)",
+            "How does it work? — the solution, the to-be process, the rules (chapters 4-5)",
+            "How is it built technically? — systems and integrations at CIO depth (chapter 6)",
+            "What do we need from you? — access, data, people (chapter 7)",
+            "Is it safe? — data protection, compliance, human control (chapter 8)",
+            "Does it pay? — business case, ROI, complexity (chapters 9-10)",
+            "Can we trust the numbers? — quality gates, open points, evolution (chapters 11-12)"
+          ]
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:4"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:3"
+        }
+      ]
+    },
+    {
+      "chapter_id": "1",
+      "title": "Management summary",
+      "body": [
+        {
+          "block": "prose",
+          "text": "The warehouse team matches about 500 delivery notes per month to outbound shipments.",
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Tom",
+              "excerpt_pointer": "turn:1"
+            }
+          ]
+        },
+        {
+          "block": "kv_rows",
+          "caption": "At a glance",
+          "rows": [
+            {
+              "label": "Automation",
+              "value": "Warehouse Delivery-Note Match"
+            },
+            {
+              "label": "Expected benefit",
+              "value": "~45 h/month capacity reclaimed · ~EUR 1650 net value/month"
+            },
+            {
+              "label": "Investment",
+              "value": "~EUR 11000 build (2.2 weeks) · ~EUR 150/month run cost"
+            },
+            {
+              "label": "Payback",
+              "value": "~6.7 months · ROI over 36 months: ~440 %"
+            },
+            {
+              "label": "Complexity",
+              "value": "Tier T2 · 1 systems · 0 named rules"
+            },
+            {
+              "label": "Human in the loop",
+              "value": "Exceptions are always decided by people."
+            },
+            {
+              "label": "Security",
+              "value": "As named in the conversations; see chapter 8."
+            },
+            {
+              "label": "Data basis",
+              "value": "Opportunity rating 70/100 · conversation quality 58/100 · build-readiness 54/100"
+            }
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Tom",
+              "excerpt_pointer": "turn:1"
+            }
+          ]
+        },
+        {
+          "block": "callout",
+          "tone": "open_item",
+          "text": "This point is recorded as an open item because it is not supported by a conversation excerpt."
+        },
+        {
+          "block": "callout",
+          "kind": "recommendation",
+          "text": "Release for build at evolution stage 2 (autonomous with human control) only if all three quality gates pass. Blocking items are listed in chapter 11; numbered next steps are in chapter 13."
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:4"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:3"
+        }
+      ]
+    },
+    {
+      "chapter_id": "2",
+      "title": "Starting point: the process today",
+      "body": [
+        {
+          "block": "prose",
+          "text": "This is how the work runs today — captured with the people who do it, not reconstructed later."
+        },
+        {
+          "block": "process_flow",
+          "caption": "As-is process",
+          "nodes": [
+            {
+              "id": "n0",
+              "label": "Intake",
+              "kind": "system"
+            },
+            {
+              "id": "n1",
+              "label": "Capture",
+              "kind": "human"
+            },
+            {
+              "id": "n2",
+              "label": "Check",
+              "kind": "system"
+            },
+            {
+              "id": "n3",
+              "label": "Post or clarify",
+              "kind": "human"
+            }
+          ],
+          "edges": [
+            {
+              "from": "n0",
+              "to": "n1",
+              "label": ""
+            },
+            {
+              "from": "n1",
+              "to": "n2",
+              "label": ""
+            },
+            {
+              "from": "n2",
+              "to": "n3",
+              "label": ""
+            }
+          ]
+        },
+        {
+          "block": "kv_rows",
+          "caption": "What the current process costs",
+          "rows": [
+            {
+              "label": "Volume",
+              "value": "Not named in the conversations. Recorded as an open item rather than guessed."
+            },
+            {
+              "label": "Capacity tied up",
+              "value": "~60.0 hours/month in the automatable core"
+            },
+            {
+              "label": "Clean-case handling time",
+              "value": "Not named in the conversations. Recorded as an open item rather than guessed."
+            },
+            {
+              "label": "Exception handling time",
+              "value": "Not named in the conversations. Recorded as an open item rather than guessed."
+            },
+            {
+              "label": "Exception rate",
+              "value": "Not named in the conversations. Recorded as an open item rather than guessed."
+            },
+            {
+              "label": "Staff involved",
+              "value": "The warehouse team matches about 500 delivery notes per month to outbound shipments."
+            },
+            {
+              "label": "Quality risk",
+              "value": "Not named in the conversations. Recorded as an open item rather than guessed."
+            }
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Tom",
+              "excerpt_pointer": "turn:1"
+            }
+          ]
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:4"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:3"
+        }
+      ]
+    },
+    {
+      "chapter_id": "3",
+      "title": "Aim & success measurement",
+      "body": [
+        {
+          "block": "prose",
+          "text": "The aim is a measurable state. These KPIs are a conservative derivation from the conversations; empty cells are open items, not guesses."
+        },
+        {
+          "block": "table",
+          "caption": "Aim & success measurement",
+          "columns": [
+            "KPI",
+            "Today (baseline)",
+            "Target after 3 months",
+            "Measured via"
+          ],
+          "rows": [
+            [
+              "Automation rate",
+              "Not named in the conversations. Recorded as an open item rather than guessed.",
+              "Not named in the conversations. Recorded as an open item rather than guessed.",
+              "agent statistics per case"
+            ],
+            [
+              "Manual handling time",
+              "Not named in the conversations. Recorded as an open item rather than guessed.",
+              "Not named in the conversations. Recorded as an open item rather than guessed.",
+              "exception-queue time tracking"
+            ],
+            [
+              "Quality / error rate",
+              "Not named in the conversations. Recorded as an open item rather than guessed.",
+              "Not named in the conversations. Recorded as an open item rather than guessed.",
+              "audit log and spot checks"
+            ],
+            [
+              "Cycle time",
+              "Not named in the conversations. Recorded as an open item rather than guessed.",
+              "Not named in the conversations. Recorded as an open item rather than guessed.",
+              "process timestamps / month-end tracking"
+            ]
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Tom",
+              "excerpt_pointer": "turn:1"
+            }
+          ]
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:4"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:3"
+        }
+      ]
+    },
+    {
+      "chapter_id": "4",
+      "title": "The solution and the to-be process",
+      "body": [
+        {
+          "block": "prose",
+          "text": "The workflow handles the standard case and pre-sorts everything else — with a reason, so clarification is quick."
+        },
+        {
+          "block": "process_flow",
+          "caption": "To-be process (stage 2)",
+          "nodes": [
+            {
+              "id": "n0",
+              "label": "Intake",
+              "kind": "system"
+            },
+            {
+              "id": "n1",
+              "label": "Extract",
+              "kind": "human"
+            },
+            {
+              "id": "n2",
+              "label": "Match",
+              "kind": "system"
+            },
+            {
+              "id": "n3",
+              "label": "Post or queue",
+              "kind": "human"
+            }
+          ],
+          "edges": [
+            {
+              "from": "n0",
+              "to": "n1",
+              "label": ""
+            },
+            {
+              "from": "n1",
+              "to": "n2",
+              "label": ""
+            },
+            {
+              "from": "n2",
+              "to": "n3",
+              "label": ""
+            }
+          ]
+        },
+        {
+          "block": "table",
+          "caption": "Today vs with the agent",
+          "columns": [
+            "Today",
+            "With the agent"
+          ],
+          "rows": [
+            [
+              "Intake",
+              "Intake"
+            ],
+            [
+              "Capture",
+              "Extract"
+            ],
+            [
+              "Check",
+              "Match"
+            ],
+            [
+              "Post or clarify",
+              "Post or queue"
+            ]
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Tom",
+              "excerpt_pointer": "turn:4"
+            }
+          ]
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:4"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:3"
+        }
+      ]
+    },
+    {
+      "chapter_id": "5",
+      "title": "How it works in detail",
+      "body": [
+        {
+          "block": "prose",
+          "text": "The rules below come from the conversations. The agent invents no rules — it applies only what was named and confirmed."
+        },
+        {
+          "block": "kv_rows",
+          "caption": "Trigger, inputs, result",
+          "rows": [
+            {
+              "label": "Trigger",
+              "value": "Delivery notes arrive as PDF scans in a shared mailbox."
+            },
+            {
+              "label": "Inputs",
+              "value": "Not named in the conversations. Recorded as an open item rather than guessed."
+            },
+            {
+              "label": "Result",
+              "value": "Not named in the conversations. Recorded as an open item rather than guessed."
+            }
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Tom",
+              "excerpt_pointer": "turn:2"
+            }
+          ]
+        },
+        {
+          "block": "table",
+          "caption": "The checking rules",
+          "columns": [
+            "Rule",
+            "How the agent decides"
+          ],
+          "rows": [
+            [
+              "Not named in the conversations. Recorded as an open item rather than guessed.",
+              "—"
+            ]
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Tom",
+              "excerpt_pointer": "turn:4"
+            }
+          ]
+        },
+        {
+          "block": "table",
+          "caption": "The exceptions and how they are handled",
+          "columns": [
+            "Exception",
+            "Frequency",
+            "Handling"
+          ],
+          "rows": [
+            [
+              "Exceptions go to the warehouse lead",
+              "named in conversation",
+              "Exceptions go to the warehouse lead."
+            ]
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Tom",
+              "excerpt_pointer": "turn:1"
+            }
+          ]
+        },
+        {
+          "block": "callout",
+          "kind": "important",
+          "text": "In no exception does the agent act on its own toward counterparties. It prepares the decision; your team decides.",
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Tom",
+              "excerpt_pointer": "turn:4"
+            }
+          ]
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:4"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:3"
+        }
+      ]
+    },
+    {
+      "chapter_id": "6",
+      "title": "How it is built - systems, data flow, integration",
+      "body": [
+        {
+          "block": "prose",
+          "text": "This chapter gives IT and the system owner the technical picture at the depth needed to say yes — without implementation detail."
+        },
+        {
+          "block": "table",
+          "caption": "Systems landscape and data flow",
+          "columns": [
+            "System",
+            "Role in the automation",
+            "Dir.",
+            "Access path",
+            "Data"
+          ],
+          "rows": [
+            [
+              "SAP with read access through an approved API",
+              "SAP with read access through an approved API.",
+              "internal",
+              "SAP with read access through an approved API.",
+              "as reported"
+            ]
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Tom",
+              "excerpt_pointer": "turn:3"
+            }
+          ]
+        },
+        {
+          "block": "table",
+          "caption": "Building blocks",
+          "columns": [
+            "Building block",
+            "Role in the automation",
+            "How it is protected"
+          ],
+          "rows": [
+            [
+              "SAP with read access through an approved API",
+              "SAP with read access through an approved API.",
+              "As named in chapter 8"
+            ]
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Tom",
+              "excerpt_pointer": "turn:3"
+            }
+          ]
+        },
+        {
+          "block": "ai_split",
+          "used_for": [
+            "Reading variable documents into structured fields with a confidence per field"
+          ],
+          "not_used_for": [
+            "Deciding whether a case matches",
+            "Evaluating tolerances or thresholds",
+            "Assessing any employee"
+          ]
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:4"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:3"
+        }
+      ]
+    },
+    {
+      "chapter_id": "7",
+      "title": "What we need from the client",
+      "body": [
+        {
+          "block": "prose",
+          "text": "To deliver we need the following access, data and people on your side. Nothing here is invented."
+        },
+        {
+          "block": "table",
+          "caption": "What we need from the client",
+          "columns": [
+            "Category",
+            "Specifically",
+            "Status",
+            "Owner",
+            "Hours"
+          ],
+          "rows": [
+            [
+              "Read access",
+              "Not named in the conversations. Recorded as an open item rather than guessed.",
+              "open",
+              "Business",
+              "Not named in the conversations. Recorded as an open item rather than guessed."
+            ],
+            [
+              "Write access",
+              "Not named in the conversations. Recorded as an open item rather than guessed.",
+              "open",
+              "Business",
+              "Not named in the conversations. Recorded as an open item rather than guessed."
+            ],
+            [
+              "Sample / test data",
+              "Not named in the conversations. Recorded as an open item rather than guessed.",
+              "open",
+              "Business",
+              "Not named in the conversations. Recorded as an open item rather than guessed."
+            ],
+            [
+              "Rule confirmation",
+              "Not named in the conversations. Recorded as an open item rather than guessed.",
+              "open",
+              "Business",
+              "Not named in the conversations. Recorded as an open item rather than guessed."
+            ],
+            [
+              "Identity / SSO",
+              "Not named in the conversations. Recorded as an open item rather than guessed.",
+              "open",
+              "Business",
+              "Not named in the conversations. Recorded as an open item rather than guessed."
+            ]
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Tom",
+              "excerpt_pointer": "turn:3"
+            }
+          ]
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:4"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:3"
+        }
+      ]
+    },
+    {
+      "chapter_id": "8",
+      "title": "Security, data protection & human control",
+      "body": [
+        {
+          "block": "kv_rows",
+          "caption": "Binding guardrails",
+          "rows": [
+            {
+              "label": "Data classification",
+              "value": "Not named in the conversations. Recorded as an open item rather than guessed."
+            },
+            {
+              "label": "Data residency",
+              "value": "Data is internal only and processing stays in the EU."
+            },
+            {
+              "label": "Data minimization",
+              "value": "Not named in the conversations. Recorded as an open item rather than guessed."
+            },
+            {
+              "label": "Access",
+              "value": "Not named in the conversations. Recorded as an open item rather than guessed."
+            },
+            {
+              "label": "Audit",
+              "value": "Every decision logged."
+            },
+            {
+              "label": "Retention",
+              "value": "Retention follows the named classification and residency guardrails; no extra copies beyond audit need."
+            },
+            {
+              "label": "Human control",
+              "value": "Exceptions are always decided by people."
+            },
+            {
+              "label": "What the agent never does",
+              "value": "No evaluation of employees — the agent measures work, never people. No unsourced rule changes."
+            },
+            {
+              "label": "Breach",
+              "value": "A breach of these guardrails is a failed acceptance test."
+            }
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Tom",
+              "excerpt_pointer": "turn:4"
+            }
+          ]
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:4"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:3"
+        }
+      ]
+    },
+    {
+      "chapter_id": "9",
+      "title": "Business case & ROI",
+      "body": [
+        {
+          "block": "prose",
+          "text": "All values are calculated from the volumes and times your team reported — formulas disclosed, assumptions marked."
+        },
+        {
+          "block": "table",
+          "caption": "Business case",
+          "columns": [
+            "Item",
+            "Calculation",
+            "Value"
+          ],
+          "rows": [
+            [
+              "Effort today",
+              "automatable hours/month from the conversations",
+              "~60.0 h/month"
+            ],
+            [
+              "Automation rate",
+              "named auto-match / automation target",
+              "~75 %"
+            ],
+            [
+              "Hours saved / month",
+              "round(automatable_hours_mo * automation_rate)",
+              "~45 h"
+            ],
+            [
+              "Gross value",
+              "round(hours_saved_mo * loaded_hourly_cost_eur to 100 EUR)",
+              "~EUR 1800/month"
+            ],
+            [
+              "Run cost",
+              "archetype volume lookup",
+              "~EUR 150/month"
+            ],
+            [
+              "Net value",
+              "gross_eur_mo - run_cost_eur_mo",
+              "~EUR 1650/month"
+            ],
+            [
+              "Build cost",
+              "effort weeks x builder rate",
+              "~EUR 11000 one-off"
+            ],
+            [
+              "Payback",
+              "build_cost_eur / net_eur_mo",
+              "~6.7 months"
+            ],
+            [
+              "ROI 36 months",
+              "(36 * net_eur_mo - build_cost_eur) / build_cost_eur",
+              "~440 %"
+            ]
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Tom",
+              "excerpt_pointer": "turn:1"
+            }
+          ]
+        },
+        {
+          "block": "bullets",
+          "items": [
+            "Warehouse lead spends less time on routine matches",
+            "Clear queue for true exceptions"
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Tom",
+              "excerpt_pointer": "turn:1"
+            }
+          ]
+        },
+        {
+          "block": "sensitivity",
+          "rows": [
+            {
+              "label": "Pessimistic",
+              "detail": "Auto-match 70 % · net ~EUR 1550/month · payback ~7.1 months"
+            },
+            {
+              "label": "Expected",
+              "detail": "Auto-match 75 % · net ~EUR 1650/month · payback ~6.7 months"
+            },
+            {
+              "label": "Optimistic",
+              "detail": "Auto-match 92 % · net ~EUR 2050/month · payback ~5.4 months"
+            }
+          ]
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:4"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:3"
+        }
+      ]
+    },
+    {
+      "chapter_id": "10",
+      "title": "Complexity, effort & timeline",
+      "body": [
+        {
+          "block": "callout",
+          "tone": "open_item",
+          "text": "This point is recorded as an open item because it is not supported by a conversation excerpt."
+        },
+        {
+          "block": "kv_rows",
+          "caption": "Classification",
+          "rows": [
+            {
+              "label": "Complexity tier",
+              "value": "T2"
+            },
+            {
+              "label": "Effort",
+              "value": "1.5 – 2.2 – 2.9 weeks (min / likely / max) · confidence: medium"
+            },
+            {
+              "label": "Team",
+              "value": "1 builder"
+            },
+            {
+              "label": "Drivers",
+              "value": "archetype=doc_extraction; data_readiness=partial; reuse_discount_pct=10; builder_weekly_rate_eur=5000"
+            },
+            {
+              "label": "Build cost",
+              "value": "~EUR 11000"
+            }
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Tom",
+              "excerpt_pointer": "turn:1"
+            }
+          ]
+        },
+        {
+          "block": "timeline",
+          "weeks": [
+            {
+              "id": "W1",
+              "items": [
+                "Weeks 1–1: connect intake, read paths, and samples"
+              ]
+            },
+            {
+              "id": "W2",
+              "items": [
+                "Weeks 2–2: rules, exception queue, tests"
+              ]
+            },
+            {
+              "id": "W3",
+              "items": [
+                "Weeks 3–3: gated writes, audit, acceptance, go-live approval (chapter 12 stage 2)"
+              ]
+            }
+          ]
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:4"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:3"
+        }
+      ]
+    },
+    {
+      "chapter_id": "11",
+      "title": "Trustworthiness - quality gates",
+      "body": [
+        {
+          "block": "prose",
+          "text": "Before anything is built, every automation must pass three independent checks. You see all three results openly.",
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Tom",
+              "excerpt_pointer": "turn:4"
+            }
+          ]
+        },
+        {
+          "block": "score_bars",
+          "items": [
+            {
+              "name": "Opportunity rating",
+              "score": 70,
+              "max": 100,
+              "band": "Is it worth doing?",
+              "explanation": "Opportunity rating 70/100 from 120 hours/month and a 2.2-week path."
+            },
+            {
+              "name": "Conversation quality",
+              "score": 58,
+              "max": 100,
+              "band": "Can we trust the data?",
+              "explanation": "Conversation quality 58/100 (usable)."
+            },
+            {
+              "name": "Build-readiness",
+              "score": 54,
+              "max": 100,
+              "band": "Is the concept buildable?",
+              "explanation": "Build-readiness 54/100 (not ready)."
+            }
+          ]
+        },
+        {
+          "block": "table",
+          "caption": "Open items and assumptions",
+          "columns": [
+            "Open item / assumption",
+            "Type",
+            "Owner",
+            "Consequence if different"
+          ],
+          "rows": [
+            [
+              "The write path for automatic posting is not approved yet.",
+              "assumption",
+              "Business",
+              "Missing data is never guessed. Confirm before build, or keep as an assumption."
+            ],
+            [
+              "Sample documents have not been shared.",
+              "assumption",
+              "Business",
+              "Missing data is never guessed. Confirm before build, or keep as an assumption."
+            ],
+            [
+              "Claim in chapter 1 is not supported because it has no cited conversation excerpt: Generated automatically from the captured conversations. Missing facts are listed, never guessed.. Recorded as an open item rather than accepted.",
+              "assumption",
+              "Business",
+              "Unsupported claims are never published. Confirm the statement against the conversation."
+            ],
+            [
+              "Claim in chapter 10 is not supported because it has no cited conversation excerpt: The week plan is for the recommended evolution stage in chapter 12, not for unsourced stage-3 scope.. Recorded as an open item rather than accepted.",
+              "assumption",
+              "Business",
+              "Unsupported claims are never published. Confirm the statement against the conversation."
+            ],
+            [
+              "Claim in chapter 12 is not supported because it has no cited conversation excerpt: Stage-3 elements are proposals only. They are never included in the committed business case.. Recorded as an open item rather than accepted.",
+              "assumption",
+              "Business",
+              "Unsupported claims are never published. Confirm the statement against the conversation."
+            ]
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Tom",
+              "excerpt_pointer": "turn:3"
+            }
+          ]
+        },
+        {
+          "block": "callout",
+          "kind": "principle",
+          "text": "Missing information is never guessed. Every gap appears here as an open item with an owner.",
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Tom",
+              "excerpt_pointer": "turn:4"
+            }
+          ]
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:4"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:3"
+        }
+      ]
+    },
+    {
+      "chapter_id": "12",
+      "title": "Evolution stages",
+      "body": [
+        {
+          "block": "prose",
+          "text": "Every automation is designed as a path, not an end state. You decide anew at each stage.",
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Tom",
+              "excerpt_pointer": "turn:4"
+            }
+          ]
+        },
+        {
+          "block": "table",
+          "caption": "Evolution stages",
+          "columns": [
+            "Stage",
+            "What the agent does",
+            "Human",
+            "Benefit",
+            "Extra effort"
+          ],
+          "rows": [
+            [
+              "Today",
+              "Nothing — fully manual process.",
+              "The warehouse team matches about 500 delivery notes per month to outbound shipments.",
+              "—",
+              "—"
+            ],
+            [
+              "Stage 1 · Assistive",
+              "Captures, extracts, checks, and prepares complete proposals with reasons. No write/actuating actions.",
+              "Confirms every posting or action with one click.",
+              "~40 % of time; full visibility",
+              "included in base build (interim milestone)"
+            ],
+            [
+              "Stage 2 · Autonomous with HITL",
+              "Runs the named standard case within confirmed rules; exceptions go to people.",
+              "Exceptions, gated approvals, spot checks.",
+              "~45 h/month · full business case from chapter 9",
+              "base build (2.2 weeks, EUR 11000)"
+            ],
+            [
+              "Stage 3 · End-to-end (option)",
+              "No sourced stage-3 candidates. Nothing is proposed beyond the specified build.",
+              "Releases outbound messages; decides on any rule-tuning proposals.",
+              "—",
+              "—"
+            ]
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Tom",
+              "excerpt_pointer": "turn:1"
+            }
+          ]
+        },
+        {
+          "block": "callout",
+          "tone": "open_item",
+          "text": "This point is recorded as an open item because it is not supported by a conversation excerpt."
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:4"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:3"
+        }
+      ]
+    },
+    {
+      "chapter_id": "13",
+      "title": "Next steps & glossary",
+      "body": [
+        {
+          "block": "table",
+          "caption": "Next steps",
+          "columns": [
+            "#",
+            "Step",
+            "Who",
+            "When"
+          ],
+          "rows": [
+            [
+              "1",
+              "Business confirmation of the captured process",
+              "Business owner",
+              "Before go"
+            ],
+            [
+              "2",
+              "Go decision in Deployment Control (this report is the decision basis)",
+              "Sponsor",
+              "This week"
+            ],
+            [
+              "3",
+              "Build with interim acceptance of stage 1",
+              "Borek delivery + business",
+              "2.2 weeks"
+            ]
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Tom",
+              "excerpt_pointer": "turn:1"
+            }
+          ]
+        },
+        {
+          "block": "glossary",
+          "terms": [
+            {
+              "term": "Auto-match rate",
+              "meaning": "Share of cases the workflow completes without a human step."
+            },
+            {
+              "term": "Exception queue",
+              "meaning": "Cases that could not be resolved by rule, each with reason and a suggested action."
+            },
+            {
+              "term": "Build-readiness",
+              "meaning": "A 0-100 score of whether the concept is complete enough to build."
+            },
+            {
+              "term": "Stage 1 / 2 / 3",
+              "meaning": "Assistive · autonomous with human control · end-to-end (proposal)."
+            },
+            {
+              "term": "SAP with read access through an approved API",
+              "meaning": "As named in the conversations: SAP with read access through an approved API."
+            },
+            {
+              "term": "Automation rate",
+              "meaning": "As named in the conversations: Automation rate."
+            },
+            {
+              "term": "Manual handling time",
+              "meaning": "As named in the conversations: Manual handling time."
+            },
+            {
+              "term": "Quality / error rate",
+              "meaning": "As named in the conversations: Quality / error rate."
+            },
+            {
+              "term": "Cycle time",
+              "meaning": "As named in the conversations: Cycle time."
+            },
+            {
+              "term": "The warehouse team matches about 500 delivery",
+              "meaning": "As named in the conversations: The warehouse team matches about 500 delivery notes per month to outbound shipments.."
+            },
+            {
+              "term": "Clean matches take three minutes and exceptions",
+              "meaning": "As named in the conversations: Clean matches take three minutes and exceptions take twenty minutes.."
+            },
+            {
+              "term": "Delivery notes arrive as PDF scans in a shared",
+              "meaning": "As named in the conversations: Delivery notes arrive as PDF scans in a shared mailbox.."
+            }
+          ]
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:4"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:3"
+        }
+      ]
+    }
+  ],
+  "version": 1,
+  "generated_from": [
+    "00000000-0000-4000-8000-000000000301"
+  ],
+  "previous_version_id": null,
+  "change_log": [
+    "Initial customer-report generation"
+  ],
+  "created_at": "2026-08-26T10:00:00Z",
+  "updated_at": "2026-08-26T10:00:00Z",
+  "language_master": "en",
+  "render_languages": [
+    "de",
+    "en"
+  ],
+  "estimate": {
+    "tier": "T2",
+    "effort_weeks": {
+      "min": 1.5,
+      "likely": 2.2,
+      "max": 2.9
+    },
+    "confidence": "medium",
+    "team": [
+      "1 builder"
+    ],
+    "timeline_weeks": 2.2,
+    "build_cost_eur": 11000,
+    "assumptions": [
+      "archetype=doc_extraction",
+      "data_readiness=partial",
+      "reuse_discount_pct=10",
+      "builder_weekly_rate_eur=5000"
+    ],
+    "inputs": {
+      "archetype": "doc_extraction",
+      "step_count": 4,
+      "system_count": 1,
+      "rule_count": 0,
+      "hard_integration_count": 1,
+      "data_readiness": "partial",
+      "reuse": [
+        "library_component"
+      ],
+      "builder_count": 1
+    }
+  },
+  "business_case": {
+    "hours_saved_mo": 45,
+    "gross_eur_mo": 1800,
+    "run_cost_eur_mo": 150,
+    "net_eur_mo": 1650,
+    "payback_months": 6.7,
+    "roi_36m_pct": 440,
+    "sensitivity": {
+      "low": {
+        "automation_rate": 0.7,
+        "hours_saved_mo": 42,
+        "net_eur_mo": 1550,
+        "payback_months": 7.1,
+        "roi_36m_pct": 407
+      },
+      "expected": {
+        "automation_rate": 0.75,
+        "hours_saved_mo": 45,
+        "net_eur_mo": 1650,
+        "payback_months": 6.7,
+        "roi_36m_pct": 440
+      },
+      "high": {
+        "automation_rate": 0.92,
+        "hours_saved_mo": 55,
+        "net_eur_mo": 2050,
+        "payback_months": 5.4,
+        "roi_36m_pct": 571
+      }
+    },
+    "qualitative": [
+      "Warehouse lead spends less time on routine matches",
+      "Clear queue for true exceptions"
+    ],
+    "assumptions": [
+      "automation_rate=0.75",
+      "loaded_hourly_cost_eur=40.0",
+      "automatable_hours_mo=60.0",
+      "run_cost_eur_mo=150",
+      "build_cost_eur=11000",
+      "archetype=doc_extraction",
+      "data_readiness=partial",
+      "reuse_discount_pct=10",
+      "builder_weekly_rate_eur=5000"
+    ],
+    "formulas": {
+      "hours_saved_mo": "round(automatable_hours_mo * automation_rate)",
+      "gross_eur_mo": "round(hours_saved_mo * loaded_hourly_cost_eur to 100 EUR)",
+      "net_eur_mo": "gross_eur_mo - run_cost_eur_mo",
+      "payback_months": "build_cost_eur / net_eur_mo",
+      "roi_36m_pct": "(36 * net_eur_mo - build_cost_eur) / build_cost_eur"
+    },
+    "inputs": {
+      "automatable_hours_mo": 60.0,
+      "monthly_volume": 500.0,
+      "automation_rate": 0.75,
+      "loaded_hourly_cost_eur": 40.0,
+      "build_cost_eur": 11000,
+      "archetype": "doc_extraction"
+    }
+  },
+  "assessments": {
+    "opportunity": {
+      "score": 70,
+      "dims": {
+        "impact": 100,
+        "strategic_fit": 50,
+        "speed": 100,
+        "feasibility": 0,
+        "risk_inverted": 50
+      },
+      "levels": {
+        "impact": 3,
+        "speed": 3,
+        "strategic_fit": 2,
+        "feasibility": 1,
+        "risk_inverted": 2
+      },
+      "evidence": [
+        "impact from 120.0 h/month → level 3",
+        "speed from 2.2 weeks → level 3",
+        "strategic_fit level 2",
+        "feasibility level 1",
+        "risk_inverted level 2"
+      ],
+      "inputs": {
+        "hours_mo": 120.0,
+        "timeline_weeks": 2.2,
+        "strategic_fit_level": 2,
+        "feasibility_level": 1,
+        "risk_inverted_level": 2
+      }
+    },
+    "conversation_quality": {
+      "score": 58,
+      "dims": {
+        "result_quality": 65.0,
+        "information_richness": 55.0,
+        "engagement": 50.0
+      },
+      "band": "usable",
+      "richness_level": 1,
+      "evidence": [
+        "result_quality=65.0",
+        "information_richness=55.0",
+        "engagement=50.0"
+      ],
+      "inputs": {
+        "result_quality": 65.0,
+        "information_richness": 55.0,
+        "engagement": 50.0
+      }
+    },
+    "build_readiness": {
+      "score": 54,
+      "blocks": {
+        "aim_metric": 12,
+        "functional_spec": 0,
+        "sample": 0,
+        "integrations": 12,
+        "data_compliance": 0,
+        "estimate": 10,
+        "business_case": 8,
+        "acceptance": 8,
+        "open_questions": 4
+      },
+      "band": "not_ready",
+      "evidence": [
+        "aim_metric=12/12",
+        "functional_spec=0/20",
+        "sample=0/8",
+        "integrations=12/18",
+        "data_compliance=0/12",
+        "estimate=10/10",
+        "business_case=8/8",
+        "acceptance=8/8",
+        "open_questions=4/4"
+      ],
+      "inputs": {
+        "has_aim_metric": true,
+        "functional_spec_complete": false,
+        "has_sample": false,
+        "intake_read_available": true,
+        "system_read_available": true,
+        "system_write_available": false,
+        "data_compliance_complete": false,
+        "estimate_complete": true,
+        "business_case_complete": true,
+        "acceptance_complete": true,
+        "blocker_open_questions": 0
+      }
+    }
+  },
+  "cover": {
+    "title": "Warehouse Delivery-Note Match",
+    "automation": "Warehouse Delivery-Note Match",
+    "tagline": "The framework report from the customer's point of view.",
+    "sources_line": "Sources C1",
+    "how_produced": "Generated automatically from the captured conversations. Missing facts are listed, never guessed.",
+    "volume": "",
+    "capacity": "~60.0 hours/month in the automatable core",
+    "clean_handling_time": "",
+    "exception_handling_time": "",
+    "exception_rate": "",
+    "staff_description": "The warehouse team matches about 500 delivery notes per month to outbound shipments.",
+    "hitl": "Exceptions are always decided by people.",
+    "recommendation": "Release for build at evolution stage 2 (autonomous with human control) only if all three quality gates pass. Blocking items are listed in chapter 11; numbered next steps are in chapter 13.",
+    "classification": "",
+    "residency": "Data is internal only and processing stays in the EU.",
+    "retention": "",
+    "minimization": "",
+    "access": "",
+    "audit": "",
+    "trigger": "Delivery notes arrive as PDF scans in a shared mailbox.",
+    "inputs": "",
+    "result": "",
+    "status_label": "BLOCKED"
+  },
+  "numbers": {
+    "monthly_volume": null,
+    "hours_mentions": [],
+    "eur_mentions": [],
+    "percent_mentions": [],
+    "all_tokens": [
+      "500"
+    ],
+    "blob": "The warehouse team matches about 500 delivery notes per month to outbound shipments. Clean matches take three minutes and exceptions take twenty minutes. Delivery notes arrive as PDF scans in a shared mailbox. Data is internal only and processing stays in the EU. People decide every exception; the agent must never act alone on mismatches. SAP with read access through an approved API. Exceptions go to the warehouse lead. The write path for automatic posting is not approved yet. Sample documents have not been shared."
+  },
+  "source_entries": [
+    {
+      "statement": "The warehouse team matches about 500 delivery notes per month to outbound shipments.",
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:1"
+        }
+      ],
+      "bucket": "facts"
+    },
+    {
+      "statement": "Clean matches take three minutes and exceptions take twenty minutes.",
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:1"
+        }
+      ],
+      "bucket": "facts"
+    },
+    {
+      "statement": "Delivery notes arrive as PDF scans in a shared mailbox.",
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:2"
+        }
+      ],
+      "bucket": "facts"
+    },
+    {
+      "statement": "Data is internal only and processing stays in the EU.",
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:4"
+        }
+      ],
+      "bucket": "facts"
+    },
+    {
+      "statement": "People decide every exception; the agent must never act alone on mismatches.",
+      "origin": "USER_INPUT",
+      "confidence": "high",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:4"
+        }
+      ],
+      "bucket": "stated_requirements"
+    },
+    {
+      "statement": "SAP with read access through an approved API.",
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:3"
+        }
+      ],
+      "bucket": "named_systems"
+    },
+    {
+      "statement": "Exceptions go to the warehouse lead.",
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:1"
+        }
+      ],
+      "bucket": "named_exceptions"
+    },
+    {
+      "statement": "The write path for automatic posting is not approved yet.",
+      "origin": "OPEN_QUESTION",
+      "confidence": "medium",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:3"
+        }
+      ],
+      "bucket": "unknowns"
+    },
+    {
+      "statement": "Sample documents have not been shared.",
+      "origin": "OPEN_QUESTION",
+      "confidence": "medium",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Tom",
+          "excerpt_pointer": "turn:3"
+        }
+      ],
+      "bucket": "unknowns"
+    }
+  ],
+  "generation_meta": {
+    "engine_version": "customer-report-v1",
+    "ruleset_version": "scoring.config.json",
+    "config_version": "estimation.config.json+business_case.config.json",
+    "llm_model": "deterministic-builder",
+    "prompt_version": "framework-synthesis:v1",
+    "llm_used": false,
+    "generated_at": "2026-08-26T10:00:00Z",
+    "llm_job_log": [],
+    "process_scope": null
+  },
+  "render": {
+    "allowed": false,
+    "assumptions_banner": false,
+    "band": "not_ready",
+    "reason": "Build-readiness is 54/100. A customer report is not rendered below 60. Close the gaps first."
+  },
+  "readiness_band": "not_ready"
+}

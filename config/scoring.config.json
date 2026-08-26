@@ -1,0 +1,52 @@
+{
+  "opportunity": {
+    "weights": {
+      "impact": 0.35,
+      "strategic_fit": 0.15,
+      "speed": 0.20,
+      "feasibility": 0.15,
+      "risk_inverted": 0.15
+    },
+    "impact_hours_bands": [20, 80],
+    "speed_weeks_bands": [3, 6],
+    "normalize": { "1": 0, "2": 50, "3": 100 }
+  },
+  "conversation_quality": {
+    "weights": {
+      "result_quality": 0.40,
+      "information_richness": 0.35,
+      "engagement": 0.25
+    },
+    "richness_slot_bands": [0.60, 0.85],
+    "bands": {
+      "needs_human_followup": 50,
+      "usable": 75
+    }
+  },
+  "build_readiness": {
+    "blocks": {
+      "aim_metric": 12,
+      "functional_spec": 20,
+      "sample": 8,
+      "integrations": 18,
+      "data_compliance": 12,
+      "estimate": 10,
+      "business_case": 8,
+      "acceptance": 8,
+      "open_questions": 4
+    },
+    "bands": {
+      "not_ready": 60,
+      "ready_with_assumptions": 80
+    },
+    "integration_parts": {
+      "mailbox_or_intake_read": 6,
+      "system_of_record_read": 6,
+      "system_of_record_write": 6
+    }
+  },
+  "green_light": "opportunity>=usable AND quality>=usable AND readiness>=ready_with_assumptions",
+  "eligibility": {
+    "min_conversation_quality": 50
+  }
+}

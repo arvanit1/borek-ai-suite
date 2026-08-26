@@ -1,0 +1,9 @@
+Agent: Accounts receivable dunning email preparation.
+
+Nina: We send payment reminders for overdue invoices. About 800 accounts per month across three reminder stages.
+
+Nina: Today analysts pull aging reports from the ERP, draft emails in Outlook, and send after manager review. 45 hours per month.
+
+Nina: The agent may prepare emails but must not send without human release. ERP read via REST. No direct customer bank data in reminders.
+
+Nina: Goal: 75 percent auto-draft, zero incorrect dunning to paid accounts. Stage 2 build with human control recommended.

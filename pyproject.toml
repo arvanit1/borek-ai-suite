@@ -5,11 +5,17 @@ description = "Framework and Presentation Generation Pipeline for Borek AI Suite
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "python-docx>=1.1.0",
+    "pyyaml>=6.0.2",
+    "jsonschema>=4.23.0",
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",
     "httpx>=0.27.0",
-    "python-multipart>=0.0.9",
+    "python-multipart>=0.0.12",
+    "python-dotenv>=1.0.1",
     "pydantic-settings>=2.0",
+    "anthropic>=0.40.0",
+    "reportlab>=4.2.5",
     "celery>=5.4.0",
     "sqlalchemy>=2.0.0",
     "PyJWT>=2.9.0",
@@ -31,8 +37,10 @@ api = []
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = [".", "apps/api", "apps/services/api"]
+addopts = "-m 'not live_claude'"
 markers = [
     "integration: tests requiring external services such as Redis",
+    "live_claude: calls Anthropic Claude live; requires ANTHROPIC_API_KEY (skipped in CI by default)",
 ]
 
 [build-system]

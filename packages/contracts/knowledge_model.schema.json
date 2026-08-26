@@ -1,0 +1,160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://borek.ai/schemas/knowledge_model/v1.0",
+  "title": "KnowledgeModel",
+  "description": "ES-5 extraction pass: one transcript to a flat, uninterpreted knowledge set. Synthesis into 14 chapters is ES-9.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_version",
+    "prompt_version",
+    "opportunity_id",
+    "transcript_id",
+    "conversation_id",
+    "facts",
+    "stated_requirements",
+    "constraints",
+    "named_systems",
+    "named_rules",
+    "named_exceptions",
+    "people_and_roles",
+    "timeline_mentions",
+    "risks",
+    "unknowns"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "prompt_version": {
+      "type": "string",
+      "minLength": 1,
+      "description": "e.g. framework-extraction:v1"
+    },
+    "opportunity_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "transcript_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "conversation_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable conversation id, e.g. C1"
+    },
+    "facts": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/KnowledgeEntry" }
+    },
+    "stated_requirements": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/KnowledgeEntry" }
+    },
+    "constraints": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/KnowledgeEntry" }
+    },
+    "named_systems": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/KnowledgeEntry" }
+    },
+    "named_rules": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/KnowledgeEntry" }
+    },
+    "named_exceptions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/KnowledgeEntry" }
+    },
+    "people_and_roles": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/KnowledgeEntry" }
+    },
+    "timeline_mentions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/KnowledgeEntry" }
+    },
+    "risks": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/KnowledgeEntry" }
+    },
+    "unknowns": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/KnowledgeEntry" }
+    },
+    "conflicts": {
+      "type": "array",
+      "description": "ES-8 structured conflicts. Never silently pick a winner.",
+      "items": { "$ref": "#/$defs/KnowledgeConflict" }
+    }
+  },
+  "$defs": {
+    "KnowledgeEntry": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["statement", "source_refs", "origin", "confidence"],
+      "properties": {
+        "statement": {
+          "type": "string",
+          "minLength": 1
+        },
+        "origin": {
+          "type": "string",
+          "enum": ["SOURCE_FACT", "USER_INPUT", "AI_INFERENCE", "OPEN_QUESTION"]
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["high", "medium", "low"]
+        },
+        "source_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/ConversationRef" }
+        }
+      }
+    },
+    "ConversationRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["conversation_id", "speaker_role", "excerpt_pointer"],
+      "properties": {
+        "conversation_id": {
+          "type": "string",
+          "pattern": "^C[1-9][0-9]*$",
+          "description": "Stable conversation id from ES-3, e.g. C1"
+        },
+        "speaker_role": {
+          "type": "string",
+          "minLength": 1
+        },
+        "excerpt_pointer": {
+          "type": "string",
+          "pattern": "^turn:[0-9]+$",
+          "description": "Turn index from ES-2, e.g. turn:0"
+        }
+      }
+    },
+    "KnowledgeConflict": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["topic", "values", "source_ids", "requires_clarification"],
+      "properties": {
+        "topic": { "type": "string", "minLength": 1 },
+        "values": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "source_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "requires_clarification": { "type": "boolean", "const": true }
+      }
+    }
+  }
+}

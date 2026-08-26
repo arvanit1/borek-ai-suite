@@ -1,0 +1,9 @@
+Agent: Security and compliance review for a proposed agent.
+
+InfoSec: Processing must stay in the EU. Confidential data only. Least-privilege service account. Full audit log. Kill switch required.
+
+InfoSec: Raw documents deleted after extraction. No employee performance scoring.
+
+Legal: DPIA in progress. No production write access until signed.
+
+Business: We have not described the business process on this call — security first.

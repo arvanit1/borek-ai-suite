@@ -1,0 +1,76 @@
+{
+  "schema_version": "1.0",
+  "prompt_version": "framework-extraction:v1",
+  "opportunity_id": "OPP-MIN-001",
+  "transcript_id": "00000000-0000-4000-8000-000000000201",
+  "conversation_id": "C1",
+  "facts": [
+    {
+      "statement": "The AP team receives about 200 supplier invoices per month and matches them to purchase orders in the ERP by hand.",
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "source_refs": [{ "conversation_id": "C1", "speaker_role": "Maria", "excerpt_pointer": "turn:1" }]
+    },
+    {
+      "statement": "A clean invoice case takes about five minutes.",
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "source_refs": [{ "conversation_id": "C1", "speaker_role": "Maria", "excerpt_pointer": "turn:1" }]
+    },
+    {
+      "statement": "Invoices arrive by email as PDFs.",
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "source_refs": [{ "conversation_id": "C1", "speaker_role": "Maria", "excerpt_pointer": "turn:2" }]
+    },
+    {
+      "statement": "Data is confidential and must stay in the EU.",
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "source_refs": [{ "conversation_id": "C1", "speaker_role": "Maria", "excerpt_pointer": "turn:3" }]
+    }
+  ],
+  "stated_requirements": [
+    {
+      "statement": "Success means reaching at least 70 percent auto-match.",
+      "origin": "USER_INPUT",
+      "confidence": "high",
+      "source_refs": [{ "conversation_id": "C1", "speaker_role": "Maria", "excerpt_pointer": "turn:3" }]
+    },
+    {
+      "statement": "Every posting still needs a human one-click approval.",
+      "origin": "USER_INPUT",
+      "confidence": "high",
+      "source_refs": [{ "conversation_id": "C1", "speaker_role": "Maria", "excerpt_pointer": "turn:3" }]
+    }
+  ],
+  "constraints": [
+    {
+      "statement": "Exceptions stay with the team.",
+      "origin": "USER_INPUT",
+      "confidence": "high",
+      "source_refs": [{ "conversation_id": "C1", "speaker_role": "Maria", "excerpt_pointer": "turn:2" }]
+    }
+  ],
+  "named_systems": [
+    {
+      "statement": "ERP with read and write via REST API.",
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "source_refs": [{ "conversation_id": "C1", "speaker_role": "Maria", "excerpt_pointer": "turn:4" }]
+    }
+  ],
+  "named_rules": [],
+  "named_exceptions": [],
+  "people_and_roles": [],
+  "timeline_mentions": [],
+  "risks": [],
+  "unknowns": [
+    {
+      "statement": "Sample invoices have not been provided yet.",
+      "origin": "OPEN_QUESTION",
+      "confidence": "medium",
+      "source_refs": [{ "conversation_id": "C1", "speaker_role": "Maria", "excerpt_pointer": "turn:4" }]
+    }
+  ]
+}

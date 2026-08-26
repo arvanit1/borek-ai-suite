@@ -1,0 +1,9 @@
+Agent: Requirements capture for warehouse delivery-note matching against shipments.
+
+Tom: We match about 500 delivery notes per month to outbound shipments. Clean matches take three minutes; exceptions take twenty minutes and go to the warehouse lead.
+
+Tom: Notes arrive as PDF scans in a shared mailbox. Today we look up the shipment in SAP and compare quantities by hand.
+
+Tom: SAP read access exists through an approved API. The write path for automatic posting is not approved yet. We have not shared sample documents.
+
+Tom: Data is internal only. Processing stays in the EU. People decide every exception; the agent must never act alone on mismatches.

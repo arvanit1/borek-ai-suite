@@ -1,0 +1,7 @@
+Agent: Requirements capture for HR onboarding document collection.
+
+Lena: New hires send passports and tax forms by email. HR staff rename files and upload them to our HRIS manually. About 40 hires per month, 20 minutes each.
+
+Lena: We need the agent to read the inbox, classify document types, and prepare a complete packet for HR review. Nothing goes into the HRIS without a one-click approval.
+
+Lena: Success is zero missing documents at day one and at most 2 hours per month of manual sorting. Data stays in the EU. The HRIS has a sandbox API for read and write after IT approval.

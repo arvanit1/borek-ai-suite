@@ -1,0 +1,2897 @@
+{
+  "id": "FW-OPP-142-v1",
+  "framework_id": "FW-OPP-142-v1",
+  "schema_version": "1.0",
+  "opportunity_id": "OPP-142",
+  "title": "Invoice 3-Way Match",
+  "department": "Finance",
+  "status": "draft",
+  "priority_rank": 1,
+  "quality_scores": {
+    "opportunity_rating": 85,
+    "conversation_quality": 82,
+    "build_readiness": 94,
+    "rationale": {
+      "opportunity_rating": "Opportunity rating 85/100 from 306 hours/month and a 3-week path.",
+      "conversation_quality": "Conversation quality 82/100 (strong).",
+      "build_readiness": "Build-readiness 94/100 (ready to build)."
+    }
+  },
+  "kpis": [
+    {
+      "name": "auto-match rate",
+      "baseline": "0 percent",
+      "target": "at least 85 percent",
+      "measured_via": "agent statistics per invoice"
+    },
+    {
+      "name": "manual handling time",
+      "baseline": "about 73 hours per month",
+      "target": "at most 12 hours per month",
+      "measured_via": "exception-queue time tracking"
+    },
+    {
+      "name": "Success target",
+      "baseline": "as named in the conversation",
+      "target": "Success target: 0 wrong postings outside tolerance, measured via audit log and Finance spot checks.",
+      "measured_via": "as named in the conversation"
+    },
+    {
+      "name": "Cycle time",
+      "baseline": "Not named in the conversations. Recorded as an open item rather than guessed.",
+      "target": "Not named in the conversations. Recorded as an open item rather than guessed.",
+      "measured_via": "process timestamps / month-end tracking"
+    }
+  ],
+  "systems": [
+    {
+      "name": "AP shared mailbox Microsoft 365 read via",
+      "role": "Source of invoices or intake documents",
+      "direction": "read",
+      "access_path": "AP shared mailbox Microsoft 365 read via Microsoft Graph API scoped to this mailbox.",
+      "data_classification": "as reported",
+      "status": "available"
+    },
+    {
+      "name": "ERP read REST API for purchase orders, goods",
+      "role": "Posting / write-back",
+      "direction": "read_write",
+      "access_path": "ERP read REST API for purchase orders, goods receipts, posted invoices and discount agreements. ERP write posting of payment documents pending formal approval.",
+      "data_classification": "as reported",
+      "status": "open_dependency"
+    }
+  ],
+  "rules": [
+    {
+      "name": "Quantity must match exactly across invoice,",
+      "logic": "Quantity must match exactly across invoice, purchase order and goods receipt."
+    },
+    {
+      "name": "Unit price must match exactly unless a stored",
+      "logic": "Unit price must match exactly unless a stored discount agreement applies."
+    },
+    {
+      "name": "Total rounding tolerance up to EUR 0",
+      "logic": "Total rounding tolerance up to EUR 0.50."
+    },
+    {
+      "name": "Amount deviation versus PO greater than 2",
+      "logic": "Amount deviation versus PO greater than 2 percent always held for review."
+    },
+    {
+      "name": "Invoice number already posted is never posted",
+      "logic": "Invoice number already posted is never posted again and is flagged as a duplicate."
+    },
+    {
+      "name": "Postings above EUR 5,000 always need human",
+      "logic": "Postings above EUR 5,000 always need human one-click approval."
+    }
+  ],
+  "exceptions": [
+    {
+      "name": "Price difference without discount agreement is",
+      "frequency": "named in conversation",
+      "handling": "Price difference without discount agreement is queued with delta and evidence."
+    },
+    {
+      "name": "Partial delivery is queued until the remainder",
+      "frequency": "named in conversation",
+      "handling": "Partial delivery is queued until the remainder arrives."
+    },
+    {
+      "name": "No purchase order found is queued with a",
+      "frequency": "named in conversation",
+      "handling": "No purchase order found is queued with a suggestion to return to the supplier."
+    },
+    {
+      "name": "Credit notes about 5 percent stay in today's",
+      "frequency": "5 %",
+      "handling": "Credit notes about 5 percent stay in today's manual process until stage 3."
+    }
+  ],
+  "access_needs": [
+    {
+      "category": "Write access",
+      "detail": "ERP write access for payment postings needs formal approval from the IT lead.",
+      "status": "named in conversation",
+      "owner": "IT"
+    },
+    {
+      "category": "Access approval",
+      "detail": "ERP write access for payment postings needs formal approval from the IT lead.",
+      "status": "named in conversation",
+      "owner": "Business"
+    },
+    {
+      "category": "Test data / sandbox",
+      "detail": "SSO connection of the exception app is required. ERP sandbox with test data is available.",
+      "status": "named in conversation",
+      "owner": "IT"
+    },
+    {
+      "category": "Identity / SSO",
+      "detail": "SSO connection of the exception app is required. ERP sandbox with test data is available.",
+      "status": "named in conversation",
+      "owner": "IT"
+    },
+    {
+      "category": "Read access",
+      "detail": "Not named in the conversations. Recorded as an open item rather than guessed.",
+      "status": "open",
+      "owner": "Business"
+    },
+    {
+      "category": "Sample / test data",
+      "detail": "Not named in the conversations. Recorded as an open item rather than guessed.",
+      "status": "open",
+      "owner": "Business"
+    },
+    {
+      "category": "Rule confirmation",
+      "detail": "Not named in the conversations. Recorded as an open item rather than guessed.",
+      "status": "open",
+      "owner": "Business"
+    }
+  ],
+  "evolution_stages": [
+    {
+      "stage_name": "Today",
+      "agent_does": "Nothing — fully manual process.",
+      "human_does": "Accounts Payable matches around 3,000 invoices per month against purchase orders and goods receipts.",
+      "benefit": "—",
+      "extra_effort": "—",
+      "recommended": false
+    },
+    {
+      "stage_name": "Stage 1 · Assistive",
+      "agent_does": "Captures, extracts, checks, and prepares complete proposals with reasons. No write/actuating actions.",
+      "human_does": "Confirms every posting or action with one click.",
+      "benefit": "~40 % of time; full visibility",
+      "extra_effort": "included in base build (interim milestone)",
+      "recommended": false
+    },
+    {
+      "stage_name": "Stage 2 · Autonomous with HITL",
+      "agent_does": "Runs the named standard case within confirmed rules; exceptions go to people.",
+      "human_does": "Exceptions, gated approvals, spot checks.",
+      "benefit": "~62 h/month · full business case from chapter 9",
+      "extra_effort": "base build (3.0 weeks, EUR 15000)",
+      "recommended": true
+    },
+    {
+      "stage_name": "Stage 3 · End-to-end (option)",
+      "agent_does": "Additionally (proposal only; requires telemetry_3mo and targeted C6 deep-dives): Credit notes about 5 percent stay in today's manual process until stage 3. · Credit notes about 5 percent stay out of scope for now as a later stage 3 path.",
+      "human_does": "Releases outbound messages; decides on any rule-tuning proposals.",
+      "benefit": "Exception effort down; cycle time days to hours. Proposal only — not in the committed business case.",
+      "extra_effort": "~2-3 weeks more, own business case after 3 months of stage-2 data",
+      "recommended": false
+    }
+  ],
+  "open_items": [
+    {
+      "description": "Formal ERP write-access approval date is not in the transcript.",
+      "item_type": "assumption",
+      "owner": "Business",
+      "consequence_if_different": "Missing data is never guessed. Confirm before build, or keep as an assumption."
+    },
+    {
+      "description": "Claim in chapter 1 is not supported because it has no cited conversation excerpt: Generated automatically from the captured conversations. Missing facts are listed, never guessed.. Recorded as an open item rather than accepted.",
+      "item_type": "assumption",
+      "owner": "Business",
+      "consequence_if_different": "Unsupported claims are never published. Confirm the statement against the conversation."
+    },
+    {
+      "description": "Claim in chapter 11 is not supported because it has no cited conversation excerpt: Before anything is built, every automation must pass three independent checks. You see all three results openly.. Recorded as an open item rather than accepted.",
+      "item_type": "assumption",
+      "owner": "Business",
+      "consequence_if_different": "Unsupported claims are never published. Confirm the statement against the conversation."
+    },
+    {
+      "description": "Claim in chapter 11 is not supported because it has no cited conversation excerpt: Missing information is never guessed. Every gap appears here as an open item with an owner.. Recorded as an open item rather than accepted.",
+      "item_type": "assumption",
+      "owner": "Business",
+      "consequence_if_different": "Unsupported claims are never published. Confirm the statement against the conversation."
+    },
+    {
+      "description": "Claim in chapter 12 is not supported because it has no cited conversation excerpt: Stage-3 elements are proposals only. They are never included in the committed business case.. Recorded as an open item rather than accepted.",
+      "item_type": "assumption",
+      "owner": "Business",
+      "consequence_if_different": "Unsupported claims are never published. Confirm the statement against the conversation."
+    }
+  ],
+  "chapters": [
+    {
+      "chapter_id": "0",
+      "title": "About this document",
+      "body": [
+        {
+          "block": "prose",
+          "text": "For every automation opportunity it identifies, the Borek AI Suite generates exactly one framework report like this. It is generated from the conversations with your team and is human-confirmed before it is the signed customer report. No consultant writes it. Every number in this report is traceable to its source. Estimates are shown as ranges with a confidence level, never as false precision.",
+          "source_refs": [
+            {
+              "conversation_id": "C6",
+              "speaker_role": "Sandra",
+              "excerpt_pointer": "turn:3"
+            }
+          ]
+        },
+        {
+          "block": "bullets",
+          "items": [
+            "What is it? — the task today (chapters 1-2)",
+            "Why do it? — aim, benefit and measurable success (chapter 3)",
+            "How does it work? — the solution, the to-be process, the rules (chapters 4-5)",
+            "How is it built technically? — systems and integrations at CIO depth (chapter 6)",
+            "What do we need from you? — access, data, people (chapter 7)",
+            "Is it safe? — data protection, compliance, human control (chapter 8)",
+            "Does it pay? — business case, ROI, complexity (chapters 9-10)",
+            "Can we trust the numbers? — quality gates, open points, evolution (chapters 11-12)"
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C7",
+              "speaker_role": "IT",
+              "excerpt_pointer": "turn:7"
+            }
+          ]
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:8"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:4"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:6"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:5"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "dept_head",
+          "excerpt_pointer": "turn:0"
+        },
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:7"
+        },
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:6"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:3"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:0"
+        }
+      ]
+    },
+    {
+      "chapter_id": "1",
+      "title": "Management summary",
+      "body": [
+        {
+          "block": "prose",
+          "text": "Accounts Payable matches around 3,000 invoices per month against purchase orders and goods receipts.",
+          "source_refs": [
+            {
+              "conversation_id": "C6",
+              "speaker_role": "Sandra",
+              "excerpt_pointer": "turn:1"
+            }
+          ]
+        },
+        {
+          "block": "kv_rows",
+          "caption": "At a glance",
+          "rows": [
+            {
+              "label": "Automation",
+              "value": "Invoice 3-Way Match"
+            },
+            {
+              "label": "Expected benefit",
+              "value": "~62 h/month capacity reclaimed · ~EUR 2400 net value/month"
+            },
+            {
+              "label": "Investment",
+              "value": "~EUR 15000 build (3.0 weeks) · ~EUR 400/month run cost"
+            },
+            {
+              "label": "Payback",
+              "value": "~6.3 months · ROI over 36 months: ~476 %"
+            },
+            {
+              "label": "Complexity",
+              "value": "Tier T2 · 2 systems · 6 named rules"
+            },
+            {
+              "label": "Human in the loop",
+              "value": "Exceptions are always decided by people."
+            },
+            {
+              "label": "Security",
+              "value": "As named in the conversations; see chapter 8."
+            },
+            {
+              "label": "Data basis",
+              "value": "Opportunity rating 85/100 · conversation quality 82/100 · build-readiness 94/100"
+            }
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C6",
+              "speaker_role": "Sandra",
+              "excerpt_pointer": "turn:3"
+            }
+          ]
+        },
+        {
+          "block": "callout",
+          "tone": "open_item",
+          "text": "This point is recorded as an open item because it is not supported by a conversation excerpt."
+        },
+        {
+          "block": "callout",
+          "kind": "recommendation",
+          "text": "Release for build at evolution stage 2 (autonomous with human control) only if all three quality gates pass. Blocking items are listed in chapter 11; numbered next steps are in chapter 13.",
+          "source_refs": [
+            {
+              "conversation_id": "C6",
+              "speaker_role": "Sandra",
+              "excerpt_pointer": "turn:8"
+            }
+          ]
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:8"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:4"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:6"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:5"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "dept_head",
+          "excerpt_pointer": "turn:0"
+        },
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:7"
+        },
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:6"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:3"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:0"
+        }
+      ]
+    },
+    {
+      "chapter_id": "2",
+      "title": "Starting point: the process today",
+      "body": [
+        {
+          "block": "prose",
+          "text": "This is how the work runs today — captured with the people who do it, not reconstructed later."
+        },
+        {
+          "block": "process_flow",
+          "caption": "As-is process",
+          "nodes": [
+            {
+              "id": "n0",
+              "label": "Intake",
+              "kind": "system"
+            },
+            {
+              "id": "n1",
+              "label": "Capture",
+              "kind": "human"
+            },
+            {
+              "id": "n2",
+              "label": "Check",
+              "kind": "system"
+            },
+            {
+              "id": "n3",
+              "label": "Post or clarify",
+              "kind": "human"
+            }
+          ],
+          "edges": [
+            {
+              "from": "n0",
+              "to": "n1",
+              "label": ""
+            },
+            {
+              "from": "n1",
+              "to": "n2",
+              "label": ""
+            },
+            {
+              "from": "n2",
+              "to": "n3",
+              "label": ""
+            }
+          ]
+        },
+        {
+          "block": "kv_rows",
+          "caption": "What the current process costs",
+          "rows": [
+            {
+              "label": "Volume",
+              "value": "~3000/month"
+            },
+            {
+              "label": "Capacity tied up",
+              "value": "~73.0 hours/month in the automatable core"
+            },
+            {
+              "label": "Clean-case handling time",
+              "value": "Not named in the conversations. Recorded as an open item rather than guessed."
+            },
+            {
+              "label": "Exception handling time",
+              "value": "Not named in the conversations. Recorded as an open item rather than guessed."
+            },
+            {
+              "label": "Exception rate",
+              "value": "5 %"
+            },
+            {
+              "label": "Staff involved",
+              "value": "The automatable core is about 73 hours per month; the whole team spends about 306 hours per month."
+            },
+            {
+              "label": "Quality risk",
+              "value": "Not named in the conversations. Recorded as an open item rather than guessed."
+            }
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C6",
+              "speaker_role": "Sandra",
+              "excerpt_pointer": "turn:1"
+            }
+          ]
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:8"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:4"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:6"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:5"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "dept_head",
+          "excerpt_pointer": "turn:0"
+        },
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:7"
+        },
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:6"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:3"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:0"
+        }
+      ]
+    },
+    {
+      "chapter_id": "3",
+      "title": "Aim & success measurement",
+      "body": [
+        {
+          "block": "prose",
+          "text": "The aim is a measurable state. These KPIs are a conservative derivation from the conversations; empty cells are open items, not guesses."
+        },
+        {
+          "block": "table",
+          "caption": "Aim & success measurement",
+          "columns": [
+            "KPI",
+            "Today (baseline)",
+            "Target after 3 months",
+            "Measured via"
+          ],
+          "rows": [
+            [
+              "auto-match rate",
+              "0 percent",
+              "at least 85 percent",
+              "agent statistics per invoice"
+            ],
+            [
+              "manual handling time",
+              "about 73 hours per month",
+              "at most 12 hours per month",
+              "exception-queue time tracking"
+            ],
+            [
+              "Success target",
+              "as named in the conversation",
+              "Success target: 0 wrong postings outside tolerance, measured via audit log and Finance spot checks.",
+              "as named in the conversation"
+            ],
+            [
+              "Cycle time",
+              "Not named in the conversations. Recorded as an open item rather than guessed.",
+              "Not named in the conversations. Recorded as an open item rather than guessed.",
+              "process timestamps / month-end tracking"
+            ]
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C6",
+              "speaker_role": "Sandra",
+              "excerpt_pointer": "turn:5"
+            }
+          ]
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:8"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:4"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:6"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:5"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "dept_head",
+          "excerpt_pointer": "turn:0"
+        },
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:7"
+        },
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:6"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:3"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:0"
+        }
+      ]
+    },
+    {
+      "chapter_id": "4",
+      "title": "The solution and the to-be process",
+      "body": [
+        {
+          "block": "prose",
+          "text": "The workflow handles the standard case and pre-sorts everything else — with a reason, so clarification is quick."
+        },
+        {
+          "block": "process_flow",
+          "caption": "To-be process (stage 2)",
+          "nodes": [
+            {
+              "id": "n0",
+              "label": "Intake",
+              "kind": "system"
+            },
+            {
+              "id": "n1",
+              "label": "Extract",
+              "kind": "human"
+            },
+            {
+              "id": "n2",
+              "label": "Match",
+              "kind": "system"
+            },
+            {
+              "id": "n3",
+              "label": "Post or queue",
+              "kind": "human"
+            }
+          ],
+          "edges": [
+            {
+              "from": "n0",
+              "to": "n1",
+              "label": ""
+            },
+            {
+              "from": "n1",
+              "to": "n2",
+              "label": ""
+            },
+            {
+              "from": "n2",
+              "to": "n3",
+              "label": ""
+            }
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C6",
+              "speaker_role": "Sandra",
+              "excerpt_pointer": "turn:5"
+            }
+          ]
+        },
+        {
+          "block": "table",
+          "caption": "Today vs with the agent",
+          "columns": [
+            "Today",
+            "With the agent"
+          ],
+          "rows": [
+            [
+              "Intake",
+              "Intake"
+            ],
+            [
+              "Capture",
+              "Extract"
+            ],
+            [
+              "Check",
+              "Match"
+            ],
+            [
+              "Post or clarify",
+              "Post or queue"
+            ]
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C6",
+              "speaker_role": "Sandra",
+              "excerpt_pointer": "turn:5"
+            }
+          ]
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:8"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:4"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:6"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:5"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "dept_head",
+          "excerpt_pointer": "turn:0"
+        },
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:7"
+        },
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:6"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:3"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:0"
+        }
+      ]
+    },
+    {
+      "chapter_id": "5",
+      "title": "How it works in detail",
+      "body": [
+        {
+          "block": "prose",
+          "text": "The rules below come from the conversations. The agent invents no rules — it applies only what was named and confirmed."
+        },
+        {
+          "block": "kv_rows",
+          "caption": "Trigger, inputs, result",
+          "rows": [
+            {
+              "label": "Trigger",
+              "value": "A supplier invoice PDF arrives in the shared AP mailbox."
+            },
+            {
+              "label": "Inputs",
+              "value": "Accounts Payable matches around 3,000 invoices per month against purchase orders and goods receipts."
+            },
+            {
+              "label": "Result",
+              "value": "Not named in the conversations. Recorded as an open item rather than guessed."
+            }
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C6",
+              "speaker_role": "Sandra",
+              "excerpt_pointer": "turn:1"
+            }
+          ]
+        },
+        {
+          "block": "table",
+          "caption": "The checking rules",
+          "columns": [
+            "Rule",
+            "How the agent decides"
+          ],
+          "rows": [
+            [
+              "Quantity must match exactly across invoice,",
+              "Quantity must match exactly across invoice, purchase order and goods receipt."
+            ],
+            [
+              "Unit price must match exactly unless a stored",
+              "Unit price must match exactly unless a stored discount agreement applies."
+            ],
+            [
+              "Total rounding tolerance up to EUR 0",
+              "Total rounding tolerance up to EUR 0.50."
+            ],
+            [
+              "Amount deviation versus PO greater than 2",
+              "Amount deviation versus PO greater than 2 percent always held for review."
+            ],
+            [
+              "Invoice number already posted is never posted",
+              "Invoice number already posted is never posted again and is flagged as a duplicate."
+            ],
+            [
+              "Postings above EUR 5,000 always need human",
+              "Postings above EUR 5,000 always need human one-click approval."
+            ]
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C6",
+              "speaker_role": "Sandra",
+              "excerpt_pointer": "turn:3"
+            }
+          ]
+        },
+        {
+          "block": "table",
+          "caption": "The exceptions and how they are handled",
+          "columns": [
+            "Exception",
+            "Frequency",
+            "Handling"
+          ],
+          "rows": [
+            [
+              "Price difference without discount agreement is",
+              "named in conversation",
+              "Price difference without discount agreement is queued with delta and evidence."
+            ],
+            [
+              "Partial delivery is queued until the remainder",
+              "named in conversation",
+              "Partial delivery is queued until the remainder arrives."
+            ],
+            [
+              "No purchase order found is queued with a",
+              "named in conversation",
+              "No purchase order found is queued with a suggestion to return to the supplier."
+            ],
+            [
+              "Credit notes about 5 percent stay in today's",
+              "5 %",
+              "Credit notes about 5 percent stay in today's manual process until stage 3."
+            ]
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C6",
+              "speaker_role": "Sandra",
+              "excerpt_pointer": "turn:4"
+            }
+          ]
+        },
+        {
+          "block": "callout",
+          "kind": "important",
+          "text": "In no exception does the agent act on its own toward counterparties. It prepares the decision; your team decides."
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:8"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:4"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:6"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:5"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "dept_head",
+          "excerpt_pointer": "turn:0"
+        },
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:7"
+        },
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:6"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:3"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:0"
+        }
+      ]
+    },
+    {
+      "chapter_id": "6",
+      "title": "How it is built - systems, data flow, integration",
+      "body": [
+        {
+          "block": "prose",
+          "text": "This chapter gives IT and the system owner the technical picture at the depth needed to say yes — without implementation detail.",
+          "source_refs": [
+            {
+              "conversation_id": "C7",
+              "speaker_role": "IT",
+              "excerpt_pointer": "turn:6"
+            }
+          ]
+        },
+        {
+          "block": "table",
+          "caption": "Systems landscape and data flow",
+          "columns": [
+            "System",
+            "Role in the automation",
+            "Dir.",
+            "Access path",
+            "Data"
+          ],
+          "rows": [
+            [
+              "AP shared mailbox Microsoft 365 read via",
+              "Source of invoices or intake documents",
+              "read",
+              "AP shared mailbox Microsoft 365 read via Microsoft Graph API scoped to this mailbox.",
+              "as reported"
+            ],
+            [
+              "ERP read REST API for purchase orders, goods",
+              "Posting / write-back",
+              "read_write",
+              "ERP read REST API for purchase orders, goods receipts, posted invoices and discount agreements. ERP write posting of payment documents pending formal approval.",
+              "as reported"
+            ]
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C6",
+              "speaker_role": "Sandra",
+              "excerpt_pointer": "turn:6"
+            }
+          ]
+        },
+        {
+          "block": "table",
+          "caption": "Building blocks",
+          "columns": [
+            "Building block",
+            "Role in the automation",
+            "How it is protected"
+          ],
+          "rows": [
+            [
+              "AP shared mailbox Microsoft 365 read via",
+              "Source of invoices or intake documents",
+              "As named in chapter 8"
+            ],
+            [
+              "ERP read REST API for purchase orders, goods",
+              "Posting / write-back",
+              "As named in chapter 8"
+            ]
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C6",
+              "speaker_role": "Sandra",
+              "excerpt_pointer": "turn:6"
+            }
+          ]
+        },
+        {
+          "block": "ai_split",
+          "used_for": [
+            "Reading variable documents into structured fields with a confidence per field"
+          ],
+          "not_used_for": [
+            "Deciding whether a case matches",
+            "Evaluating tolerances or thresholds",
+            "Assessing any employee"
+          ]
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:8"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:4"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:6"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:5"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "dept_head",
+          "excerpt_pointer": "turn:0"
+        },
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:7"
+        },
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:6"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:3"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:0"
+        }
+      ]
+    },
+    {
+      "chapter_id": "7",
+      "title": "What we need from the client",
+      "body": [
+        {
+          "block": "prose",
+          "text": "To deliver we need the following access, data and people on your side. Nothing here is invented.",
+          "source_refs": [
+            {
+              "conversation_id": "C7",
+              "speaker_role": "IT",
+              "excerpt_pointer": "turn:7"
+            }
+          ]
+        },
+        {
+          "block": "table",
+          "caption": "What we need from the client",
+          "columns": [
+            "Category",
+            "Specifically",
+            "Status",
+            "Owner",
+            "Hours"
+          ],
+          "rows": [
+            [
+              "Write access",
+              "ERP write access for payment postings needs formal approval from the IT lead.",
+              "named in conversation",
+              "IT",
+              "Not named in the conversations. Recorded as an open item rather than guessed."
+            ],
+            [
+              "Access approval",
+              "ERP write access for payment postings needs formal approval from the IT lead.",
+              "named in conversation",
+              "Business",
+              "Not named in the conversations. Recorded as an open item rather than guessed."
+            ],
+            [
+              "Test data / sandbox",
+              "SSO connection of the exception app is required. ERP sandbox with test data is available.",
+              "named in conversation",
+              "IT",
+              "Not named in the conversations. Recorded as an open item rather than guessed."
+            ],
+            [
+              "Identity / SSO",
+              "SSO connection of the exception app is required. ERP sandbox with test data is available.",
+              "named in conversation",
+              "IT",
+              "Not named in the conversations. Recorded as an open item rather than guessed."
+            ],
+            [
+              "Read access",
+              "Not named in the conversations. Recorded as an open item rather than guessed.",
+              "open",
+              "Business",
+              "Not named in the conversations. Recorded as an open item rather than guessed."
+            ],
+            [
+              "Sample / test data",
+              "Not named in the conversations. Recorded as an open item rather than guessed.",
+              "open",
+              "Business",
+              "Not named in the conversations. Recorded as an open item rather than guessed."
+            ],
+            [
+              "Rule confirmation",
+              "Not named in the conversations. Recorded as an open item rather than guessed.",
+              "open",
+              "Business",
+              "Not named in the conversations. Recorded as an open item rather than guessed."
+            ]
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C7",
+              "speaker_role": "IT",
+              "excerpt_pointer": "turn:6"
+            }
+          ]
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:8"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:4"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:6"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:5"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "dept_head",
+          "excerpt_pointer": "turn:0"
+        },
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:7"
+        },
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:6"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:3"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:0"
+        }
+      ]
+    },
+    {
+      "chapter_id": "8",
+      "title": "Security, data protection & human control",
+      "body": [
+        {
+          "block": "kv_rows",
+          "caption": "Binding guardrails",
+          "rows": [
+            {
+              "label": "Data classification",
+              "value": "Data classification confidential because invoices contain supplier bank details. EU residency only. Access via least-privilege technical user. Full audit trail."
+            },
+            {
+              "label": "Data residency",
+              "value": "Data classification confidential because invoices contain supplier bank details. EU residency only. Access via least-privilege technical user. Full audit trail."
+            },
+            {
+              "label": "Data minimization",
+              "value": "Not named in the conversations. Recorded as an open item rather than guessed."
+            },
+            {
+              "label": "Access",
+              "value": "Data classification confidential because invoices contain supplier bank details. EU residency only. Access via least-privilege technical user. Full audit trail."
+            },
+            {
+              "label": "Audit",
+              "value": "Data classification confidential because invoices contain supplier bank details. EU residency only. Access via least-privilege technical user. Full audit trail."
+            },
+            {
+              "label": "Retention",
+              "value": "Retention follows the named classification and residency guardrails; no extra copies beyond audit need."
+            },
+            {
+              "label": "Human control",
+              "value": "Exceptions are always decided by people."
+            },
+            {
+              "label": "What the agent never does",
+              "value": "No evaluation of employees — the agent measures work, never people. No unsourced rule changes."
+            },
+            {
+              "label": "Breach",
+              "value": "A breach of these guardrails is a failed acceptance test."
+            }
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C7",
+              "speaker_role": "IT",
+              "excerpt_pointer": "turn:7"
+            }
+          ]
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:8"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:4"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:6"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:5"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "dept_head",
+          "excerpt_pointer": "turn:0"
+        },
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:7"
+        },
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:6"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:3"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:0"
+        }
+      ]
+    },
+    {
+      "chapter_id": "9",
+      "title": "Business case & ROI",
+      "body": [
+        {
+          "block": "prose",
+          "text": "All values are calculated from the volumes and times your team reported — formulas disclosed, assumptions marked."
+        },
+        {
+          "block": "table",
+          "caption": "Business case",
+          "columns": [
+            "Item",
+            "Calculation",
+            "Value"
+          ],
+          "rows": [
+            [
+              "Effort today",
+              "automatable hours/month from the conversations",
+              "~73.0 h/month"
+            ],
+            [
+              "Automation rate",
+              "named auto-match / automation target",
+              "~85 %"
+            ],
+            [
+              "Hours saved / month",
+              "round(automatable_hours_mo * automation_rate)",
+              "~62 h"
+            ],
+            [
+              "Gross value",
+              "round(hours_saved_mo * loaded_hourly_cost_eur to 100 EUR)",
+              "~EUR 2800/month"
+            ],
+            [
+              "Run cost",
+              "archetype volume lookup",
+              "~EUR 400/month"
+            ],
+            [
+              "Net value",
+              "gross_eur_mo - run_cost_eur_mo",
+              "~EUR 2400/month"
+            ],
+            [
+              "Build cost",
+              "effort weeks x builder rate",
+              "~EUR 15000 one-off"
+            ],
+            [
+              "Payback",
+              "build_cost_eur / net_eur_mo",
+              "~6.3 months"
+            ],
+            [
+              "ROI 36 months",
+              "(36 * net_eur_mo - build_cost_eur) / build_cost_eur",
+              "~476 %"
+            ]
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C6",
+              "speaker_role": "Sandra",
+              "excerpt_pointer": "turn:5"
+            }
+          ]
+        },
+        {
+          "block": "bullets",
+          "items": [
+            "Fewer wrong and duplicate payments",
+            "Month-end relief exactly at peak",
+            "Capacity moves to clarification cases that need judgement"
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C6",
+              "speaker_role": "Sandra",
+              "excerpt_pointer": "turn:1"
+            }
+          ]
+        },
+        {
+          "block": "sensitivity",
+          "rows": [
+            {
+              "label": "Pessimistic",
+              "detail": "Auto-match 70 % · net ~EUR 1900/month · payback ~7.9 months"
+            },
+            {
+              "label": "Expected",
+              "detail": "Auto-match 85 % · net ~EUR 2400/month · payback ~6.3 months"
+            },
+            {
+              "label": "Optimistic",
+              "detail": "Auto-match 92 % · net ~EUR 2600/month · payback ~5.8 months"
+            }
+          ]
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:8"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:4"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:6"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:5"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "dept_head",
+          "excerpt_pointer": "turn:0"
+        },
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:7"
+        },
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:6"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:3"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:0"
+        }
+      ]
+    },
+    {
+      "chapter_id": "10",
+      "title": "Complexity, effort & timeline",
+      "body": [
+        {
+          "block": "prose",
+          "text": "The week plan is for the recommended evolution stage in chapter 12, not for unsourced stage-3 scope.",
+          "source_refs": [
+            {
+              "conversation_id": "C6",
+              "speaker_role": "Sandra",
+              "excerpt_pointer": "turn:4"
+            }
+          ]
+        },
+        {
+          "block": "kv_rows",
+          "caption": "Classification",
+          "rows": [
+            {
+              "label": "Complexity tier",
+              "value": "T2"
+            },
+            {
+              "label": "Effort",
+              "value": "2.1 – 3.0 – 3.9 weeks (min / likely / max) · confidence: medium-high"
+            },
+            {
+              "label": "Team",
+              "value": "1 builder"
+            },
+            {
+              "label": "Drivers",
+              "value": "archetype=system_to_system; data_readiness=ready; reuse_discount_pct=10; builder_weekly_rate_eur=5000"
+            },
+            {
+              "label": "Build cost",
+              "value": "~EUR 15000"
+            }
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C6",
+              "speaker_role": "Sandra",
+              "excerpt_pointer": "turn:8"
+            }
+          ]
+        },
+        {
+          "block": "timeline",
+          "weeks": [
+            {
+              "id": "W1",
+              "items": [
+                "Weeks 1–1: connect intake, read paths, and samples"
+              ]
+            },
+            {
+              "id": "W2",
+              "items": [
+                "Weeks 2–2: rules, exception queue, tests"
+              ]
+            },
+            {
+              "id": "W3",
+              "items": [
+                "Weeks 3–3: gated writes, audit, acceptance, go-live approval (chapter 12 stage 2)"
+              ]
+            }
+          ]
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:8"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:4"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:6"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:5"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "dept_head",
+          "excerpt_pointer": "turn:0"
+        },
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:7"
+        },
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:6"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:3"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:0"
+        }
+      ]
+    },
+    {
+      "chapter_id": "11",
+      "title": "Trustworthiness - quality gates",
+      "body": [
+        {
+          "block": "callout",
+          "tone": "open_item",
+          "text": "This point is recorded as an open item because it is not supported by a conversation excerpt."
+        },
+        {
+          "block": "score_bars",
+          "items": [
+            {
+              "name": "Opportunity rating",
+              "score": 85,
+              "max": 100,
+              "band": "Is it worth doing?",
+              "explanation": "Opportunity rating 85/100 from 306 hours/month and a 3-week path."
+            },
+            {
+              "name": "Conversation quality",
+              "score": 82,
+              "max": 100,
+              "band": "Can we trust the data?",
+              "explanation": "Conversation quality 82/100 (strong)."
+            },
+            {
+              "name": "Build-readiness",
+              "score": 94,
+              "max": 100,
+              "band": "Is the concept buildable?",
+              "explanation": "Build-readiness 94/100 (ready to build)."
+            }
+          ]
+        },
+        {
+          "block": "table",
+          "caption": "Open items and assumptions",
+          "columns": [
+            "Open item / assumption",
+            "Type",
+            "Owner",
+            "Consequence if different"
+          ],
+          "rows": [
+            [
+              "Formal ERP write-access approval date is not in the transcript.",
+              "assumption",
+              "Business",
+              "Missing data is never guessed. Confirm before build, or keep as an assumption."
+            ],
+            [
+              "Claim in chapter 1 is not supported because it has no cited conversation excerpt: Generated automatically from the captured conversations. Missing facts are listed, never guessed.. Recorded as an open item rather than accepted.",
+              "assumption",
+              "Business",
+              "Unsupported claims are never published. Confirm the statement against the conversation."
+            ],
+            [
+              "Claim in chapter 11 is not supported because it has no cited conversation excerpt: Before anything is built, every automation must pass three independent checks. You see all three results openly.. Recorded as an open item rather than accepted.",
+              "assumption",
+              "Business",
+              "Unsupported claims are never published. Confirm the statement against the conversation."
+            ],
+            [
+              "Claim in chapter 11 is not supported because it has no cited conversation excerpt: Missing information is never guessed. Every gap appears here as an open item with an owner.. Recorded as an open item rather than accepted.",
+              "assumption",
+              "Business",
+              "Unsupported claims are never published. Confirm the statement against the conversation."
+            ],
+            [
+              "Claim in chapter 12 is not supported because it has no cited conversation excerpt: Stage-3 elements are proposals only. They are never included in the committed business case.. Recorded as an open item rather than accepted.",
+              "assumption",
+              "Business",
+              "Unsupported claims are never published. Confirm the statement against the conversation."
+            ]
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C7",
+              "speaker_role": "IT",
+              "excerpt_pointer": "turn:6"
+            }
+          ]
+        },
+        {
+          "block": "callout",
+          "tone": "open_item",
+          "text": "This point is recorded as an open item because it is not supported by a conversation excerpt."
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:8"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:4"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:6"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:5"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "dept_head",
+          "excerpt_pointer": "turn:0"
+        },
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:7"
+        },
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:6"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:3"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:0"
+        }
+      ]
+    },
+    {
+      "chapter_id": "12",
+      "title": "Evolution stages",
+      "body": [
+        {
+          "block": "prose",
+          "text": "Every automation is designed as a path, not an end state. You decide anew at each stage.",
+          "source_refs": [
+            {
+              "conversation_id": "C6",
+              "speaker_role": "Sandra",
+              "excerpt_pointer": "turn:4"
+            }
+          ]
+        },
+        {
+          "block": "table",
+          "caption": "Evolution stages",
+          "columns": [
+            "Stage",
+            "What the agent does",
+            "Human",
+            "Benefit",
+            "Extra effort"
+          ],
+          "rows": [
+            [
+              "Today",
+              "Nothing — fully manual process.",
+              "Accounts Payable matches around 3,000 invoices per month against purchase orders and goods receipts.",
+              "—",
+              "—"
+            ],
+            [
+              "Stage 1 · Assistive",
+              "Captures, extracts, checks, and prepares complete proposals with reasons. No write/actuating actions.",
+              "Confirms every posting or action with one click.",
+              "~40 % of time; full visibility",
+              "included in base build (interim milestone)"
+            ],
+            [
+              "Stage 2 · Autonomous with HITL",
+              "Runs the named standard case within confirmed rules; exceptions go to people.",
+              "Exceptions, gated approvals, spot checks.",
+              "~62 h/month · full business case from chapter 9",
+              "base build (3.0 weeks, EUR 15000)"
+            ],
+            [
+              "Stage 3 · End-to-end (option)",
+              "Additionally (proposal only; requires telemetry_3mo and targeted C6 deep-dives): Credit notes about 5 percent stay in today's manual process until stage 3. · Credit notes about 5 percent stay out of scope for now as a later stage 3 path.",
+              "Releases outbound messages; decides on any rule-tuning proposals.",
+              "Exception effort down; cycle time days to hours. Proposal only — not in the committed business case.",
+              "~2-3 weeks more, own business case after 3 months of stage-2 data"
+            ]
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C6",
+              "speaker_role": "Sandra",
+              "excerpt_pointer": "turn:1"
+            }
+          ]
+        },
+        {
+          "block": "callout",
+          "tone": "open_item",
+          "text": "This point is recorded as an open item because it is not supported by a conversation excerpt."
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:8"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:4"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:6"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:5"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "dept_head",
+          "excerpt_pointer": "turn:0"
+        },
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:7"
+        },
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:6"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:3"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:0"
+        }
+      ]
+    },
+    {
+      "chapter_id": "13",
+      "title": "Next steps & glossary",
+      "body": [
+        {
+          "block": "table",
+          "caption": "Next steps",
+          "columns": [
+            "#",
+            "Step",
+            "Who",
+            "When"
+          ],
+          "rows": [
+            [
+              "1",
+              "Business confirmation of the captured process",
+              "Business owner",
+              "Before go"
+            ],
+            [
+              "2",
+              "Go decision in Deployment Control (this report is the decision basis)",
+              "Sponsor",
+              "This week"
+            ],
+            [
+              "3",
+              "Build with interim acceptance of stage 1",
+              "Borek delivery + business",
+              "3.0 weeks"
+            ]
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C6",
+              "speaker_role": "Sandra",
+              "excerpt_pointer": "turn:8"
+            }
+          ]
+        },
+        {
+          "block": "glossary",
+          "terms": [
+            {
+              "term": "Auto-match rate",
+              "meaning": "Share of cases the workflow completes without a human step."
+            },
+            {
+              "term": "Exception queue",
+              "meaning": "Cases that could not be resolved by rule, each with reason and a suggested action."
+            },
+            {
+              "term": "Build-readiness",
+              "meaning": "A 0-100 score of whether the concept is complete enough to build."
+            },
+            {
+              "term": "Stage 1 / 2 / 3",
+              "meaning": "Assistive · autonomous with human control · end-to-end (proposal)."
+            },
+            {
+              "term": "AP shared mailbox Microsoft 365 read via",
+              "meaning": "As named in the conversations: AP shared mailbox Microsoft 365 read via."
+            },
+            {
+              "term": "ERP read REST API for purchase orders, goods",
+              "meaning": "As named in the conversations: ERP read REST API for purchase orders, goods."
+            },
+            {
+              "term": "Quantity must match exactly across invoice,",
+              "meaning": "As named in the conversations: Quantity must match exactly across invoice,."
+            },
+            {
+              "term": "Unit price must match exactly unless a stored",
+              "meaning": "As named in the conversations: Unit price must match exactly unless a stored."
+            },
+            {
+              "term": "Total rounding tolerance up to EUR 0",
+              "meaning": "As named in the conversations: Total rounding tolerance up to EUR 0."
+            },
+            {
+              "term": "Amount deviation versus PO greater than 2",
+              "meaning": "As named in the conversations: Amount deviation versus PO greater than 2."
+            },
+            {
+              "term": "Invoice number already posted is never posted",
+              "meaning": "As named in the conversations: Invoice number already posted is never posted."
+            },
+            {
+              "term": "Postings above EUR 5,000 always need human",
+              "meaning": "As named in the conversations: Postings above EUR 5,000 always need human."
+            },
+            {
+              "term": "manual handling time",
+              "meaning": "As named in the conversations: manual handling time."
+            },
+            {
+              "term": "Success target",
+              "meaning": "As named in the conversations: Success target."
+            },
+            {
+              "term": "Cycle time",
+              "meaning": "As named in the conversations: Cycle time."
+            },
+            {
+              "term": "Accounts Payable matches around 3,000 invoices",
+              "meaning": "As named in the conversations: Accounts Payable matches around 3,000 invoices per month against purchase orders and goods receipts.."
+            },
+            {
+              "term": "The automatable core is about 73 hours per",
+              "meaning": "As named in the conversations: The automatable core is about 73 hours per month; the whole team spends about 306 hours per month.."
+            },
+            {
+              "term": "A supplier invoice PDF arrives in the shared AP",
+              "meaning": "As named in the conversations: A supplier invoice PDF arrives in the shared AP mailbox.."
+            }
+          ]
+        }
+      ],
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:1"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:2"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:8"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:4"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:6"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:5"
+        },
+        {
+          "conversation_id": "C1",
+          "speaker_role": "dept_head",
+          "excerpt_pointer": "turn:0"
+        },
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:7"
+        },
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:6"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:3"
+        },
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:0"
+        }
+      ]
+    }
+  ],
+  "version": 1,
+  "generated_from": [
+    "00000000-0000-4000-8000-000000000142"
+  ],
+  "previous_version_id": null,
+  "change_log": [
+    "Initial customer-report generation"
+  ],
+  "created_at": "2026-08-26T10:00:00Z",
+  "updated_at": "2026-08-26T10:00:00Z",
+  "language_master": "en",
+  "render_languages": [
+    "de",
+    "en"
+  ],
+  "estimate": {
+    "tier": "T2",
+    "effort_weeks": {
+      "min": 2.1,
+      "likely": 3.0,
+      "max": 3.9
+    },
+    "confidence": "medium-high",
+    "team": [
+      "1 builder"
+    ],
+    "timeline_weeks": 3.0,
+    "build_cost_eur": 15000,
+    "assumptions": [
+      "archetype=system_to_system",
+      "data_readiness=ready",
+      "reuse_discount_pct=10",
+      "builder_weekly_rate_eur=5000"
+    ],
+    "inputs": {
+      "archetype": "system_to_system",
+      "step_count": 5,
+      "system_count": 2,
+      "rule_count": 6,
+      "hard_integration_count": 0,
+      "data_readiness": "ready",
+      "reuse": [
+        "library_component"
+      ],
+      "builder_count": 1
+    }
+  },
+  "business_case": {
+    "hours_saved_mo": 62,
+    "gross_eur_mo": 2800,
+    "run_cost_eur_mo": 400,
+    "net_eur_mo": 2400,
+    "payback_months": 6.3,
+    "roi_36m_pct": 476,
+    "sensitivity": {
+      "low": {
+        "automation_rate": 0.7,
+        "hours_saved_mo": 51,
+        "net_eur_mo": 1900,
+        "payback_months": 7.9,
+        "roi_36m_pct": 356
+      },
+      "expected": {
+        "automation_rate": 0.85,
+        "hours_saved_mo": 62,
+        "net_eur_mo": 2400,
+        "payback_months": 6.3,
+        "roi_36m_pct": 476
+      },
+      "high": {
+        "automation_rate": 0.92,
+        "hours_saved_mo": 67,
+        "net_eur_mo": 2600,
+        "payback_months": 5.8,
+        "roi_36m_pct": 524
+      }
+    },
+    "qualitative": [
+      "Fewer wrong and duplicate payments",
+      "Month-end relief exactly at peak",
+      "Capacity moves to clarification cases that need judgement"
+    ],
+    "assumptions": [
+      "automation_rate=0.85",
+      "loaded_hourly_cost_eur=45.0",
+      "automatable_hours_mo=73.0",
+      "run_cost_eur_mo=400",
+      "build_cost_eur=15000",
+      "archetype=system_to_system",
+      "data_readiness=ready",
+      "reuse_discount_pct=10",
+      "builder_weekly_rate_eur=5000"
+    ],
+    "formulas": {
+      "hours_saved_mo": "round(automatable_hours_mo * automation_rate)",
+      "gross_eur_mo": "round(hours_saved_mo * loaded_hourly_cost_eur to 100 EUR)",
+      "net_eur_mo": "gross_eur_mo - run_cost_eur_mo",
+      "payback_months": "build_cost_eur / net_eur_mo",
+      "roi_36m_pct": "(36 * net_eur_mo - build_cost_eur) / build_cost_eur"
+    },
+    "inputs": {
+      "automatable_hours_mo": 73.0,
+      "monthly_volume": 3000.0,
+      "automation_rate": 0.85,
+      "loaded_hourly_cost_eur": 45.0,
+      "build_cost_eur": 15000,
+      "archetype": "system_to_system"
+    }
+  },
+  "assessments": {
+    "opportunity": {
+      "score": 85,
+      "dims": {
+        "impact": 100,
+        "strategic_fit": 100,
+        "speed": 100,
+        "feasibility": 50,
+        "risk_inverted": 50
+      },
+      "levels": {
+        "impact": 3,
+        "speed": 3,
+        "strategic_fit": 3,
+        "feasibility": 2,
+        "risk_inverted": 2
+      },
+      "evidence": [
+        "impact from 306.0 h/month → level 3",
+        "speed from 3.0 weeks → level 3",
+        "strategic_fit level 3",
+        "feasibility level 2",
+        "risk_inverted level 2"
+      ],
+      "inputs": {
+        "hours_mo": 306.0,
+        "timeline_weeks": 3.0,
+        "strategic_fit_level": 3,
+        "feasibility_level": 2,
+        "risk_inverted_level": 2
+      }
+    },
+    "conversation_quality": {
+      "score": 82,
+      "dims": {
+        "result_quality": 90.0,
+        "information_richness": 85.0,
+        "engagement": 65.0
+      },
+      "band": "strong",
+      "richness_level": 2,
+      "evidence": [
+        "result_quality=90.0",
+        "information_richness=85.0",
+        "engagement=65.0"
+      ],
+      "inputs": {
+        "result_quality": 90.0,
+        "information_richness": 85.0,
+        "engagement": 65.0
+      }
+    },
+    "build_readiness": {
+      "score": 94,
+      "blocks": {
+        "aim_metric": 12,
+        "functional_spec": 20,
+        "sample": 8,
+        "integrations": 12,
+        "data_compliance": 12,
+        "estimate": 10,
+        "business_case": 8,
+        "acceptance": 8,
+        "open_questions": 4
+      },
+      "band": "ready_to_build",
+      "evidence": [
+        "aim_metric=12/12",
+        "functional_spec=20/20",
+        "sample=8/8",
+        "integrations=12/18",
+        "data_compliance=12/12",
+        "estimate=10/10",
+        "business_case=8/8",
+        "acceptance=8/8",
+        "open_questions=4/4"
+      ],
+      "inputs": {
+        "has_aim_metric": true,
+        "functional_spec_complete": true,
+        "has_sample": true,
+        "intake_read_available": true,
+        "system_read_available": true,
+        "system_write_available": false,
+        "data_compliance_complete": true,
+        "estimate_complete": true,
+        "business_case_complete": true,
+        "acceptance_complete": true,
+        "blocker_open_questions": 0
+      }
+    }
+  },
+  "cover": {
+    "title": "Invoice 3-Way Match",
+    "automation": "Invoice 3-Way Match",
+    "tagline": "The framework report from the customer's point of view.",
+    "sources_line": "Sources C6",
+    "how_produced": "Generated automatically from the captured conversations. Missing facts are listed, never guessed.",
+    "volume": "~3000/month",
+    "capacity": "~73.0 hours/month in the automatable core",
+    "clean_handling_time": "",
+    "exception_handling_time": "",
+    "exception_rate": "5 %",
+    "staff_description": "The automatable core is about 73 hours per month; the whole team spends about 306 hours per month.",
+    "hitl": "Exceptions are always decided by people.",
+    "recommendation": "Release for build at evolution stage 2 (autonomous with human control) only if all three quality gates pass. Blocking items are listed in chapter 11; numbered next steps are in chapter 13.",
+    "classification": "Data classification confidential because invoices contain supplier bank details. EU residency only. Access via least-privilege technical user. Full audit trail.",
+    "residency": "Data classification confidential because invoices contain supplier bank details. EU residency only. Access via least-privilege technical user. Full audit trail.",
+    "retention": "",
+    "minimization": "",
+    "access": "Data classification confidential because invoices contain supplier bank details. EU residency only. Access via least-privilege technical user. Full audit trail.",
+    "audit": "Data classification confidential because invoices contain supplier bank details. EU residency only. Access via least-privilege technical user. Full audit trail.",
+    "trigger": "A supplier invoice PDF arrives in the shared AP mailbox.",
+    "inputs": "Accounts Payable matches around 3,000 invoices per month against purchase orders and goods receipts.",
+    "result": "",
+    "status_label": "READY TO BUILD"
+  },
+  "numbers": {
+    "monthly_volume": 3000,
+    "hours_mentions": [
+      73.0,
+      306.0,
+      73.0,
+      12.0
+    ],
+    "eur_mentions": [
+      45.0,
+      0.0,
+      5000.0
+    ],
+    "percent_mentions": [
+      5.0,
+      0.0,
+      85.0,
+      2.0,
+      5.0
+    ],
+    "all_tokens": [
+      "3000",
+      "73",
+      "306",
+      "45",
+      "5",
+      "3",
+      "1",
+      "30",
+      "50",
+      "0",
+      "85",
+      "73",
+      "12",
+      "0",
+      "1",
+      "5",
+      "365",
+      "0.5",
+      "2",
+      "5000",
+      "5",
+      "3",
+      "2",
+      "1"
+    ],
+    "blob": "Accounts Payable matches around 3,000 invoices per month against purchase orders and goods receipts. The automatable core is about 73 hours per month; the whole team spends about 306 hours per month. A supplier invoice PDF arrives in the shared AP mailbox. Loaded cost is EUR 45 per hour. Credit notes about 5 percent stay out of scope for now as a later stage 3 path. 1 sample invoice was provided; 30 to 50 real invoices will follow with bank details masked. KPI auto-match rate baseline 0 percent, target at least 85 percent, measured via agent statistics per invoice. KPI manual handling time baseline about 73 hours per month, target at most 12 hours per month, measured via exception-queue time tracking. Success target: 0 wrong postings outside tolerance, measured via audit log and Finance spot checks. This supports the C1 Finance priority of a 5-day month-end close. Data classification confidential because invoices contain supplier bank details. EU residency only. Access via least-privilege technical user. Full audit trail. ERP write access for payment postings needs formal approval from the IT lead. The agent must never evaluate employees. SSO connection of the exception app is required. ERP sandbox with test data is available. AP shared mailbox Microsoft 365 read via Microsoft Graph API scoped to this mailbox. ERP read REST API for purchase orders, goods receipts, posted invoices and discount agreements. ERP write posting of payment documents pending formal approval. Quantity must match exactly across invoice, purchase order and goods receipt. Unit price must match exactly unless a stored discount agreement applies. Total rounding tolerance up to EUR 0.50. Amount deviation versus PO greater than 2 percent always held for review. Invoice number already posted is never posted again and is flagged as a duplicate. Postings above EUR 5,000 always need human one-click approval. Price difference without discount agreement is queued with delta and evidence. Partial delivery is queued until the remainder arrives. No purchase order found is queued with a suggestion to return to the supplier. Credit notes about 5 percent stay in today's manual process until stage 3. Sandra in Finance / Accounts Payable does the daily match. IT lead owns access approval. Finance system owner owns go-live. Recommended build is stage 2 autonomous with human control after an assistive stage 1. Fatigue errors in mass checking and clarification piles up at month-end close. Formal ERP write-access approval date is not in the transcript."
+  },
+  "source_entries": [
+    {
+      "statement": "Accounts Payable matches around 3,000 invoices per month against purchase orders and goods receipts.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:1"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "bucket": "facts"
+    },
+    {
+      "statement": "The automatable core is about 73 hours per month; the whole team spends about 306 hours per month.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:1"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "bucket": "facts"
+    },
+    {
+      "statement": "A supplier invoice PDF arrives in the shared AP mailbox.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:2"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "bucket": "facts"
+    },
+    {
+      "statement": "Loaded cost is EUR 45 per hour.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:8"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "bucket": "facts"
+    },
+    {
+      "statement": "Credit notes about 5 percent stay out of scope for now as a later stage 3 path.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:4"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "bucket": "facts"
+    },
+    {
+      "statement": "1 sample invoice was provided; 30 to 50 real invoices will follow with bank details masked.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:6"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "bucket": "facts"
+    },
+    {
+      "statement": "KPI auto-match rate baseline 0 percent, target at least 85 percent, measured via agent statistics per invoice.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:5"
+        }
+      ],
+      "origin": "USER_INPUT",
+      "confidence": "high",
+      "bucket": "stated_requirements"
+    },
+    {
+      "statement": "KPI manual handling time baseline about 73 hours per month, target at most 12 hours per month, measured via exception-queue time tracking.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:5"
+        }
+      ],
+      "origin": "USER_INPUT",
+      "confidence": "high",
+      "bucket": "stated_requirements"
+    },
+    {
+      "statement": "Success target: 0 wrong postings outside tolerance, measured via audit log and Finance spot checks.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:5"
+        }
+      ],
+      "origin": "USER_INPUT",
+      "confidence": "high",
+      "bucket": "stated_requirements"
+    },
+    {
+      "statement": "This supports the C1 Finance priority of a 5-day month-end close.",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "dept_head",
+          "excerpt_pointer": "turn:0"
+        }
+      ],
+      "origin": "USER_INPUT",
+      "confidence": "high",
+      "bucket": "stated_requirements"
+    },
+    {
+      "statement": "Data classification confidential because invoices contain supplier bank details. EU residency only. Access via least-privilege technical user. Full audit trail.",
+      "source_refs": [
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:7"
+        }
+      ],
+      "origin": "USER_INPUT",
+      "confidence": "high",
+      "bucket": "constraints"
+    },
+    {
+      "statement": "ERP write access for payment postings needs formal approval from the IT lead.",
+      "source_refs": [
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:6"
+        }
+      ],
+      "origin": "USER_INPUT",
+      "confidence": "high",
+      "bucket": "constraints"
+    },
+    {
+      "statement": "The agent must never evaluate employees.",
+      "source_refs": [
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:7"
+        }
+      ],
+      "origin": "USER_INPUT",
+      "confidence": "high",
+      "bucket": "constraints"
+    },
+    {
+      "statement": "SSO connection of the exception app is required. ERP sandbox with test data is available.",
+      "source_refs": [
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:6"
+        }
+      ],
+      "origin": "USER_INPUT",
+      "confidence": "high",
+      "bucket": "constraints"
+    },
+    {
+      "statement": "AP shared mailbox Microsoft 365 read via Microsoft Graph API scoped to this mailbox.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:6"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "bucket": "named_systems"
+    },
+    {
+      "statement": "ERP read REST API for purchase orders, goods receipts, posted invoices and discount agreements.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:6"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "bucket": "named_systems"
+    },
+    {
+      "statement": "ERP write posting of payment documents pending formal approval.",
+      "source_refs": [
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:6"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "bucket": "named_systems"
+    },
+    {
+      "statement": "Quantity must match exactly across invoice, purchase order and goods receipt.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:3"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "bucket": "named_rules"
+    },
+    {
+      "statement": "Unit price must match exactly unless a stored discount agreement applies.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:3"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "bucket": "named_rules"
+    },
+    {
+      "statement": "Total rounding tolerance up to EUR 0.50.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:3"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "bucket": "named_rules"
+    },
+    {
+      "statement": "Amount deviation versus PO greater than 2 percent always held for review.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:3"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "bucket": "named_rules"
+    },
+    {
+      "statement": "Invoice number already posted is never posted again and is flagged as a duplicate.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:3"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "bucket": "named_rules"
+    },
+    {
+      "statement": "Postings above EUR 5,000 always need human one-click approval.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:3"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "bucket": "named_rules"
+    },
+    {
+      "statement": "Price difference without discount agreement is queued with delta and evidence.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:4"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "bucket": "named_exceptions"
+    },
+    {
+      "statement": "Partial delivery is queued until the remainder arrives.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:4"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "bucket": "named_exceptions"
+    },
+    {
+      "statement": "No purchase order found is queued with a suggestion to return to the supplier.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:4"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "bucket": "named_exceptions"
+    },
+    {
+      "statement": "Credit notes about 5 percent stay in today's manual process until stage 3.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:4"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "bucket": "named_exceptions"
+    },
+    {
+      "statement": "Sandra in Finance / Accounts Payable does the daily match.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:0"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "bucket": "people_and_roles"
+    },
+    {
+      "statement": "IT lead owns access approval. Finance system owner owns go-live.",
+      "source_refs": [
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:6"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "bucket": "people_and_roles"
+    },
+    {
+      "statement": "Recommended build is stage 2 autonomous with human control after an assistive stage 1.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:8"
+        }
+      ],
+      "origin": "AI_INFERENCE",
+      "confidence": "medium",
+      "bucket": "timeline_mentions"
+    },
+    {
+      "statement": "Fatigue errors in mass checking and clarification piles up at month-end close.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:1"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "medium",
+      "bucket": "risks"
+    },
+    {
+      "statement": "Formal ERP write-access approval date is not in the transcript.",
+      "origin": "OPEN_QUESTION",
+      "confidence": "medium",
+      "source_refs": [
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:6"
+        }
+      ],
+      "bucket": "unknowns"
+    }
+  ],
+  "generation_meta": {
+    "engine_version": "customer-report-v1",
+    "ruleset_version": "scoring.config.json",
+    "config_version": "estimation.config.json+business_case.config.json",
+    "llm_model": "deterministic-builder",
+    "prompt_version": "framework-synthesis:v1",
+    "llm_used": false,
+    "generated_at": "2026-08-26T10:00:00Z",
+    "llm_job_log": [],
+    "process_scope": null
+  },
+  "render": {
+    "allowed": true,
+    "assumptions_banner": true,
+    "band": "ready_to_build",
+    "reason": null
+  },
+  "readiness_band": "ready_to_build"
+}

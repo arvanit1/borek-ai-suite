@@ -1,0 +1,7 @@
+Agent: Legal contract intake triage.
+
+Morgan: Legal receives 150 contracts per month by email. Paralegals rename files, tag contract type, and route to the right lawyer.
+
+Morgan: Standard NDAs and MSAs follow checklists. Non-standard terms always need a lawyer. Credit checks are out of scope for this project.
+
+Morgan: Target: 50 percent auto-triage with lawyer confirmation. Document store is SharePoint with Microsoft Graph read. No write until legal ops approves.

@@ -1,0 +1,15 @@
+# ES-4 — PII redaction before any LLM call.
+# Override per opportunity by passing enabled=True/False into redact_turns_for_llm.
+
+default_enabled: true
+
+redact:
+  emails: true
+  phones: true
+  names: true
+
+placeholders:
+  email: "[EMAIL]"
+  phone: "[PHONE]"
+  name: "[NAME]"
+  speaker_prefix: "SPEAKER"

@@ -1,0 +1,11 @@
+Agent: Incoming quality inspection for manufacturing components.
+
+Rita: We inspect about 2,500 incoming component batches per month. Inspectors compare delivery notes, certificates, and SAP material master data.
+
+Rita: Clean matches take 4 minutes. Certificate mismatches take 25 minutes. Roughly 70 hours per month in the repeatable core.
+
+Rita: Rules: batch quantity must match, certificate date within 12 months, supplier must be on the approved list. Exceptions go to the quality lead.
+
+Rita: Success target: 80 percent auto-prepare with human release. SAP read via approved API. Write to inspection results pending QA sign-off. Samples available in sandbox.
+
+Rita: Loaded cost EUR 52 per hour. Stage 2 autonomous with human control is the preferred path after a stage 1 assistive pilot.

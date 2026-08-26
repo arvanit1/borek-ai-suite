@@ -1,0 +1,82 @@
+{
+  "schema_version": "1.0",
+  "prompt_version": "framework-extraction:v1",
+  "opportunity_id": "00000000-0000-4000-8000-000000000001",
+  "transcript_id": "00000000-0000-4000-8000-000000000002",
+  "conversation_id": "C1",
+  "facts": [
+    {
+      "statement": "The team matches invoices against purchase orders and goods receipts.",
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "SPEAKER_1",
+          "excerpt_pointer": "turn:0"
+        }
+      ]
+    }
+  ],
+  "stated_requirements": [
+    {
+      "statement": "Exceptions must stay with humans.",
+      "origin": "USER_INPUT",
+      "confidence": "high",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "SPEAKER_1",
+          "excerpt_pointer": "turn:0"
+        }
+      ]
+    }
+  ],
+  "constraints": [],
+  "named_systems": [
+    {
+      "statement": "ERP",
+      "origin": "SOURCE_FACT",
+      "confidence": "high",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "SPEAKER_1",
+          "excerpt_pointer": "turn:0"
+        }
+      ]
+    }
+  ],
+  "named_rules": [],
+  "named_exceptions": [],
+  "people_and_roles": [],
+  "timeline_mentions": [
+    {
+      "statement": "A later stage could cover credit notes after the core match is stable.",
+      "origin": "AI_INFERENCE",
+      "confidence": "low",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "SPEAKER_1",
+          "excerpt_pointer": "turn:0"
+        }
+      ]
+    }
+  ],
+  "risks": [],
+  "unknowns": [
+    {
+      "statement": "ERP write-access approval path is not stated.",
+      "origin": "OPEN_QUESTION",
+      "confidence": "medium",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "SPEAKER_1",
+          "excerpt_pointer": "turn:0"
+        }
+      ]
+    }
+  ]
+}

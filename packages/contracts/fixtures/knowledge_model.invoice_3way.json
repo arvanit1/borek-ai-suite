@@ -1,0 +1,411 @@
+{
+  "schema_version": "1.0",
+  "prompt_version": "framework-extraction:v1",
+  "opportunity_id": "OPP-142",
+  "transcript_id": "00000000-0000-4000-8000-000000000142",
+  "conversation_id": "C6",
+  "facts": [
+    {
+      "statement": "Accounts Payable matches around 3,000 invoices per month against purchase orders and goods receipts.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:1"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high"
+    },
+    {
+      "statement": "The automatable core is about 73 hours per month; the whole team spends about 306 hours per month.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:1"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high"
+    },
+    {
+      "statement": "A supplier invoice PDF arrives in the shared AP mailbox.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:2"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high"
+    },
+    {
+      "statement": "Loaded cost is EUR 45 per hour.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:8"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high"
+    },
+    {
+      "statement": "Credit notes about 5 percent stay out of scope for now as a later stage 3 path.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:4"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high"
+    },
+    {
+      "statement": "1 sample invoice was provided; 30 to 50 real invoices will follow with bank details masked.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:6"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high"
+    }
+  ],
+  "stated_requirements": [
+    {
+      "statement": "KPI auto-match rate baseline 0 percent, target at least 85 percent, measured via agent statistics per invoice.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:5"
+        }
+      ],
+      "origin": "USER_INPUT",
+      "confidence": "high"
+    },
+    {
+      "statement": "KPI manual handling time baseline about 73 hours per month, target at most 12 hours per month, measured via exception-queue time tracking.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:5"
+        }
+      ],
+      "origin": "USER_INPUT",
+      "confidence": "high"
+    },
+    {
+      "statement": "Success target: 0 wrong postings outside tolerance, measured via audit log and Finance spot checks.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:5"
+        }
+      ],
+      "origin": "USER_INPUT",
+      "confidence": "high"
+    },
+    {
+      "statement": "This supports the C1 Finance priority of a 5-day month-end close.",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "dept_head",
+          "excerpt_pointer": "turn:0"
+        }
+      ],
+      "origin": "USER_INPUT",
+      "confidence": "high"
+    }
+  ],
+  "constraints": [
+    {
+      "statement": "Data classification confidential because invoices contain supplier bank details. EU residency only. Access via least-privilege technical user. Full audit trail.",
+      "source_refs": [
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:7"
+        }
+      ],
+      "origin": "USER_INPUT",
+      "confidence": "high"
+    },
+    {
+      "statement": "ERP write access for payment postings needs formal approval from the IT lead.",
+      "source_refs": [
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:6"
+        }
+      ],
+      "origin": "USER_INPUT",
+      "confidence": "high"
+    },
+    {
+      "statement": "The agent must never evaluate employees.",
+      "source_refs": [
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:7"
+        }
+      ],
+      "origin": "USER_INPUT",
+      "confidence": "high"
+    },
+    {
+      "statement": "SSO connection of the exception app is required. ERP sandbox with test data is available.",
+      "source_refs": [
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:6"
+        }
+      ],
+      "origin": "USER_INPUT",
+      "confidence": "high"
+    }
+  ],
+  "named_systems": [
+    {
+      "statement": "AP shared mailbox Microsoft 365 read via Microsoft Graph API scoped to this mailbox.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:6"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high"
+    },
+    {
+      "statement": "ERP read REST API for purchase orders, goods receipts, posted invoices and discount agreements.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:6"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high"
+    },
+    {
+      "statement": "ERP write posting of payment documents pending formal approval.",
+      "source_refs": [
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:6"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high"
+    }
+  ],
+  "named_rules": [
+    {
+      "statement": "Quantity must match exactly across invoice, purchase order and goods receipt.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:3"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high"
+    },
+    {
+      "statement": "Unit price must match exactly unless a stored discount agreement applies.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:3"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high"
+    },
+    {
+      "statement": "Total rounding tolerance up to EUR 0.50.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:3"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high"
+    },
+    {
+      "statement": "Amount deviation versus PO greater than 2 percent always held for review.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:3"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high"
+    },
+    {
+      "statement": "Invoice number already posted is never posted again and is flagged as a duplicate.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:3"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high"
+    },
+    {
+      "statement": "Postings above EUR 5,000 always need human one-click approval.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:3"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high"
+    }
+  ],
+  "named_exceptions": [
+    {
+      "statement": "Price difference without discount agreement is queued with delta and evidence.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:4"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high"
+    },
+    {
+      "statement": "Partial delivery is queued until the remainder arrives.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:4"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high"
+    },
+    {
+      "statement": "No purchase order found is queued with a suggestion to return to the supplier.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:4"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high"
+    },
+    {
+      "statement": "Credit notes about 5 percent stay in today's manual process until stage 3.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:4"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high"
+    }
+  ],
+  "people_and_roles": [
+    {
+      "statement": "Sandra in Finance / Accounts Payable does the daily match.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:0"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high"
+    },
+    {
+      "statement": "IT lead owns access approval. Finance system owner owns go-live.",
+      "source_refs": [
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:6"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high"
+    }
+  ],
+  "timeline_mentions": [
+    {
+      "statement": "Recommended build is stage 2 autonomous with human control after an assistive stage 1.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:8"
+        }
+      ],
+      "origin": "AI_INFERENCE",
+      "confidence": "medium"
+    }
+  ],
+  "risks": [
+    {
+      "statement": "Fatigue errors in mass checking and clarification piles up at month-end close.",
+      "source_refs": [
+        {
+          "conversation_id": "C6",
+          "speaker_role": "Sandra",
+          "excerpt_pointer": "turn:1"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "medium"
+    }
+  ],
+  "unknowns": [
+    {
+      "statement": "Formal ERP write-access approval date is not in the transcript.",
+      "origin": "OPEN_QUESTION",
+      "confidence": "medium",
+      "source_refs": [
+        {
+          "conversation_id": "C7",
+          "speaker_role": "IT",
+          "excerpt_pointer": "turn:6"
+        }
+      ]
+    }
+  ]
+}
