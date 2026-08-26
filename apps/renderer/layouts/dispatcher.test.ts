@@ -8,6 +8,11 @@ import { fileURLToPath } from "node:url";
 import PptxGenJS from "pptxgenjs";
 
 import layoutRegistryJson from "../../../packages/contracts/layout_registry.json" with { type: "json" };
+import coverFixtureJson from "../../../packages/contracts/fixtures/slide_spec/group_a/cover_01.minimal.json" with { type: "json" };
+import requirementsFixtureJson from "../../../packages/contracts/fixtures/slide_spec/group_a/requirements_matrix_01.minimal.json" with { type: "json" };
+import scopeFixtureJson from "../../../packages/contracts/fixtures/slide_spec/group_a/scope_01.minimal.json" with { type: "json" };
+import { registerMasterContent } from "../design_system/masters/MASTER_CONTENT.js";
+import { registerMasterCover } from "../design_system/masters/MASTER_COVER.js";
 import {
   LAYOUT_REGISTRY,
   UnsupportedLayoutError,
@@ -51,6 +56,16 @@ assert.match(
 );
 
 function minimalSlideSpec(layoutId: LayoutId): SlideSpecBase {
+  const implementedGroupASpecs: Partial<Record<LayoutId, SlideSpecBase>> = {
+    COVER_01: coverFixtureJson as unknown as SlideSpecBase,
+    SCOPE_01: scopeFixtureJson as unknown as SlideSpecBase,
+    REQUIREMENTS_MATRIX_01: requirementsFixtureJson as unknown as SlideSpecBase,
+  };
+
+  if (implementedGroupASpecs[layoutId]) {
+    return implementedGroupASpecs[layoutId];
+  }
+
   return {
     schema_version: "1.0",
     layoutId,
@@ -60,6 +75,8 @@ function minimalSlideSpec(layoutId: LayoutId): SlideSpecBase {
 }
 
 const pptx = new PptxGenJS();
+registerMasterCover(pptx);
+registerMasterContent(pptx);
 
 for (const layoutId of REGISTRY_LAYOUT_IDS as LayoutId[]) {
   assert.doesNotThrow(

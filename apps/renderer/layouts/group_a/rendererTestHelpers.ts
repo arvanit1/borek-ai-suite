@@ -6,6 +6,11 @@ import PptxGenJS from "pptxgenjs";
 
 import { registerMasterContent, MASTER_CONTENT_NAME } from "../../design_system/masters/MASTER_CONTENT.js";
 
+export interface RenderToPptxOptions {
+  registerMaster?: (pptx: PptxGenJS) => void;
+  expectedMasterName?: string;
+}
+
 export const HARDCODED_HEX_PATTERN = /#?[0-9A-Fa-f]{6}\b/g;
 export const INLINE_FONT_SIZE_PATTERN = /fontSize\s*:\s*\d+(?:\.\d+)?/g;
 export const INLINE_FONT_FAMILY_PATTERN = /fontFace\s*:\s*["'][^"']+["']/g;
@@ -16,9 +21,12 @@ export function readRendererSource(url: URL): string {
 
 export async function renderToPptx(
   render: (pptx: PptxGenJS) => PptxGenJS.Slide,
+  options: RenderToPptxOptions = {},
 ): Promise<{ buffer: Buffer; slideXml: string; zip: JSZip }> {
   const pptx = new PptxGenJS();
-  registerMasterContent(pptx);
+  const registerMaster = options.registerMaster ?? registerMasterContent;
+  const expectedMasterName = options.expectedMasterName ?? MASTER_CONTENT_NAME;
+  registerMaster(pptx);
   render(pptx);
 
   const output = await pptx.write({ outputType: "nodebuffer" });
@@ -27,12 +35,12 @@ export async function renderToPptx(
   const zip = await JSZip.loadAsync(output);
   const slideXml = await zip.file("ppt/slides/slide1.xml")?.async("string");
   assert.ok(slideXml, "rendered PPTX must contain slide1.xml");
-  await assertUsesMasterContent(zip);
+  await assertUsesMaster(zip, expectedMasterName);
 
   return { buffer: output, slideXml, zip };
 }
 
-export async function assertUsesMasterContent(zip: JSZip): Promise<void> {
+export async function assertUsesMaster(zip: JSZip, expectedMasterName: string): Promise<void> {
   const rels = await zip.file("ppt/slides/_rels/slide1.xml.rels")?.async("string");
   assert.ok(rels, "rendered slide must have relationships");
 
@@ -42,7 +50,7 @@ export async function assertUsesMasterContent(zip: JSZip): Promise<void> {
   const layoutPath = `ppt/${target.replace(/^\.\.\//, "")}`;
   const layoutXml = await zip.file(layoutPath)?.async("string");
   assert.ok(layoutXml, `referenced slide layout must exist at ${layoutPath}`);
-  assert.match(layoutXml, new RegExp(`name="${MASTER_CONTENT_NAME}"`));
+  assert.match(layoutXml, new RegExp(`name="${expectedMasterName}"`));
 }
 
 export function assertRendererUsesSharedPrimitives(
