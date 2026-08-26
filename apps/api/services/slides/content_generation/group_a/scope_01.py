@@ -16,6 +16,10 @@ CONFIG = GroupAGenerationConfig(
     layout_id="SCOPE_01",
     schema_filename="scope_01.schema.json",
     allowed_chapter_ids=("3", "5"),
+    provenance_path_guidance=(
+        "title; subtitle and sectionLabel when populated; every included[i] and "
+        "every later[i]"
+    ),
     instructions=(
         "Populate included and later using only chapters 3 and 5. Every later item "
         "must be explicitly grounded in those chapters; never invent future scope."

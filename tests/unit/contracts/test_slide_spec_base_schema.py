@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 from pathlib import Path
 
@@ -126,6 +127,36 @@ def test_optional_base_fields_not_required(slide_spec_base_schema: dict) -> None
         "sourceChapterIds": ["1"],
     }
     jsonschema.validate(instance=minimal, schema=slide_spec_base_schema)
+
+
+def test_bt14_shared_field_provenance_is_optional_and_well_typed(
+    slide_spec_base_schema: dict,
+) -> None:
+    assert "fieldProvenance" in slide_spec_base_schema["properties"]
+    assert "fieldProvenance" not in slide_spec_base_schema["required"]
+    assert slide_spec_base_schema["properties"]["fieldProvenance"]["minItems"] == 1
+    entry = slide_spec_base_schema["$defs"]["FieldProvenanceEntry"]
+    assert entry["required"] == ["path", "sourceChapterIds"]
+    assert entry["additionalProperties"] is False
+
+    valid = {
+        "schema_version": "1.0",
+        "layoutId": "COVER_01",
+        "title": "Automation Proposal",
+        "sourceChapterIds": ["1"],
+        "fieldProvenance": [{"path": "title", "sourceChapterIds": ["1"]}],
+    }
+    jsonschema.validate(instance=valid, schema=slide_spec_base_schema)
+
+    invalid = copy.deepcopy(valid)
+    invalid["fieldProvenance"][0]["sourceChapterIds"] = []
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(instance=invalid, schema=slide_spec_base_schema)
+
+    invalid = copy.deepcopy(valid)
+    invalid["fieldProvenance"] = []
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(instance=invalid, schema=slide_spec_base_schema)
 
 
 def test_layout_ids_align_with_layout_registry() -> None:

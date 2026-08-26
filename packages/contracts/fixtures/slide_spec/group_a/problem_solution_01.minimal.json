@@ -3,6 +3,13 @@
   "layoutId": "PROBLEM_SOLUTION_01",
   "title": "Problem and solution",
   "sourceChapterIds": ["2", "4"],
+  "fieldProvenance": [
+    { "path": "title", "sourceChapterIds": ["2", "4"] },
+    { "path": "problem.title", "sourceChapterIds": ["2"] },
+    { "path": "problem.description", "sourceChapterIds": ["2"] },
+    { "path": "solution.title", "sourceChapterIds": ["4"] },
+    { "path": "solution.description", "sourceChapterIds": ["4"] }
+  ],
   "problem": { "title": "Problem", "description": "The standard case is checked manually." },
   "solution": { "title": "Solution", "description": "The agent checks the standard case by rule." }
 }

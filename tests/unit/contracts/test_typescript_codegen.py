@@ -133,7 +133,10 @@ def test_at5_chapter_tuple_matches_registry() -> None:
 def test_at5_barrel_avoids_duplicate_layout_id_exports() -> None:
     index_source = (GENERATED_DIR / "index.ts").read_text(encoding="utf-8")
     assert 'export * from "./framework_object"' in index_source
-    assert 'export type { ChapterId, SlideSpecBase } from "./slide_spec_base"' in index_source
+    assert 'from "./slide_spec_base"' in index_source
+    assert "ChapterId" in index_source
+    assert "FieldProvenanceEntry" in index_source
+    assert "SlideSpecBase" in index_source
     assert index_source.count("LayoutId") == 1
     assert 'export type { Cover01SlideSpec } from "./slide_spec_group_a_cover_01"' in index_source
     assert 'export type { Context01SlideSpec } from "./slide_spec_group_a_context_01"' in index_source

@@ -16,6 +16,11 @@ CONFIG = GroupAGenerationConfig(
     layout_id="REQUIREMENTS_MATRIX_01",
     schema_filename="requirements_matrix_01.schema.json",
     allowed_chapter_ids=("5",),
+    provenance_path_guidance=(
+        "title; subtitle and sectionLabel when populated; every "
+        "requirements[i].category, requirements[i].title, and "
+        "requirements[i].status"
+    ),
     instructions=(
         "Create requirement items only from chapter 5 rules and requirements. Use "
         "only semantic statuses included, partial, or later. Never output colors, "

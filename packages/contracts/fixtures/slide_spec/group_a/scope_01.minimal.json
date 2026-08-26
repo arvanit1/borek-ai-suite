@@ -3,6 +3,11 @@
   "layoutId": "SCOPE_01",
   "title": "Scope",
   "sourceChapterIds": ["3", "5"],
+  "fieldProvenance": [
+    { "path": "title", "sourceChapterIds": ["3", "5"] },
+    { "path": "included[0]", "sourceChapterIds": ["3"] },
+    { "path": "later[0]", "sourceChapterIds": ["5"] }
+  ],
   "included": ["Standard invoice matching"],
   "later": ["Supplier communication"]
 }

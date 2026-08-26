@@ -4,6 +4,12 @@
   "title": "Automation Proposal",
   "subtitle": "Invoice 3-Way Match",
   "sourceChapterIds": ["1"],
+  "fieldProvenance": [
+    { "path": "title", "sourceChapterIds": ["1"] },
+    { "path": "subtitle", "sourceChapterIds": ["1"] },
+    { "path": "statBadges[0].value", "sourceChapterIds": ["1"] },
+    { "path": "statBadges[0].label", "sourceChapterIds": ["1"] }
+  ],
   "statBadges": [
     { "value": "85%", "label": "Target auto-match rate" }
   ]
