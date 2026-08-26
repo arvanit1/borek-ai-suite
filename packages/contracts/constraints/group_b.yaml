@@ -1,0 +1,125 @@
+{
+  "schema_version": "1.0",
+  "ticket": "JJ-10",
+  "limit_classification": "CALIBRATED",
+  "calibration_basis": {
+    "PROCESS_FLOW_01": "Reference process-flow slide uses 5 numbered phases; the longest name is 17 characters and the longest description is 58 characters. Technical plan section 15 caps phase bands at 8.",
+    "TIMELINE_01": "Reference dual-band slide uses 4 phases and 4 milestones. Technical plan section 15 example uses phase name 28 / description 75 and 2-8 phases.",
+    "MILESTONES_01": "Reference standalone milestone list uses 4 items; the longest name is 25 characters and the longest description is 55 characters.",
+    "TEAM_FTE_01": "Reference team slide uses 4 role cards and a 3-stat summary row; the longest responsibility line is 36 characters."
+  },
+  "layouts": {
+    "PROCESS_FLOW_01": {
+      "properties": {
+        "sectionLabel": { "type": "string", "max_length": 32 },
+        "title": { "required": true, "type": "string", "max_length": 72 },
+        "subtitle": { "type": "string", "max_length": 100 },
+        "phases": {
+          "required": true,
+          "type": "array",
+          "min_items": 1,
+          "max_items": 8,
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "required": true, "type": "string", "max_length": 32 },
+              "description": { "required": true, "type": "string", "max_length": 80 }
+            }
+          }
+        }
+      }
+    },
+    "TIMELINE_01": {
+      "properties": {
+        "sectionLabel": { "type": "string", "max_length": 32 },
+        "title": { "required": true, "type": "string", "max_length": 72 },
+        "subtitle": { "type": "string", "max_length": 100 },
+        "phases": {
+          "required": true,
+          "type": "array",
+          "min_items": 1,
+          "max_items": 8,
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "required": true, "type": "string", "max_length": 16 },
+              "name": { "required": true, "type": "string", "max_length": 28 },
+              "description": { "required": true, "type": "string", "max_length": 75 }
+            }
+          }
+        },
+        "milestones": {
+          "required": true,
+          "type": "array",
+          "min_items": 1,
+          "max_items": 8,
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "required": true, "type": "string", "max_length": 16 },
+              "name": { "required": true, "type": "string", "max_length": 32 },
+              "phaseId": { "required": true, "type": "string", "max_length": 16 },
+              "date": { "type": "string", "max_length": 24 },
+              "description": { "type": "string", "max_length": 80 }
+            }
+          }
+        }
+      }
+    },
+    "MILESTONES_01": {
+      "properties": {
+        "sectionLabel": { "type": "string", "max_length": 32 },
+        "title": { "required": true, "type": "string", "max_length": 72 },
+        "subtitle": { "type": "string", "max_length": 100 },
+        "milestones": {
+          "required": true,
+          "type": "array",
+          "min_items": 1,
+          "max_items": 8,
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "required": true, "type": "string", "max_length": 40 },
+              "description": { "required": true, "type": "string", "max_length": 90 },
+              "date": { "type": "string", "max_length": 24 }
+            }
+          }
+        }
+      }
+    },
+    "TEAM_FTE_01": {
+      "properties": {
+        "sectionLabel": { "type": "string", "max_length": 32 },
+        "title": { "required": true, "type": "string", "max_length": 72 },
+        "subtitle": { "type": "string", "max_length": 100 },
+        "roles": {
+          "required": true,
+          "type": "array",
+          "min_items": 1,
+          "max_items": 6,
+          "items": {
+            "type": "object",
+            "properties": {
+              "role": { "required": true, "type": "string", "max_length": 32 },
+              "fte": { "required": true, "type": "string", "max_length": 16 },
+              "responsibility": { "required": true, "type": "string", "max_length": 80 }
+            }
+          }
+        },
+        "summary": {
+          "required": true,
+          "type": "array",
+          "min_items": 1,
+          "max_items": 4,
+          "items": {
+            "type": "object",
+            "properties": {
+              "label": { "required": true, "type": "string", "max_length": 24 },
+              "value": { "required": true, "type": "string", "max_length": 16 }
+            }
+          }
+        }
+      }
+    }
+  }
+}
