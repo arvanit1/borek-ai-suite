@@ -123,6 +123,34 @@ def test_es28_claim_without_any_source_ref_is_converted_to_open_item() -> None:
     enforce_cross_chapter_rules(framework, framework.get("source_entries") or [])
 
 
+def test_es28_unnumbered_rule_table_without_source_ref_becomes_open_item() -> None:
+    """ES-28 applies to rules and claims even when they contain no number."""
+    models, overrides = _models()
+    framework = generate_customer_framework(
+        models,
+        opportunity_id="OPP-142",
+        title_hint="Invoice 3-Way Match",
+        use_llm=False,
+        engine_overrides=overrides,
+    )
+    framework["chapters"][4]["body"].append(
+        {
+            "block": "table",
+            "caption": "Unverified rule",
+            "columns": ["Rule", "Handling"],
+            "rows": [["Supplier exception", "Release every new supplier automatically"]],
+        }
+    )
+
+    convert_unsupported_block_claims(framework, framework.get("source_entries") or [])
+
+    assert any(
+        "Release every new supplier automatically" in str(item.get("description", ""))
+        for item in framework.get("open_items") or []
+    )
+    assert "Release every new supplier automatically" not in str(framework["chapters"][4]["body"])
+
+
 def test_es29_two_processes_same_opportunity_are_flagged() -> None:
     models, overrides = _models()
     dual = copy.deepcopy(models[0])

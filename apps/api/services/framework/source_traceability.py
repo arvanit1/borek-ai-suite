@@ -277,23 +277,63 @@ def _block_requires_traceability(block: dict[str, Any]) -> bool:
         return False
     if "next step" in str(block.get("caption") or "").lower():
         return False
-    if str(block.get("block") or "") in {"kv_rows", "table", "process_flow"}:
-        return bool(re.search(r"\b\d[\d,]*(?:\.\d+)?\b", text))
+    claim_text = _claim_text(block).lower()
+    has_number = bool(re.search(r"\b\d[\d,]*(?:\.\d+)?\b", claim_text))
+    # ES-28 covers unnumbered rules as well as numbers. Typed key-value
+    # blocks and process-flow labels are required report structure; an
+    # unnumbered table is a customer claim only when it expresses a rule.
+    kind = str(block.get("block") or "")
+    if kind in {"kv_rows", "process_flow"}:
+        return has_number
+    if kind == "table":
+        return has_number or _has_unnumbered_table_rule(claim_text)
     # Chapter navigation is report scaffolding; its chapter numbers are not
     # customer facts and must not turn the eight-question list into an open item.
     if str(block.get("block") or "") == "bullets" and "what is it?" in text and "can we trust" in text:
         return False
-    has_number = str(block.get("block") or "") != "bullets" and bool(
-        re.search(r"\b\d[\d,]*(?:\.\d+)?\b", text)
-    )
     if "team decides" in text or "on its own" in text or "from the conversations" in text:
         return False
+    return has_number or _has_rule_or_claim_marker(text)
+
+
+def _has_rule_or_claim_marker(text: str) -> bool:
     return bool(
         re.search(
-            r"\b(?:must|should|cannot|never|always|only|autonomously|manual(?:ly)?|"
-            r"approve(?:s|d|ing)?|select(?:s|ed|ing)?|match(?:es|ed|ing)?|"
+            r"\b(?:must|should|cannot|never|always|only|autonomously|automatic(?:ally)?|"
+            r"manual(?:ly)?|approve(?:s|d|ing)?|select(?:s|ed|ing)?|match(?:es|ed|ing)?|"
             r"process(?:es|ed|ing)?|receive(?:s|d|ing)?|send(?:s|ing)?|"
-            r"arrive(?:s|d|ing)?|require(?:s|d|ing)?)\b",
+            r"arrive(?:s|d|ing)?|require(?:s|d|ing)?|rule|exception|route(?:s|d|ing)?|"
+            r"hold(?:s|ing)?|reject(?:s|ed|ing)?|release(?:s|d|ing)?)\b",
             text,
         )
-    ) or has_number
+    )
+
+
+def _has_unnumbered_table_rule(text: str) -> bool:
+    return bool(
+        "→" in text
+        or re.search(
+            r"\b(?:if|then|automatically|autonomously|route(?:s|d|ing)?|"
+            r"hold(?:s|ing)?|reject(?:s|ed|ing)?|release(?:s|d|ing)?)\b",
+            text,
+        )
+    )
+
+
+def _claim_text(block: dict[str, Any]) -> str:
+    """Return customer assertions without neutral table headers/captions."""
+    kind = str(block.get("block") or "")
+    if kind == "table":
+        return " ".join(
+            str(cell)
+            for row in block.get("rows") or []
+            if isinstance(row, list)
+            for cell in row
+        )
+    if kind == "kv_rows":
+        return " ".join(
+            str(row.get("value") or "")
+            for row in block.get("rows") or []
+            if isinstance(row, dict)
+        )
+    return _block_text(block)
