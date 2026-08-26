@@ -2,9 +2,9 @@
 
 Per-layout content limits for the **AT-7 generic constraint validator** (`apps/api/services/validation/constraint_validator.py`).
 
-Technical plan section 15 defines limits such as phase counts and string max lengths. Those limits are **data** in this directory (`group_a.yaml`, `group_c.yaml`; future `group_b.yaml`). The validator interprets configs generically — no layout-specific Python code.
+Technical plan section 15 defines limits such as phase counts and string max lengths. Those limits are **data** in this directory (`group_a.yaml`, `group_b.yaml`, `group_c.yaml`). The validator interprets configs generically — no layout-specific Python code.
 
-`group_a.yaml` and `group_c.yaml` use JSON syntax, which is valid YAML 1.2, so runtime loading needs no additional YAML dependency. Metadata distinguishes calibrated values (BT-15 / MS-12) from limits specified by the technical plan.
+`group_a.yaml`, `group_b.yaml`, and `group_c.yaml` use JSON syntax, which is valid YAML 1.2, so runtime loading needs no additional YAML dependency. Metadata distinguishes calibrated values (BT-15 / JJ-10 / MS-12) from limits hardcoded in the validator.
 
 ## Config shape
 
@@ -61,6 +61,15 @@ from services.slides.group_a_constraints import register_group_a_constraints
 from services.validation.constraint_validator import LayoutConstraintRegistry
 
 registry = register_group_a_constraints(LayoutConstraintRegistry())
+```
+
+Group B registration is the same pattern:
+
+```python
+from services.slides.group_b_constraints import register_group_b_constraints
+from services.validation.constraint_validator import LayoutConstraintRegistry
+
+registry = register_group_b_constraints(LayoutConstraintRegistry())
 ```
 
 Group C registration is additive on the same registry:

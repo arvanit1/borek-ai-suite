@@ -22,7 +22,9 @@
     "test:at19": "tsx design_system/components/addSlideTitle.test.ts",
     "test:at20": "tsx design_system/components/addSectionLabel.test.ts",
     "test:at21": "tsx design_system/components/addFooter.test.ts",
-    "test:at22": "tsx design_system/components/addContentCard.test.ts"
+    "test:at22": "tsx design_system/components/addContentCard.test.ts",
+    "test:bt18": "tsx layouts/group_a/renderContext01.test.ts",
+    "test:bt19": "tsx layouts/group_a/renderProblemSolution01.test.ts"
   },
   "dependencies": {
     "pngjs": "^7.0.0",
