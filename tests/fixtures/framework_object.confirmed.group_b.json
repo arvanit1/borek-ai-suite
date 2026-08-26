@@ -1,0 +1,169 @@
+{
+  "schema_version": "1.0",
+  "opportunity_id": "00000000-0000-4000-8000-000000000010",
+  "title": "Invoice 3-Way Match Automation",
+  "department": "Finance",
+  "status": "confirmed",
+  "priority_rank": 1,
+  "quality_scores": {
+    "opportunity_rating": 82,
+    "conversation_quality": 78,
+    "build_readiness": 74,
+    "rationale": {
+      "opportunity_rating": "High-volume repeatable process.",
+      "conversation_quality": "The current process and exceptions are documented.",
+      "build_readiness": "Read-only system access still needs confirmation."
+    }
+  },
+  "kpis": [
+    {
+      "name": "Automation rate",
+      "baseline": "0%",
+      "target": "80%",
+      "measured_via": "Monthly operations report"
+    }
+  ],
+  "systems": [],
+  "rules": [
+    { "name": "Three-way match", "logic": "Invoice, purchase order, and receipt must agree." }
+  ],
+  "exceptions": [],
+  "access_needs": [],
+  "evolution_stages": [],
+  "open_items": [],
+  "chapters": [
+    {
+      "chapter_id": "0",
+      "title": "About this document",
+      "body": "Confirmed automation framework generated from reviewed conversations.",
+      "source_refs": []
+    },
+    {
+      "chapter_id": "1",
+      "title": "Management summary",
+      "body": [
+        { "summary": "Automate the confirmed standard Invoice match case while exceptions remain human-controlled." },
+        { "investment": "EUR 80,000" },
+        { "payback": "10 months" },
+        { "roi": "25%" }
+      ],
+      "source_refs": [
+        { "conversation_id": "C1", "speaker_role": "dept_head", "excerpt_pointer": "turn-12" }
+      ]
+    },
+    {
+      "chapter_id": "2",
+      "title": "Starting point: the process today",
+      "body": [
+        { "problem": "Analysts manually compare invoices, purchase orders, and goods receipts." },
+        { "currentState": "Invoices arrive in a shared mailbox and exceptions are identified late." },
+        { "step": "Receive invoice from the shared mailbox as the read-only source." },
+        { "step": "Extract supplier, amounts, purchase-order and line-item fields." },
+        { "step": "Match invoice, purchase-order and goods-receipt records by hand." }
+      ],
+      "source_refs": [
+        { "conversation_id": "C1", "speaker_role": "operator", "excerpt_pointer": "turn-20" }
+      ]
+    },
+    {
+      "chapter_id": "3",
+      "title": "Aim & success measurement",
+      "body": [
+        { "included": "Measure automatic handling rate and exception cycle time." }
+      ],
+      "source_refs": []
+    },
+    {
+      "chapter_id": "4",
+      "title": "The solution and the to-be process",
+      "body": [
+        { "solution": "Read invoice and ERP data, apply confirmed matching rules, and queue exceptions for human review." },
+        { "targetState": "Standard matches are prepared automatically; people decide exception cases." },
+        { "step": "Route unmatched or low-confidence cases to a reasoned exception queue." },
+        { "step": "Post clean matches in ERP while humans keep approval control." }
+      ],
+      "source_refs": [
+        { "conversation_id": "C1", "speaker_role": "it", "excerpt_pointer": "turn-34" }
+      ]
+    },
+    {
+      "chapter_id": "5",
+      "title": "How it works in detail",
+      "body": [],
+      "source_refs": []
+    },
+    {
+      "chapter_id": "6",
+      "title": "How it is built - systems, data flow, integration",
+      "body": [],
+      "source_refs": []
+    },
+    {
+      "chapter_id": "7",
+      "title": "What we need from the client",
+      "body": [],
+      "source_refs": []
+    },
+    {
+      "chapter_id": "8",
+      "title": "Security, data protection & human control",
+      "body": "Exceptions and guardrail breaches remain under human control.",
+      "source_refs": []
+    },
+    {
+      "chapter_id": "9",
+      "title": "Business case & ROI",
+      "body": [],
+      "source_refs": []
+    },
+    {
+      "chapter_id": "10",
+      "title": "Complexity, effort & timeline",
+      "body": [
+        { "phase": "Discover", "description": "Confirm scope, systems and access paths", "date": "Week 2" },
+        { "phase": "Build", "description": "Matching rules, exception queue and ERP write path", "date": "Week 6" },
+        { "phase": "Pilot", "description": "Controlled run on a live invoice sample", "date": "Week 10" },
+        { "phase": "Handover", "description": "Operations take ownership with quality gates", "date": "Week 14" },
+        { "milestone": "Access confirmed", "description": "Read-only purchase-order and goods-receipt data available", "date": "Week 2" },
+        { "milestone": "Matching rules signed off", "description": "Standard-case rules and exception reasons approved", "date": "Week 6" },
+        { "milestone": "Pilot go-live", "description": "Live sample invoices run with human review on exceptions", "date": "Week 10" },
+        { "milestone": "Operations handover", "description": "Runbook, quality gates and named owners accepted", "date": "Week 14" },
+        { "role": "Process owner", "fte": "0.3", "responsibility": "Approve matching rules and exception decisions" },
+        { "role": "AP operator", "fte": "0.5", "responsibility": "Work the exception queue during pilot" },
+        { "role": "ERP specialist", "fte": "0.4", "responsibility": "Confirm posting path and test data" },
+        { "role": "Delivery lead", "fte": "0.6", "responsibility": "Coordinate build, pilot and handover" },
+        { "totalFte": "1.8" },
+        { "milestoneCount": "4" },
+        { "duration": "14 weeks" },
+        { "teamSize": "4 people" }
+      ],
+      "source_refs": [
+        { "conversation_id": "C1", "speaker_role": "dept_head", "excerpt_pointer": "turn-48" }
+      ]
+    },
+    {
+      "chapter_id": "11",
+      "title": "Trustworthiness - quality gates",
+      "body": [],
+      "source_refs": []
+    },
+    {
+      "chapter_id": "12",
+      "title": "Evolution stages",
+      "body": [],
+      "source_refs": []
+    },
+    {
+      "chapter_id": "13",
+      "title": "Next steps & glossary",
+      "body": [],
+      "source_refs": []
+    }
+  ],
+  "version": 1,
+  "generated_from": ["transcript-group-b-001"],
+  "previous_version_id": null,
+  "change_log": ["Confirmed for Group B content-generation tests"],
+  "created_at": "2026-08-26T10:00:00Z",
+  "updated_at": "2026-08-26T11:00:00Z"
+}
