@@ -1,0 +1,1 @@
+"""Job models package."""
