@@ -16,6 +16,7 @@
     "title": { "$ref": "../base.schema.json#/properties/title" },
     "subtitle": { "$ref": "../base.schema.json#/properties/subtitle" },
     "sourceChapterIds": { "$ref": "../base.schema.json#/properties/sourceChapterIds" },
+    "fieldProvenance": { "$ref": "../base.schema.json#/properties/fieldProvenance" },
     "requirements": {
       "type": "array",
       "description": "Requirement items; item-count limits are defined separately in BT-15.",

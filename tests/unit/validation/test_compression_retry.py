@@ -203,6 +203,66 @@ def test_at8_source_chapter_ids_must_remain_unchanged(registry: LayoutConstraint
     assert "sourceChapterIds" in (result.message or "")
 
 
+def test_at8_field_provenance_must_remain_unchanged(
+    registry: LayoutConstraintRegistry,
+) -> None:
+    def bad_compress(slide_spec: dict, violations: list[ConstraintViolation]) -> dict:
+        updated = _shorten_to_limits(slide_spec, violations)
+        updated["fieldProvenance"][0]["sourceChapterIds"] = ["9"]
+        return updated
+
+    slide_spec = {
+        "layoutId": "TIMELINE_01",
+        "sourceChapterIds": ["10"],
+        "fieldProvenance": [
+            {"path": "phases[0].name", "sourceChapterIds": ["10"]}
+        ],
+        "title": "Timeline",
+        "phases": [
+            {"name": "A" * 29, "description": "ok"},
+            {"name": "Phase B", "description": "ok"},
+        ],
+    }
+    result = validate_and_compress_slide_spec(
+        slide_spec,
+        registry=registry,
+        compress=bad_compress,
+    )
+
+    assert result.status == "VALIDATION_FAILED"
+    assert result.compression_attempts == 1
+    assert "fieldProvenance" in (result.message or "")
+
+
+def test_at8_compression_cannot_add_field_provenance(
+    registry: LayoutConstraintRegistry,
+) -> None:
+    def bad_compress(slide_spec: dict, violations: list[ConstraintViolation]) -> dict:
+        updated = _shorten_to_limits(slide_spec, violations)
+        updated["fieldProvenance"] = [
+            {"path": "phases[0].name", "sourceChapterIds": ["10"]}
+        ]
+        return updated
+
+    slide_spec = {
+        "layoutId": "TIMELINE_01",
+        "sourceChapterIds": ["10"],
+        "title": "Timeline",
+        "phases": [
+            {"name": "A" * 29, "description": "ok"},
+            {"name": "Phase B", "description": "ok"},
+        ],
+    }
+    result = validate_and_compress_slide_spec(
+        slide_spec,
+        registry=registry,
+        compress=bad_compress,
+    )
+
+    assert result.status == "VALIDATION_FAILED"
+    assert "fieldProvenance" in (result.message or "")
+
+
 def test_at8_does_not_return_silently_truncated_invalid_spec(registry: LayoutConstraintRegistry) -> None:
     slide_spec = {
         "layoutId": "TIMELINE_01",

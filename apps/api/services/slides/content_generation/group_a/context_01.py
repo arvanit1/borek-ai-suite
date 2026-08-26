@@ -16,6 +16,12 @@ CONFIG = GroupAGenerationConfig(
     layout_id="CONTEXT_01",
     schema_filename="context_01.schema.json",
     allowed_chapter_ids=("1", "2"),
+    provenance_path_guidance=(
+        "title; subtitle and sectionLabel when populated; problem.title and "
+        "problem.description; solution.title and solution.description; "
+        "currentState.title and currentState.description; targetState.title and "
+        "targetState.description"
+    ),
     instructions=(
         "Create the problem, solution, currentState, and targetState blocks using "
         "only chapters 1 and 2. Select, shorten, reorganize, or paraphrase grounded "

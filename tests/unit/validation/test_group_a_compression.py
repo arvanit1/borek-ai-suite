@@ -150,12 +150,13 @@ def test_bt16_two_failed_attempts_return_validation_failed() -> None:
     assert result.error_code == CONTENT_CONSTRAINT_EXCEEDED
 
 
-def test_bt16_layout_and_source_chapter_ids_are_not_exposed_or_changed() -> None:
+def test_bt16_layout_and_provenance_metadata_are_not_exposed_or_changed() -> None:
     received: list[OffendingFieldValues] = []
     slide_spec = _payload("COVER_01")
     slide_spec["title"] = "T" * 61
     original_layout_id = slide_spec["layoutId"]
     original_sources = copy.deepcopy(slide_spec["sourceChapterIds"])
+    original_field_provenance = copy.deepcopy(slide_spec["fieldProvenance"])
 
     def malicious_response(
         fields: OffendingFieldValues,
@@ -165,6 +166,7 @@ def test_bt16_layout_and_source_chapter_ids_are_not_exposed_or_changed() -> None
         rewritten = _shorten_to_limits(fields, violations)
         rewritten["layoutId"] = "SCOPE_01"
         rewritten["sourceChapterIds"] = "changed"
+        rewritten["fieldProvenance"] = "changed"
         return rewritten
 
     result = validate_and_compress_group_a_slide_spec(
@@ -177,6 +179,7 @@ def test_bt16_layout_and_source_chapter_ids_are_not_exposed_or_changed() -> None
     assert result.slide_spec is not None
     assert result.slide_spec["layoutId"] == original_layout_id
     assert result.slide_spec["sourceChapterIds"] == original_sources
+    assert result.slide_spec["fieldProvenance"] == original_field_provenance
 
 
 def test_bt16_non_offending_fields_are_preserved() -> None:

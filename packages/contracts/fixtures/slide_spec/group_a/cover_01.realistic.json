@@ -6,6 +6,17 @@
   "title": "Invoice 3-Way Match",
   "subtitle": "From manual checking to controlled automation",
   "sourceChapterIds": ["1"],
+  "fieldProvenance": [
+    { "path": "sectionLabel", "sourceChapterIds": ["1"] },
+    { "path": "title", "sourceChapterIds": ["1"] },
+    { "path": "subtitle", "sourceChapterIds": ["1"] },
+    { "path": "statBadges[0].value", "sourceChapterIds": ["1"] },
+    { "path": "statBadges[0].label", "sourceChapterIds": ["1"] },
+    { "path": "statBadges[1].value", "sourceChapterIds": ["1"] },
+    { "path": "statBadges[1].label", "sourceChapterIds": ["1"] },
+    { "path": "statBadges[2].value", "sourceChapterIds": ["1"] },
+    { "path": "statBadges[2].label", "sourceChapterIds": ["1"] }
+  ],
   "statBadges": [
     { "value": "85%", "label": "Target auto-match rate" },
     { "value": "94/100", "label": "Build readiness" },

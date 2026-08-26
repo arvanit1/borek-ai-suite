@@ -16,6 +16,10 @@ CONFIG = GroupAGenerationConfig(
     layout_id="COVER_01",
     schema_filename="cover_01.schema.json",
     allowed_chapter_ids=("1",),
+    provenance_path_guidance=(
+        "title; subtitle and sectionLabel when populated; every "
+        "statBadges[i].value and statBadges[i].label"
+    ),
     instructions=(
         "Create COVER_01 content using only chapter 1. Select only grounded, "
         "non-commercial facts. Never output currency, investment, pricing, ROI, "

@@ -3,6 +3,17 @@
   "layoutId": "CONTEXT_01",
   "title": "Context",
   "sourceChapterIds": ["1", "2"],
+  "fieldProvenance": [
+    { "path": "title", "sourceChapterIds": ["1", "2"] },
+    { "path": "problem.title", "sourceChapterIds": ["2"] },
+    { "path": "problem.description", "sourceChapterIds": ["2"] },
+    { "path": "solution.title", "sourceChapterIds": ["1"] },
+    { "path": "solution.description", "sourceChapterIds": ["1"] },
+    { "path": "currentState.title", "sourceChapterIds": ["2"] },
+    { "path": "currentState.description", "sourceChapterIds": ["2"] },
+    { "path": "targetState.title", "sourceChapterIds": ["1"] },
+    { "path": "targetState.description", "sourceChapterIds": ["1"] }
+  ],
   "problem": { "title": "Problem", "description": "Invoice checks are manual." },
   "solution": { "title": "Solution", "description": "Automate the rule-based checks." },
   "currentState": { "title": "Current state", "description": "Every invoice needs review." },
