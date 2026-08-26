@@ -16,6 +16,7 @@
     "title": { "$ref": "../base.schema.json#/properties/title" },
     "subtitle": { "$ref": "../base.schema.json#/properties/subtitle" },
     "sourceChapterIds": { "$ref": "../base.schema.json#/properties/sourceChapterIds" },
+    "fieldProvenance": { "$ref": "../base.schema.json#/properties/fieldProvenance" },
     "left": { "$ref": "#/$defs/QuestionColumn" },
     "right": { "$ref": "#/$defs/QuestionColumn" }
   },

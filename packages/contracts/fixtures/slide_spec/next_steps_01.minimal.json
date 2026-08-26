@@ -5,6 +5,17 @@
   "sectionLabel": "NEXT STEPS",
   "title": "What Happens Next",
   "sourceChapterIds": ["13"],
+  "fieldProvenance": [
+    { "path": "sectionLabel", "sourceChapterIds": ["13"] },
+    { "path": "title", "sourceChapterIds": ["13"] },
+    { "path": "checklist[0]", "sourceChapterIds": ["13"] },
+    { "path": "checklist[1]", "sourceChapterIds": ["13"] },
+    { "path": "steps[0].number", "sourceChapterIds": ["13"] },
+    { "path": "steps[0].text", "sourceChapterIds": ["13"] },
+    { "path": "steps[1].number", "sourceChapterIds": ["13"] },
+    { "path": "steps[1].text", "sourceChapterIds": ["13"] },
+    { "path": "darkBackground", "sourceChapterIds": ["13"] }
+  ],
   "checklist": [
     "Confirm mailbox access path",
     "Provide ERP field map"

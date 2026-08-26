@@ -5,6 +5,14 @@
   "sectionLabel": "SUCCESS METRICS",
   "title": "How We Measure Success",
   "sourceChapterIds": ["3", "9"],
+  "fieldProvenance": [
+    { "path": "sectionLabel", "sourceChapterIds": ["3"] },
+    { "path": "title", "sourceChapterIds": ["3"] },
+    { "path": "criteria[0].title", "sourceChapterIds": ["3"] },
+    { "path": "criteria[0].description", "sourceChapterIds": ["3"] },
+    { "path": "criteria[1].title", "sourceChapterIds": ["9"] },
+    { "path": "criteria[1].description", "sourceChapterIds": ["9"] }
+  ],
   "criteria": [
     {
       "title": "Auto-match rate",
