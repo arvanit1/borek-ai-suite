@@ -34,7 +34,9 @@
     "test:at30": "tsx design_system/components/addConnector.test.ts",
     "test:at31": "tsx design_system/components/addProcessStep.test.ts",
     "test:at32": "tsx design_system/components/addMilestone.test.ts",
-    "test:at33": "tsx layouts/dispatcher.test.ts"
+    "test:at33": "tsx layouts/dispatcher.test.ts",
+    "test:bt18": "tsx layouts/group_a/renderContext01.test.ts",
+    "test:bt19": "tsx layouts/group_a/renderProblemSolution01.test.ts"
   },
   "dependencies": {
     "pngjs": "^7.0.0",

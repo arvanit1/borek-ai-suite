@@ -5,6 +5,14 @@
   "sectionLabel": "OPEN QUESTIONS",
   "title": "What Still Needs Confirmation",
   "sourceChapterIds": ["11"],
+  "fieldProvenance": [
+    { "path": "sectionLabel", "sourceChapterIds": ["11"] },
+    { "path": "title", "sourceChapterIds": ["11"] },
+    { "path": "left.heading", "sourceChapterIds": ["11"] },
+    { "path": "left.items[0]", "sourceChapterIds": ["11"] },
+    { "path": "right.heading", "sourceChapterIds": ["11"] },
+    { "path": "right.items[0]", "sourceChapterIds": ["11"] }
+  ],
   "left": {
     "heading": "Open questions",
     "items": [

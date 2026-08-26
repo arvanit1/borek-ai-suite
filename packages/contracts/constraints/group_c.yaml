@@ -1,0 +1,135 @@
+{
+  "schema_version": "1.0",
+  "ticket": "MS-12",
+  "limit_classification": "CALIBRATED",
+  "calibration_basis": {
+    "ARCHITECTURE_01": "AT-7 section 15 architecture example uses 2-8 nodes with node titles up to 40 characters and descriptions up to 100. Invoice fixture uses 4 nodes (Mailbox, ERP, Framework Engine, Approval App). Title/subtitle limits match Group A content slides.",
+    "COMPLIANCE_01": "Invoice fixture uses 2 short compliance cards (longest text 47 characters). Max 6 cards matches REQUIREMENTS_MATRIX_01 density; card text uses the architecture description cap.",
+    "SUCCESS_METRICS_01": "Invoice fixture uses 2 non-monetary criteria. Max 6 criteria matches the requirements-matrix card count; titles follow that 48-character cap and descriptions follow CONTEXT_01 card density.",
+    "OPEN_QUESTIONS_01": "Invoice fixture uses one question and one assumption; the longest item is 71 characters. Per-column max 6 items with 120-character lines leaves room for full questions without filling a two-column slide.",
+    "NEXT_STEPS_01": "Invoice fixture uses 2 checklist items and 2 numbered steps (longest step 53 characters). Max 6 each; checklist lines match SCOPE_01 item length, step text matches architecture description length."
+  },
+  "layouts": {
+    "ARCHITECTURE_01": {
+      "properties": {
+        "sectionLabel": { "type": "string", "max_length": 32 },
+        "title": { "required": true, "type": "string", "max_length": 72 },
+        "subtitle": { "type": "string", "max_length": 100 },
+        "components": {
+          "required": true,
+          "type": "array",
+          "min_items": 2,
+          "max_items": 8,
+          "items": {
+            "type": "object",
+            "properties": {
+              "title": { "required": true, "type": "string", "max_length": 40 },
+              "description": { "type": "string", "max_length": 100 }
+            }
+          }
+        }
+      }
+    },
+    "COMPLIANCE_01": {
+      "properties": {
+        "sectionLabel": { "type": "string", "max_length": 32 },
+        "title": { "required": true, "type": "string", "max_length": 72 },
+        "subtitle": { "type": "string", "max_length": 100 },
+        "items": {
+          "required": true,
+          "type": "array",
+          "min_items": 1,
+          "max_items": 6,
+          "items": {
+            "type": "object",
+            "properties": {
+              "icon": { "required": true, "type": "string", "max_length": 24 },
+              "text": { "required": true, "type": "string", "max_length": 100 }
+            }
+          }
+        }
+      }
+    },
+    "SUCCESS_METRICS_01": {
+      "properties": {
+        "sectionLabel": { "type": "string", "max_length": 32 },
+        "title": { "required": true, "type": "string", "max_length": 72 },
+        "subtitle": { "type": "string", "max_length": 100 },
+        "criteria": {
+          "required": true,
+          "type": "array",
+          "min_items": 1,
+          "max_items": 6,
+          "items": {
+            "type": "object",
+            "properties": {
+              "title": { "required": true, "type": "string", "max_length": 48 },
+              "description": { "required": true, "type": "string", "max_length": 160 }
+            }
+          }
+        }
+      }
+    },
+    "OPEN_QUESTIONS_01": {
+      "properties": {
+        "sectionLabel": { "type": "string", "max_length": 32 },
+        "title": { "required": true, "type": "string", "max_length": 72 },
+        "subtitle": { "type": "string", "max_length": 100 },
+        "left": {
+          "required": true,
+          "type": "object",
+          "properties": {
+            "heading": { "required": true, "type": "string", "max_length": 40 },
+            "items": {
+              "required": true,
+              "type": "array",
+              "min_items": 1,
+              "max_items": 6,
+              "items": { "type": "string", "max_length": 120 }
+            }
+          }
+        },
+        "right": {
+          "required": true,
+          "type": "object",
+          "properties": {
+            "heading": { "required": true, "type": "string", "max_length": 40 },
+            "items": {
+              "required": true,
+              "type": "array",
+              "min_items": 1,
+              "max_items": 6,
+              "items": { "type": "string", "max_length": 120 }
+            }
+          }
+        }
+      }
+    },
+    "NEXT_STEPS_01": {
+      "properties": {
+        "sectionLabel": { "type": "string", "max_length": 32 },
+        "title": { "required": true, "type": "string", "max_length": 72 },
+        "subtitle": { "type": "string", "max_length": 100 },
+        "checklist": {
+          "required": true,
+          "type": "array",
+          "min_items": 1,
+          "max_items": 6,
+          "items": { "type": "string", "max_length": 72 }
+        },
+        "steps": {
+          "required": true,
+          "type": "array",
+          "min_items": 1,
+          "max_items": 6,
+          "items": {
+            "type": "object",
+            "properties": {
+              "text": { "required": true, "type": "string", "max_length": 100 }
+            }
+          }
+        }
+      }
+    }
+  }
+}

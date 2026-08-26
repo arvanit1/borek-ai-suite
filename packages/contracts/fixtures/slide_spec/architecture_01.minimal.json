@@ -6,6 +6,23 @@
   "title": "How It Is Built",
   "subtitle": "Systems, data flow & integration",
   "sourceChapterIds": ["6", "7"],
+  "fieldProvenance": [
+    { "path": "sectionLabel", "sourceChapterIds": ["6"] },
+    { "path": "title", "sourceChapterIds": ["6"] },
+    { "path": "subtitle", "sourceChapterIds": ["6"] },
+    { "path": "components[0].number", "sourceChapterIds": ["6"] },
+    { "path": "components[0].title", "sourceChapterIds": ["6"] },
+    { "path": "components[0].description", "sourceChapterIds": ["6"] },
+    { "path": "components[1].number", "sourceChapterIds": ["6"] },
+    { "path": "components[1].title", "sourceChapterIds": ["6"] },
+    { "path": "components[1].description", "sourceChapterIds": ["6"] },
+    { "path": "components[2].number", "sourceChapterIds": ["7"] },
+    { "path": "components[2].title", "sourceChapterIds": ["7"] },
+    { "path": "components[2].description", "sourceChapterIds": ["7"] },
+    { "path": "components[3].number", "sourceChapterIds": ["7"] },
+    { "path": "components[3].title", "sourceChapterIds": ["7"] },
+    { "path": "components[3].description", "sourceChapterIds": ["7"] }
+  ],
   "components": [
     {
       "number": 1,

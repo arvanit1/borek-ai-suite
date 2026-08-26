@@ -69,6 +69,7 @@ def validate_and_compress_slide_spec(
 
     current = copy.deepcopy(slide_spec)
     original_source_chapter_ids = copy.deepcopy(current.get("sourceChapterIds"))
+    original_field_provenance = copy.deepcopy(current.get("fieldProvenance"))
 
     violations = registry.collect_violations(current)
     if not violations:
@@ -97,6 +98,16 @@ def validate_and_compress_slide_spec(
                 compression_attempts=compression_attempts,
                 layout_id=layout_id,
                 reason="Compression modified sourceChapterIds",
+            )
+        if not _field_provenance_preserved(
+            original_field_provenance,
+            current.get("fieldProvenance"),
+        ):
+            return _validation_failed(
+                slide_spec=None,
+                compression_attempts=compression_attempts,
+                layout_id=layout_id,
+                reason="Compression modified fieldProvenance",
             )
 
         violations = registry.collect_violations(current)
@@ -158,6 +169,10 @@ def _first_non_compressible_message(violations: list[ConstraintViolation]) -> st
 
 
 def _source_chapter_ids_preserved(original: Any, updated: Any) -> bool:
+    return original == updated
+
+
+def _field_provenance_preserved(original: Any, updated: Any) -> bool:
     return original == updated
 
 

@@ -5,6 +5,15 @@
   "sectionLabel": "COMPLIANCE",
   "title": "Security, Data Protection & Human Control",
   "sourceChapterIds": ["8"],
+  "fieldProvenance": [
+    { "path": "sectionLabel", "sourceChapterIds": ["8"] },
+    { "path": "title", "sourceChapterIds": ["8"] },
+    { "path": "items[0].icon", "sourceChapterIds": ["8"] },
+    { "path": "items[0].text", "sourceChapterIds": ["8"] },
+    { "path": "items[1].icon", "sourceChapterIds": ["8"] },
+    { "path": "items[1].text", "sourceChapterIds": ["8"] },
+    { "path": "darkBackground", "sourceChapterIds": ["8"] }
+  ],
   "items": [
     {
       "icon": "lock",

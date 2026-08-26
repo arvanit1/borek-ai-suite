@@ -5,6 +5,17 @@
   "sectionLabel": "SCOPE",
   "title": "Focused scope for the first release",
   "sourceChapterIds": ["3", "5"],
+  "fieldProvenance": [
+    { "path": "sectionLabel", "sourceChapterIds": ["3", "5"] },
+    { "path": "title", "sourceChapterIds": ["3", "5"] },
+    { "path": "included[0]", "sourceChapterIds": ["3"] },
+    { "path": "included[1]", "sourceChapterIds": ["3"] },
+    { "path": "included[2]", "sourceChapterIds": ["5"] },
+    { "path": "included[3]", "sourceChapterIds": ["5"] },
+    { "path": "included[4]", "sourceChapterIds": ["5"] },
+    { "path": "later[0]", "sourceChapterIds": ["5"] },
+    { "path": "later[1]", "sourceChapterIds": ["5"] }
+  ],
   "included": [
     "Invoice intake from the shared mailbox",
     "Field extraction with confidence",

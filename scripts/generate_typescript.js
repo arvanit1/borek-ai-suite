@@ -102,7 +102,7 @@ export type {
   PresentationPlan,
   PlannedSlide,
 } from "./presentation_plan";
-export type { ChapterId, SlideSpecBase } from "./slide_spec_base";
+export type { ChapterId, FieldProvenanceEntry, SlideSpecBase } from "./slide_spec_base";
 export type { Cover01SlideSpec } from "./slide_spec_group_a_cover_01";
 export type { Context01SlideSpec } from "./slide_spec_group_a_context_01";
 export type { ProblemSolution01SlideSpec } from "./slide_spec_group_a_problem_solution_01";

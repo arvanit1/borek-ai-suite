@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 from pathlib import Path
 from urllib.parse import urljoin
@@ -25,6 +26,7 @@ BASE_FIELDS = {
     "title",
     "subtitle",
     "sourceChapterIds",
+    "fieldProvenance",
 }
 
 CASES = {
@@ -142,3 +144,20 @@ def test_group_c_enforces_base_source_chapter_ids(case_name: str) -> None:
     malformed = {**_fixture(case_name), "sourceChapterIds": ["chapter_6"]}
     with pytest.raises(jsonschema.ValidationError):
         _validator(case_name).validate(malformed)
+
+
+@pytest.mark.parametrize("case_name", CASES)
+def test_group_c_re_lists_optional_shared_field_provenance(case_name: str) -> None:
+    schema = _schema(case_name)
+    assert schema["properties"]["fieldProvenance"]["$ref"] == (
+        "../base.schema.json#/properties/fieldProvenance"
+    )
+    assert "fieldProvenance" not in schema["required"]
+
+    payload = _fixture(case_name)
+    assert payload["fieldProvenance"]
+    _validator(case_name).validate(payload)
+
+    legacy_compatible = copy.deepcopy(payload)
+    del legacy_compatible["fieldProvenance"]
+    _validator(case_name).validate(legacy_compatible)

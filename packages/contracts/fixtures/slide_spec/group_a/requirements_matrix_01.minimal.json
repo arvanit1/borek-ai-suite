@@ -3,6 +3,12 @@
   "layoutId": "REQUIREMENTS_MATRIX_01",
   "title": "Requirements",
   "sourceChapterIds": ["5"],
+  "fieldProvenance": [
+    { "path": "title", "sourceChapterIds": ["5"] },
+    { "path": "requirements[0].category", "sourceChapterIds": ["5"] },
+    { "path": "requirements[0].title", "sourceChapterIds": ["5"] },
+    { "path": "requirements[0].status", "sourceChapterIds": ["5"] }
+  ],
   "requirements": [
     { "category": "A", "title": "Duplicate detection", "status": "included" }
   ]
