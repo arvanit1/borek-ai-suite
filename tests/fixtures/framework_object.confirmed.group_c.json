@@ -1,0 +1,227 @@
+{
+  "schema_version": "1.0",
+  "opportunity_id": "00000000-0000-4000-8000-000000000011",
+  "title": "Invoice 3-Way Match Automation",
+  "department": "Finance",
+  "status": "confirmed",
+  "priority_rank": 1,
+  "quality_scores": {
+    "opportunity_rating": 85,
+    "conversation_quality": 82,
+    "build_readiness": 94,
+    "rationale": {
+      "opportunity_rating": "High-volume repeatable AP matching process.",
+      "conversation_quality": "Rules, systems, and exceptions are documented.",
+      "build_readiness": "ERP write access is the remaining open dependency."
+    }
+  },
+  "kpis": [
+    {
+      "name": "Auto-match rate",
+      "baseline": "0%",
+      "target": "85%",
+      "measured_via": "Agent statistics per invoice"
+    }
+  ],
+  "systems": [
+    {
+      "name": "AP Mailbox",
+      "role": "Source of invoices",
+      "direction": "read",
+      "access_path": "Microsoft Graph API scoped to one mailbox",
+      "data_classification": "confidential",
+      "status": "available"
+    },
+    {
+      "name": "ERP",
+      "role": "Purchase orders, goods receipts, postings",
+      "direction": "read",
+      "access_path": "REST API",
+      "data_classification": "commercial",
+      "status": "available"
+    }
+  ],
+  "rules": [
+    { "name": "Three-way match", "logic": "Invoice, purchase order, and goods receipt must agree." }
+  ],
+  "exceptions": [],
+  "access_needs": [],
+  "evolution_stages": [],
+  "open_items": [
+    {
+      "description": "Formally approve ERP write access",
+      "item_type": "dependency",
+      "owner": "IT lead",
+      "consequence_if_different": "Agent creates posting proposals instead of postings."
+    }
+  ],
+  "chapters": [
+    {
+      "chapter_id": "0",
+      "title": "About this document",
+      "body": "Confirmed automation framework generated from reviewed conversations.",
+      "source_refs": []
+    },
+    {
+      "chapter_id": "1",
+      "title": "Management summary",
+      "body": [
+        { "summary": "Automate the confirmed standard Invoice 3-Way Match case while exceptions remain human-controlled." }
+      ],
+      "source_refs": [
+        { "conversation_id": "C2", "speaker_role": "dept_head", "excerpt_pointer": "turn-12" }
+      ]
+    },
+    {
+      "chapter_id": "2",
+      "title": "Starting point: the process today",
+      "body": [
+        { "problem": "Analysts manually compare invoices, purchase orders, and goods receipts." }
+      ],
+      "source_refs": []
+    },
+    {
+      "chapter_id": "3",
+      "title": "Aim & success measurement",
+      "body": [
+        { "criterion": "Auto-match rate", "description": "Share of invoices checked fully automatically.", "target": "85%" },
+        { "criterion": "Manual handling time", "description": "Hours spent only on exceptions and approvals.", "target": "12 h/month" },
+        { "criterion": "Duplicate detection", "description": "Duplicates flagged before posting." }
+      ],
+      "source_refs": [
+        { "conversation_id": "C2", "speaker_role": "dept_head", "excerpt_pointer": "turn-26" }
+      ]
+    },
+    {
+      "chapter_id": "4",
+      "title": "The solution and the to-be process",
+      "body": [
+        { "solution": "Read invoice and ERP data, apply confirmed matching rules, and queue exceptions for human review." }
+      ],
+      "source_refs": []
+    },
+    {
+      "chapter_id": "5",
+      "title": "How it works in detail",
+      "body": [],
+      "source_refs": []
+    },
+    {
+      "chapter_id": "6",
+      "title": "How it is built - systems, data flow, integration",
+      "body": [
+        {
+          "system": "AP Mailbox",
+          "role": "Source of invoices, read-only",
+          "direction": "read",
+          "access": "Microsoft Graph API scoped to one mailbox with change notifications and delta sync"
+        },
+        {
+          "system": "ERP",
+          "role": "Purchase orders, goods receipts, postings",
+          "direction": "read",
+          "access": "REST API with OAuth client credentials and a sandbox"
+        },
+        {
+          "system": "Framework Engine",
+          "role": "Extraction, matching, exception queue",
+          "direction": "internal",
+          "access": "Runs in the tenant boundary in the EU region only"
+        },
+        {
+          "system": "Approval App",
+          "role": "Human decisions on exceptions",
+          "direction": "internal",
+          "access": "Suite web app with SSO to the identity provider"
+        },
+        { "investment": "EUR 15,000" },
+        { "commercialNote": "Postings above EUR 5,000 stay behind a gated write path." }
+      ],
+      "source_refs": [
+        { "conversation_id": "C7", "speaker_role": "it", "excerpt_pointer": "turn-60" }
+      ]
+    },
+    {
+      "chapter_id": "7",
+      "title": "What we need from the client",
+      "body": [
+        { "need": "Mailbox access", "detail": "Microsoft Graph API, strictly limited to the one AP mailbox" },
+        { "need": "ERP read access", "detail": "REST API for purchase orders, goods receipts, and posted documents" },
+        { "need": "ERP write access", "detail": "Posting of payment documents via API remains an open IT dependency" },
+        { "need": "Identity", "detail": "SSO connection of the Approval App to the identity provider" },
+        { "people": "Business: Sandra in AP. Technical: IT lead." }
+      ],
+      "source_refs": [
+        { "conversation_id": "C7", "speaker_role": "it", "excerpt_pointer": "turn-68" }
+      ]
+    },
+    {
+      "chapter_id": "8",
+      "title": "Security, data protection & human control",
+      "body": [
+        { "guardrail": "Processing and storage stay in the EU only." },
+        { "guardrail": "Agent uses a least-privilege technical user; mailbox access is limited to the AP mailbox." },
+        { "guardrail": "Every decision is logged with invoice, rule, result, and any human approver." },
+        { "control": "All exceptions are decided by people; a kill switch returns to the current process." },
+        { "limit": "Postings above EUR 5,000 require human approval." }
+      ],
+      "source_refs": [
+        { "conversation_id": "C7", "speaker_role": "it", "excerpt_pointer": "turn-74" }
+      ]
+    },
+    {
+      "chapter_id": "9",
+      "title": "Business case & ROI",
+      "body": [
+        { "investment": "EUR 15,000" },
+        { "payback": "6.3 months" },
+        { "roi": "476%" },
+        { "netValue": "EUR 2,400 per month" }
+      ],
+      "source_refs": []
+    },
+    {
+      "chapter_id": "10",
+      "title": "Complexity, effort & timeline",
+      "body": [],
+      "source_refs": []
+    },
+    {
+      "chapter_id": "11",
+      "title": "Trustworthiness - quality gates",
+      "body": [
+        { "question": "Is ERP write access formally approved before build week 2?" },
+        { "assumption": "Extraction confidence at or above 0.9 is treated as reliable." },
+        { "assumption": "Discount agreements are queryable in the ERP." }
+      ],
+      "source_refs": [
+        { "conversation_id": "C8", "speaker_role": "dept_head", "excerpt_pointer": "turn-80" }
+      ]
+    },
+    {
+      "chapter_id": "12",
+      "title": "Evolution stages",
+      "body": [],
+      "source_refs": []
+    },
+    {
+      "chapter_id": "13",
+      "title": "Next steps & glossary",
+      "body": [
+        { "checklist": "Business confirmation of the captured process is done." },
+        { "checklist": "Technical validation of access and controls is done." },
+        { "step": "Formally approve ERP write access before build week 2." },
+        { "step": "Go decision in Deployment Control using this report." }
+      ],
+      "source_refs": [
+        { "conversation_id": "C8", "speaker_role": "dept_head", "excerpt_pointer": "turn-88" }
+      ]
+    }
+  ],
+  "version": 1,
+  "generated_from": ["transcript-group-c-001"],
+  "previous_version_id": null,
+  "change_log": ["Confirmed for Group C content-generation tests"],
+  "created_at": "2026-08-26T16:00:00Z",
+  "updated_at": "2026-08-26T16:30:00Z"
+}
