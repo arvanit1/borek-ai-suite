@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Client delivery gate: schema tickets (AT-1..AT-22) and codegen checks must pass."""
+"""Client delivery gate: schema tickets (AT-1..AT-28) and codegen checks must pass."""
 
 from __future__ import annotations
 
@@ -71,6 +71,7 @@ def main() -> int:
     run(["npm", "run", "test:at9", "--workspace", "borek-renderer"], shell=True)
     run(["npm", "run", "test:at10", "--workspace", "borek-renderer"], shell=True)
     run(["npm", "run", "test:at11", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:requirement-status", "--workspace", "borek-renderer"], shell=True)
     run(["npm", "run", "test:at12", "--workspace", "borek-renderer"], shell=True)
     run(["npm", "run", "test:at13", "--workspace", "borek-renderer"], shell=True)
     run(["npm", "run", "test:grid", "--workspace", "borek-renderer"], shell=True)
@@ -85,6 +86,17 @@ def main() -> int:
     run(["npm", "run", "test:at20", "--workspace", "borek-renderer"], shell=True)
     run(["npm", "run", "test:at21", "--workspace", "borek-renderer"], shell=True)
     run(["npm", "run", "test:at22", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:at23", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:at24", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:at25", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:at26", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:at27", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:at28", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:at29", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:at30", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:at31", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:at32", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:at33", "--workspace", "borek-renderer"], shell=True)
     run(["npm", "run", "test:bt18", "--workspace", "borek-renderer"], shell=True)
     run(["npm", "run", "test:bt19", "--workspace", "borek-renderer"], shell=True)
     print("typescript codegen ok")
