@@ -85,6 +85,8 @@ def main() -> int:
     run(["npm", "run", "test:at20", "--workspace", "borek-renderer"], shell=True)
     run(["npm", "run", "test:at21", "--workspace", "borek-renderer"], shell=True)
     run(["npm", "run", "test:at22", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:bt18", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:bt19", "--workspace", "borek-renderer"], shell=True)
     print("typescript codegen ok")
     print("renderer contract types ok")
     print("ALL CHECKS PASSED")
