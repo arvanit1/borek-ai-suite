@@ -5,6 +5,14 @@
   "sectionLabel": "SOLUTION",
   "title": "Remove repetitive checking without removing human control",
   "sourceChapterIds": ["2", "4"],
+  "fieldProvenance": [
+    { "path": "sectionLabel", "sourceChapterIds": ["4"] },
+    { "path": "title", "sourceChapterIds": ["2", "4"] },
+    { "path": "problem.title", "sourceChapterIds": ["2"] },
+    { "path": "problem.description", "sourceChapterIds": ["2"] },
+    { "path": "solution.title", "sourceChapterIds": ["4"] },
+    { "path": "solution.description", "sourceChapterIds": ["4"] }
+  ],
   "problem": {
     "title": "Manual matching slows the close",
     "description": "AP staff download invoices, correct extracted fields and compare each line against ERP records."

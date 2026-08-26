@@ -176,6 +176,9 @@ def test_generator_receives_only_permitted_framework_chapters(case: Case) -> Non
     assert request.instructions
     assert tuple(chapter["chapter_id"] for chapter in request.chapters) == case.allowed_chapter_ids
     assert all(set(chapter) == {"chapter_id", "title", "body"} for chapter in request.chapters)
+    assert "fieldProvenance" in request.target_schema["properties"]
+    assert "exactly one provenance entry" in request.instructions
+    assert "do not copy the full root list onto every field" in request.instructions
     request_text = json.dumps(request.chapters)
     assert "transcript-group-a-001" not in request_text
     assert "source_refs" not in request_text
@@ -188,6 +191,28 @@ def test_invalid_schema_output_is_rejected(case: Case) -> None:
     del invalid[case.required_layout_field]
 
     with pytest.raises(SlideSpecValidationError):
+        _run(case, _framework(), CapturingGenerator(output=invalid))
+
+
+@pytest.mark.parametrize("case", CASES.values(), ids=CASES.keys())
+def test_bt14_generated_group_a_output_requires_field_provenance(case: Case) -> None:
+    invalid = _slide(case)
+    del invalid["fieldProvenance"]
+
+    with pytest.raises(SourceChapterValidationError, match="fieldProvenance"):
+        _run(case, _framework(), CapturingGenerator(output=invalid))
+
+
+def test_bt14_generated_output_rejects_missing_nested_field_attribution() -> None:
+    case = CASES["context"]
+    invalid = _slide(case)
+    invalid["fieldProvenance"] = [
+        entry
+        for entry in invalid["fieldProvenance"]
+        if entry["path"] != "problem.description"
+    ]
+
+    with pytest.raises(SourceChapterValidationError, match="problem.description"):
         _run(case, _framework(), CapturingGenerator(output=invalid))
 
 
@@ -219,6 +244,8 @@ def test_unused_allowed_chapter_is_not_forced_into_source_chapter_ids(
     case = CASES[case_name]
     slide_spec = _slide(case)
     slide_spec["sourceChapterIds"] = [case.allowed_chapter_ids[0]]
+    for entry in slide_spec["fieldProvenance"]:
+        entry["sourceChapterIds"] = [case.allowed_chapter_ids[0]]
 
     result = _run(case, _framework(), CapturingGenerator(output=slide_spec))
 
@@ -252,12 +279,32 @@ def test_bt15_structural_limits_are_applied_after_generation(case: Case) -> None
         invalid["statBadges"] = invalid["statBadges"] + [
             {"value": "Extra", "label": "Too many badges"}
         ]
+        invalid["fieldProvenance"].extend(
+            [
+                {"path": "statBadges[3].value", "sourceChapterIds": ["1"]},
+                {"path": "statBadges[3].label", "sourceChapterIds": ["1"]},
+            ]
+        )
     elif case.layout_id == "SCOPE_01":
         invalid["included"] = ["Included item" for _ in range(8)]
+        invalid["fieldProvenance"].extend(
+            {
+                "path": f"included[{index}]",
+                "sourceChapterIds": ["3"],
+            }
+            for index in range(5, 8)
+        )
     elif case.layout_id == "REQUIREMENTS_MATRIX_01":
         invalid["requirements"] = invalid["requirements"] + [
             {"category": "G", "title": "Extra requirement", "status": "later"}
         ]
+        invalid["fieldProvenance"].extend(
+            {
+                "path": f"requirements[6].{field_name}",
+                "sourceChapterIds": ["5"],
+            }
+            for field_name in ("category", "title", "status")
+        )
     else:
         invalid["title"] = "T" * 73
 
@@ -311,6 +358,24 @@ def test_generated_number_absent_from_allowed_chapters_is_rejected() -> None:
 
     with pytest.raises(UngroundedContentError, match="99"):
         _run(CASES["cover"], _framework(), CapturingGenerator(output=cover))
+
+
+def test_bt14_numeric_grounding_uses_the_fields_attributed_chapters() -> None:
+    case = CASES["context"]
+    context = _slide(case)
+    context["problem"]["description"] = "The target automation rate is 80%."
+
+    with pytest.raises(UngroundedContentError, match="problem.description"):
+        _run(case, _framework(), CapturingGenerator(output=context))
+
+    problem_provenance = next(
+        entry
+        for entry in context["fieldProvenance"]
+        if entry["path"] == "problem.description"
+    )
+    problem_provenance["sourceChapterIds"] = ["1"]
+    result = _run(case, _framework(), CapturingGenerator(output=context))
+    assert result.status == "VALID"
 
 
 @pytest.mark.parametrize(

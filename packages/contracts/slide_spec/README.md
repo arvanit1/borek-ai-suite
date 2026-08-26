@@ -22,6 +22,7 @@ Every layout-specific SlideSpec **extends** `#/$defs/SlideSpecBase` from `base.s
 | `slideId` | Stable id within a presentation version |
 | `sectionLabel` | Eyebrow label, e.g. `ARCHITECTURE` |
 | `subtitle` | Secondary heading when the layout supports it |
+| `fieldProvenance` | Optional shared field-level chapter attribution entries using AT-8 path syntax |
 
 Layout-specific fields (e.g. `components`, `phases`, `statBadges`) are **not** in the base schema. Each layout schema adds them via `allOf`.
 
@@ -62,7 +63,7 @@ Create a layout schema under your group folder, e.g. `group_a/cover_01.schema.js
 Notes:
 
 1. **Pin `layoutId`** with `"const": "<LAYOUT_ID>"` in the layout-specific `allOf` branch.
-2. **`sourceChapterIds` is mandatory** on every variant (section 14). Per-field traceability is enforced in BT-14 / JJ-9 / MS-11, not in the base schema.
+2. **`sourceChapterIds` is mandatory** on every variant (section 14). The base schema defines optional shared `fieldProvenance` entries; BT-14 / JJ-9 / MS-11 re-list and enforce complete field coverage for their layout groups.
 3. **Chapter id format** is `"0"`..`"13"` (matches `FrameworkObject.chapters[].chapter_id`), not `chapter_6` (that format is for `PresentationPlan.frameworkReferences` only).
 4. Set **`additionalProperties": false`** on the layout branch so only base + layout fields are allowed.
 

@@ -19,6 +19,11 @@ from services.slides.group_a_compression import (
     validate_and_compress_group_a_slide_spec,
 )
 from services.validation.compression_retry import CompressionResult
+from services.validation.compression_retry import get_value_at_path
+from services.validation.source_chapter_enforcement import (
+    SourceChapterEnforcementError,
+    validate_field_provenance,
+)
 
 ROOT = Path(__file__).resolve().parents[6]
 CONTRACTS_DIR = ROOT / "packages" / "contracts"
@@ -56,7 +61,7 @@ class ProhibitedCommercialContentError(SlideSpecValidationError):
 
 
 class UngroundedContentError(SlideSpecValidationError):
-    """Generated content introduces a number absent from the permitted chapters."""
+    """Generated content introduces a number absent from its attributed chapters."""
 
 
 @dataclass(frozen=True)
@@ -77,6 +82,7 @@ class GroupAGenerationConfig:
     layout_id: str
     schema_filename: str
     allowed_chapter_ids: tuple[str, ...]
+    provenance_path_guidance: str
     instructions: str
 
 
@@ -95,7 +101,14 @@ _COMMERCIAL_TERM = re.compile(
 _COST_OR_SAVINGS = re.compile(r"\b(?:costs?|savings?)\b", re.IGNORECASE)
 _NUMBER_TOKEN = re.compile(r"(?<![\w])\d+(?:[.,]\d+)?%?(?![\w])")
 _NON_CONTENT_KEYS = frozenset(
-    {"schema_version", "slideId", "layoutId", "sourceChapterIds", "chapter_id"}
+    {
+        "schema_version",
+        "slideId",
+        "layoutId",
+        "sourceChapterIds",
+        "fieldProvenance",
+        "chapter_id",
+    }
 )
 _DROP = object()
 
@@ -128,7 +141,7 @@ def generate_group_a_slide_spec(
         layout_id=config.layout_id,
         chapters=chapters,
         target_schema=copy.deepcopy(schema),
-        instructions=config.instructions,
+        instructions=_generation_instructions(config),
     )
 
     try:
@@ -257,6 +270,17 @@ def _validate_slide_spec(
             f"subset of allowed chapters {list(config.allowed_chapter_ids)}"
         )
 
+    try:
+        provenance_by_path = validate_field_provenance(
+            slide_spec,
+            real_chapter_ids=(chapter["chapter_id"] for chapter in chapters),
+            allowed_chapter_ids=config.allowed_chapter_ids,
+        )
+    except SourceChapterEnforcementError as exc:
+        raise SourceChapterValidationError(
+            f"Invalid {config.layout_id} field provenance: {exc}"
+        ) from exc
+
     commercial_paths = _find_commercial_paths(slide_spec)
     if commercial_paths:
         raise ProhibitedCommercialContentError(
@@ -264,12 +288,12 @@ def _validate_slide_spec(
             f"{commercial_paths[0]}"
         )
 
-    cited_chapters = tuple(
-        chapter
-        for chapter in chapters
-        if chapter["chapter_id"] in source_chapter_ids
+    _validate_numeric_grounding(
+        slide_spec,
+        chapters,
+        config.layout_id,
+        provenance_by_path,
     )
-    _validate_numeric_grounding(slide_spec, cited_chapters, config.layout_id)
 
 
 def _find_commercial_paths(value: Any, path: str = "$") -> list[str]:
@@ -284,6 +308,8 @@ def _find_commercial_paths(value: Any, path: str = "$") -> list[str]:
         return hits
     if isinstance(value, dict):
         for key, item in value.items():
+            if key in _NON_CONTENT_KEYS:
+                continue
             hits.extend(_find_commercial_paths(item, f"{path}.{key}"))
     return hits
 
@@ -301,15 +327,40 @@ def _validate_numeric_grounding(
     slide_spec: dict[str, Any],
     chapters: tuple[dict[str, Any], ...],
     layout_id: str,
+    provenance_by_path: dict[str, tuple[str, ...]],
 ) -> None:
-    grounded_numbers = _number_tokens(chapters)
-    generated_numbers = _number_tokens(slide_spec)
-    invented = sorted(generated_numbers - grounded_numbers)
-    if invented:
-        raise UngroundedContentError(
-            f"{layout_id} contains numeric content absent from its allowed chapters: "
-            f"{invented[0]}"
+    chapters_by_id = {chapter["chapter_id"]: chapter for chapter in chapters}
+    for path, source_chapter_ids in provenance_by_path.items():
+        generated_numbers = _number_tokens(get_value_at_path(slide_spec, path))
+        if not generated_numbers:
+            continue
+        attributed_chapters = tuple(
+            chapters_by_id[chapter_id] for chapter_id in source_chapter_ids
         )
+        grounded_numbers = _number_tokens(attributed_chapters)
+        invented = sorted(generated_numbers - grounded_numbers)
+        if invented:
+            raise UngroundedContentError(
+                f"{layout_id} contains numeric content at {path} absent from its "
+                f"field-attributed chapters: {invented[0]}"
+            )
+
+
+def _generation_instructions(config: GroupAGenerationConfig) -> str:
+    allowed = ", ".join(config.allowed_chapter_ids)
+    return (
+        f"{config.instructions} Include fieldProvenance in the generated SlideSpec. "
+        "Use the same dotted/array path syntax as AT-8 (for example, "
+        "problem.description or items[0].title). Include exactly one provenance "
+        "entry for every populated Framework-derived content leaf and no entries for "
+        "metadata or nonexistent fields. Metadata exemptions are schema_version, "
+        "layoutId, slideId, root sourceChapterIds, and fieldProvenance. "
+        f"Required content paths for this layout are: {config.provenance_path_guidance}. "
+        f"Every field-level sourceChapterIds list must be non-empty, unique, and use "
+        f"only allowed chapters [{allowed}]. Root sourceChapterIds must equal the union "
+        "of all field-level sourceChapterIds. Attribute each field only to the chapters "
+        "that actually support it; do not copy the full root list onto every field."
+    )
 
 
 def _number_tokens(value: Any) -> set[str]:
