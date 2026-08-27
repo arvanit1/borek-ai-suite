@@ -36,8 +36,11 @@
     "test:at32": "tsx design_system/components/addMilestone.test.ts",
     "test:at33": "tsx layouts/dispatcher.test.ts",
     "test:at55": "tsx ../../tests/golden_deck/run_regression.test.ts",
+    "test:bt17": "tsx layouts/group_a/renderCover01.test.ts",
     "test:bt18": "tsx layouts/group_a/renderContext01.test.ts",
     "test:bt19": "tsx layouts/group_a/renderProblemSolution01.test.ts",
+    "test:bt20": "tsx layouts/group_a/renderScope01.test.ts",
+    "test:bt21": "tsx layouts/group_a/renderRequirementsMatrix01.test.ts",
     "start:server": "tsx server.ts"
   },
   "dependencies": {
