@@ -14,6 +14,7 @@
     "validation/**/*.ts",
     "scripts/**/*.ts",
     "design_system/**/*.ts",
-    "layouts/**/*.ts"
+    "layouts/**/*.ts",
+    "../../tests/golden_deck/group_a/**/*.ts"
   ]
 }
