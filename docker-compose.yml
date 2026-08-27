@@ -1,8 +1,99 @@
-# Placeholder compose file - full stack wiring is AT-50.
-# Services: web, api, worker, renderer, redis
+# AT-50 — full local stack: web, api, worker, renderer, redis
+# Usage:
+#   1. Copy .env.example → .env and fill Supabase + LLM keys
+#   2. docker compose up --build
+#
+# Supabase: hosted project (recommended) or local Supabase — set credentials in .env only.
+
+name: borek-ai-suite
 
 services:
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "${REDIS_PUBLISH_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  renderer:
+    build:
+      context: .
+      dockerfile: docker/renderer/Dockerfile
+    restart: unless-stopped
+    environment:
+      RENDERER_PORT: ${RENDERER_PORT:-4000}
+    ports:
+      - "${RENDERER_PUBLISH_PORT:-4000}:4000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:4000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/api/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      RENDERER_URL: http://renderer:${RENDERER_PORT:-4000}
+      API_DATA_BACKEND: ${API_DATA_BACKEND:-supabase}
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+    ports:
+      - "${API_PUBLISH_PORT:-8000}:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+      renderer:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 20s
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/worker/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      RENDERER_URL: http://renderer:${RENDERER_PORT:-4000}
+      API_DATA_BACKEND: ${API_DATA_BACKEND:-supabase}
+    depends_on:
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PORT: ${WEB_PORT:-3000}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    ports:
+      - "${WEB_PUBLISH_PORT:-3000}:3000"
+    depends_on:
+      api:
+        condition: service_healthy

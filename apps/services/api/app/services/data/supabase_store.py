@@ -19,6 +19,7 @@ from app.services.data.memory_store import (
     _build_stub_slide_spec,
     _framework_refs_to_chapter_ids,
 )
+from app.services.deck_assets import materialize_stub_deck_assets
 
 _FIXTURE_PATH = (
     Path(__file__).resolve().parents[6]
@@ -368,6 +369,38 @@ class SupabaseDataStore:
         self.get_opportunity(opportunity_id=row["opportunity_id"], user_id=user_id)
         return row
 
+    def update_latest_framework(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        framework_json: dict[str, Any],
+    ) -> dict[str, Any]:
+        row = self.get_latest_framework(opportunity_id=opportunity_id, user_id=user_id)
+        if row["status"] == "confirmed":
+            raise conflict("FRAMEWORK_IMMUTABLE", "Confirmed framework versions cannot be edited")
+        if row["status"] != "draft":
+            raise bad_request(
+                "FRAMEWORK_NOT_EDITABLE",
+                f"Framework version status {row['status']} cannot be edited",
+            )
+
+        updated = copy.deepcopy(framework_json)
+        updated["opportunity_id"] = str(opportunity_id)
+        updated["updated_at"] = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+        change_log = updated.setdefault("change_log", [])
+        change_log.append("Manual edit via framework review UI")
+
+        response = self._request(
+            "PATCH",
+            "framework_versions",
+            params={"id": f"eq.{row['id']}"},
+            json_body={"framework_json": updated},
+        )
+        if response.status_code not in (200, 204) or not response.json():
+            raise bad_request("FRAMEWORK_UPDATE_FAILED", response.text)
+        return _normalize_framework(response.json()[0])
+
     def confirm_framework(
         self,
         *,
@@ -701,7 +734,24 @@ class SupabaseDataStore:
         )
         if patch_response.status_code not in (200, 204) or not patch_response.json():
             raise bad_request("PRESENTATION_VERSION_UPDATE_FAILED", patch_response.text)
-        return _normalize_presentation_version(patch_response.json()[0])
+        version_row = _normalize_presentation_version(patch_response.json()[0])
+        assets = materialize_stub_deck_assets(
+            version_id=version_row["id"],
+            slide_count=len(slide_specs),
+        )
+        asset_patch = self._request(
+            "PATCH",
+            "presentation_versions",
+            params={"id": f"eq.{version_row['id']}"},
+            json_body={
+                "pptx_storage_path": assets["pptx_storage_path"],
+                "pdf_storage_path": assets["pdf_storage_path"],
+            },
+        )
+        if asset_patch.status_code in (200, 204) and asset_patch.json():
+            version_row = _normalize_presentation_version(asset_patch.json()[0])
+        version_row["preview_image_paths"] = assets["preview_image_paths"]
+        return version_row
 
     def get_latest_presentation_version(
         self,
@@ -814,6 +864,81 @@ class SupabaseDataStore:
         if response.status_code != 200:
             raise bad_request("SLIDE_LIST_FAILED", response.text)
         return [_normalize_slide(row) for row in response.json()]
+
+    def get_latest_presentation_for_opportunity(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+    ) -> dict[str, Any]:
+        rows = [
+            row
+            for row in self.list_presentations(user_id=user_id)
+            if self.get_presentation_opportunity_id(
+                presentation_id=row["id"],
+                user_id=user_id,
+            )
+            == opportunity_id
+        ]
+        if not rows:
+            raise not_found(
+                "PRESENTATION_NOT_FOUND",
+                f"No presentation exists for opportunity {opportunity_id}",
+            )
+        return max(rows, key=lambda row: row["created_at"])
+
+    def get_presentation_version_assets(
+        self,
+        *,
+        presentation_id: UUID,
+        user_id: UUID,
+    ) -> dict[str, Any]:
+        version = self.get_latest_presentation_version(
+            presentation_id=presentation_id,
+            user_id=user_id,
+        )
+        if version.get("status") != "ready":
+            raise bad_request(
+                "PRESENTATION_NOT_READY",
+                "Presentation version is not ready for preview or download",
+            )
+        preview_dir_assets = materialize_stub_deck_assets(
+            version_id=version["id"],
+            slide_count=max(len(version.get("slides_json") or []), 1),
+        )
+        if not version.get("pptx_storage_path"):
+            version["pptx_storage_path"] = preview_dir_assets["pptx_storage_path"]
+        if not version.get("pdf_storage_path"):
+            version["pdf_storage_path"] = preview_dir_assets["pdf_storage_path"]
+        version["preview_image_paths"] = preview_dir_assets["preview_image_paths"]
+        return version
+
+    def append_audit_log(
+        self,
+        *,
+        actor_id: UUID,
+        action: str,
+        object_type: str,
+        object_id: UUID,
+    ) -> dict[str, Any]:
+        payload = {
+            "actor_id": str(actor_id),
+            "action": action,
+            "object_type": object_type,
+            "object_id": str(object_id),
+        }
+        response = self._request("POST", "audit_log", json_body=payload)
+        if response.status_code not in (200, 201):
+            raise bad_request("AUDIT_LOG_WRITE_FAILED", response.text)
+        row = response.json()[0]
+        return {
+            "id": UUID(str(row["id"])),
+            "actor_id": UUID(str(row["actor_id"])),
+            "action": row["action"],
+            "object_type": row["object_type"],
+            "object_id": UUID(str(row["object_id"])),
+            "timestamp": _parse_timestamp(row["timestamp"]),
+        }
 
 
 def validate_transcript_upload(file_name: str, mime_type: str | None) -> None:

@@ -5,11 +5,13 @@ from __future__ import annotations
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import FileResponse
 
 from app.auth import get_current_user
 from app.dependencies import AuthUserDep, DataStoreDep
 from app.schemas.presentations import (
     ChangeSlideLayoutRequest,
+    DeckCenterResponse,
     GeneratePresentationPlanRequest,
     GeneratePresentationRequest,
     PresentationGenerateResponse,
@@ -19,7 +21,8 @@ from app.schemas.presentations import (
     SlideResponse,
 )
 from app.schemas.jobs import JobEnqueueResponse
-from app.services import presentation_generation
+from app.services import deck_center, presentation_generation
+from app.services.audit import AuditAction, AuditObjectType, record_audit_event
 
 router = APIRouter(dependencies=[Depends(get_current_user)])
 opportunity_router = APIRouter(dependencies=[Depends(get_current_user)])
@@ -68,6 +71,22 @@ def get_presentation_plan(
 
 
 @opportunity_router.get(
+    "/{opportunity_id}/presentation",
+    response_model=PresentationResponse,
+)
+def get_latest_presentation_for_opportunity(
+    opportunity_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> PresentationResponse:
+    row = store.get_latest_presentation_for_opportunity(
+        opportunity_id=opportunity_id,
+        user_id=user.id,
+    )
+    return _presentation_response(row)
+
+
+@opportunity_router.get(
     "/{opportunity_id}/presentation-plan",
     response_model=PresentationPlanResponse,
 )
@@ -100,6 +119,13 @@ def generate_presentation_plan(
         user_id=user.id,
         framework_version_id=body.framework_version_id,
     )
+    record_audit_event(
+        store,
+        actor_id=user.id,
+        action=AuditAction.PRESENTATION_PLAN_GENERATE,
+        object_type=AuditObjectType.PRESENTATION_PLAN,
+        object_id=plan["id"],
+    )
     return PresentationPlanGenerateResponse(
         job_id=str(job.id),
         status="queued",
@@ -126,6 +152,13 @@ def generate_presentation(
         presentation_plan_id=body.presentation_plan_id,
         name=body.name,
     )
+    record_audit_event(
+        store,
+        actor_id=user.id,
+        action=AuditAction.PRESENTATION_GENERATE,
+        object_type=AuditObjectType.PRESENTATION,
+        object_id=presentation["id"],
+    )
     return PresentationGenerateResponse(
         job_id=str(job.id),
         status="queued",
@@ -145,11 +178,18 @@ def regenerate_slide(
     user: AuthUserDep,
     store: DataStoreDep,
 ) -> JobEnqueueResponse:
-    _, job = presentation_generation.enqueue_slide_regenerate(
+    slide, job = presentation_generation.enqueue_slide_regenerate(
         store,
         presentation_id=presentation_id,
         slide_id=slide_id,
         user_id=user.id,
+    )
+    record_audit_event(
+        store,
+        actor_id=user.id,
+        action=AuditAction.SLIDE_REGENERATE,
+        object_type=AuditObjectType.SLIDE,
+        object_id=slide["id"],
     )
     return JobEnqueueResponse(job_id=str(job.id), status="queued")
 
@@ -166,14 +206,85 @@ def change_slide_layout(
     user: AuthUserDep,
     store: DataStoreDep,
 ) -> JobEnqueueResponse:
-    _, job = presentation_generation.enqueue_slide_change_layout(
+    slide, job = presentation_generation.enqueue_slide_change_layout(
         store,
         presentation_id=presentation_id,
         slide_id=slide_id,
         user_id=user.id,
         layout_id=body.layout_id,
     )
+    record_audit_event(
+        store,
+        actor_id=user.id,
+        action=AuditAction.SLIDE_CHANGE_LAYOUT,
+        object_type=AuditObjectType.SLIDE,
+        object_id=slide["id"],
+    )
     return JobEnqueueResponse(job_id=str(job.id), status="queued")
+
+
+@router.get("/{presentation_id}/deck", response_model=DeckCenterResponse)
+def get_deck_center(
+    presentation_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> DeckCenterResponse:
+    payload = deck_center.build_deck_center_payload(
+        store,
+        presentation_id=presentation_id,
+        user_id=user.id,
+    )
+    return DeckCenterResponse.model_validate(payload)
+
+
+@router.get("/{presentation_id}/preview/slides/{slide_index}.png")
+def get_slide_preview_image(
+    presentation_id: UUID,
+    slide_index: int,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> FileResponse:
+    path = deck_center.resolve_deck_preview_image_path(
+        store,
+        presentation_id=presentation_id,
+        user_id=user.id,
+        slide_index=slide_index,
+    )
+    return FileResponse(path, media_type="image/png", filename=path.name)
+
+
+@router.get("/{presentation_id}/download/pptx")
+def download_presentation_pptx(
+    presentation_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> FileResponse:
+    path = deck_center.resolve_deck_file_path(
+        store,
+        presentation_id=presentation_id,
+        user_id=user.id,
+        kind="pptx",
+    )
+    return FileResponse(
+        path,
+        media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        filename=f"{presentation_id}.pptx",
+    )
+
+
+@router.get("/{presentation_id}/download/pdf")
+def download_presentation_pdf(
+    presentation_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> FileResponse:
+    path = deck_center.resolve_deck_file_path(
+        store,
+        presentation_id=presentation_id,
+        user_id=user.id,
+        kind="pdf",
+    )
+    return FileResponse(path, media_type="application/pdf", filename=f"{presentation_id}.pdf")
 
 
 @router.get("/{presentation_id}/slides", response_model=list[SlideResponse])

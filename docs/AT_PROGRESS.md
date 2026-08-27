@@ -7,11 +7,13 @@
 
 This document gives any AI assistant or developer **complete context** on what Arvanit has built, where it lives, how it is tested, and what remains.
 
+**For full AI/Claude handoff (all 55 tickets, architecture, conventions, run commands):** see [`docs/AI_ASSISTANT_HANDOFF.md`](./AI_ASSISTANT_HANDOFF.md).
+
 ---
 
 ## 1. Project role (platform spine)
 
-Arvanit owns the **platform spine** — not AI prompting (Endrit ES-*), not layout-specific slide content/renderers (Blenard BT-*, Jaya JJ-*, Mayank MS-*), not frontend UI until AT-46+.
+Arvanit owns the **platform spine** — not AI prompting (Endrit ES-*), not layout-specific slide content/renderers (Blenard BT-*, Jaya JJ-*, Mayank MS-*). Frontend UI started at **AT-46** (upload); framework review and deck UI remain AT-47+.
 
 | Arvanit builds | Others build on it |
 |---|---|
@@ -45,7 +47,7 @@ Opportunity
 
 ---
 
-## 3. Completed tickets (AT-1 → AT-45)
+## 3. Completed tickets (AT-1 → AT-55)
 
 ### Contracts & codegen (AT-1..AT-6) — DONE
 
@@ -107,7 +109,159 @@ BT/JJ/MS replace individual stubs in `apps/renderer/layouts/stubs.ts` without ch
 
 ---
 
-## 4. Live API endpoints (as of AT-45)
+### Frontend (AT-46) — DONE
+
+| Ticket | Deliverable | Key paths |
+|--------|-------------|-----------|
+| AT-46 | Next.js upload UI — multi-file, per-file status, client-side format reject | `apps/web/src/app/upload/`, `src/components/TranscriptUploadPanel.tsx`, `src/lib/transcriptFormats.ts`, `src/lib/uploadQueue.ts` |
+
+**Stack:** Next.js 15 App Router, React 19, TypeScript.
+
+**Done-when met:**
+- Multi-file picker + drag-and-drop
+- Per-file status: `rejected | pending | uploading | success | error`
+- Invalid extensions (not `.txt`, `.vtt`, `.srt`, `.docx`) rejected **before** any API call
+- Wires `POST /opportunities` then `POST /opportunities/{id}/transcripts` with bearer token
+
+**Tests:** `npm run test:at46 --workspace borek-web`; `npm run typecheck --workspace borek-web`.
+
+**Run locally:** `npm.cmd run dev --workspace borek-web` → http://localhost:3000/upload
+
+### Frontend (AT-47) — DONE
+
+| Ticket | Deliverable | Key paths |
+|--------|-------------|-----------|
+| AT-47 | Framework review/edit UI — 14 chapters, visible source_refs, inline edit persists | `apps/web/src/app/framework-review/`, `src/components/FrameworkReviewPanel.tsx`, `FrameworkChapterView.tsx`, `SourceRefBadge.tsx`, `src/lib/frameworkEdit.ts` |
+
+**AT-47 API addition:** `PATCH /opportunities/{id}/framework` persists draft edits (depends on AT-41).
+
+**Tests:** `npm run test:at47 --workspace borek-web`; framework PATCH covered in `tests/unit/api/test_frameworks.py`.
+
+### Frontend (AT-48) — DONE
+
+| Ticket | Deliverable | Key paths |
+|--------|-------------|-----------|
+| AT-48 | Presentation plan preview UI — slide list (order, purpose, layout) before full generation | `apps/web/src/app/plan-preview/`, `src/components/PlanPreviewPanel.tsx`, `src/lib/planPreview.ts`, `src/lib/planTypes.ts` |
+
+**Depends on AT-42:** `GET /opportunities/{id}/presentation-plan`, `POST /opportunities/{id}/presentation-plan/generate`.
+
+**Done-when met:**
+- Planned slide list shows **order**, **purpose**, and **layout** (`layoutId`) for every slide
+- User can generate and review the plan before full deck generation (AT-43)
+- Requires confirmed framework (matches API guard)
+
+**Tests:** `npm run test:at48 --workspace borek-web`; plan API covered in `tests/unit/api/test_presentations.py`.
+
+### Frontend (AT-49) — DONE
+
+| Ticket | Deliverable | Key paths |
+|--------|-------------|-----------|
+| AT-49 | Slide preview/download center — per-slide PNG preview, `.pptx`/`.pdf` downloads | `apps/web/src/app/deck-center/`, `src/components/DeckCenterPanel.tsx`, `SlidePreviewCard.tsx`, `src/lib/deckCenter.ts` |
+
+**Depends on AT-44 + AT-9:** slide list/regenerate API (AT-44); preview PNG/PDF artifacts (AT-9 stubbed locally via `deck_assets.py`).
+
+**API additions:** `GET /opportunities/{id}/presentation`, `GET /presentations/{id}/deck`, `GET /presentations/{id}/preview/slides/{index}.png`, `GET /presentations/{id}/download/pptx|pdf`.
+
+**Done-when met:**
+- Rendered preview images display **per slide**
+- `.pptx` and `.pdf` **download links work** (authenticated blob download in UI)
+
+**Tests:** `npm run test:at49 --workspace borek-web`; deck endpoints in `tests/unit/api/test_presentations.py` (`test_deck_center_preview_and_downloads`).
+
+### DevOps (AT-50) — DONE
+
+| Ticket | Deliverable | Key paths |
+|--------|-------------|-----------|
+| AT-50 | Docker Compose full stack | `docker-compose.yml`, `docker/api|worker|renderer|web/Dockerfile`, `apps/renderer/server.ts` |
+
+**Done-when met:**
+- `docker compose up --build` brings up **web**, **api**, **worker**, **renderer**, **redis**
+- Internal service wiring via `REDIS_URL` and `RENDERER_URL`
+- Supabase + LLM credentials loaded from root `.env` only
+
+**Run stack:**
+```powershell
+copy .env.example .env
+docker compose up --build
+```
+
+**Tests:** `tests/unit/devops/test_at50_compose.py`.
+
+### DevOps (AT-51) — DONE
+
+| Ticket | Deliverable | Key paths |
+|--------|-------------|-----------|
+| AT-51 | Complete `.env.example` — every stack env var with one-line description | `.env.example`, `apps/web/.env.local.example`, `tests/unit/devops/test_at51_env_example.py` |
+
+**Done-when met:**
+- Every environment variable used across API, worker, web, renderer, Docker Compose, and dev scripts is listed in root `.env.example`
+- Each variable has a one-line `#` description immediately above its assignment
+
+**Tests:** `tests/unit/devops/test_at51_env_example.py` (canonical var set + description contract).
+
+**Depends on:** AT-50 (compose defines publish-port and service wiring vars).
+
+### Platform (AT-52) — DONE
+
+| Ticket | Deliverable | Key paths |
+|--------|-------------|-----------|
+| AT-52 | Audit log infra on state-changing endpoints — shared utility records actor + action + timestamp | `app/services/audit/audit_log.py`, router wiring, `memory_store.py` / `supabase_store.py` `append_audit_log`, `tests/unit/api/test_at52_audit_log.py` |
+
+**Done-when met:**
+- Shared `record_audit_event()` utility persists `actor_id`, `action`, `object_type`, `object_id`, and `timestamp` to `audit_log`
+- Used by every state-changing endpoint: create/update opportunity, transcript upload/regenerate, framework generate/regenerate-chapter/confirm/update/render, presentation plan generate, presentation generate, slide regenerate, slide change-layout
+
+**Tests:** `tests/unit/api/test_at52_audit_log.py`.
+
+**Depends on:** AT-37 (`audit_log` table + migration 010).
+
+### Platform (AT-53) — DONE
+
+| Ticket | Deliverable | Key paths |
+|--------|-------------|-----------|
+| AT-53 | AI observability logging — every LLM call logs metadata without confidential content | `apps/api/services/observability/llm_logger.py`, `apps/api/llm/client.py`, `tests/unit/observability/test_at53_llm_logger.py` |
+
+**Done-when met:**
+- Shared `log_llm_call()` / `invoke_llm()` utility records **request id**, **stage**, **model**, **prompt version**, **token counts**, **latency**, and **retry count**
+- Stages covered: **framework**, **planning**, **slide generation**, **compression**
+- Confidential payload fields (`prompt`, `messages`, `content`, etc.) are rejected — no full prompt/response bodies logged
+- `LlmClient` routes all four pipeline LLM entry points through the logger
+
+**Tests:** `tests/unit/observability/test_at53_llm_logger.py`.
+
+**Depends on:** AT-34 (server-side API platform).
+
+### Integration (AT-54) — DONE
+
+| Ticket | Deliverable | Key paths |
+|--------|-------------|-----------|
+| AT-54 | Full pipeline integration harness — fixture transcript through upload → confirm → plan → slides → pptx | `tests/integration/full_pipeline/harness.py`, `tests/integration/full_pipeline/test_at54_full_pipeline.py`, `tests/fixtures/transcripts/discovery_call.minimal.txt` |
+
+**Done-when met:**
+- Checked-in fixture transcript (`tests/fixtures/transcripts/discovery_call.minimal.txt`)
+- One automated test runs the entire pipeline: **upload** → **confirm** → **plan** → **slides** → **pptx**
+- Reusable `run_full_pipeline()` harness for future ES-33 fixture swaps
+
+**Tests:** `tests/integration/full_pipeline/test_at54_full_pipeline.py` (wired in `scripts/validate_all.py`).
+
+**Depends on:** AT-41..AT-44 (API endpoints); uses platform stubs until ES-33 eval fixtures land.
+
+### Renderer QA (AT-55) — DONE
+
+| Ticket | Deliverable | Key paths |
+|--------|-------------|-----------|
+| AT-55 | Golden-deck regression runner — rendered PNGs vs approved reference; flags spacing/font/alignment/color diffs | `tests/golden_deck/compare.ts`, `run_regression.ts`, `reference/slide-01.png`, `tests/golden_deck/run_regression.test.ts`, `tests/unit/renderer/test_at55_golden_deck.py` |
+
+**Done-when met:**
+- Approved reference rendering checked in under `tests/golden_deck/reference/`
+- `run_regression.ts` renders a test deck via AT-9 (or compares `--actual` PNG dir) and diffs against reference
+- Comparison reports **spacing**, **font**, **alignment**, and **color** differences
+
+**Tests:** `npm run test:at55 --workspace borek-renderer`; `tests/unit/renderer/test_at55_golden_deck.py`; wired in `scripts/validate_all.py`.
+
+**Depends on:** AT-9 (preview pipeline), AT-33 (layout dispatcher / renderer stack).
+
+---
 
 All routes except `GET /health` require `Authorization: Bearer <jwt>`.
 
@@ -143,6 +297,11 @@ All routes except `GET /health` require `Authorization: Bearer <jwt>`.
 - `GET /presentations/{id}` — get
 - `GET /presentations/{id}/slides` — list slides in latest version
 - `GET /presentations/{id}/slides/{slide_id}` — get slide
+- `GET /presentations/{id}/deck` — deck center manifest (preview + download URLs)
+- `GET /presentations/{id}/preview/slides/{slide_index}.png` — slide preview image
+- `GET /presentations/{id}/download/pptx` — download deck
+- `GET /presentations/{id}/download/pdf` — download PDF
+- `GET /opportunities/{id}/presentation` — latest presentation for opportunity
 - `POST /presentations/{id}/slides/{slide_id}/regenerate` → 202, job_type `slide_regenerate`
 - `POST /presentations/{id}/slides/{slide_id}/change-layout` → 202, job_type `slide_change_layout` (body: `{layout_id}`)
 
@@ -219,6 +378,10 @@ Located in `tests/unit/api/`:
 | `test_presentations.py` | AT-42, AT-43 |
 | `test_slide_endpoints.py` | AT-44 |
 | `test_jobs.py` | AT-45 |
+| `test_at52_audit_log.py` | AT-52 |
+| `tests/unit/observability/test_at53_llm_logger.py` | AT-53 |
+| `tests/integration/full_pipeline/test_at54_full_pipeline.py` | AT-54 |
+| `tests/unit/renderer/test_at55_golden_deck.py` | AT-55 |
 | `test_job_stage_machine.py` | AT-36 |
 | `test_auth.py`, `test_auth_required.py` | AT-39 |
 | `test_migrations.py`, `test_rls_policies.py` | AT-37, AT-38 |
@@ -248,18 +411,7 @@ Common codes: `FRAMEWORK_NOT_CONFIRMED`, `PRESENTATION_PLAN_NOT_FOUND`, `SLIDE_N
 
 ## 11. Not yet implemented (Arvanit backlog)
 
-| Ticket | Title | Notes |
-|--------|-------|-------|
-| AT-46 | Next.js upload UI | Depends on AT-40 |
-| AT-47 | Framework review/edit UI | Depends on AT-41 |
-| AT-48 | Presentation plan preview UI | Depends on AT-42 |
-| AT-49 | Slide preview/download center | Depends on AT-44, AT-9 |
-| AT-50 | Docker Compose full stack | |
-| AT-51 | `.env.example` completeness | |
-| AT-52 | Audit log infra on state-changing endpoints | |
-| AT-53 | AI observability logging | |
-| AT-54 | Full pipeline integration test | Last — needs ES-33 + all layouts |
-| AT-55 | Golden-deck regression runner | |
+_All AT-1..AT-55 platform tickets complete._
 
 ---
 
@@ -304,3 +456,39 @@ apps/services/api/
 ---
 
 *End of AT progress context document.*
+
+---
+
+## 14. File map (web — AT-46+)
+
+```
+apps/web/
+├── package.json              # Next.js 15, test:at46, typecheck
+├── next.config.ts
+├── src/
+│   ├── app/
+│   │   ├── layout.tsx
+│   │   ├── page.tsx            # redirects to /upload
+│   │   ├── login/page.tsx      # AT-39 sign-in
+│   │   ├── register/page.tsx   # AT-39 registration
+│   │   ├── upload/page.tsx     # AT-46
+│   │   └── framework-review/page.tsx  # AT-47
+│   ├── components/
+│   │   ├── AuthProvider.tsx
+│   │   ├── AuthShell.tsx
+│   │   ├── AuthCard.tsx        # shared sign-in / register form
+│   │   ├── SiteHeader.tsx
+│   │   ├── OpportunityForm.tsx
+│   │   ├── FileUploadQueue.tsx
+│   │   └── TranscriptUploadPanel.tsx
+│   │   ├── FrameworkReviewPanel.tsx
+│   │   ├── FrameworkChapterView.tsx
+│   │   └── SourceRefBadge.tsx
+│   └── lib/
+│       ├── api.ts              # opportunities + transcript upload client
+│       ├── supabase.ts
+│       ├── transcriptFormats.ts
+│       ├── uploadQueue.ts
+│       ├── frameworkTypes.ts
+│       └── frameworkEdit.ts
+```

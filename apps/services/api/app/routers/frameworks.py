@@ -13,9 +13,11 @@ from app.schemas.frameworks import (
     FrameworkGenerateResponse,
     FrameworkVersionResponse,
     RegenerateChapterRequest,
+    UpdateFrameworkRequest,
 )
 from app.schemas.jobs import JobEnqueueResponse
 from app.services import framework_generation
+from app.services.audit import AuditAction, AuditObjectType, record_audit_event
 
 router = APIRouter(dependencies=[Depends(get_current_user)])
 opportunity_router = APIRouter(dependencies=[Depends(get_current_user)])
@@ -63,6 +65,13 @@ def generate_framework(
         opportunity_id=opportunity_id,
         user_id=user.id,
     )
+    record_audit_event(
+        store,
+        actor_id=user.id,
+        action=AuditAction.FRAMEWORK_GENERATE,
+        object_type=AuditObjectType.FRAMEWORK_VERSION,
+        object_id=framework_version["id"],
+    )
     return FrameworkGenerateResponse(
         job_id=str(job.id),
         status="queued",
@@ -81,11 +90,18 @@ def regenerate_chapter(
     user: AuthUserDep,
     store: DataStoreDep,
 ) -> JobEnqueueResponse:
-    _, job = framework_generation.enqueue_regenerate_chapter(
+    framework_version, job = framework_generation.enqueue_regenerate_chapter(
         store,
         opportunity_id=opportunity_id,
         user_id=user.id,
         chapter_id=body.chapter_id,
+    )
+    record_audit_event(
+        store,
+        actor_id=user.id,
+        action=AuditAction.FRAMEWORK_REGENERATE_CHAPTER,
+        object_type=AuditObjectType.FRAMEWORK_VERSION,
+        object_id=framework_version["id"],
     )
     return JobEnqueueResponse(job_id=str(job.id), status="queued")
 
@@ -106,6 +122,39 @@ def confirm_framework(
         user_id=user.id,
         framework_version_id=body.framework_version_id,
     )
+    record_audit_event(
+        store,
+        actor_id=user.id,
+        action=AuditAction.FRAMEWORK_CONFIRM,
+        object_type=AuditObjectType.FRAMEWORK_VERSION,
+        object_id=row["id"],
+    )
+    return _to_response(row)
+
+
+@opportunity_router.patch(
+    "/{opportunity_id}/framework",
+    response_model=FrameworkVersionResponse,
+)
+def update_framework(
+    opportunity_id: UUID,
+    body: UpdateFrameworkRequest,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> FrameworkVersionResponse:
+    row = framework_generation.update_framework(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user.id,
+        framework_json=body.framework_json,
+    )
+    record_audit_event(
+        store,
+        actor_id=user.id,
+        action=AuditAction.FRAMEWORK_UPDATE,
+        object_type=AuditObjectType.FRAMEWORK_VERSION,
+        object_id=row["id"],
+    )
     return _to_response(row)
 
 
@@ -119,9 +168,16 @@ def render_framework(
     user: AuthUserDep,
     store: DataStoreDep,
 ) -> JobEnqueueResponse:
-    _, job = framework_generation.enqueue_framework_render(
+    framework_version, job = framework_generation.enqueue_framework_render(
         store,
         opportunity_id=opportunity_id,
         user_id=user.id,
+    )
+    record_audit_event(
+        store,
+        actor_id=user.id,
+        action=AuditAction.FRAMEWORK_RENDER,
+        object_type=AuditObjectType.FRAMEWORK_VERSION,
+        object_id=framework_version["id"],
     )
     return JobEnqueueResponse(job_id=str(job.id), status="queued")

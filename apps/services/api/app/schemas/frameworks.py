@@ -29,5 +29,9 @@ class ConfirmFrameworkRequest(BaseModel):
     framework_version_id: UUID | None = None
 
 
+class UpdateFrameworkRequest(BaseModel):
+    framework_json: dict[str, Any]
+
+
 class FrameworkGenerateResponse(JobEnqueueResponse):
     framework_version_id: UUID | None = None

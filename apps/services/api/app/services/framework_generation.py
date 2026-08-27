@@ -50,6 +50,20 @@ def confirm_framework(
     )
 
 
+def update_framework(
+    store: DataStore,
+    *,
+    opportunity_id: UUID,
+    user_id: UUID,
+    framework_json: dict,
+):
+    return store.update_latest_framework(
+        opportunity_id=opportunity_id,
+        user_id=user_id,
+        framework_json=framework_json,
+    )
+
+
 def enqueue_framework_render(
     store: DataStore,
     *,

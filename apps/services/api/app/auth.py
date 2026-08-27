@@ -18,6 +18,7 @@ from app.config import settings
 _bearer = HTTPBearer(auto_error=False)
 _JWT_SECRET_PLACEHOLDER = "your-jwt-secret-from-supabase-dashboard"
 _JWT_DECODE_OPTIONS = {"require": ["sub", "exp"]}
+_JWT_DECODE_LEEWAY_SECONDS = 60
 _ASYMMETRIC_ALGORITHMS = ["ES256", "RS256"]
 
 
@@ -72,6 +73,7 @@ def _payload_from_token(token: str) -> dict:
                 algorithms=["HS256"],
                 audience="authenticated",
                 options=_JWT_DECODE_OPTIONS,
+                leeway=_JWT_DECODE_LEEWAY_SECONDS,
             )
         except InvalidTokenError as exc:
             raise _unauthorized("Invalid or expired access token") from exc
@@ -85,6 +87,7 @@ def _payload_from_token(token: str) -> dict:
                 algorithms=_ASYMMETRIC_ALGORITHMS,
                 audience="authenticated",
                 options=_JWT_DECODE_OPTIONS,
+                leeway=_JWT_DECODE_LEEWAY_SECONDS,
             )
         except InvalidTokenError as exc:
             raise _unauthorized("Invalid or expired access token") from exc

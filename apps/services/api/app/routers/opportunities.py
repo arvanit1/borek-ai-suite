@@ -13,6 +13,7 @@ from app.schemas.opportunities import (
     OpportunityResponse,
     OpportunityUpdateRequest,
 )
+from app.services.audit import AuditAction, AuditObjectType, record_audit_event
 
 router = APIRouter(dependencies=[Depends(get_current_user)])
 
@@ -33,6 +34,13 @@ def create_opportunity(
         opportunity_name=body.opportunity_name,
         department=body.department,
         language=body.language,
+    )
+    record_audit_event(
+        store,
+        actor_id=user.id,
+        action=AuditAction.OPPORTUNITY_CREATE,
+        object_type=AuditObjectType.OPPORTUNITY,
+        object_id=row["id"],
     )
     return _to_response(row)
 
@@ -64,5 +72,12 @@ def update_opportunity(
         opportunity_id=opportunity_id,
         user_id=user.id,
         updates=body.model_dump(exclude_unset=True),
+    )
+    record_audit_event(
+        store,
+        actor_id=user.id,
+        action=AuditAction.OPPORTUNITY_UPDATE,
+        object_type=AuditObjectType.OPPORTUNITY,
+        object_id=opportunity_id,
     )
     return _to_response(row)

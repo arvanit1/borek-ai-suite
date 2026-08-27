@@ -17,6 +17,7 @@ def run(command: list[str], *, shell: bool = False) -> None:
 
 def main() -> int:
     run([sys.executable, "-m", "pytest", "tests/unit", "-v"])
+    run([sys.executable, "-m", "pytest", "tests/integration/full_pipeline", "-v"])
     run([sys.executable, "scripts/generate_pydantic.py"])
     run(["node", "scripts/generate_typescript.js"])
     run(
@@ -68,6 +69,11 @@ def main() -> int:
         if not ts_path.is_file():
             raise SystemExit(f"TypeScript codegen did not produce {ts_name}")
     run(["npm", "run", "typecheck", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "typecheck", "--workspace", "borek-web"], shell=True)
+    run(["npm", "run", "test:at46", "--workspace", "borek-web"], shell=True)
+    run(["npm", "run", "test:at47", "--workspace", "borek-web"], shell=True)
+    run(["npm", "run", "test:at48", "--workspace", "borek-web"], shell=True)
+    run(["npm", "run", "test:at49", "--workspace", "borek-web"], shell=True)
     run(["npm", "run", "test:at9", "--workspace", "borek-renderer"], shell=True)
     run(["npm", "run", "test:at10", "--workspace", "borek-renderer"], shell=True)
     run(["npm", "run", "test:at11", "--workspace", "borek-renderer"], shell=True)
@@ -97,6 +103,7 @@ def main() -> int:
     run(["npm", "run", "test:at31", "--workspace", "borek-renderer"], shell=True)
     run(["npm", "run", "test:at32", "--workspace", "borek-renderer"], shell=True)
     run(["npm", "run", "test:at33", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:at55", "--workspace", "borek-renderer"], shell=True)
     run(["npm", "run", "test:bt17", "--workspace", "borek-renderer"], shell=True)
     run(["npm", "run", "test:bt18", "--workspace", "borek-renderer"], shell=True)
     run(["npm", "run", "test:bt19", "--workspace", "borek-renderer"], shell=True)

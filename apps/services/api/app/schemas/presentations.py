@@ -69,3 +69,20 @@ class SlideResponse(BaseModel):
     slide_spec: dict[str, Any]
     source_chapter_ids: list[str]
     created_at: datetime
+
+
+class DeckSlidePreviewResponse(BaseModel):
+    slide_id: UUID
+    slide_index: int
+    layout_id: str
+    preview_url: str
+
+
+class DeckCenterResponse(BaseModel):
+    presentation_id: UUID
+    presentation_name: str
+    version_number: int
+    status: str
+    slides: list[DeckSlidePreviewResponse]
+    pptx_download_url: str
+    pdf_download_url: str
