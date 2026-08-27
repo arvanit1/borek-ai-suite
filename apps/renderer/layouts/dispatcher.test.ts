@@ -18,6 +18,15 @@ import milestonesFixtureJson from "../../../packages/contracts/fixtures/slide_sp
 import processFlowFixtureJson from "../../../packages/contracts/fixtures/slide_spec/group_b/process_flow_01.minimal.json" with { type: "json" };
 import teamFteFixtureJson from "../../../packages/contracts/fixtures/slide_spec/group_b/team_fte_01.minimal.json" with { type: "json" };
 import timelineFixtureJson from "../../../packages/contracts/fixtures/slide_spec/group_b/timeline_01.minimal.json" with { type: "json" };
+import architectureFixtureJson from "../../../packages/contracts/fixtures/slide_spec/architecture_01.minimal.json" with { type: "json" };
+import complianceFixtureJson from "../../../packages/contracts/fixtures/slide_spec/compliance_01.minimal.json" with { type: "json" };
+import nextStepsFixtureJson from "../../../packages/contracts/fixtures/slide_spec/next_steps_01.minimal.json" with { type: "json" };
+import openQuestionsFixtureJson from "../../../packages/contracts/fixtures/slide_spec/open_questions_01.minimal.json" with { type: "json" };
+import successMetricsFixtureJson from "../../../packages/contracts/fixtures/slide_spec/success_metrics_01.minimal.json" with { type: "json" };
+import {
+  MASTER_CLOSING_NAME,
+  registerMasterClosing,
+} from "../design_system/masters/MASTER_CLOSING.js";
 import {
   MASTER_CONTENT_NAME,
   registerMasterContent,
@@ -37,15 +46,15 @@ import { renderProblemSolution01 } from "./group_a/renderProblemSolution01.js";
 import { renderRequirementsMatrix01 } from "./group_a/renderRequirementsMatrix01.js";
 import { renderScope01 } from "./group_a/renderScope01.js";
 import { assertUsesMaster } from "./group_a/rendererTestHelpers.js";
+import { renderArchitecture01 } from "./group_c/renderArchitecture01.js";
+import { renderCompliance01 } from "./group_c/renderCompliance01.js";
+import { renderNextSteps01 } from "./group_c/renderNextSteps01.js";
+import { renderOpenQuestions01 } from "./group_c/renderOpenQuestions01.js";
+import { renderSuccessMetrics01 } from "./group_c/renderSuccessMetrics01.js";
 import {
-  renderArchitecture01Stub,
-  renderCompliance01Stub,
   renderExecutiveSummary01Stub,
   renderMilestones01Stub,
-  renderNextSteps01Stub,
-  renderOpenQuestions01Stub,
   renderProcessFlow01Stub,
-  renderSuccessMetrics01Stub,
   renderTeamFte01Stub,
   renderTimeline01Stub,
 } from "./stubs.js";
@@ -91,6 +100,11 @@ assert.doesNotMatch(
   /render(?:Cover|Context|ProblemSolution|Scope|RequirementsMatrix)01Stub/,
   "completed Group A layouts must not retain stub renderers",
 );
+assert.doesNotMatch(
+  stubsSource,
+  /render(?:Architecture|Compliance|SuccessMetrics|OpenQuestions|NextSteps)01Stub/,
+  "completed Group C layouts must not retain stub renderers",
+);
 
 const groupARenderers = {
   COVER_01: renderCover01,
@@ -100,17 +114,20 @@ const groupARenderers = {
   REQUIREMENTS_MATRIX_01: renderRequirementsMatrix01,
 };
 
+const groupCRenderers = {
+  ARCHITECTURE_01: renderArchitecture01,
+  COMPLIANCE_01: renderCompliance01,
+  SUCCESS_METRICS_01: renderSuccessMetrics01,
+  OPEN_QUESTIONS_01: renderOpenQuestions01,
+  NEXT_STEPS_01: renderNextSteps01,
+};
+
 const unchangedStubRenderers = {
   EXECUTIVE_SUMMARY_01: renderExecutiveSummary01Stub,
   PROCESS_FLOW_01: renderProcessFlow01Stub,
   TIMELINE_01: renderTimeline01Stub,
   MILESTONES_01: renderMilestones01Stub,
   TEAM_FTE_01: renderTeamFte01Stub,
-  ARCHITECTURE_01: renderArchitecture01Stub,
-  COMPLIANCE_01: renderCompliance01Stub,
-  SUCCESS_METRICS_01: renderSuccessMetrics01Stub,
-  OPEN_QUESTIONS_01: renderOpenQuestions01Stub,
-  NEXT_STEPS_01: renderNextSteps01Stub,
 };
 
 for (const [layoutId, renderer] of Object.entries(groupARenderers)) {
@@ -118,6 +135,14 @@ for (const [layoutId, renderer] of Object.entries(groupARenderers)) {
     LAYOUT_REGISTRY[layoutId as LayoutId],
     renderer,
     `${layoutId} must map directly to its real Group A renderer`,
+  );
+}
+
+for (const [layoutId, renderer] of Object.entries(groupCRenderers)) {
+  assert.equal(
+    LAYOUT_REGISTRY[layoutId as LayoutId],
+    renderer,
+    `${layoutId} must map directly to its real Group C renderer`,
   );
 }
 
@@ -153,6 +178,11 @@ function minimalSlideSpec(layoutId: LayoutId): SlideSpecBase {
     TIMELINE_01: timelineFixtureJson as unknown as SlideSpecBase,
     MILESTONES_01: milestonesFixtureJson as unknown as SlideSpecBase,
     TEAM_FTE_01: teamFteFixtureJson as unknown as SlideSpecBase,
+    ARCHITECTURE_01: architectureFixtureJson as unknown as SlideSpecBase,
+    COMPLIANCE_01: complianceFixtureJson as unknown as SlideSpecBase,
+    SUCCESS_METRICS_01: successMetricsFixtureJson as unknown as SlideSpecBase,
+    OPEN_QUESTIONS_01: openQuestionsFixtureJson as unknown as SlideSpecBase,
+    NEXT_STEPS_01: nextStepsFixtureJson as unknown as SlideSpecBase,
   };
 
   if (implementedSpecs[layoutId]) {
@@ -170,6 +200,7 @@ function minimalSlideSpec(layoutId: LayoutId): SlideSpecBase {
 const pptx = new PptxGenJS();
 registerMasterCover(pptx);
 registerMasterContent(pptx);
+registerMasterClosing(pptx);
 
 for (const layoutId of REGISTRY_LAYOUT_IDS as LayoutId[]) {
   assert.doesNotThrow(
@@ -178,20 +209,26 @@ for (const layoutId of REGISTRY_LAYOUT_IDS as LayoutId[]) {
   );
 }
 
-const groupAMasters: Readonly<Record<string, string>> = {
+const implementedMasters: Readonly<Record<string, string>> = {
   COVER_01: MASTER_COVER_NAME,
   CONTEXT_01: MASTER_CONTENT_NAME,
   PROBLEM_SOLUTION_01: MASTER_CONTENT_NAME,
   SCOPE_01: MASTER_CONTENT_NAME,
   REQUIREMENTS_MATRIX_01: MASTER_CONTENT_NAME,
+  ARCHITECTURE_01: MASTER_CONTENT_NAME,
+  COMPLIANCE_01: MASTER_CLOSING_NAME,
+  SUCCESS_METRICS_01: MASTER_CONTENT_NAME,
+  OPEN_QUESTIONS_01: MASTER_CONTENT_NAME,
+  NEXT_STEPS_01: MASTER_CLOSING_NAME,
 };
 
-for (const [layoutId, expectedMaster] of Object.entries(groupAMasters)) {
+for (const [layoutId, expectedMaster] of Object.entries(implementedMasters)) {
   const spec = minimalSlideSpec(layoutId as LayoutId);
   const original = structuredClone(spec);
   const rendered = new PptxGenJS();
   registerMasterCover(rendered);
   registerMasterContent(rendered);
+  registerMasterClosing(rendered);
   dispatchSlide(rendered, spec);
 
   assert.deepEqual(spec, original, `${layoutId} dispatch must not mutate its SlideSpec`);
