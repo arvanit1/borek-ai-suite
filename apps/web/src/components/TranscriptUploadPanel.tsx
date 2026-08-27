@@ -89,7 +89,6 @@ export function TranscriptUploadPanel() {
 
       <div className="upload-hero">
         <div className="app-shell upload-hero-inner">
-          <p className="upload-eyebrow">Pipeline · Step 1 of 4</p>
           <h1>Transcript ingestion</h1>
           <p className="upload-lead">
             Attach client discovery transcripts to an opportunity. Unsupported formats are filtered
@@ -138,16 +137,6 @@ export function TranscriptUploadPanel() {
                 </Link>
               </div>
             ) : null}
-
-            <div className="upload-meta-card">
-              <h3>Accepted formats</h3>
-              <ul className="format-chip-list">
-                <li>.txt</li>
-                <li>.vtt</li>
-                <li>.srt</li>
-                <li>.docx</li>
-              </ul>
-            </div>
           </aside>
 
           <div className="upload-main">

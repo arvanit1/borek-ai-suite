@@ -8,7 +8,8 @@ export function SiteHeader({ signedInEmail }: SiteHeaderProps) {
   return (
     <header className="site-header">
       <Link href="/upload" className="site-logo">
-        Borek AI Suite
+        <span className="site-logo-mark" aria-hidden="true" />
+        Borek Pitch Factory
       </Link>
       <nav className="site-nav">
         <Link href="/upload">Upload</Link>
