@@ -16,11 +16,6 @@ export function AuthShell({ title, subtitle, children }: AuthShellProps) {
           <p className="auth-tagline">
             Framework and presentation generation for sales engineering teams.
           </p>
-          <ul className="auth-features">
-            <li>Upload discovery transcripts</li>
-            <li>Review framework chapters</li>
-            <li>Generate branded presentations</li>
-          </ul>
         </aside>
 
         <main className="auth-main">
