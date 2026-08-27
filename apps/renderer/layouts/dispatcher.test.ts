@@ -14,6 +14,10 @@ import coverFixtureJson from "../../../packages/contracts/fixtures/slide_spec/gr
 import problemSolutionFixtureJson from "../../../packages/contracts/fixtures/slide_spec/group_a/problem_solution_01.minimal.json" with { type: "json" };
 import requirementsFixtureJson from "../../../packages/contracts/fixtures/slide_spec/group_a/requirements_matrix_01.minimal.json" with { type: "json" };
 import scopeFixtureJson from "../../../packages/contracts/fixtures/slide_spec/group_a/scope_01.minimal.json" with { type: "json" };
+import milestonesFixtureJson from "../../../packages/contracts/fixtures/slide_spec/group_b/milestones_01.minimal.json" with { type: "json" };
+import processFlowFixtureJson from "../../../packages/contracts/fixtures/slide_spec/group_b/process_flow_01.minimal.json" with { type: "json" };
+import teamFteFixtureJson from "../../../packages/contracts/fixtures/slide_spec/group_b/team_fte_01.minimal.json" with { type: "json" };
+import timelineFixtureJson from "../../../packages/contracts/fixtures/slide_spec/group_b/timeline_01.minimal.json" with { type: "json" };
 import {
   MASTER_CONTENT_NAME,
   registerMasterContent,
@@ -125,17 +129,34 @@ for (const [layoutId, renderer] of Object.entries(unchangedStubRenderers)) {
   );
 }
 
+assert.match(stubsSource, /renderProcessFlow01\(/);
+assert.match(stubsSource, /renderTimeline01\(/);
+assert.match(stubsSource, /renderMilestones01\(/);
+assert.match(stubsSource, /renderTeamFte01\(/);
+assert.doesNotMatch(stubsSource, /JJ-1[5-8] will replace/);
+assert.match(
+  dispatcherSource,
+  /PROCESS_FLOW_01: renderProcessFlow01Stub/,
+);
+assert.match(dispatcherSource, /TIMELINE_01: renderTimeline01Stub/);
+assert.match(dispatcherSource, /MILESTONES_01: renderMilestones01Stub/);
+assert.match(dispatcherSource, /TEAM_FTE_01: renderTeamFte01Stub/);
+
 function minimalSlideSpec(layoutId: LayoutId): SlideSpecBase {
-  const implementedGroupASpecs: Partial<Record<LayoutId, SlideSpecBase>> = {
+  const implementedSpecs: Partial<Record<LayoutId, SlideSpecBase>> = {
     COVER_01: coverFixtureJson as unknown as SlideSpecBase,
     CONTEXT_01: contextFixtureJson as unknown as SlideSpecBase,
     PROBLEM_SOLUTION_01: problemSolutionFixtureJson as unknown as SlideSpecBase,
     SCOPE_01: scopeFixtureJson as unknown as SlideSpecBase,
     REQUIREMENTS_MATRIX_01: requirementsFixtureJson as unknown as SlideSpecBase,
+    PROCESS_FLOW_01: processFlowFixtureJson as unknown as SlideSpecBase,
+    TIMELINE_01: timelineFixtureJson as unknown as SlideSpecBase,
+    MILESTONES_01: milestonesFixtureJson as unknown as SlideSpecBase,
+    TEAM_FTE_01: teamFteFixtureJson as unknown as SlideSpecBase,
   };
 
-  if (implementedGroupASpecs[layoutId]) {
-    return implementedGroupASpecs[layoutId];
+  if (implementedSpecs[layoutId]) {
+    return implementedSpecs[layoutId];
   }
 
   return {

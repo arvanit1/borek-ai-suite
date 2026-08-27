@@ -157,6 +157,20 @@ export function computeTimelineScaleEnd(positions: readonly TimelinePhasePositio
   return Math.max(...positions.map((position) => position.end));
 }
 
+/** True when any two phase ranges occupy overlapping intervals on the shared scale. */
+export function timelinePhasesOverlap(positions: readonly TimelinePhasePosition[]): boolean {
+  for (let left = 0; left < positions.length; left += 1) {
+    for (let right = left + 1; right < positions.length; right += 1) {
+      const first = positions[left]!;
+      const second = positions[right]!;
+      if (first.start < second.end && first.end > second.start) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 /**
  * Map TIMELINE_01 SlideSpec phases + milestones into positioned timeline items.
  * Uses milestone week labels (e.g. "Week 6") for segment end ticks; falls back to equal spans.
@@ -223,11 +237,12 @@ export function computeTimelineLayout(
 
   const positions = resolveTimelinePhasePositions(phases);
   const scaleEnd = computeTimelineScaleEnd(positions);
-  const gap = timelinePhaseGap();
+  const overlapping = timelinePhasesOverlap(positions);
+  const gap = overlapping ? 0 : timelinePhaseGap();
   const dateH = timelineDateBandHeight();
   const trackH = timelineTrackHeight();
   const bandGap = timelineBandGap();
-  const usableW = rect.w - gap * (phases.length - 1);
+  const usableW = overlapping ? rect.w : rect.w - gap * (phases.length - 1);
   const trackY = rect.y + dateH + bandGap;
 
   const phaseLayouts: TimelinePhaseLayout[] = positions.map((position, index) => {

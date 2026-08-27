@@ -42,3 +42,4 @@ def test_at55_runner_supports_reference_and_actual_comparison() -> None:
     assert "--reference" in source
     assert "--actual" in source
     assert "runLibreOfficePreviewPipeline" in source
+    assert "listGoldenDeckFiles" in source

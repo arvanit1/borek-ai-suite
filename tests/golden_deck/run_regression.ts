@@ -15,7 +15,7 @@ import { runLibreOfficePreviewPipeline } from "../../apps/renderer/validation/li
 import {
   compareGoldenDeck,
   formatGoldenDeckReport,
-  listReferenceSlideFiles,
+  listGoldenDeckFiles,
 } from "./compare.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -70,7 +70,7 @@ function main(): number {
     actualDir = outputDir;
   }
 
-  const slideFiles = listReferenceSlideFiles(options.referenceDir);
+  const slideFiles = listGoldenDeckFiles(options.referenceDir);
   const result = compareGoldenDeck(options.referenceDir, actualDir, slideFiles);
   const report = formatGoldenDeckReport(result);
   if (result.status === "PASS") {

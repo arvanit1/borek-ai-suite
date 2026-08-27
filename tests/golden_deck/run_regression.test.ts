@@ -10,6 +10,7 @@ import {
   compareGoldenDeck,
   compareSlidePng,
   formatGoldenDeckReport,
+  listGoldenDeckFiles,
   readPng,
 } from "./compare.js";
 
@@ -94,6 +95,7 @@ function thickenBodyBand(source: PNG, extraHeight: number): PNG {
 }
 
 assert.ok(readFileSync(referencePath).length > 0, "approved reference slide must exist");
+assert.deepEqual(listGoldenDeckFiles(referenceDir), ["slide-01.png"]);
 
 {
   const reference = readPng(referencePath);
