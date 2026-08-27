@@ -379,6 +379,28 @@ textarea {
   white-space: nowrap;
 }
 
+.site-nav-signout {
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.92);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.site-nav-signout:hover:not(:disabled) {
+  border-color: var(--borek-gold);
+  color: var(--borek-gold);
+}
+
+.site-nav-signout:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* ——— Auth pages ——— */
 .auth-page {
   min-height: 100vh;
