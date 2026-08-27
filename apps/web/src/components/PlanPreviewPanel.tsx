@@ -107,7 +107,7 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
 
       <div className="upload-hero">
         <div className="app-shell upload-hero-inner">
-          <p className="upload-eyebrow">Pipeline · Step 3 of 4</p>
+
           <h1>Presentation plan preview</h1>
           <p className="upload-lead">
             Review the planned slide sequence — order, purpose, and layout — before committing to

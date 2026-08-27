@@ -12,7 +12,8 @@ export function AuthShell({ title, subtitle, children }: AuthShellProps) {
       <div className="auth-layout">
         <aside className="auth-brand">
           <Link href="/" className="auth-logo">
-            Borek AI Suite
+            <span className="auth-logo-mark" aria-hidden="true" />
+            Borek Pitch Factory
           </Link>
           <p className="auth-tagline">
             Framework and presentation generation for sales engineering teams.

@@ -124,7 +124,7 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
 
       <div className="upload-hero">
         <div className="app-shell upload-hero-inner">
-          <p className="upload-eyebrow">Pipeline · Step 4 of 4</p>
+
           <h1>Deck center</h1>
           <p className="upload-lead">
             Preview rendered slide images and download the generated deck before sharing with
