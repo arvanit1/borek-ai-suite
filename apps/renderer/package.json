@@ -41,6 +41,14 @@
     "test:bt19": "tsx layouts/group_a/renderProblemSolution01.test.ts",
     "test:bt20": "tsx layouts/group_a/renderScope01.test.ts",
     "test:bt21": "tsx layouts/group_a/renderRequirementsMatrix01.test.ts",
+    "test:jj15": "tsx layouts/group_b/renderProcessFlow01.test.ts",
+    "test:jj16": "tsx layouts/group_b/renderTimeline01.test.ts",
+    "test:jj17": "tsx layouts/group_b/renderMilestones01.test.ts",
+    "test:jj18": "tsx layouts/group_b/renderTeamFte01.test.ts",
+    "test:jj19": "tsx layouts/dispatcher.test.ts",
+    "test:jj20": "npm run test:jj15 && npm run test:jj16 && npm run test:jj17 && npm run test:jj18",
+    "test:jj21": "tsx layouts/group_b/renderTimeline01.edge.test.ts",
+    "test:jj22": "tsx ../../tests/golden_deck/group_b/run_regression.test.ts",
     "start:server": "tsx server.ts"
   },
   "dependencies": {

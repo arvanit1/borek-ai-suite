@@ -9,10 +9,18 @@ import type PptxGenJS from "pptxgenjs";
 import type { Cover01SlideSpec } from "../../../generated/typescript/contracts/slide_spec_group_a_cover_01.js";
 import type { RequirementsMatrix01SlideSpec } from "../../../generated/typescript/contracts/slide_spec_group_a_requirements_matrix_01.js";
 import type { Scope01SlideSpec } from "../../../generated/typescript/contracts/slide_spec_group_a_scope_01.js";
+import type { Milestones01SlideSpec } from "../../../generated/typescript/contracts/slide_spec_group_b_milestones_01.js";
+import type { ProcessFlow01SlideSpec } from "../../../generated/typescript/contracts/slide_spec_group_b_process_flow_01.js";
+import type { TeamFte01SlideSpec } from "../../../generated/typescript/contracts/slide_spec_group_b_team_fte_01.js";
+import type { Timeline01SlideSpec } from "../../../generated/typescript/contracts/slide_spec_group_b_timeline_01.js";
 import type { SlideSpecBase } from "../src/contracts.js";
 import { renderCover01 } from "./group_a/renderCover01.js";
 import { renderRequirementsMatrix01 } from "./group_a/renderRequirementsMatrix01.js";
 import { renderScope01 } from "./group_a/renderScope01.js";
+import { renderMilestones01 } from "./group_b/renderMilestones01.js";
+import { renderProcessFlow01 } from "./group_b/renderProcessFlow01.js";
+import { renderTeamFte01 } from "./group_b/renderTeamFte01.js";
+import { renderTimeline01 } from "./group_b/renderTimeline01.js";
 
 export type LayoutRenderFn = (pptx: PptxGenJS, spec: SlideSpecBase) => void;
 
@@ -46,24 +54,24 @@ export function renderRequirementsMatrix01Stub(pptx: PptxGenJS, spec: SlideSpecB
   renderRequirementsMatrix01(pptx, spec as RequirementsMatrix01SlideSpec);
 }
 
-/** Stub — JJ-15 will replace this implementation. Layout: PROCESS_FLOW_01 */
-export function renderProcessFlow01Stub(_pptx: PptxGenJS, _spec: SlideSpecBase): void {
-  // Intentionally empty — dispatcher routing test only.
+/** JJ-15 renderer adapter. Group B dispatcher registration is JJ-19. */
+export function renderProcessFlow01Stub(pptx: PptxGenJS, spec: SlideSpecBase): void {
+  renderProcessFlow01(pptx, spec as ProcessFlow01SlideSpec);
 }
 
-/** Stub — JJ-16 will replace this implementation. Layout: TIMELINE_01 */
-export function renderTimeline01Stub(_pptx: PptxGenJS, _spec: SlideSpecBase): void {
-  // Intentionally empty — dispatcher routing test only.
+/** JJ-16 renderer adapter. Group B dispatcher registration is JJ-19. */
+export function renderTimeline01Stub(pptx: PptxGenJS, spec: SlideSpecBase): void {
+  renderTimeline01(pptx, spec as Timeline01SlideSpec);
 }
 
-/** Stub — JJ-17 will replace this implementation. Layout: MILESTONES_01 */
-export function renderMilestones01Stub(_pptx: PptxGenJS, _spec: SlideSpecBase): void {
-  // Intentionally empty — dispatcher routing test only.
+/** JJ-17 renderer adapter. Group B dispatcher registration is JJ-19. */
+export function renderMilestones01Stub(pptx: PptxGenJS, spec: SlideSpecBase): void {
+  renderMilestones01(pptx, spec as Milestones01SlideSpec);
 }
 
-/** Stub — JJ-18 will replace this implementation. Layout: TEAM_FTE_01 */
-export function renderTeamFte01Stub(_pptx: PptxGenJS, _spec: SlideSpecBase): void {
-  // Intentionally empty — dispatcher routing test only.
+/** JJ-18 renderer adapter. Group B dispatcher registration is JJ-19. */
+export function renderTeamFte01Stub(pptx: PptxGenJS, spec: SlideSpecBase): void {
+  renderTeamFte01(pptx, spec as TeamFte01SlideSpec);
 }
 
 /** Stub — MS-16 will replace this implementation. Layout: ARCHITECTURE_01 */

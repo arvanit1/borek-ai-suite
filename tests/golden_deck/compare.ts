@@ -3,7 +3,7 @@
  * Flags spacing, font, alignment, and color differences.
  */
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { PNG } from "pngjs";
 
@@ -305,6 +305,22 @@ export function listReferenceSlideFiles(_referenceDir: string, expectedCount = 1
   return Array.from({ length: expectedCount }, (_, index) =>
     `slide-${String(index + 1).padStart(2, "0")}.png`,
   );
+}
+
+export const GROUP_B_GOLDEN_FILES = [
+  "process_flow_01.png",
+  "timeline_01.png",
+  "milestones_01.png",
+  "team_fte_01.png",
+] as const;
+
+/** Resolve comparison file names for a reference directory (AT-55 or JJ-22 Group B). */
+export function listGoldenDeckFiles(referenceDir: string): string[] {
+  const groupB = GROUP_B_GOLDEN_FILES.filter((fileName) => existsSync(join(referenceDir, fileName)));
+  if (groupB.length === GROUP_B_GOLDEN_FILES.length) {
+    return [...groupB];
+  }
+  return listReferenceSlideFiles(referenceDir);
 }
 
 export function slideFileName(slideIndex: number): string {
