@@ -6,7 +6,7 @@ import shutil
 from pathlib import Path
 from uuid import UUID
 
-_ROOT = Path(__file__).resolve().parents[6]
+_ROOT = Path(__file__).resolve().parents[5]
 _MINIMAL_PPTX = _ROOT / "tests" / "fixtures" / "renderer" / "minimal.pptx"
 _ASSETS_ROOT = _ROOT / "tmp" / "deck_assets"
 

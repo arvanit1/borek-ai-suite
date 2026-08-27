@@ -280,7 +280,7 @@ Used by `deck_center.py` for preview/download routes until real renderer integra
 
 `opportunities`, `transcripts`, `transcript_sections`, `framework_versions`, `presentation_plans`, `presentations`, `presentation_versions`, `slides`, `generation_jobs`, `audit_log`.
 
-Verify: `py -3 scripts/verify_db.py` (REST or direct Postgres).
+Verify: `py -3 scripts/verify_supabase_complete.py` (schema + live RLS negative test; requires `RUN_SUPABASE_INTEGRATION=1` and pooler credentials). Quick schema-only check: `py -3 scripts/verify_db.py`.
 
 ---
 
@@ -401,7 +401,7 @@ Runs in order:
 | Test | Requires |
 |------|----------|
 | `tests/integration/api/test_worker_wiring.py` | Running Redis (`@pytest.mark.integration`) |
-| `tests/integration/api/test_rls_negative.py` | `RUN_SUPABASE_INTEGRATION=1` + migrated Supabase |
+| `tests/integration/api/test_rls_negative.py` | `RUN_SUPABASE_INTEGRATION=1` + migrated Supabase — or run `scripts/verify_supabase_complete.py` |
 | `tests/unit/renderer/test_libreoffice_pipeline.py` (E2E) | Local LibreOffice+pdftoppm **or** Docker (can flake on Docker Desktop) |
 
 ### 9.4 Per-ticket test quick reference

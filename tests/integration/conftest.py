@@ -3,8 +3,26 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 import pytest
+from dotenv import load_dotenv
+
+ROOT = Path(__file__).resolve().parents[2]
+load_dotenv(ROOT / ".env")
+
+_RUN_SUPABASE = os.getenv("RUN_SUPABASE_INTEGRATION") == "1"
+_PRESERVE_WHEN_SUPABASE = frozenset(
+    {
+        "DATABASE_URL",
+        "SUPABASE_URL",
+        "SUPABASE_ANON_KEY",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_JWT_SECRET",
+        "SUPABASE_DB_PASSWORD",
+        "SUPABASE_DB_POOLER_HOST",
+    }
+)
 
 _TEST_ENV = {
     "ANTHROPIC_API_KEY": "test-anthropic-key",
@@ -20,6 +38,8 @@ _TEST_ENV = {
 }
 
 for key, value in _TEST_ENV.items():
+    if _RUN_SUPABASE and key in _PRESERVE_WHEN_SUPABASE:
+        continue
     os.environ[key] = value
 
 from app.services.data.memory_store import reset_memory_store
