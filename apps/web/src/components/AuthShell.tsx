@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { BrandLogo } from "@/components/BrandLogo";
 
 interface AuthShellProps {
   title: string;
@@ -11,10 +11,8 @@ export function AuthShell({ title, subtitle, children }: AuthShellProps) {
     <div className="auth-page">
       <div className="auth-layout">
         <aside className="auth-brand">
-          <Link href="/" className="auth-logo">
-            <span className="auth-logo-mark" aria-hidden="true" />
-            Borek Pitch Factory
-          </Link>
+          <BrandLogo href="/login" />
+          <p className="auth-product-name">Pitch Factory</p>
           <p className="auth-tagline">
             Framework and presentation generation for sales engineering teams.
           </p>
@@ -31,9 +29,6 @@ export function AuthShell({ title, subtitle, children }: AuthShellProps) {
             <p>{subtitle}</p>
           </div>
           {children}
-          <p className="auth-back-link">
-            <Link href="/upload">Continue without signing in →</Link>
-          </p>
         </main>
       </div>
     </div>
