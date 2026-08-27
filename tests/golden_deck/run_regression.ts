@@ -3,8 +3,8 @@
  * AT-55: Golden-deck regression runner — compare rendered PNGs to approved references.
  *
  * Usage:
- *   tsx run_regression.ts --actual <dir> [--reference <dir>]
- *   tsx run_regression.ts --pptx <path> --output <dir> [--reference <dir>]
+ *   tsx run_regression.ts --actual <dir> [--reference <dir>] [--expected-count <n>]
+ *   tsx run_regression.ts --pptx <path> --output <dir> [--reference <dir>] [--expected-count <n>]
  */
 
 import { writeFileSync } from "node:fs";
@@ -16,6 +16,7 @@ import {
   compareGoldenDeck,
   formatGoldenDeckReport,
   listGoldenDeckFiles,
+  listReferenceSlideFiles,
 } from "./compare.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -27,6 +28,7 @@ type CliOptions = {
   actualDir: string | null;
   pptxPath: string | null;
   outputDir: string | null;
+  expectedCount: number;
 };
 
 function parseArgs(argv: string[]): CliOptions {
@@ -35,6 +37,7 @@ function parseArgs(argv: string[]): CliOptions {
     actualDir: null,
     pptxPath: null,
     outputDir: null,
+    expectedCount: 1,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -51,6 +54,13 @@ function parseArgs(argv: string[]): CliOptions {
       index += 1;
     } else if (token === "--output" && value) {
       options.outputDir = resolve(value);
+      index += 1;
+    } else if (token === "--expected-count" && value) {
+      const expectedCount = Number.parseInt(value, 10);
+      if (!Number.isSafeInteger(expectedCount) || expectedCount < 1) {
+        throw new Error(`--expected-count must be a positive integer, received: ${value}`);
+      }
+      options.expectedCount = expectedCount;
       index += 1;
     }
   }
@@ -70,7 +80,10 @@ function main(): number {
     actualDir = outputDir;
   }
 
-  const slideFiles = listGoldenDeckFiles(options.referenceDir);
+  const slideFiles =
+    options.expectedCount === 1
+      ? listGoldenDeckFiles(options.referenceDir)
+      : listReferenceSlideFiles(options.referenceDir, options.expectedCount);
   const result = compareGoldenDeck(options.referenceDir, actualDir, slideFiles);
   const report = formatGoldenDeckReport(result);
   if (result.status === "PASS") {
