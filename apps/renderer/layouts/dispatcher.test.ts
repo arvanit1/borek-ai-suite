@@ -6,22 +6,49 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import PptxGenJS from "pptxgenjs";
+import JSZip from "jszip";
 
 import layoutRegistryJson from "../../../packages/contracts/layout_registry.json" with { type: "json" };
+import contextFixtureJson from "../../../packages/contracts/fixtures/slide_spec/group_a/context_01.minimal.json" with { type: "json" };
 import coverFixtureJson from "../../../packages/contracts/fixtures/slide_spec/group_a/cover_01.minimal.json" with { type: "json" };
+import problemSolutionFixtureJson from "../../../packages/contracts/fixtures/slide_spec/group_a/problem_solution_01.minimal.json" with { type: "json" };
 import requirementsFixtureJson from "../../../packages/contracts/fixtures/slide_spec/group_a/requirements_matrix_01.minimal.json" with { type: "json" };
 import scopeFixtureJson from "../../../packages/contracts/fixtures/slide_spec/group_a/scope_01.minimal.json" with { type: "json" };
 import milestonesFixtureJson from "../../../packages/contracts/fixtures/slide_spec/group_b/milestones_01.minimal.json" with { type: "json" };
 import processFlowFixtureJson from "../../../packages/contracts/fixtures/slide_spec/group_b/process_flow_01.minimal.json" with { type: "json" };
 import teamFteFixtureJson from "../../../packages/contracts/fixtures/slide_spec/group_b/team_fte_01.minimal.json" with { type: "json" };
 import timelineFixtureJson from "../../../packages/contracts/fixtures/slide_spec/group_b/timeline_01.minimal.json" with { type: "json" };
-import { registerMasterContent } from "../design_system/masters/MASTER_CONTENT.js";
-import { registerMasterCover } from "../design_system/masters/MASTER_COVER.js";
+import {
+  MASTER_CONTENT_NAME,
+  registerMasterContent,
+} from "../design_system/masters/MASTER_CONTENT.js";
+import {
+  MASTER_COVER_NAME,
+  registerMasterCover,
+} from "../design_system/masters/MASTER_COVER.js";
 import {
   LAYOUT_REGISTRY,
   UnsupportedLayoutError,
   dispatchSlide,
 } from "./dispatcher.js";
+import { renderContext01 } from "./group_a/renderContext01.js";
+import { renderCover01 } from "./group_a/renderCover01.js";
+import { renderProblemSolution01 } from "./group_a/renderProblemSolution01.js";
+import { renderRequirementsMatrix01 } from "./group_a/renderRequirementsMatrix01.js";
+import { renderScope01 } from "./group_a/renderScope01.js";
+import { assertUsesMaster } from "./group_a/rendererTestHelpers.js";
+import {
+  renderArchitecture01Stub,
+  renderCompliance01Stub,
+  renderExecutiveSummary01Stub,
+  renderMilestones01Stub,
+  renderNextSteps01Stub,
+  renderOpenQuestions01Stub,
+  renderProcessFlow01Stub,
+  renderSuccessMetrics01Stub,
+  renderTeamFte01Stub,
+  renderTimeline01Stub,
+} from "./stubs.js";
 import type { LayoutId, SlideSpecBase } from "../src/contracts.js";
 
 const LAYOUTS_DIR = fileURLToPath(new URL(".", import.meta.url));
@@ -43,6 +70,7 @@ assert.deepEqual(
 );
 
 const dispatcherSource = readFileSync(DISPATCHER_TS, "utf8");
+const stubsSource = readFileSync(STUBS_TS, "utf8");
 assert.doesNotMatch(
   dispatcherSource,
   /\bswitch\s*\(/,
@@ -58,8 +86,49 @@ assert.match(
   /export const LAYOUT_REGISTRY/,
   "LAYOUT_REGISTRY must be the single registration point in dispatcher.ts",
 );
+assert.doesNotMatch(
+  stubsSource,
+  /render(?:Cover|Context|ProblemSolution|Scope|RequirementsMatrix)01Stub/,
+  "completed Group A layouts must not retain stub renderers",
+);
 
-const stubsSource = readFileSync(STUBS_TS, "utf8");
+const groupARenderers = {
+  COVER_01: renderCover01,
+  CONTEXT_01: renderContext01,
+  PROBLEM_SOLUTION_01: renderProblemSolution01,
+  SCOPE_01: renderScope01,
+  REQUIREMENTS_MATRIX_01: renderRequirementsMatrix01,
+};
+
+const unchangedStubRenderers = {
+  EXECUTIVE_SUMMARY_01: renderExecutiveSummary01Stub,
+  PROCESS_FLOW_01: renderProcessFlow01Stub,
+  TIMELINE_01: renderTimeline01Stub,
+  MILESTONES_01: renderMilestones01Stub,
+  TEAM_FTE_01: renderTeamFte01Stub,
+  ARCHITECTURE_01: renderArchitecture01Stub,
+  COMPLIANCE_01: renderCompliance01Stub,
+  SUCCESS_METRICS_01: renderSuccessMetrics01Stub,
+  OPEN_QUESTIONS_01: renderOpenQuestions01Stub,
+  NEXT_STEPS_01: renderNextSteps01Stub,
+};
+
+for (const [layoutId, renderer] of Object.entries(groupARenderers)) {
+  assert.equal(
+    LAYOUT_REGISTRY[layoutId as LayoutId],
+    renderer,
+    `${layoutId} must map directly to its real Group A renderer`,
+  );
+}
+
+for (const [layoutId, renderer] of Object.entries(unchangedStubRenderers)) {
+  assert.equal(
+    LAYOUT_REGISTRY[layoutId as LayoutId],
+    renderer,
+    `${layoutId} must retain its existing Group B/C or shared stub mapping`,
+  );
+}
+
 assert.match(stubsSource, /renderProcessFlow01\(/);
 assert.match(stubsSource, /renderTimeline01\(/);
 assert.match(stubsSource, /renderMilestones01\(/);
@@ -76,6 +145,8 @@ assert.match(dispatcherSource, /TEAM_FTE_01: renderTeamFte01Stub/);
 function minimalSlideSpec(layoutId: LayoutId): SlideSpecBase {
   const implementedSpecs: Partial<Record<LayoutId, SlideSpecBase>> = {
     COVER_01: coverFixtureJson as unknown as SlideSpecBase,
+    CONTEXT_01: contextFixtureJson as unknown as SlideSpecBase,
+    PROBLEM_SOLUTION_01: problemSolutionFixtureJson as unknown as SlideSpecBase,
     SCOPE_01: scopeFixtureJson as unknown as SlideSpecBase,
     REQUIREMENTS_MATRIX_01: requirementsFixtureJson as unknown as SlideSpecBase,
     PROCESS_FLOW_01: processFlowFixtureJson as unknown as SlideSpecBase,
@@ -106,6 +177,43 @@ for (const layoutId of REGISTRY_LAYOUT_IDS as LayoutId[]) {
     `dispatchSlide must not throw for registered layoutId ${layoutId}`,
   );
 }
+
+const groupAMasters: Readonly<Record<string, string>> = {
+  COVER_01: MASTER_COVER_NAME,
+  CONTEXT_01: MASTER_CONTENT_NAME,
+  PROBLEM_SOLUTION_01: MASTER_CONTENT_NAME,
+  SCOPE_01: MASTER_CONTENT_NAME,
+  REQUIREMENTS_MATRIX_01: MASTER_CONTENT_NAME,
+};
+
+for (const [layoutId, expectedMaster] of Object.entries(groupAMasters)) {
+  const spec = minimalSlideSpec(layoutId as LayoutId);
+  const original = structuredClone(spec);
+  const rendered = new PptxGenJS();
+  registerMasterCover(rendered);
+  registerMasterContent(rendered);
+  dispatchSlide(rendered, spec);
+
+  assert.deepEqual(spec, original, `${layoutId} dispatch must not mutate its SlideSpec`);
+
+  const output = await rendered.write({ outputType: "nodebuffer" });
+  assert.ok(Buffer.isBuffer(output), `${layoutId} must render a PPTX buffer`);
+  const zip = await JSZip.loadAsync(output);
+  await assertUsesMaster(zip, expectedMaster);
+}
+
+const passThroughSpec = minimalSlideSpec("COVER_01");
+const originalCoverRenderer = LAYOUT_REGISTRY.COVER_01;
+let receivedSpec: SlideSpecBase | undefined;
+LAYOUT_REGISTRY.COVER_01 = (_pptx, spec) => {
+  receivedSpec = spec;
+};
+try {
+  dispatchSlide(new PptxGenJS(), passThroughSpec);
+} finally {
+  LAYOUT_REGISTRY.COVER_01 = originalCoverRenderer;
+}
+assert.equal(receivedSpec, passThroughSpec, "dispatcher must pass the validated SlideSpec unchanged");
 
 const unknownLayoutId = "UNKNOWN_LAYOUT_99";
 let thrown: unknown;
