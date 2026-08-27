@@ -1,4 +1,4 @@
-/** BT-21 focused renderer tests. */
+/** BT-21 renderer checks and BT-23 Group A coverage. */
 
 import assert from "node:assert/strict";
 
@@ -28,6 +28,7 @@ const realisticFixture = realisticFixtureJson as RequirementsMatrix01SlideSpec;
 const rendererSource = readRendererSource(
   new URL("./renderRequirementsMatrix01.ts", import.meta.url),
 );
+const bt23OpportunityName = "Long opportunity ä ö ü Ä Ö Ü ß & / % + (Pilot's) -";
 const statuses: readonly RequirementStatus[] = ["included", "partial", "later"];
 
 assert.match(rendererSource, /MASTER_CONTENT_NAME/);
@@ -123,7 +124,7 @@ const maximumFixture: RequirementsMatrix01SlideSpec = {
   schema_version: "1.0",
   layoutId: "REQUIREMENTS_MATRIX_01",
   sectionLabel: "ANFORDERUNGEN & STATUS".padEnd(32, "Ä"),
-  title: "Requirements für geprüfte Automatisierung ".padEnd(72, "Ü"),
+  title: bt23OpportunityName.padEnd(72, "X"),
   subtitle: "German & English requirements with approved status semantics ".padEnd(100, "ß"),
   sourceChapterIds: ["5"],
   requirements: Array.from({ length: 6 }, (_, index) => ({
@@ -132,17 +133,21 @@ const maximumFixture: RequirementsMatrix01SlideSpec = {
     status: statuses[index % statuses.length],
   })),
 };
+assert.equal(
+  maximumFixture.title.length,
+  72,
+  "BT-23 requirements opportunity name must reach BT-15 max",
+);
 const maximum = await renderToPptx((pptx) =>
   renderRequirementsMatrix01(pptx, maximumFixture),
 );
 assertXmlContains(maximum.slideXml, [
-  maximumFixture.title,
+  bt23OpportunityName.replace("&", "&amp;").replace("'", "&apos;"),
+  maximumFixture.subtitle!.replace("&", "&amp;"),
   maximumFixture.requirements[5].title.replace("&", "&amp;"),
   "Included",
   "Partial",
   "Later",
-  "&amp;",
-  "Ä",
 ]);
 
 process.stdout.write("BT-21 REQUIREMENTS_MATRIX_01 renderer checks passed\n");

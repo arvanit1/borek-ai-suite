@@ -1,4 +1,4 @@
-/** BT-17 focused renderer tests. */
+/** BT-17 renderer checks and BT-23 Group A coverage. */
 
 import assert from "node:assert/strict";
 
@@ -24,6 +24,7 @@ import {
 const minimalFixture = minimalFixtureJson as Cover01SlideSpec;
 const realisticFixture = realisticFixtureJson as Cover01SlideSpec;
 const rendererSource = readRendererSource(new URL("./renderCover01.ts", import.meta.url));
+const bt23OpportunityName = "Long opportunity ä ö ü Ä Ö Ü ß & / % + (Pilot's) -";
 const coverRenderOptions = {
   registerMaster: registerMasterCover,
   expectedMasterName: MASTER_COVER_NAME,
@@ -85,7 +86,7 @@ const maximumFixture: Cover01SlideSpec = {
   schema_version: "1.0",
   layoutId: "COVER_01",
   sectionLabel: "PRÜFUNG & AUTOMATION".padEnd(40, "Ä"),
-  title: "Invoice matching für geprüfte Abläufe ".padEnd(60, "Ü"),
+  title: bt23OpportunityName.padEnd(60, "X"),
   subtitle: "Controlled automation & menschliche Kontrolle ".padEnd(100, "ß"),
   sourceChapterIds: ["1"],
   statBadges: [
@@ -94,10 +95,16 @@ const maximumFixture: Cover01SlideSpec = {
     { value: "24/7", label: "English & Deutsch".padEnd(32, "C") },
   ],
 };
+assert.equal(maximumFixture.title.length, 60, "BT-23 cover opportunity name must reach BT-15 max");
 const maximum = await renderToPptx(
   (pptx) => renderCover01(pptx, maximumFixture),
   coverRenderOptions,
 );
-assertXmlContains(maximum.slideXml, [maximumFixture.title, "99,9%", "&amp;", "Ä"]);
+assertXmlContains(maximum.slideXml, [
+  bt23OpportunityName.replace("&", "&amp;").replace("'", "&apos;"),
+  "99,9%",
+  "Automatisch geprüft",
+  "Human-reviewed exceptions",
+]);
 
 process.stdout.write("BT-17 COVER_01 renderer checks passed\n");
