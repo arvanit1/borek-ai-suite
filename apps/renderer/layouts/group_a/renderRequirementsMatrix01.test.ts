@@ -14,6 +14,7 @@ import {
   computeRequirementsMatrix01Layout,
   renderRequirementsMatrix01,
 } from "./renderRequirementsMatrix01.js";
+import { BorekGrid } from "../../design_system/tokens/grid.js";
 import {
   HARDCODED_HEX_PATTERN,
   INLINE_FONT_FAMILY_PATTERN,
@@ -149,5 +150,39 @@ assertXmlContains(maximum.slideXml, [
   "Partial",
   "Later",
 ]);
+
+const EMU_PER_INCH = 914400;
+const gridColumnWidthsInches = [...maximum.slideXml.matchAll(/<a:gridCol w="(\d+)"/g)].map(
+  (match) => Number(match[1]) / EMU_PER_INCH,
+);
+assert.equal(
+  gridColumnWidthsInches.length,
+  maximumLayout.tables.length * 2,
+  "BT-24 slide 5 must render one 2-column table per requirements matrix region",
+);
+for (let tableIndex = 0; tableIndex < maximumLayout.tables.length; tableIndex += 1) {
+  const table = maximumLayout.tables[tableIndex];
+  const tableGridCols = gridColumnWidthsInches.slice(tableIndex * 2, tableIndex * 2 + 2);
+  const tableWidth = tableGridCols.reduce((sum, width) => sum + width, 0);
+  assert.ok(
+    Math.abs(tableWidth - table.w) < 0.001,
+    `table ${tableIndex + 1} gridCol total must match layout width ${table.w.toFixed(3)}"`,
+  );
+}
+const pillInset = BorekGrid.rowGap / 2;
+for (let index = 0; index < maximumLayout.statusPills.length; index += 1) {
+  const pill = maximumLayout.statusPills[index];
+  const tableIndex = index < 3 ? 0 : 1;
+  const table = maximumLayout.tables[tableIndex];
+  const statusColumnStart = table.x + table.w / 2;
+  assert.ok(
+    pill.x >= statusColumnStart + pillInset - 0.001,
+    "status pill must start inside the status column",
+  );
+  assert.ok(
+    pill.x + pill.w <= table.x + table.w - pillInset + 0.001,
+    "status pill must not extend past the table edge (BT-24 blocker)",
+  );
+}
 
 process.stdout.write("BT-21 REQUIREMENTS_MATRIX_01 renderer checks passed\n");
