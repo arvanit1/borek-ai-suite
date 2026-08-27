@@ -1,5 +1,10 @@
+import { RequireAuth } from "@/components/RequireAuth";
 import { TranscriptUploadPanel } from "@/components/TranscriptUploadPanel";
 
 export default function UploadPage() {
-  return <TranscriptUploadPanel />;
+  return (
+    <RequireAuth>
+      <TranscriptUploadPanel />
+    </RequireAuth>
+  );
 }

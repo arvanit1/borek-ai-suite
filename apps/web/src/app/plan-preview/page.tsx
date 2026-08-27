@@ -1,4 +1,6 @@
+import { PipelineContextMissing } from "@/components/PipelineContextMissing";
 import { PlanPreviewPanel } from "@/components/PlanPreviewPanel";
+import { RequireAuth } from "@/components/RequireAuth";
 
 interface PlanPreviewPageProps {
   searchParams: Promise<{ opportunityId?: string }>;
@@ -8,17 +10,16 @@ export default async function PlanPreviewPage({ searchParams }: PlanPreviewPageP
   const params = await searchParams;
   const opportunityId = params.opportunityId?.trim() ?? "";
 
-  if (!opportunityId) {
-    return (
-      <div className="app-shell">
-        <h1>Presentation plan preview</h1>
-        <p className="upload-hint">
-          Open this page with an opportunity id, for example{" "}
-          <code>/plan-preview?opportunityId=&lt;uuid&gt;</code>.
-        </p>
-      </div>
-    );
-  }
-
-  return <PlanPreviewPanel opportunityId={opportunityId} />;
+  return (
+    <RequireAuth>
+      {!opportunityId ? (
+        <PipelineContextMissing
+          title="Presentation plan preview"
+          detail="Inspect slide order, purpose, and layout before generating the deck."
+        />
+      ) : (
+        <PlanPreviewPanel opportunityId={opportunityId} />
+      )}
+    </RequireAuth>
+  );
 }

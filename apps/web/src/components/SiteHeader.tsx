@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { BrandLogo } from "@/components/BrandLogo";
+
 interface SiteHeaderProps {
   signedInEmail?: string | null;
 }
@@ -7,13 +9,9 @@ interface SiteHeaderProps {
 export function SiteHeader({ signedInEmail }: SiteHeaderProps) {
   return (
     <header className="site-header">
-      <Link href="/upload" className="site-logo">
-        <span className="site-logo-mark" aria-hidden="true" />
-        Borek Pitch Factory
-      </Link>
-      <nav className="site-nav">
+      <BrandLogo showProductName />
+      <nav className="site-nav" aria-label="Main">
         <Link href="/upload">Upload</Link>
-        <Link href="/framework-review">Framework</Link>
         {signedInEmail ? (
           <span className="site-user">{signedInEmail}</span>
         ) : (

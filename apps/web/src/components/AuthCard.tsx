@@ -5,12 +5,28 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { useAuth } from "@/components/AuthProvider";
+import {
+  DUPLICATE_EMAIL_MESSAGE,
+  isDuplicateSignUpEmail,
+  resolveSignUpErrorMessage,
+} from "@/lib/authSignUp";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase";
 
 export type AuthMode = "sign-in" | "sign-up";
 
 interface AuthCardProps {
   mode: AuthMode;
+}
+
+function resolvePostAuthPath(): string {
+  if (typeof window === "undefined") {
+    return "/upload";
+  }
+  const next = new URLSearchParams(window.location.search).get("next")?.trim();
+  if (next && next.startsWith("/") && !next.startsWith("//")) {
+    return next;
+  }
+  return "/upload";
 }
 
 export function AuthCard({ mode: initialMode }: AuthCardProps) {
@@ -26,6 +42,12 @@ export function AuthCard({ mode: initialMode }: AuthCardProps) {
   useEffect(() => {
     setMode(initialMode);
   }, [initialMode]);
+
+  useEffect(() => {
+    if (session) {
+      router.replace(resolvePostAuthPath());
+    }
+  }, [router, session]);
 
   if (!isSupabaseConfigured()) {
     return (
@@ -52,51 +74,38 @@ export function AuthCard({ mode: initialMode }: AuthCardProps) {
       const { error: signInError } = await client.auth.signInWithPassword({ email, password });
       setBusy(false);
       if (signInError) {
-        setError(signInError.message);
+        setError(resolveSignUpErrorMessage(signInError.message));
         return;
       }
-      router.push("/upload");
+      router.push(resolvePostAuthPath());
       return;
     }
 
     const { data, error: signUpError } = await client.auth.signUp({ email, password });
     setBusy(false);
     if (signUpError) {
-      setError(signUpError.message);
+      setError(resolveSignUpErrorMessage(signUpError.message));
+      return;
+    }
+    if (isDuplicateSignUpEmail(data.user)) {
+      setError(DUPLICATE_EMAIL_MESSAGE);
+      setMode("sign-in");
       return;
     }
     if (data.session) {
-      router.push("/upload");
+      router.push(resolvePostAuthPath());
       return;
     }
     setInfo("Account created. Confirm your email if required, then sign in.");
     setMode("sign-in");
   }
 
-  async function handleSignOut() {
-    const client = getSupabaseBrowserClient();
-    if (!client) {
-      return;
-    }
-    setBusy(true);
-    await client.auth.signOut();
-    setBusy(false);
-  }
-
   if (session) {
     return (
       <div className="auth-card">
         <div className="auth-card-header">
-          <h1>You&apos;re signed in</h1>
-          <p>{session.user.email ?? session.user.id}</p>
-        </div>
-        <div className="auth-actions">
-          <Link href="/upload" className="btn btn-primary btn-block">
-            Continue to upload
-          </Link>
-          <button type="button" className="btn btn-secondary btn-block" disabled={busy} onClick={handleSignOut}>
-            Sign out
-          </button>
+          <h1>Redirecting…</h1>
+          <p>Taking you to the app.</p>
         </div>
       </div>
     );
