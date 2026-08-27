@@ -117,7 +117,7 @@ def test_es32_synthesis_generation_meta_includes_job_log() -> None:
     }
 
     def complete(system: str, user: str, schema: dict) -> dict:
-        log_llm_call(
+        log_generation_job(
             stage=STAGE_SYNTHESIS,
             prompt_version=SYNTHESIS_PROMPT_VERSION,
             model="claude-sonnet-4-5",
