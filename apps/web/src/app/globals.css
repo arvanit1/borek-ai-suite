@@ -1,32 +1,42 @@
 :root {
-  /* Borek brand — technical plan §16 / renderer design_system/tokens */
+  /* Borek corporate site — boreksolutions.de Elementor kit + Binox theme */
+  --borek-navy: #0d1240;
+  --borek-navy-header: #0d123f;
+  --borek-navy-dark: #090c28;
+  --borek-navy-deep: #020611;
+  --borek-accent: #db3d00;
+  --borek-gold: #ffcd4c;
+  --borek-cream: #fef2ed;
   --borek-background: #ffffff;
-  --borek-text: #182230;
-  --borek-muted: #667085;
+  --borek-text: #0d1240;
+  --borek-text-on-dark: #ffffff;
+  --borek-muted: #54595f;
   --borek-border: #e4e7ec;
-  --borek-primary: #0057b8;
-  --borek-primary-hover: #004a9e;
-  --borek-primary-soft: #e8f1fb;
-  --borek-primary-soft-hover: #d4e6f7;
-  --borek-cover: #182230;
-  --borek-primary-rgb: 0, 87, 184;
-  --borek-text-rgb: 24, 34, 48;
+  --borek-primary: var(--borek-navy);
+  --borek-primary-hover: var(--borek-navy-dark);
+  --borek-primary-soft: #eef0f7;
+  --borek-primary-soft-hover: #e3e7f2;
+  --borek-cover: var(--borek-navy-dark);
+  --borek-page-bg: #f9f9f9;
+  --borek-primary-rgb: 13, 18, 64;
+  --borek-accent-rgb: 219, 61, 0;
 
-  --color-bg: #f4f6f8;
+  --color-bg: var(--borek-page-bg);
   --color-surface: var(--borek-background);
   --color-border: var(--borek-border);
   --color-text: var(--borek-text);
   --color-muted: var(--borek-muted);
   --color-primary: var(--borek-primary);
   --color-primary-hover: var(--borek-primary-hover);
+  --color-accent: var(--borek-accent);
   --color-success: #0f7b4a;
   --color-warning: #9a6700;
   --color-danger: #b42318;
   --color-rejected-bg: #fef3f2;
   --radius: 10px;
-  --shadow: 0 8px 24px rgba(var(--borek-text-rgb), 0.08);
-  --font-body: "Aptos", "Segoe UI", system-ui, -apple-system, sans-serif;
-  --font-heading: "Aptos Display", "Aptos", "Segoe UI", system-ui, sans-serif;
+  --shadow: 0 8px 24px rgba(var(--borek-primary-rgb), 0.08);
+  --font-body: "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-heading: "Segoe UI", system-ui, -apple-system, sans-serif;
   --font: var(--font-body);
 }
 
@@ -278,8 +288,8 @@ textarea {
 
 .alert-info {
   background: var(--borek-primary-soft);
-  color: var(--borek-primary-hover);
-  border: 1px solid rgba(var(--borek-primary-rgb), 0.25);
+  color: var(--borek-navy);
+  border: 1px solid rgba(var(--borek-primary-rgb), 0.15);
 }
 
 .alert-success {
@@ -293,77 +303,93 @@ textarea {
   font-weight: 600;
 }
 
-/* ——— Site header ——— */
+/* ——— Site header (corporate navy bar) ——— */
 .site-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.85rem 1.25rem;
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
+  padding: 0.75rem 1.5rem;
+  background: var(--borek-navy-header);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.site-logo {
+.brand-logo {
   display: inline-flex;
   align-items: center;
-  gap: 0.55rem;
-  font-weight: 700;
-  font-size: 1rem;
-  font-family: var(--font-heading);
-  color: var(--color-text);
+  gap: 0.85rem;
   text-decoration: none;
-  letter-spacing: -0.02em;
+  flex-shrink: 0;
 }
 
-.site-logo-mark {
-  width: 0.45rem;
-  height: 1.35rem;
-  border-radius: 2px;
-  background: var(--color-primary);
-  flex-shrink: 0;
+.brand-logo-image {
+  display: block;
+  width: auto;
+  height: 2rem;
+  max-width: min(220px, 52vw);
+  object-fit: contain;
+}
+
+.brand-logo-product {
+  padding-left: 0.85rem;
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.82);
+  white-space: nowrap;
 }
 
 .site-nav {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 1.1rem;
   font-size: 0.92rem;
 }
 
 .site-nav a {
   text-decoration: none;
-  color: var(--color-muted);
+  color: rgba(255, 255, 255, 0.88);
   font-weight: 600;
 }
 
 .site-nav a:hover {
-  color: var(--color-primary);
+  color: var(--borek-gold);
 }
 
 .site-nav-cta {
-  padding: 0.35rem 0.75rem;
+  padding: 0.4rem 0.85rem;
   border-radius: 8px;
-  background: var(--color-primary) !important;
-  color: #fff !important;
+  background: var(--borek-gold) !important;
+  color: var(--borek-navy) !important;
+}
+
+.site-nav-cta:hover {
+  background: #ffe07a !important;
+  color: var(--borek-navy) !important;
 }
 
 .site-user {
-  color: var(--color-muted);
+  color: rgba(255, 255, 255, 0.65);
   font-size: 0.88rem;
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ——— Auth pages ——— */
 .auth-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, var(--borek-primary-soft) 0%, var(--color-bg) 45%, #f8fafc 100%);
+  background: var(--color-bg);
 }
 
 .auth-layout {
   display: grid;
   grid-template-columns: 1fr 1fr;
   min-height: 100vh;
-  max-width: 1100px;
+  max-width: 1180px;
   margin: 0 auto;
 }
 
@@ -372,31 +398,27 @@ textarea {
   flex-direction: column;
   justify-content: center;
   padding: 3rem 2.5rem;
+  background: linear-gradient(180deg, var(--borek-navy-dark) 0%, var(--borek-navy) 55%, var(--borek-navy-deep) 100%);
+  color: var(--borek-text-on-dark);
 }
 
-.auth-logo {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.65rem;
-  font-size: 1.5rem;
-  font-weight: 750;
-  font-family: var(--font-heading);
-  color: var(--color-text);
-  text-decoration: none;
-  letter-spacing: -0.02em;
+.auth-brand .brand-logo-image {
+  height: 2.35rem;
+  max-width: 240px;
 }
 
-.auth-logo-mark {
-  width: 0.5rem;
-  height: 1.65rem;
-  border-radius: 3px;
-  background: var(--color-primary);
-  flex-shrink: 0;
+.auth-product-name {
+  margin: 1rem 0 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--borek-gold);
 }
 
 .auth-tagline {
   margin: 0.85rem 0 1.5rem;
-  color: var(--color-muted);
+  color: rgba(255, 255, 255, 0.82);
   line-height: 1.6;
   max-width: 28rem;
 }
@@ -404,7 +426,7 @@ textarea {
 .auth-features {
   margin: 0;
   padding-left: 1.1rem;
-  color: var(--color-text);
+  color: rgba(255, 255, 255, 0.9);
   line-height: 1.9;
 }
 
@@ -473,7 +495,7 @@ textarea {
 .auth-tab-active {
   background: #fff;
   color: var(--color-text);
-  box-shadow: 0 1px 3px rgba(26, 35, 50, 0.08);
+  box-shadow: 0 1px 3px rgba(var(--borek-primary-rgb), 0.12);
 }
 
 .auth-form {
@@ -497,6 +519,24 @@ textarea {
   margin: 1.25rem 0 0;
   text-align: center;
   font-size: 0.88rem;
+}
+
+.auth-loading,
+.pipeline-empty-page {
+  min-height: calc(100vh - 4rem);
+  display: grid;
+  place-items: center;
+  padding: 2rem 1.25rem;
+}
+
+.auth-loading p {
+  margin: 0;
+  color: var(--color-muted);
+}
+
+.pipeline-empty-page h1 {
+  margin: 0 0 0.35rem;
+  font-size: 1.65rem;
 }
 
 .btn-block {
@@ -548,7 +588,7 @@ textarea {
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--color-primary);
+  color: var(--color-accent);
 }
 
 .upload-hero h1 {
@@ -762,8 +802,8 @@ textarea {
 
 .upload-banner-info {
   background: var(--borek-primary-soft);
-  border: 1px solid rgba(var(--borek-primary-rgb), 0.25);
-  color: var(--borek-primary-hover);
+  border: 1px solid rgba(var(--borek-primary-rgb), 0.15);
+  color: var(--borek-navy);
 }
 
 .upload-banner-success {
@@ -991,11 +1031,25 @@ textarea {
   }
 
   .auth-brand {
-    display: none;
+    display: flex;
+    padding: 1.75rem 1.25rem 1.5rem;
+  }
+
+  .auth-brand .brand-logo-image {
+    height: 1.75rem;
   }
 
   .auth-main {
     padding: 1.5rem 1.25rem 2.5rem;
+  }
+
+  .site-header {
+    padding: 0.65rem 1rem;
+    flex-wrap: wrap;
+  }
+
+  .brand-logo-product {
+    display: none;
   }
 
   .site-nav {

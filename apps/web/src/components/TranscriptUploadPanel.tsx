@@ -99,22 +99,6 @@ export function TranscriptUploadPanel() {
 
       <div className="app-shell upload-body">
         {!loading && isAuthenticated ? <span data-testid="auth-ready" hidden /> : null}
-        {!loading && !isAuthenticated ? (
-          <div className="upload-banner upload-banner-info">
-            <div>
-              <strong>Authentication required</strong>
-              <p>Sign in to create opportunities and upload transcripts to the API.</p>
-            </div>
-            <div className="upload-banner-actions">
-              <Link href="/login" className="btn btn-primary">
-                Sign in
-              </Link>
-              <Link href="/register" className="btn btn-secondary">
-                Register
-              </Link>
-            </div>
-          </div>
-        ) : null}
 
         <div className="upload-layout">
           <aside className="upload-sidebar">
