@@ -49,6 +49,12 @@
     "test:jj20": "npm run test:jj15 && npm run test:jj16 && npm run test:jj17 && npm run test:jj18",
     "test:jj21": "tsx layouts/group_b/renderTimeline01.edge.test.ts",
     "test:jj22": "tsx ../../tests/golden_deck/group_b/run_regression.test.ts",
+    "test:ms16": "tsx layouts/group_c/renderArchitecture01.test.ts",
+    "test:ms17": "tsx layouts/group_c/renderCompliance01.test.ts",
+    "test:ms18": "tsx layouts/group_c/renderSuccessMetrics01.test.ts",
+    "test:ms19": "tsx layouts/group_c/renderOpenQuestions01.test.ts",
+    "test:ms20": "tsx layouts/group_c/renderNextSteps01.test.ts",
+    "test:ms21": "tsx layouts/dispatcher.test.ts",
     "start:server": "tsx server.ts"
   },
   "dependencies": {

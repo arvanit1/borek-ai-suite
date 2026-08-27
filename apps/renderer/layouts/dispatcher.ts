@@ -13,15 +13,15 @@ import { renderCover01 } from "./group_a/renderCover01.js";
 import { renderProblemSolution01 } from "./group_a/renderProblemSolution01.js";
 import { renderRequirementsMatrix01 } from "./group_a/renderRequirementsMatrix01.js";
 import { renderScope01 } from "./group_a/renderScope01.js";
+import { renderArchitecture01 } from "./group_c/renderArchitecture01.js";
+import { renderCompliance01 } from "./group_c/renderCompliance01.js";
+import { renderNextSteps01 } from "./group_c/renderNextSteps01.js";
+import { renderOpenQuestions01 } from "./group_c/renderOpenQuestions01.js";
+import { renderSuccessMetrics01 } from "./group_c/renderSuccessMetrics01.js";
 import {
-  renderArchitecture01Stub,
-  renderCompliance01Stub,
   renderExecutiveSummary01Stub,
   renderMilestones01Stub,
-  renderNextSteps01Stub,
-  renderOpenQuestions01Stub,
   renderProcessFlow01Stub,
-  renderSuccessMetrics01Stub,
   renderTeamFte01Stub,
   renderTimeline01Stub,
   type LayoutRenderFn,
@@ -64,11 +64,11 @@ export const LAYOUT_REGISTRY: Record<LayoutId, RenderFn> = {
   TIMELINE_01: renderTimeline01Stub,
   MILESTONES_01: renderMilestones01Stub,
   TEAM_FTE_01: renderTeamFte01Stub,
-  ARCHITECTURE_01: renderArchitecture01Stub,
-  COMPLIANCE_01: renderCompliance01Stub,
-  SUCCESS_METRICS_01: renderSuccessMetrics01Stub,
-  OPEN_QUESTIONS_01: renderOpenQuestions01Stub,
-  NEXT_STEPS_01: renderNextSteps01Stub,
+  ARCHITECTURE_01: registerValidatedRenderer(renderArchitecture01),
+  COMPLIANCE_01: registerValidatedRenderer(renderCompliance01),
+  SUCCESS_METRICS_01: registerValidatedRenderer(renderSuccessMetrics01),
+  OPEN_QUESTIONS_01: registerValidatedRenderer(renderOpenQuestions01),
+  NEXT_STEPS_01: registerValidatedRenderer(renderNextSteps01),
 };
 
 /**

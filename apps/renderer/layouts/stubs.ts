@@ -1,7 +1,8 @@
 /**
- * AT-33: Layout render stubs until BT/JJ/MS layout tickets replace implementations.
+ * AT-33: Layout render stubs until remaining layout tickets replace implementations.
  *
- * One stub per registered layoutId — real renderers live in layouts/group_* when ready.
+ * Group A and Group C register real renderers on LAYOUT_REGISTRY.
+ * Group B still routes through these adapters (JJ-19).
  */
 
 import type PptxGenJS from "pptxgenjs";
@@ -41,29 +42,4 @@ export function renderMilestones01Stub(pptx: PptxGenJS, spec: SlideSpecBase): vo
 /** JJ-18 renderer adapter. Group B dispatcher registration is JJ-19. */
 export function renderTeamFte01Stub(pptx: PptxGenJS, spec: SlideSpecBase): void {
   renderTeamFte01(pptx, spec as TeamFte01SlideSpec);
-}
-
-/** Stub — MS-16 will replace this implementation. Layout: ARCHITECTURE_01 */
-export function renderArchitecture01Stub(_pptx: PptxGenJS, _spec: SlideSpecBase): void {
-  // Intentionally empty — dispatcher routing test only.
-}
-
-/** Stub — MS-17 will replace this implementation. Layout: COMPLIANCE_01 */
-export function renderCompliance01Stub(_pptx: PptxGenJS, _spec: SlideSpecBase): void {
-  // Intentionally empty — dispatcher routing test only.
-}
-
-/** Stub — MS-18 will replace this implementation. Layout: SUCCESS_METRICS_01 */
-export function renderSuccessMetrics01Stub(_pptx: PptxGenJS, _spec: SlideSpecBase): void {
-  // Intentionally empty — dispatcher routing test only.
-}
-
-/** Stub — MS-19 will replace this implementation. Layout: OPEN_QUESTIONS_01 */
-export function renderOpenQuestions01Stub(_pptx: PptxGenJS, _spec: SlideSpecBase): void {
-  // Intentionally empty — dispatcher routing test only.
-}
-
-/** Stub — MS-20 will replace this implementation. Layout: NEXT_STEPS_01 */
-export function renderNextSteps01Stub(_pptx: PptxGenJS, _spec: SlideSpecBase): void {
-  // Intentionally empty — dispatcher routing test only.
 }
