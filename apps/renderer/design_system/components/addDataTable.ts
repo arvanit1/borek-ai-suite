@@ -107,6 +107,20 @@ export function buildDataTableRows(content: DataTableContent): TableRow[] {
   return [headerRow, ...bodyRows];
 }
 
+/**
+ * Per-column widths for slide.addTable().
+ * PptxGenJS requires an array when `w` is also set; a scalar colW is ignored and
+ * defaults to ~5" total width, breaking layouts like REQUIREMENTS_MATRIX_01 (BT-24).
+ */
+export function dataTableColumnWidths(rect: DataTableRect, columnCount: number): number[] {
+  if (columnCount <= 0) {
+    return [];
+  }
+
+  const columnWidth = rect.w / columnCount;
+  return Array.from({ length: columnCount }, () => columnWidth);
+}
+
 /** Table placement and sizing options for slide.addTable(). */
 export function dataTableOptions(rect: DataTableRect, rowCount: number, columnCount: number) {
   return {
@@ -114,7 +128,7 @@ export function dataTableOptions(rect: DataTableRect, rowCount: number, columnCo
     y: rect.y,
     w: rect.w,
     h: rect.h,
-    colW: rect.w / columnCount,
+    colW: dataTableColumnWidths(rect, columnCount),
     rowH: rect.h / rowCount,
     border: dataTableBorderOptions(),
     color: BorekColors.text,
