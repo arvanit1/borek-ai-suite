@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { BrandLogo } from "@/components/BrandLogo";
+import { SignOutButton } from "@/components/SignOutButton";
 
 interface SiteHeaderProps {
   signedInEmail?: string | null;
@@ -13,7 +14,10 @@ export function SiteHeader({ signedInEmail }: SiteHeaderProps) {
       <nav className="site-nav" aria-label="Main">
         <Link href="/upload">Upload</Link>
         {signedInEmail ? (
-          <span className="site-user">{signedInEmail}</span>
+          <>
+            <span className="site-user">{signedInEmail}</span>
+            <SignOutButton />
+          </>
         ) : (
           <>
             <Link href="/login">Sign in</Link>
