@@ -106,7 +106,7 @@ def verify_via_postgres(db_url: str) -> tuple[int, bool]:
         return 1, False
 
     try:
-        with psycopg.connect(db_url, connect_timeout=15) as conn:
+        with psycopg.connect(db_url, connect_timeout=15, autocommit=True) as conn:
             ok("Connected")
             with conn.cursor() as cur:
                 cur.execute("SELECT version()")
@@ -183,7 +183,6 @@ def verify_via_postgres(db_url: str) -> tuple[int, bool]:
                     warn("auth.uid() not found")
 
             print("\n7) Smoke insert/delete")
-            conn.autocommit = True
             test_id = uuid.uuid4()
             user_id = uuid.UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
             with conn.cursor() as cur:

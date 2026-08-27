@@ -21,6 +21,10 @@ dev = [
     "pytest>=8.3.0",
     "pydantic>=2.0",
     "datamodel-code-generator>=0.26.0",
+    "python-dotenv>=1.0.0",
+]
+integration = [
+    "psycopg[binary]>=3.2.0",
 ]
 api = []
 
