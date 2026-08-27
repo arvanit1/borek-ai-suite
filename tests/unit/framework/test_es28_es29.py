@@ -247,3 +247,27 @@ def test_es29_semantic_gate_logs_the_live_call(monkeypatch: pytest.MonkeyPatch) 
     assert len(jobs) == 1
     assert jobs[0]["status"] == "success"
     assert jobs[0]["prompt_version"] == "process-scope:v1"
+
+
+def test_es28_chapter_zero_boilerplate_is_not_converted_to_open_item() -> None:
+    models, overrides = _models()
+    framework = generate_customer_framework(
+        models,
+        opportunity_id="OPP-142",
+        title_hint="Invoice 3-Way Match",
+        use_llm=False,
+        engine_overrides=overrides,
+    )
+    ch0 = framework["chapters"][0]["body"]
+    blob = str(ch0).lower()
+    assert "false precision" in blob
+    assert "traceable" in blob
+    assert not any(
+        "claim in chapter 0" in str(item.get("description", "")).lower()
+        for item in framework.get("open_items") or []
+    )
+    assert not any(
+        block.get("tone") == "open_item"
+        for block in ch0
+        if isinstance(block, dict)
+    )

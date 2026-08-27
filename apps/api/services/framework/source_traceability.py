@@ -7,7 +7,21 @@ from typing import Any
 
 from services.framework.chapter_validators.base import ChapterIssue
 
-_FACTUAL_BLOCKS = frozenset({"prose", "bullets", "kv_rows", "table", "process_flow", "callout"})
+_FACTUAL_BLOCKS = frozenset(
+    {
+        "prose",
+        "bullets",
+        "kv_rows",
+        "table",
+        "process_flow",
+        "callout",
+        "ai_split",
+        "sensitivity",
+        "timeline",
+        "score_bars",
+        "glossary",
+    }
+)
 _STOP = frozenset({"the", "and", "for", "with", "from", "that", "this", "are", "was", "were", "has", "have"})
 
 
@@ -245,6 +259,36 @@ def _block_text(block: dict[str, Any]) -> str:
         return " ".join(parts)
     if kind == "process_flow":
         return " ".join(str(node.get("label") or "") for node in block.get("nodes") or [] if isinstance(node, dict))
+    if kind == "ai_split":
+        return " ".join(
+            str(item)
+            for field in ("used_for", "not_used_for")
+            for item in block.get(field) or []
+        )
+    if kind == "sensitivity":
+        return " ".join(
+            f"{row.get('label', '')} {row.get('detail', '')}"
+            for row in block.get("rows") or []
+            if isinstance(row, dict)
+        )
+    if kind == "timeline":
+        return " ".join(
+            f"{week.get('id', '')} {' '.join(str(item) for item in (week.get('items') or []))}"
+            for week in block.get("weeks") or []
+            if isinstance(week, dict)
+        )
+    if kind == "score_bars":
+        return " ".join(
+            f"{item.get('name', '')} {item.get('score', '')} {item.get('explanation', '')}"
+            for item in block.get("items") or []
+            if isinstance(item, dict)
+        )
+    if kind == "glossary":
+        return " ".join(
+            f"{item.get('term', '')} {item.get('meaning', '')}"
+            for item in block.get("terms") or []
+            if isinstance(item, dict)
+        )
     return ""
 
 
@@ -254,7 +298,7 @@ def _block_has_text(block: dict[str, Any]) -> bool:
 
 def _minimum_overlap(block: dict[str, Any]) -> int:
     """Structured derivations can cite the source item named by a single step label."""
-    if str(block.get("block") or "") in {"kv_rows", "table", "process_flow"}:
+    if str(block.get("block") or "") in {"kv_rows", "table", "process_flow", "sensitivity", "timeline", "score_bars", "glossary", "ai_split"}:
         return 1
     return 2
 
@@ -292,6 +336,35 @@ def _block_requires_traceability(block: dict[str, Any]) -> bool:
     if str(block.get("block") or "") == "bullets" and "what is it?" in text and "can we trust" in text:
         return False
     if "team decides" in text or "on its own" in text or "from the conversations" in text:
+        return False
+    if any(
+        marker in text
+        for marker in (
+            "recorded as an open item",
+            "never guessed",
+            "open items in chapter",
+            "open item with an owner",
+            "stage-3",
+            "stage 3",
+            "proposals only",
+            "committed business case",
+            "human-confirmed before it is the signed",
+            "before anything is built, every automation must pass",
+            "every automation is designed as a path",
+            "formulas disclosed, assumptions marked",
+            "qualitative benefits were not priced in",
+            "empty cells are open items",
+            # Ch.0 / Ch.7 framework boilerplate — not customer conversation claims.
+            "every number in this report is traceable",
+            "estimates are shown as ranges",
+            "never as false precision",
+            "false-precision figures",
+            "borek ai suite generates exactly one",
+            "table below lists access",
+            "access, data, and readiness items we need from you",
+            "hours are named in the conversations or listed as an open item",
+        )
+    ):
         return False
     return has_number or _has_rule_or_claim_marker(text)
 

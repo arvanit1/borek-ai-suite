@@ -80,12 +80,17 @@ def save_framework_version(framework: dict[str, Any]) -> None:
 
 
 def get_framework(framework_id: str) -> dict[str, Any] | None:
-    cached = _FRAMEWORKS.get(framework_id)
-    if cached is not None:
-        return cached
     path = _framework_path(framework_id)
     if not path.is_file():
-        return None
+        return _FRAMEWORKS.get(framework_id)
+    cached = _FRAMEWORKS.get(framework_id)
+    if cached is not None:
+        try:
+            disk_updated = _read_json(path).get("updated_at")
+        except (OSError, json.JSONDecodeError):
+            disk_updated = None
+        if disk_updated and disk_updated == cached.get("updated_at"):
+            return cached
     framework = _read_json(path)
     _FRAMEWORKS[framework_id] = framework
     return framework

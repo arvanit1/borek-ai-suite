@@ -44,10 +44,7 @@ def build_chapters(
         {"label": "Automation", "value": cover.get("automation") or cover.get("title") or ""},
         {
             "label": "Expected benefit",
-            "value": (
-                f"~{bc.get('hours_saved_mo')} h/month capacity reclaimed · "
-                f"~EUR {bc.get('net_eur_mo')} net value/month"
-            ),
+            "value": _expected_benefit_cell(bc, missing_note),
         },
         {
             "label": "Investment",
@@ -69,7 +66,7 @@ def build_chapters(
             "value": f"Tier {estimate.get('tier')} · {len(systems)} systems · {len(rules)} named rules",
         },
         {"label": "Human in the loop", "value": cover.get("hitl") or "Exceptions stay with people."},
-        {"label": "Security", "value": cover.get("security") or "As named in the conversations; see chapter 8."},
+        {"label": "Security", "value": cover.get("security") or _security_summary(cover, missing_note)},
         {
             "label": "Data basis",
             "value": (
@@ -81,13 +78,14 @@ def build_chapters(
     ]
 
     sensitivity_rows = []
+    automation_label = _automation_metric_label(cover.get("title") or cover.get("automation"))
     for key, label in (("low", "Pessimistic"), ("expected", "Expected"), ("high", "Optimistic")):
         row = (bc.get("sensitivity") or {}).get(key) or {}
         sensitivity_rows.append(
             {
                 "label": label,
                 "detail": (
-                    f"Auto-match {int(float(row.get('automation_rate', 0)) * 100)} % · "
+                    f"{automation_label} {_format_automation_rate_pct(row.get('automation_rate'))} · "
                     f"net ~EUR {row.get('net_eur_mo')}/month · "
                     f"payback {_payback_cell(row, missing_note)}"
                 ),
@@ -262,12 +260,7 @@ def build_chapters(
                     [
                         item.get("name", ""),
                         item.get("role", ""),
-                        item.get("protection")
-                        or (
-                            "Classification and access guardrails in chapter 8"
-                            if str(item.get("data_classification") or "").lower() != "as reported"
-                            else "As named in chapter 8"
-                        ),
+                        item.get("protection") or _building_block_protection(item, missing_note),
                     ]
                     for item in systems
                 ]
@@ -356,8 +349,7 @@ def build_chapters(
                     ],
                     [
                         "Automation rate",
-                        "named auto-match / automation target",
-                        f"~{int(float((bc.get('inputs') or {}).get('automation_rate') or 0) * 100)} %",
+                        *_automation_rate_row(bc, missing_note),
                     ],
                     ["Hours saved / month", bc.get("formulas", {}).get("hours_saved_mo", ""), f"~{bc.get('hours_saved_mo')} h"],
                     ["Gross value", bc.get("formulas", {}).get("gross_eur_mo", ""), f"~EUR {bc.get('gross_eur_mo')}/month"],
@@ -581,11 +573,13 @@ def _keep_required_blocks(chapter_id: str, base_body: list[dict[str, Any]], llm_
     if chapter_id == "0":
         _ensure_eight_questions(merged, base_body)
         _ensure_about_phrases(merged, base_body)
+        _ensure_about_boilerplate_prose(merged, base_body)
+        _remove_premature_confirmation_claim(merged)
     if chapter_id == "1":
         if missing("kv_rows"):
             append_base("kv_rows")
-        elif "human" not in kv_labels() and "hitl" not in blob():
-            _merge_kv_rows(merged, base_body, required_substrings=("human",))
+        else:
+            _replace_first_block(merged, base_body, "kv_rows")
         if missing("callout"):
             append_base("callout")
         else:
@@ -600,11 +594,12 @@ def _keep_required_blocks(chapter_id: str, base_body: list[dict[str, Any]], llm_
         if missing("kv_rows"):
             append_base("kv_rows")
         else:
-            _merge_kv_rows(merged, base_body, required_substrings=("clean", "exception", "staff"))
+            _replace_first_block(merged, base_body, "kv_rows")
     if chapter_id == "3":
         _ensure_kpi_table(merged, base_body)
         if "conservative" not in blob():
             _patch_or_append_prose(merged, base_body)
+        _ensure_conservative_kpi_prose(merged, base_body)
     if chapter_id == "4":
         _ensure_typed_process_flow(merged, base_body)
         if "stage" not in blob():
@@ -644,6 +639,7 @@ def _keep_required_blocks(chapter_id: str, base_body: list[dict[str, Any]], llm_
             append_base("table")
         else:
             _ensure_client_hours_column(merged, base_body)
+            _ensure_client_access_categories(merged, base_body)
     if chapter_id == "8":
         if missing("kv_rows"):
             append_base("kv_rows")
@@ -663,54 +659,38 @@ def _keep_required_blocks(chapter_id: str, base_body: list[dict[str, Any]], llm_
             )
         _replace_missing_notes_from_base(merged, base_body)
     if chapter_id == "9":
-        if missing("table") or "payback" not in blob():
-            _ensure_table_purpose(merged, base_body, "business_case")
-            if missing("table") or "payback" not in blob():
-                append_base("table")
-        if missing("bullets"):
-            append_base("bullets")
-        if missing("sensitivity"):
-            append_base("sensitivity")
+        # ES-23: calculations are deterministic engine output; Claude may
+        # explain them in prose but cannot leave a contradictory calculation
+        # narrative, callout, table, or scenario behind.
+        merged[:] = list(base_body)
     if chapter_id == "10":
         if missing("kv_rows"):
             append_base("kv_rows")
+        else:
+            # ES-24: Claude may return the complexity table but omit one of its
+            # required fields. Preserve the customer-facing draft while restoring
+            # each mandatory planning field from the deterministic, sourced base.
+            _merge_kv_rows(
+                merged,
+                base_body,
+                required_substrings=("complexity", "effort", "confidence", "team", "driver"),
+            )
         if missing("timeline"):
             append_base("timeline")
         if "chapter 12" not in blob() and "ch.12" not in blob():
             _patch_or_append_prose(merged, base_body)
     if chapter_id == "11":
-        if missing("score_bars"):
-            append_base("score_bars")
-        if missing("table"):
-            append_base("table")
-        if "guess" not in blob():
-            if missing("callout"):
-                append_base("callout")
-            else:
-                _patch_callout(
-                    merged,
-                    require_any=("guess",),
-                    require_one_of=(),
-                    fallback=_first_block(base_body, "callout"),
-                )
+        # ES-25 scores and their rationale are engine-owned and must not
+        # coexist with stale LLM prose based on an earlier input set.
+        merged[:] = list(base_body)
     if chapter_id == "12":
-        if missing("table"):
-            append_base("table")
-        if "proposal" not in blob():
-            if missing("callout"):
-                append_base("callout")
-            else:
-                _patch_callout(
-                    merged,
-                    require_any=("proposal",),
-                    require_one_of=(),
-                    fallback=_first_block(base_body, "callout"),
-                )
+        # ES-26 evolution is generated from sourced candidates, never from
+        # a second unsynchronised narrative.
+        merged[:] = list(base_body)
     if chapter_id == "13":
         if missing("table"):
             append_base("table")
-        if missing("glossary"):
-            append_base("glossary")
+        _replace_first_block(merged, base_body, "glossary")
     return merged
 
 
@@ -722,6 +702,39 @@ def _first_block(body: list[dict[str, Any]], block_type: str) -> dict[str, Any] 
     for item in _blocks(body, block_type):
         return item
     return None
+
+
+def _replace_first_block(
+    merged: list[dict[str, Any]],
+    base_body: list[dict[str, Any]],
+    block_type: str,
+    *,
+    purpose: str | None = None,
+) -> None:
+    """Restore a deterministic block after prose-oriented LLM synthesis."""
+    def matches(block: dict[str, Any]) -> bool:
+        return block.get("block") == block_type and (purpose is None or _table_purpose(block) == purpose)
+
+    base = next((block for block in base_body if isinstance(block, dict) and matches(block)), None)
+    if base is None:
+        return
+    existing = next((block for block in merged if isinstance(block, dict) and matches(block)), None)
+    if existing is None:
+        merged.append(base)
+    else:
+        merged[merged.index(existing)] = base
+
+
+def _remove_premature_confirmation_claim(merged: list[dict[str, Any]]) -> None:
+    """A draft cannot state that human confirmation already occurred (ES-14)."""
+    for block in _blocks(merged, "prose"):
+        text = str(block.get("text") or "")
+        block["text"] = re.sub(
+            r"\bthen(?:\s+reviewed and)?\s+confirmed by a human (?:analyst|reviewer)\b",
+            "and is ready for human review and confirmation",
+            text,
+            flags=re.I,
+        )
 
 
 def _ensure_eight_questions(merged: list[dict[str, Any]], base_body: list[dict[str, Any]]) -> None:
@@ -742,6 +755,31 @@ def _ensure_eight_questions(merged: list[dict[str, Any]], base_body: list[dict[s
             merged.remove(extra)
         return
     merged.append(canonical)
+
+
+def _ensure_conservative_kpi_prose(merged: list[dict[str, Any]], base_body: list[dict[str, Any]]) -> None:
+    """ES-17 — Ch.3 must state KPIs are a conservative derivation."""
+    if "conservative" in str(merged).lower():
+        return
+    base_prose = _first_block(base_body, "prose")
+    if base_prose:
+        merged.insert(0, dict(base_prose))
+
+
+def _ensure_about_boilerplate_prose(merged: list[dict[str, Any]], base_body: list[dict[str, Any]]) -> None:
+    """ES-14 — deterministic Ch.0 must retain ranges / traceability boilerplate after LLM overlay."""
+    base_prose = _first_block(base_body, "prose")
+    if not base_prose:
+        return
+    blob = str(merged).lower()
+    if "false precision" in blob and "traceable" in blob and ("range" in blob or "ranges" in blob):
+        return
+    prose = _first_block(merged, "prose")
+    if prose and prose is not base_prose:
+        merged.insert(0, dict(base_prose))
+        return
+    if not prose:
+        merged.insert(0, dict(base_prose))
 
 
 def _ensure_about_phrases(merged: list[dict[str, Any]], base_body: list[dict[str, Any]]) -> None:
@@ -904,7 +942,15 @@ def _ensure_table_purpose(merged: list[dict[str, Any]], base_body: list[dict[str
 def _ensure_table_protection(merged: list[dict[str, Any]], base_body: list[dict[str, Any]]) -> None:
     """ES-20: each customer-facing building block states its protection."""
     building = next((item for item in _blocks(merged, "table") if _table_purpose(item) == "building_blocks"), None)
-    if building is not None and "protect" in str(building).lower():
+    protections = [
+        str(row[2] if len(row) > 2 else "").strip().lower()
+        for row in (building or {}).get("rows") or []
+        if isinstance(row, list)
+    ]
+    if building is not None and protections and all(
+        protection and "as named" not in protection and "chapter 8" not in protection
+        for protection in protections
+    ):
         return
     base = next((item for item in _blocks(base_body, "table") if _table_purpose(item) == "building_blocks"), None)
     if base is None:
@@ -992,6 +1038,47 @@ def _ensure_client_hours_column(merged: list[dict[str, Any]], base_body: list[di
             merged[merged.index(table)] = base
 
 
+def _ensure_client_access_categories(merged: list[dict[str, Any]], base_body: list[dict[str, Any]]) -> None:
+    """ES-21: a refined Chapter 7 table cannot omit required client-access categories."""
+    table = _first_block(merged, "table")
+    base_table = _first_block(base_body, "table")
+    if table is None or base_table is None:
+        return
+    required = (
+        ("Read access", "read", ("read",)),
+        ("Write access", "write", ("write",)),
+        ("Sample / test data", "sample", ("sample", "test", "sandbox")),
+        ("Rule confirmation", "rule", ("rule",)),
+        ("Identity / SSO", "identity", ("identity", "sso")),
+    )
+    rows = [list(row) for row in table.get("rows") or []]
+    for canonical_category, required_token, needles in required:
+        existing = next(
+            (
+                row
+                for row in rows
+                if any(needle in str(row[0] if row else "").lower() for needle in needles)
+            ),
+            None,
+        )
+        if existing is not None:
+            if required_token not in str(existing[0] if existing else "").lower():
+                existing[0] = canonical_category
+            continue
+        fallback = next(
+            (
+                list(row)
+                for row in base_table.get("rows") or []
+                if any(needle in str(row[0] if row else "").lower() for needle in needles)
+            ),
+            None,
+        )
+        if fallback is not None:
+            fallback[0] = canonical_category
+            rows.append(fallback)
+    table["rows"] = rows
+
+
 def _today_vs_agent_rows(
     as_is: dict[str, Any],
     to_be: dict[str, Any],
@@ -1041,7 +1128,10 @@ def _build_domain_glossary(
     if cover.get("glossary"):
         return cover["glossary"]
     terms: list[dict[str, str]] = [
-        {"term": "Auto-match rate", "meaning": "Share of cases the workflow completes without a human step."},
+        {
+            "term": _automation_metric_label(cover.get("title") or cover.get("automation")),
+            "meaning": "Share of cases the workflow completes without a human step.",
+        },
         {"term": "Exception queue", "meaning": "Cases that could not be resolved by rule, each with reason and a suggested action."},
         {"term": "Build-readiness", "meaning": "A 0-100 score of whether the concept is complete enough to build."},
         {"term": "Stage 1 / 2 / 3", "meaning": "Assistive · autonomous with human control · end-to-end (proposal)."},
@@ -1065,10 +1155,68 @@ def _build_domain_glossary(
     return terms
 
 
+def _security_summary(cover: dict[str, Any], missing_note: str) -> str:
+    classification = str(cover.get("classification") or "").strip()
+    residency = str(cover.get("residency") or "").strip()
+    summary = " ".join(part for part in (classification, residency) if part)
+    return summary or missing_note
+
+
+def _building_block_protection(item: dict[str, Any], missing_note: str) -> str:
+    access = str(item.get("access_path") or "").strip()
+    classification = str(item.get("data_classification") or "").strip()
+    parts: list[str] = []
+    if access and access.lower() != "as reported":
+        parts.append(f"Least-privilege access: {access}")
+    if classification and classification.lower() != "as reported":
+        parts.append(f"Data handling: {classification}")
+    return "; ".join(parts) if parts else missing_note
+
+
 def _default_flow(caption: str, labels: list[str]) -> dict[str, Any]:
     nodes = [{"id": f"n{index}", "label": label, "kind": "human" if index % 2 else "system"} for index, label in enumerate(labels)]
     edges = [{"from": f"n{index}", "to": f"n{index + 1}", "label": ""} for index in range(len(labels) - 1)]
     return {"block": "process_flow", "caption": caption, "nodes": nodes, "edges": edges}
+
+
+def _automation_metric_label(title: str | None) -> str:
+    lower = str(title or "").lower()
+    if any(token in lower for token in ("invoice", "3-way", "3 way", "match")):
+        return "Auto-match"
+    return "Automation rate"
+
+
+def _format_automation_rate_pct(rate: Any) -> str:
+    if rate is None:
+        return "an open item %"
+    return f"{round(float(rate) * 100, 1):g} %"
+
+
+def _automation_rate_row(bc: dict[str, Any], missing_note: str) -> tuple[str, str]:
+    inputs = bc.get("inputs") or {}
+    rate = inputs.get("automation_rate")
+    formula = str(bc.get("formulas", {}).get("hours_saved_mo") or "")
+    derived = "target remaining hours" in formula
+    if rate is not None and float(rate) > 0:
+        calculation = (
+            "derived from the hour target in the conversations"
+            if derived
+            else "named auto-match / automation target"
+        )
+        return calculation, f"~{_format_automation_rate_pct(rate)}"
+    return "named auto-match / automation target", missing_note
+
+
+def _expected_benefit_cell(bc: dict[str, Any], missing_note: str) -> str:
+    hours_saved = bc.get("hours_saved_mo")
+    net = bc.get("net_eur_mo")
+    if hours_saved is None or float(hours_saved) <= 0:
+        return (
+            f"{missing_note} (hours saved/month and net EUR value could not be calculated from the conversation)."
+        )
+    if net is None or float(net) <= 0:
+        return f"~{hours_saved:g} h/month capacity reclaimed · net EUR value is an open item"
+    return f"~{hours_saved:g} h/month capacity reclaimed · ~EUR {net:g} net value/month"
 
 
 def _payback_cell(business_case: dict[str, Any], missing_note: str) -> str:

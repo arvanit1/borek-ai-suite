@@ -22,7 +22,7 @@ out/
 dist/
 *.tsbuildinfo
 
-# Generated (AT-4 / AT-5 output — do not commit hand-edits)
+# Generated (AT-4 / AT-5 output ï¿½ do not commit hand-edits)
 generated/python/
 generated/typescript/
 
@@ -33,8 +33,8 @@ generated/typescript/
 .DS_Store
 Thumbs.db
 
-# Temp extraction
-.tmp_extract/
+# Local ES harness ï¿½ do not push
+local_es_harness/
 
 # Render / test artifacts
 *.pptx

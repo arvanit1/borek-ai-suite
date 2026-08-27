@@ -63,6 +63,21 @@ def test_used_and_not_used_overlap_blocks_confirm() -> None:
     assert "contradicts" in exc_info.value.user_message.lower()
 
 
+def test_supplier_data_access_is_not_supplier_creation_contradiction() -> None:
+    """ES-13: data lookup and master-data creation are distinct customer actions."""
+    framework = _framework()
+    split = _ai_split(framework)
+    split["used_for"] = [
+        "Extract invoice fields including supplier identity",
+        "Query supplier master data for matching",
+    ]
+    split["not_used_for"] = ["Create a supplier"]
+
+    confirmed = confirm_customer_report(framework)
+
+    assert confirmed["status"] == "confirmed"
+
+
 def test_other_chapter_contradiction_blocks_confirm() -> None:
     framework = _framework()
     framework["chapters"][5]["body"].append(
@@ -155,6 +170,27 @@ def test_hitl_approval_wording_is_neutralized_for_confirm() -> None:
     assert "the agent" not in prose or "the workflow" in prose
 
 
+def test_human_decider_does_not_contradict_chapter_6() -> None:
+    framework = _framework()
+    split = _ai_split(framework)
+    split["not_used_for"] = list(split.get("not_used_for") or []) + [
+        "Deciding on split deliveries (always route to category manager).",
+        "One-click manager approval for requests above EUR 10,000 (human gate).",
+    ]
+    framework["chapters"][4]["body"].append(
+        {
+            "block": "prose",
+            "text": (
+                "The agent prepares the case packet. Finance decides whether an exception can be released."
+            ),
+        }
+    )
+    prepare_framework_for_confirm(framework)
+    pre_confirm_check(framework)
+    confirmed = confirm_customer_report(framework)
+    assert confirmed["status"] == "confirmed"
+
+
 def test_human_exception_routing_does_not_contradict_chapter_6() -> None:
     """ES-13: a human gate and routed exceptions are not autonomous AI use."""
     framework = _framework()
@@ -178,3 +214,40 @@ def test_human_exception_routing_does_not_contradict_chapter_6() -> None:
 
     prepare_framework_for_confirm(framework)
     pre_confirm_check(framework)
+
+
+def test_flow_metadata_cannot_create_a_false_ai_contradiction() -> None:
+    """ES-13 ignores diagram metadata when evaluating the AI boundary."""
+    framework = _framework()
+    split = _ai_split(framework)
+    split["not_used_for"] = list(split.get("not_used_for") or []) + [
+        "Final approval — a human makes the one-click decision.",
+        "Exception decisions — a human must approve every exception.",
+    ]
+    framework["chapters"][4]["body"] = [
+        {
+            "block": "process_flow",
+            "caption": "To-be process",
+            "nodes": [
+                {"id": "extract", "label": "Extract fields", "kind": "agent"},
+                {"id": "approve", "label": "Human approval", "kind": "human"},
+            ],
+            "edges": [{"from": "extract", "to": "approve", "label": ""}],
+        },
+        {
+            "block": "table",
+            "caption": "Today vs with the agent",
+            "columns": ["Step", "With the workflow"],
+            "rows": [
+                ["Final approval", "Human approval"],
+                ["Exceptions", "People decide"],
+            ],
+        },
+        {
+            "block": "prose",
+            "text": "The workflow handles the standard path autonomously within confirmed rules.",
+        },
+    ]
+
+    confirmed = confirm_customer_report(framework)
+    assert confirmed["status"] == "confirmed"

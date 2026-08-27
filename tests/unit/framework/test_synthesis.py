@@ -338,6 +338,10 @@ def test_llm_overlay_restores_every_required_live_validation_field() -> None:
     draft["kpis"] = [
         {"name": "Manual handling time", "baseline": "named", "target": "named", "measured_via": "named"}
     ]
+    draft["access_needs"] = [
+        {"category": "Read access", "detail": "AP queue", "status": "named", "owner": "IT"},
+        {"category": "Write access", "detail": "Posting interface", "status": "named", "owner": "IT"},
+    ]
     draft["chapters"][2]["body"] = [
         {"block": "process_flow", "caption": "Today", "nodes": [], "edges": []},
         {"block": "kv_rows", "caption": "Cost", "rows": [{"label": "Volume", "value": "named"}]},
@@ -350,6 +354,17 @@ def test_llm_overlay_restores_every_required_live_validation_field() -> None:
     draft["chapters"][6]["body"] = [
         {"block": "table", "caption": "Building blocks", "columns": ["Block"], "rows": [["Queue"]]},
         {"block": "ai_split", "used_for": ["Extract"], "not_used_for": ["Approve"]},
+    ]
+    draft["chapters"][7]["body"] = [
+        {
+            "block": "table",
+            "caption": "What we need from the client",
+            "columns": ["Category", "Specifically", "Status", "Owner", "Hours"],
+            "rows": [
+                ["Read access", "AP queue", "named", "IT", "1"],
+                ["Write access", "Posting interface", "named", "IT", "1"],
+            ],
+        }
     ]
     draft["chapters"][8]["body"] = [
         {"block": "kv_rows", "caption": "Guardrails", "rows": [{"label": "Audit", "value": "named"}]}
@@ -371,4 +386,80 @@ def test_llm_overlay_restores_every_required_live_validation_field() -> None:
     assert "today" in str(framework["chapters"][4]["body"]).lower()
     assert "agent" in str(framework["chapters"][4]["body"]).lower()
     assert "protect" in str(framework["chapters"][6]["body"]).lower()
+    access_categories = " ".join(item["category"].lower() for item in framework["access_needs"])
+    assert all(token in access_categories for token in ("read", "write", "sample", "rule", "identity"))
+    chapter_7 = str(framework["chapters"][7]["body"]).lower()
+    assert all(token in chapter_7 for token in ("read", "write", "sample", "rule", "identity"))
     assert "retention" in str(framework["chapters"][8]["body"]).lower()
+
+
+def test_llm_overlay_restores_missing_chapter_10_effort_drivers() -> None:
+    """ES-24: a partial Claude complexity table cannot drop effort drivers."""
+    models, overrides = _golden()
+    draft = _draft_from_framework(_base_framework())
+    chapter_10 = draft["chapters"][10]
+    complexity_table = next(block for block in chapter_10["body"] if block.get("block") == "kv_rows")
+    complexity_table["rows"] = [
+        row for row in complexity_table["rows"] if str(row.get("label") or "").lower() != "drivers"
+    ]
+
+    framework = generate_customer_framework(
+        models,
+        opportunity_id="OPP-142",
+        title_hint="Invoice 3-Way Match",
+        use_llm=True,
+        complete=lambda _system, _user, _schema: draft,
+        engine_overrides=overrides,
+    )
+
+    restored = next(
+        block for block in framework["chapters"][10]["body"] if block.get("block") == "kv_rows"
+    )
+    labels = [str(row.get("label") or "").lower() for row in restored.get("rows") or []]
+    assert "drivers" in labels
+
+
+def test_llm_overlay_cannot_keep_stale_engine_numbers_or_evolution() -> None:
+    """ES-23/25/26: LLM wording cannot contradict deterministic engines."""
+    models, overrides = _golden()
+    draft = _draft_from_framework(_base_framework())
+    draft["chapters"][9]["body"] = [
+        {"block": "prose", "text": "The calculation has zero saved hours and no payback."},
+        {
+            "block": "table",
+            "caption": "Business case",
+            "columns": ["Item", "Value"],
+            "rows": [["Hours saved", "0"], ["Payback", "Not calculable"]],
+        },
+        {"block": "sensitivity", "rows": [{"label": "Expected", "detail": "0 hours"}]},
+    ]
+    draft["chapters"][11]["body"] = [
+        {"block": "prose", "text": "The opportunity has zero hours."},
+        {"block": "score_bars", "items": [{"name": "Opportunity rating", "score": 0}]},
+    ]
+    draft["chapters"][12]["body"] = [
+        {
+            "block": "table",
+            "caption": "Evolution stages",
+            "columns": ["Stage", "Extra effort"],
+            "rows": [["Stage 3", "after 3 months"]],
+        }
+    ]
+
+    framework = generate_customer_framework(
+        models,
+        opportunity_id="OPP-142",
+        title_hint="Invoice 3-Way Match",
+        use_llm=True,
+        complete=lambda _system, _user, _schema: draft,
+        engine_overrides=overrides,
+    )
+
+    chapter_9 = str(framework["chapters"][9]["body"])
+    chapter_11 = str(framework["chapters"][11]["body"])
+    chapter_12 = str(framework["chapters"][12]["body"])
+    assert "zero saved hours" not in chapter_9.lower()
+    assert str(framework["business_case"]["net_eur_mo"]) in chapter_9
+    assert "zero hours" not in chapter_11.lower()
+    assert str(framework["quality_scores"]["opportunity_rating"]) in chapter_11
+    assert "after 3 months" not in chapter_12.lower()

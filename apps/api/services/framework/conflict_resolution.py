@@ -21,6 +21,10 @@ _BUCKETS = (
     "risks",
     "unknowns",
 )
+_DIGIT_WORDS = {
+    "0": "zero", "1": "one", "2": "two", "3": "three", "4": "four",
+    "5": "five", "6": "six", "7": "seven", "8": "eight", "9": "nine",
+}
 
 
 def conversation_sort_key(conversation_id: str) -> int:
@@ -139,22 +143,25 @@ def _open_item(topic: str, versions: list[tuple[bool, int, dict[str, Any]]]) -> 
 
 
 def _topic_key(statement: str) -> str:
-    cleaned = re.sub(r"[^a-z0-9]+", " ", statement.lower()).strip()
+    # Values are intentionally removed: "Tolerance is EUR 1.00" and
+    # "Tolerance is EUR 0.50" concern the same topic, while a clean-case time
+    # and an exception time do not merely because both mention "invoice".
+    def preserve_speaker_identifier(match: re.Match[str]) -> str:
+        digits = match.group(1)
+        return " speaker_role_" + "_".join(_DIGIT_WORDS[digit] for digit in digits) + " "
+
+    protected = re.sub(r"\bspeaker[_\s-]*(\d+)\b", preserve_speaker_identifier, statement.lower())
+    cleaned = re.sub(r"\d+(?:[.,]\d+)?", " ", protected)
+    cleaned = re.sub(r"[^a-z]+", " ", cleaned).strip()
     words = [word for word in cleaned.split() if word not in {"the", "a", "an", "of", "and", "to", "in", "is"}]
     return " ".join(words[:8]) or cleaned
 
 
 def _resolve_topic_key(by_key: dict[str, list], statement: str) -> str:
     candidate = _topic_key(statement)
-    candidate_tokens = set(candidate.split())
-    if not candidate_tokens:
+    # Do not heuristically merge different facts. A false conflict produces an
+    # incorrect customer open item; exact semantic topic keys remain sufficient
+    # for value changes extracted with the same subject wording.
+    if candidate in by_key:
         return candidate
-    for existing in by_key:
-        existing_tokens = set(existing.split())
-        if not existing_tokens:
-            continue
-        shared = candidate_tokens & existing_tokens
-        needed = max(2, int(min(len(candidate_tokens), len(existing_tokens)) * 0.5 + 0.5))
-        if len(shared) >= needed:
-            return existing
     return candidate

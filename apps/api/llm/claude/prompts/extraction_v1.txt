@@ -19,6 +19,10 @@ Rules:
 - excerpt_pointer must be the string turn:<index> from the labeled lines, never a bare number.
 - speaker_role is the speaker label from the same line.
 - Prefer short factual statements, not narrative.
+- When a statement names a quantity used for ROI (monthly volume, automatable hours, target remaining hours, loaded hourly cost, automation rate, exception rate), also set metric with kind, numeric value, and unit when obvious. metric.kind must be one of: monthly_volume, automatable_hours_mo, team_hours_mo, target_remaining_hours_mo, loaded_hourly_cost_eur, automation_rate, exception_rate_pct. automation_rate is a fraction 0–1 when stated as a rate; exception_rate_pct is 0–100. Only set metric when the transcript supports the number; never set metric on AI_INFERENCE entries.
+- automatable_hours_mo: hours spent on work the agent can take over — matchable invoices, repeatable paperwork, tier-one review, inspection/relabeling, core manual checking. Use team_hours_mo only for total team effort not scoped to automatable work.
+- target_remaining_hours_mo: post-automation human touch remaining (under X hours, capped at X, down to X, target state is X hours).
+- Gut feelings, guesses, or unsigned hypotheses (e.g. "maybe 70 percent", "I would guess 80 percent") → origin AI_INFERENCE or OPEN_QUESTION in unknowns; do not set metric unless the speaker states it as fact with high confidence.
 
 Buckets:
 - facts

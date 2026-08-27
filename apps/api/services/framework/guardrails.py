@@ -9,6 +9,7 @@ from services.framework.assembly import allowed_customer_numbers
 
 _CITATION_RE = re.compile(r"\[C\d+\s*:?\s*t?\d*\]", re.I)
 _TURN_POINTER_RE = re.compile(r"\bturn:\d+\b", re.I)
+_SPEAKER_RE = re.compile(r"\bSPEAKER_\d+\b", re.I)
 _CUSTOMER_SKIP_KEYS = frozenset(
     {"source_refs", "excerpt_pointer", "conversation_id", "generated_from", "source_entries", "transcript_id"}
 )
@@ -32,6 +33,8 @@ class GuardrailError(ValueError):
 def strip_citations(text: str) -> str:
     cleaned = _CITATION_RE.sub("", text)
     cleaned = _TURN_POINTER_RE.sub("", cleaned)
+    cleaned = _SPEAKER_RE.sub("a business stakeholder", cleaned)
+    cleaned = re.sub(r"\ban tool\b", "a tool", cleaned, flags=re.I)
     return re.sub(r" {2,}", " ", cleaned).strip()
 
 
@@ -64,7 +67,6 @@ def lint_numbers(framework: dict[str, Any], customer_text: str) -> list[str]:
         framework.get("quality_scores"),
         framework.get("estimate"),
         framework.get("business_case"),
-        framework.get("generation_meta"),
         framework.get("evolution_stages"),
         framework.get("open_items"),
         framework.get("kpis"),
@@ -99,6 +101,12 @@ def lint_numbers(framework: dict[str, Any], customer_text: str) -> list[str]:
         if any(
             word in nearby.lower()
             for word in ("chapter", "page", "week", "w1", "w2", "w3", "stage", "v2", "opp-", "fw-", "turn:", "speaker_")
+        ):
+            continue
+        if re.search(
+            r"\d+\s+(?:knowledge entries|participants|speaker turns|labeled turns|turns)\b",
+            nearby,
+            re.I,
         ):
             continue
         errors.append(
@@ -158,6 +166,15 @@ def _replace_unsourced_tokens(value: Any, tokens: list[str]) -> Any:
     if isinstance(value, str):
         text = value
         for token in tokens:
+            # Keep an unsourced interval readable as an explicit open item,
+            # rather than leaving fragments such as “every an open item
+            # minutes” in a customer report.
+            text = re.sub(
+                rf"\bevery\s+{re.escape(token)}\s+(?:minutes?|hours?|days?)\b",
+                "at a frequency recorded as an open item",
+                text,
+                flags=re.I,
+            )
             escaped = re.escape(token)
             text = re.sub(rf"(?<![A-Za-z0-9.,-]){escaped}(?![A-Za-z0-9.,-])", "an open item", text)
         return text

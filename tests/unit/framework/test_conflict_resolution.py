@@ -76,6 +76,22 @@ def test_same_rank_keeps_both_and_opens_item() -> None:
     assert "both statements are kept" in open_items[0]["description"]
 
 
+def test_distinct_facts_in_one_conversation_are_not_false_conflicts() -> None:
+    clean = _model("C6", "A clean invoice takes 8 minutes.", 0)
+    exception = _model("C6", "An exception invoice takes 28 minutes.", 1)
+    buckets, open_items = merge_knowledge_models([clean, exception])
+    assert len(buckets["facts"]) == 2
+    assert open_items == []
+
+
+def test_distinct_speaker_roles_are_not_false_conflicts() -> None:
+    first = _model("C6", "SPEAKER_2 is a member of the Accounts Payable team.", 0)
+    second = _model("C6", "SPEAKER_3 is a member of the Accounts Payable team.", 1)
+    buckets, open_items = merge_knowledge_models([first, second])
+    assert len(buckets["facts"]) == 2
+    assert open_items == []
+
+
 def test_matching_statements_do_not_create_open_item() -> None:
     first = _model("C5", "The process uses the ERP.", 0)
     second = _model("C8", "The process uses the ERP.", 1)

@@ -12,7 +12,7 @@
     "conversation_quality": 63,
     "build_readiness": 72,
     "rationale": {
-      "opportunity_rating": "Opportunity rating 60/100 from 40 hours/month and a 1.6-week path.",
+      "opportunity_rating": "Opportunity rating 60/100 from 25 hours/month and a 1.6-week path.",
       "conversation_quality": "Conversation quality 63/100 (usable).",
       "build_readiness": "Build-readiness 72/100 (ready with assumptions)."
     }
@@ -97,7 +97,7 @@
     {
       "stage_name": "Today",
       "agent_does": "Nothing — fully manual process.",
-      "human_does": "The AP team receives about 200 supplier invoices per month and matches them to purchase orders in the ERP by hand.",
+      "human_does": "People perform every step manually.",
       "benefit": "—",
       "extra_effort": "—",
       "recommended": false
@@ -120,10 +120,10 @@
     },
     {
       "stage_name": "Stage 3 · End-to-end (option)",
-      "agent_does": "Additionally (proposal only; requires telemetry_3mo and targeted C6 deep-dives): Invoices arrive by email as PDFs.",
+      "agent_does": "No sourced stage-3 candidates. Nothing is proposed beyond the specified build.",
       "human_does": "Releases outbound messages; decides on any rule-tuning proposals.",
-      "benefit": "Exception effort down; cycle time days to hours. Proposal only — not in the committed business case.",
-      "extra_effort": "~2-3 weeks more, own business case after 3 months of stage-2 data",
+      "benefit": "—",
+      "extra_effort": "—",
       "recommended": false
     }
   ],
@@ -133,36 +133,6 @@
       "item_type": "assumption",
       "owner": "Business",
       "consequence_if_different": "Missing data is never guessed. Confirm before build, or keep as an assumption."
-    },
-    {
-      "description": "Claim in chapter 1 is not supported because it has no cited conversation excerpt: Generated automatically from the captured conversations. Missing facts are listed, never guessed.. Recorded as an open item rather than accepted.",
-      "item_type": "assumption",
-      "owner": "Business",
-      "consequence_if_different": "Unsupported claims are never published. Confirm the statement against the conversation."
-    },
-    {
-      "description": "Claim in chapter 10 is not supported because it has no cited conversation excerpt: The week plan is for the recommended evolution stage in chapter 12, not for unsourced stage-3 scope.. Recorded as an open item rather than accepted.",
-      "item_type": "assumption",
-      "owner": "Business",
-      "consequence_if_different": "Unsupported claims are never published. Confirm the statement against the conversation."
-    },
-    {
-      "description": "Claim in chapter 11 is not supported because it has no cited conversation excerpt: Before anything is built, every automation must pass three independent checks. You see all three results openly.. Recorded as an open item rather than accepted.",
-      "item_type": "assumption",
-      "owner": "Business",
-      "consequence_if_different": "Unsupported claims are never published. Confirm the statement against the conversation."
-    },
-    {
-      "description": "Claim in chapter 11 is not supported because it has no cited conversation excerpt: Missing information is never guessed. Every gap appears here as an open item with an owner.. Recorded as an open item rather than accepted.",
-      "item_type": "assumption",
-      "owner": "Business",
-      "consequence_if_different": "Unsupported claims are never published. Confirm the statement against the conversation."
-    },
-    {
-      "description": "Claim in chapter 12 is not supported because it has no cited conversation excerpt: Stage-3 elements are proposals only. They are never included in the committed business case.. Recorded as an open item rather than accepted.",
-      "item_type": "assumption",
-      "owner": "Business",
-      "consequence_if_different": "Unsupported claims are never published. Confirm the statement against the conversation."
     }
   ],
   "chapters": [
@@ -263,7 +233,7 @@
             },
             {
               "label": "Security",
-              "value": "As named in the conversations; see chapter 8."
+              "value": "Data is confidential and must stay in the EU. Data is confidential and must stay in the EU."
             },
             {
               "label": "Data basis",
@@ -274,14 +244,13 @@
             {
               "conversation_id": "C1",
               "speaker_role": "Maria",
-              "excerpt_pointer": "turn:1"
+              "excerpt_pointer": "turn:3"
             }
           ]
         },
         {
-          "block": "callout",
-          "tone": "open_item",
-          "text": "This point is recorded as an open item because it is not supported by a conversation excerpt."
+          "block": "prose",
+          "text": "Generated automatically from the captured conversations. Missing facts are listed, never guessed."
         },
         {
           "block": "callout",
@@ -373,7 +342,7 @@
             },
             {
               "label": "Capacity tied up",
-              "value": "~25.0 hours/month in the automatable core"
+              "value": "Not named in the conversations. Recorded as an open item rather than guessed."
             },
             {
               "label": "Clean-case handling time",
@@ -771,7 +740,7 @@
             [
               "ERP with read and write via REST API",
               "Posting / write-back",
-              "As named in chapter 8"
+              "Least-privilege access: ERP with read and write via REST API."
             ]
           ],
           "source_refs": [
@@ -791,6 +760,13 @@
             "Deciding whether a case matches",
             "Evaluating tolerances or thresholds",
             "Assessing any employee"
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Maria",
+              "excerpt_pointer": "turn:1"
+            }
           ]
         }
       ],
@@ -1088,6 +1064,13 @@
               "label": "Optimistic",
               "detail": "Auto-match 92 % · net ~EUR 850/month · payback ~9.4 months"
             }
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Maria",
+              "excerpt_pointer": "turn:3"
+            }
           ]
         }
       ],
@@ -1119,9 +1102,8 @@
       "title": "Complexity, effort & timeline",
       "body": [
         {
-          "block": "callout",
-          "tone": "open_item",
-          "text": "This point is recorded as an open item because it is not supported by a conversation excerpt."
+          "block": "prose",
+          "text": "The week plan is for the recommended evolution stage in chapter 12, not for unsourced stage-3 scope."
         },
         {
           "block": "kv_rows",
@@ -1177,6 +1159,13 @@
                 "Weeks 3–3: gated writes, audit, acceptance, go-live approval (chapter 12 stage 2)"
               ]
             }
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Maria",
+              "excerpt_pointer": "turn:3"
+            }
           ]
         }
       ],
@@ -1208,9 +1197,8 @@
       "title": "Trustworthiness - quality gates",
       "body": [
         {
-          "block": "callout",
-          "tone": "open_item",
-          "text": "This point is recorded as an open item because it is not supported by a conversation excerpt."
+          "block": "prose",
+          "text": "Before anything is built, every automation must pass three independent checks. You see all three results openly."
         },
         {
           "block": "score_bars",
@@ -1220,7 +1208,7 @@
               "score": 60,
               "max": 100,
               "band": "Is it worth doing?",
-              "explanation": "Opportunity rating 60/100 from 40 hours/month and a 1.6-week path."
+              "explanation": "Opportunity rating 60/100 from 25 hours/month and a 1.6-week path."
             },
             {
               "name": "Conversation quality",
@@ -1235,6 +1223,13 @@
               "max": 100,
               "band": "Is the concept buildable?",
               "explanation": "Build-readiness 72/100 (ready with assumptions)."
+            }
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Maria",
+              "excerpt_pointer": "turn:1"
             }
           ]
         },
@@ -1253,36 +1248,6 @@
               "assumption",
               "Business",
               "Missing data is never guessed. Confirm before build, or keep as an assumption."
-            ],
-            [
-              "Claim in chapter 1 is not supported because it has no cited conversation excerpt: Generated automatically from the captured conversations. Missing facts are listed, never guessed.. Recorded as an open item rather than accepted.",
-              "assumption",
-              "Business",
-              "Unsupported claims are never published. Confirm the statement against the conversation."
-            ],
-            [
-              "Claim in chapter 10 is not supported because it has no cited conversation excerpt: The week plan is for the recommended evolution stage in chapter 12, not for unsourced stage-3 scope.. Recorded as an open item rather than accepted.",
-              "assumption",
-              "Business",
-              "Unsupported claims are never published. Confirm the statement against the conversation."
-            ],
-            [
-              "Claim in chapter 11 is not supported because it has no cited conversation excerpt: Before anything is built, every automation must pass three independent checks. You see all three results openly.. Recorded as an open item rather than accepted.",
-              "assumption",
-              "Business",
-              "Unsupported claims are never published. Confirm the statement against the conversation."
-            ],
-            [
-              "Claim in chapter 11 is not supported because it has no cited conversation excerpt: Missing information is never guessed. Every gap appears here as an open item with an owner.. Recorded as an open item rather than accepted.",
-              "assumption",
-              "Business",
-              "Unsupported claims are never published. Confirm the statement against the conversation."
-            ],
-            [
-              "Claim in chapter 12 is not supported because it has no cited conversation excerpt: Stage-3 elements are proposals only. They are never included in the committed business case.. Recorded as an open item rather than accepted.",
-              "assumption",
-              "Business",
-              "Unsupported claims are never published. Confirm the statement against the conversation."
             ]
           ],
           "source_refs": [
@@ -1295,8 +1260,8 @@
         },
         {
           "block": "callout",
-          "tone": "open_item",
-          "text": "This point is recorded as an open item because it is not supported by a conversation excerpt."
+          "kind": "principle",
+          "text": "Missing information is never guessed. Every gap appears here as an open item with an owner."
         }
       ],
       "source_refs": [
@@ -1344,7 +1309,7 @@
             [
               "Today",
               "Nothing — fully manual process.",
-              "The AP team receives about 200 supplier invoices per month and matches them to purchase orders in the ERP by hand.",
+              "People perform every step manually.",
               "—",
               "—"
             ],
@@ -1364,24 +1329,24 @@
             ],
             [
               "Stage 3 · End-to-end (option)",
-              "Additionally (proposal only; requires telemetry_3mo and targeted C6 deep-dives): Invoices arrive by email as PDFs.",
+              "No sourced stage-3 candidates. Nothing is proposed beyond the specified build.",
               "Releases outbound messages; decides on any rule-tuning proposals.",
-              "Exception effort down; cycle time days to hours. Proposal only — not in the committed business case.",
-              "~2-3 weeks more, own business case after 3 months of stage-2 data"
+              "—",
+              "—"
             ]
           ],
           "source_refs": [
             {
               "conversation_id": "C1",
               "speaker_role": "Maria",
-              "excerpt_pointer": "turn:1"
+              "excerpt_pointer": "turn:3"
             }
           ]
         },
         {
           "block": "callout",
-          "tone": "open_item",
-          "text": "This point is recorded as an open item because it is not supported by a conversation excerpt."
+          "kind": "note",
+          "text": "Stage-3 elements are proposals only. They are never included in the committed business case."
         }
       ],
       "source_refs": [
@@ -1445,7 +1410,7 @@
           "block": "glossary",
           "terms": [
             {
-              "term": "Auto-match rate",
+              "term": "Auto-match",
               "meaning": "Share of cases the workflow completes without a human step."
             },
             {
@@ -1491,6 +1456,13 @@
             {
               "term": "Invoices arrive by email as PDFs.",
               "meaning": "As named in the conversations: Invoices arrive by email as PDFs.."
+            }
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Maria",
+              "excerpt_pointer": "turn:1"
             }
           ]
         }
@@ -1602,7 +1574,7 @@
     ],
     "assumptions": [
       "automation_rate=0.7",
-      "loaded_hourly_cost_eur=45.0",
+      "loaded_hourly_cost_eur=45",
       "automatable_hours_mo=25.0",
       "run_cost_eur_mo=150",
       "build_cost_eur=8000",
@@ -1622,7 +1594,7 @@
       "automatable_hours_mo": 25.0,
       "monthly_volume": 200.0,
       "automation_rate": 0.7,
-      "loaded_hourly_cost_eur": 45.0,
+      "loaded_hourly_cost_eur": 45,
       "build_cost_eur": 8000,
       "archetype": "doc_extraction"
     }
@@ -1645,14 +1617,14 @@
         "risk_inverted": 2
       },
       "evidence": [
-        "impact from 40.0 h/month → level 2",
+        "impact from 25.0 h/month → level 2",
         "speed from 1.6 weeks → level 3",
         "strategic_fit level 2",
         "feasibility level 2",
         "risk_inverted level 2"
       ],
       "inputs": {
-        "hours_mo": 40.0,
+        "hours_mo": 25.0,
         "timeline_weeks": 1.6,
         "strategic_fit_level": 2,
         "feasibility_level": 2,
@@ -1726,11 +1698,12 @@
     "sources_line": "Sources C1",
     "how_produced": "Generated automatically from the captured conversations. Missing facts are listed, never guessed.",
     "volume": "~200/month",
-    "capacity": "~25.0 hours/month in the automatable core",
+    "capacity": "",
     "clean_handling_time": "",
     "exception_handling_time": "",
     "exception_rate": "70 %",
     "staff_description": "Exceptions stay with the team.",
+    "quality_risk": "",
     "hitl": "Exceptions are always decided by people.",
     "recommendation": "Release for build at evolution stage 2 (autonomous with human control) only if all three quality gates pass. Blocking items are listed in chapter 11; numbered next steps are in chapter 13.",
     "classification": "Data is confidential and must stay in the EU.",

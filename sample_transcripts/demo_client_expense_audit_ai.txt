@@ -1,0 +1,23 @@
+Agent: Discovery call — AI assistant for employee expense report pre-audit before Finance release.
+
+Arben: We are a 900-person services company. Staff submit roughly 320 expense reports every month through our portal. Two finance analysts spend about 145 hours monthly on the repeatable checks — receipt present, policy category, per-diem limits, VAT format, duplicate detection on the same trip. That excludes manager sign-off workshops and the quarterly audit sample they pull manually.
+
+Arben: The painful part is the same questions every week: Is this meal over the EUR 45 cap? Is the mileage rate correct? Did someone already claim this hotel night? Analysts copy data from PDFs into Excel, then into the ERP, then email the employee when something is wrong. Month-end close slips by two days when the backlog hits 80 open reports.
+
+Arben: Mismatches and policy exceptions are about 11 percent of submissions. Rush claims before travel season spikes that to nearly 18 percent for two weeks — that percentage is not our target automation rate, just how often a human has to touch a case today.
+
+Agent: What would good look like after automation?
+
+Arben: We want analyst effort on first-pass review down to 35 hours per month within nine months. Loaded analyst cost for your business case is EUR 38 per hour. The employee handbook expense section is revision 2024-04 — that date is not a volume figure.
+
+Agent: Why automate now instead of hiring another analyst?
+
+Arben: We are opening a second office next year and expect report volume to grow 40 percent without adding headcount. Today the team is reactive — they firefight exceptions instead of improving policy. Leadership wants an AI tool that handles straight-through clearance for obvious compliant reports and routes only exceptions to people with a clear reason code. They do not want a black box that auto-approves payments; bank payout still needs Finance release.
+
+Agent: Any rough sense of how much could run straight-through?
+
+Arben: Maybe 75 percent could clear automatically once rules are stable — that is my opinion, not an approved KPI. We have not signed off on 75 percent yet.
+
+IT: SAP Concur read is live via API. ERP posting write-back is blocked until internal audit signs the control memo. Data stays in EU. Ticket queue 8844 is the IT helpdesk line — not a process metric.
+
+Arben: Stage 1 should be assistive — suggest fixes in the portal. Stage 2 is autonomous matching with human control on exceptions and anything above EUR 500 per line. Automatic payment without a human is out of scope for now.

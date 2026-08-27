@@ -1,0 +1,11 @@
+Agent: Discovery for vendor invoice three-way matching in Accounts Payable.
+
+Maria: We touch close to six hundred vendor invoices every four weeks. Clerks spend 110 staff-hours on the matchable portion each month. Mismatches run about 9 percent of the batch. Our policy binder is on page 14 if you need the escalation tree — that page number is not a volume figure.
+
+Maria: Goal is to bring clerical load on matching down to 30 hours per month. Fully loaded clerk rate is 52 euros an hour. Finance started this initiative in March 2024; the go-live target is separate from today's volumes.
+
+Agent: Roughly what automation share would you expect once rules are stable?
+
+Maria: I would guess you could automate 80 percent eventually, but we have not signed off on that — treat it as a hypothesis only.
+
+IT: ERP read access is live; posting write-back waits on security sign-off. For escalations call the AP desk at extension 4421 — not a process metric.

@@ -1,0 +1,11 @@
+Agent: Warehouse returns (RMA) inspection automation.
+
+Tom: Distribution handles 670 RMA units monthly. Receiving spends 88 labor hours on inspection and relabeling each month. Damaged-on-arrival is 11 percent of returns. Aisle 7 is the quarantine zone label — not a quantity.
+
+Tom: Leadership wants inspection labor capped at 25 hours per month. Warehouse labor runs EUR 29 per hour loaded. The site opened in 2019; that year is not part of the business case.
+
+Agent: Could straight-through hit 85 percent?
+
+Tom: Eighty-five percent sounds plausible on paper but we have not measured it — please flag as inference.
+
+WMS: Read-only API to inventory; label printer write pending. Pager 018 is maintenance, not a KPI.

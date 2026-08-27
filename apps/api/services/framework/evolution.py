@@ -56,10 +56,10 @@ def generate_evolution(
 
     if sourced:
         stage3_does = (
-            "Additionally (proposal only; requires telemetry_3mo and targeted C6 deep-dives): "
+            "Additionally (proposal only; requires the stated stable-metrics period and targeted deep-dives): "
             + " · ".join(sourced)
         )
-        extra = "~2-3 weeks more, own business case after 3 months of stage-2 data"
+        extra = "Proposal only; own estimate and business case only after the stated stable-metrics period."
         benefit = "Exception effort down; cycle time days to hours. Proposal only — not in the committed business case."
     else:
         stage3_does = (

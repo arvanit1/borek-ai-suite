@@ -113,6 +113,28 @@
           "type": "array",
           "minItems": 1,
           "items": { "$ref": "#/$defs/ConversationRef" }
+        },
+        "metric": {
+          "type": "object",
+          "description": "Optional typed numeric value for business-case inputs (ES-23). Populated by ES-5 when the statement names a harvestable quantity.",
+          "additionalProperties": false,
+          "required": ["kind", "value"],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "monthly_volume",
+                "automatable_hours_mo",
+                "team_hours_mo",
+                "target_remaining_hours_mo",
+                "loaded_hourly_cost_eur",
+                "automation_rate",
+                "exception_rate_pct"
+              ]
+            },
+            "value": { "type": "number" },
+            "unit": { "type": "string" }
+          }
         }
       }
     },

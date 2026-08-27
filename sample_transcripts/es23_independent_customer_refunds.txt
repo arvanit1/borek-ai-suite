@@ -1,0 +1,11 @@
+Agent: Customer refund portal automation — e-commerce support.
+
+Sam: The portal sees 2,400 refund tickets monthly. Agents burn 320 hours on tier-one review work each month. Chargeback disputes are 6 percent of volume. Ticket reference 8812 was an example case id, not a count.
+
+Sam: Target state is 90 hours of human touch after automation. Loaded agent cost is EUR 41 per hour. We published the FAQ on page 6 of the help center — ignore that page index for ROI math.
+
+Agent: Would you model a 95 percent auto-approval rate?
+
+Sam: That would be optimistic; I have not seen evidence for 95 percent yet.
+
+Ops: Stripe read is wired; bank payout write is blocked until legal review. Callback queue displays turn:99 in logs for engineers only.

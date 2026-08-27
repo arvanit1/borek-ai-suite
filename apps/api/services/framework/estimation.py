@@ -17,6 +17,8 @@ def estimate_effort(
     data_readiness: str,
     reuse: list[str] | None = None,
     builder_count: int = 1,
+    declared_likely_weeks: float | None = None,
+    declared_build_cost_eur: int | None = None,
     config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     cfg = config or estimation_config()
@@ -43,13 +45,17 @@ def estimate_effort(
     discount_pct = min(discount_pct, 40)
     weeks *= 1 - discount_pct / 100
 
-    likely = round(weeks, 1)
+    likely = round(float(declared_likely_weeks), 1) if declared_likely_weeks is not None else round(weeks, 1)
     span = float(cfg["range_pct"]) / 100
     minimum = round(likely * (1 - span), 1)
     maximum = round(likely * (1 + span), 1)
     tier = _tier_for(likely, cfg["tiers"])
     builders = max(1, builder_count)
-    build_cost_eur = int(round(likely * float(cfg["builder_weekly_rate_eur"]) * builders))
+    build_cost_eur = (
+        int(declared_build_cost_eur)
+        if declared_build_cost_eur is not None
+        else int(round(likely * float(cfg["builder_weekly_rate_eur"]) * builders))
+    )
 
     confidence = {
         "ready": "medium-high",
@@ -69,6 +75,8 @@ def estimate_effort(
             f"data_readiness={data_readiness}",
             f"reuse_discount_pct={discount_pct}",
             f"builder_weekly_rate_eur={cfg['builder_weekly_rate_eur']}",
+            *(["likely_effort_weeks declared in conversation"] if declared_likely_weeks is not None else []),
+            *(["build_cost_eur declared in conversation"] if declared_build_cost_eur is not None else []),
         ],
         "inputs": {
             "archetype": archetype,

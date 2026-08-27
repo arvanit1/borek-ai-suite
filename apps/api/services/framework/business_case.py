@@ -26,21 +26,34 @@ def compute_business_case(
     loaded_hourly_cost_eur: float | None = None,
     automation_rate: float | None = None,
     run_cost_eur_mo: int | None = None,
+    hours_saved_mo: float | None = None,
+    gross_round_to_eur: int | None = None,
     build_cost_eur: int,
     archetype: str,
     qualitative: list[str] | None = None,
     extra_assumptions: list[str] | None = None,
     config: dict[str, Any] | None = None,
+    allow_config_defaults: bool = True,
 ) -> dict[str, Any]:
     cfg = config or business_case_config()
-    rate = float(cfg["automation_rate_default"] if automation_rate is None else automation_rate)
-    hourly = float(cfg["loaded_hourly_cost_eur"] if loaded_hourly_cost_eur is None else loaded_hourly_cost_eur)
+    rate = automation_rate
+    if rate is None and allow_config_defaults:
+        rate = float(cfg["automation_rate_default"])
+    elif rate is None:
+        rate = 0.0
+    if hours_saved_mo is not None and automatable_hours_mo > 0:
+        rate = float(hours_saved_mo) / automatable_hours_mo
+    hourly = loaded_hourly_cost_eur
+    if hourly is None and allow_config_defaults:
+        hourly = float(cfg["loaded_hourly_cost_eur"])
+    elif hourly is None:
+        hourly = 0.0
     run_cost = int(run_cost_eur_mo if run_cost_eur_mo is not None else lookup_run_cost_eur_mo(archetype, monthly_volume))
-    round_to = int(cfg["gross_round_to_eur"])
+    round_to = int(cfg["gross_round_to_eur"] if gross_round_to_eur is None else gross_round_to_eur)
     horizon = int(cfg["roi_horizon_months"])
     payback_decimals = int(cfg["payback_decimals"])
 
-    hours_saved = round(automatable_hours_mo * rate)
+    hours_saved = round(float(hours_saved_mo)) if hours_saved_mo is not None else round(automatable_hours_mo * rate)
     gross_raw = hours_saved * hourly
     gross = int(round(gross_raw / round_to) * round_to) if round_to else int(round(gross_raw))
     net = gross - run_cost
@@ -63,8 +76,10 @@ def compute_business_case(
         f"build_cost_eur={build_cost_eur}",
         *(extra_assumptions or []),
     ]
-    if loaded_hourly_cost_eur is None:
+    if loaded_hourly_cost_eur is None and allow_config_defaults:
         assumptions.append("loaded_hourly_cost_eur used client default from business_case.config.json")
+    elif loaded_hourly_cost_eur is None:
+        assumptions.append("loaded_hourly_cost_eur mentioned in conversation but not parsed — gross benefit not computed from config default")
 
     return {
         "hours_saved_mo": hours_saved,
@@ -77,7 +92,11 @@ def compute_business_case(
         "qualitative": list(qualitative or []),
         "assumptions": assumptions,
         "formulas": {
-            "hours_saved_mo": "round(automatable_hours_mo * automation_rate)",
+            "hours_saved_mo": (
+                "automatable_hours_mo - customer-declared target remaining hours"
+                if hours_saved_mo is not None
+                else "round(automatable_hours_mo * automation_rate)"
+            ),
             "gross_eur_mo": f"round(hours_saved_mo * loaded_hourly_cost_eur to {round_to} EUR)",
             "net_eur_mo": "gross_eur_mo - run_cost_eur_mo",
             "payback_months": "build_cost_eur / net_eur_mo",

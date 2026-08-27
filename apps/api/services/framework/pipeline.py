@@ -90,11 +90,15 @@ def generate_customer_framework(
     )
 
     evolution = generate_evolution(
-        today_description=skeleton.get("facts")[0] if skeleton.get("facts") else "Fully manual process.",
+        today_description="People perform every step manually.",
         stage2_agent_does=engines.get("stage2_agent_does")
         or "Runs the named standard case within confirmed rules; exceptions go to people.",
         stage2_human_does="Exceptions, gated approvals, spot checks.",
-        stage2_benefit=f"~{engines['business_case']['hours_saved_mo']} h/month · full business case from chapter 9",
+        stage2_benefit=(
+            f"~{engines['business_case']['hours_saved_mo']} h/month · full business case from chapter 9"
+            if engines["business_case"].get("hours_saved_mo")
+            else "See chapter 9 — hours saved/month is an open item until effort figures are confirmed"
+        ),
         stage2_effort=f"base build ({engines['estimate']['effort_weeks']['likely']} weeks, EUR {engines['estimate']['build_cost_eur']})",
         stage3_candidates=skeleton.get("stage3_candidates") or [],
     )
@@ -134,14 +138,19 @@ def generate_customer_framework(
         if draft.get("rules"):
             skeleton["rules"] = draft["rules"]
         if draft.get("exceptions"):
-            skeleton["exceptions"] = draft["exceptions"]
+            skeleton["exceptions"] = _merge_exception_frequencies(
+                skeleton.get("exceptions") or [],
+                draft["exceptions"],
+            )
         if draft.get("access_needs"):
-            skeleton["access_needs"] = draft["access_needs"]
+            skeleton["access_needs"] = _merge_required_access_needs(
+                skeleton.get("access_needs") or [], draft["access_needs"]
+            )
         if draft.get("open_items"):
             skeleton["open_items"] = _merge_open_items(skeleton.get("open_items") or [], draft["open_items"])
         if draft.get("title"):
             skeleton["title"] = draft["title"]
-        if draft.get("department"):
+        if draft.get("department") and skeleton.get("department") in {None, "", "Unspecified"}:
             skeleton["department"] = draft["department"]
         llm_meta = {"used": True, "model": sonnet_model(), "prompt_version": PROMPT_VERSION}
 
@@ -244,12 +253,16 @@ def generate_customer_framework(
 
 def run_engines(skeleton: dict[str, Any], *, overrides: dict[str, Any]) -> dict[str, Any]:
     inputs = {**(skeleton.get("engine_inputs") or {}), **overrides}
+    unresolved = set(inputs.get("unresolved_fields") or [])
+    allow_defaults = not unresolved.intersection({"loaded_hourly_cost_eur", "automation_rate", "monthly_volume", "automatable_hours_mo"})
     hours_mo = _optional_float(inputs, "hours_mo")
     automatable = _optional_float(inputs, "automatable_hours_mo")
     if hours_mo is None:
         hours_mo = automatable if automatable is not None else 0.0
-    if automatable is None:
+    if automatable is None and "automatable_hours_mo" not in unresolved:
         automatable = hours_mo
+    elif automatable is None:
+        automatable = 0.0
     volume = _optional_float(inputs, "monthly_volume")
     if volume is None:
         volume = 0.0
@@ -267,11 +280,14 @@ def run_engines(skeleton: dict[str, Any], *, overrides: dict[str, Any]) -> dict[
         data_readiness=data_readiness,
         reuse=reuse,
         builder_count=int(inputs.get("builder_count") or 1),
+        declared_likely_weeks=_optional_float(inputs, "declared_effort_weeks"),
+        declared_build_cost_eur=_optional_int(inputs, "build_cost_eur"),
     )
     timeline = float(estimate["timeline_weeks"])
 
+    impact_hours = automatable if automatable > 0 else hours_mo
     opportunity = score_opportunity(
-        hours_mo=hours_mo,
+        hours_mo=impact_hours,
         timeline_weeks=timeline,
         strategic_fit_level=int(inputs.get("strategic_fit_level") or 3),
         feasibility_level=int(inputs.get("feasibility_level") or 2),
@@ -304,10 +320,18 @@ def run_engines(skeleton: dict[str, Any], *, overrides: dict[str, Any]) -> dict[
         monthly_volume=volume,
         loaded_hourly_cost_eur=inputs.get("loaded_hourly_cost_eur"),
         automation_rate=inputs.get("automation_rate"),
+        run_cost_eur_mo=_optional_int(inputs, "run_cost_eur_mo"),
+        hours_saved_mo=_hours_saved_from_declared_target(automatable, _optional_float(inputs, "target_remaining_hours_mo")),
+        gross_round_to_eur=(
+            1
+            if _has_customer_declared_business_case_inputs(inputs)
+            else None
+        ),
         build_cost_eur=int(estimate["build_cost_eur"]),
         archetype=archetype,
         qualitative=list(inputs.get("qualitative") or []),
         extra_assumptions=list(estimate.get("assumptions") or []),
+        allow_config_defaults=allow_defaults,
     )
     return {
         "opportunity": opportunity,
@@ -354,6 +378,47 @@ def _merge_required_kpis(base: list[dict[str, Any]], draft: list[dict[str, Any]]
     return merged
 
 
+def _merge_required_access_needs(base: list[dict[str, Any]], draft: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Keep ES-21 access categories when the LLM returns only a partial client-needs list."""
+    merged = [dict(item) for item in draft if isinstance(item, dict)]
+    categories = (
+        ("Read access", "read", ("read",)),
+        ("Write access", "write", ("write",)),
+        ("Sample / test data", "sample", ("sample", "test", "sandbox")),
+        ("Rule confirmation", "rule", ("rule",)),
+        ("Identity / SSO", "identity", ("identity", "sso")),
+    )
+
+    def matching_item(items: list[dict[str, Any]], needles: tuple[str, ...]) -> dict[str, Any] | None:
+        return next(
+            (
+                item
+                for item in items
+                if any(needle in str(item.get("category") or "").lower() for needle in needles)
+            ),
+            None,
+        )
+
+    for canonical_category, required_token, needles in categories:
+        fallback = matching_item(base, needles)
+        candidate = matching_item(merged, needles)
+        if candidate is None:
+            if fallback is not None:
+                candidate = dict(fallback)
+                candidate["category"] = canonical_category
+                merged.append(candidate)
+            continue
+        # The validator and customer-facing table use the Lead's canonical labels.
+        # A loose LLM label such as "Sandbox" must still appear as sample/test data.
+        if required_token not in str(candidate.get("category") or "").lower():
+            candidate["category"] = canonical_category
+        if fallback is not None:
+            for field in ("category", "detail", "status", "owner"):
+                if not candidate.get(field):
+                    candidate[field] = fallback.get(field)
+    return merged
+
+
 def _cover_from_skeleton(skeleton: dict[str, Any], engines: dict[str, Any]) -> dict[str, Any]:
     numbers = skeleton.get("numbers") or {}
     volume = numbers.get("monthly_volume")
@@ -367,7 +432,16 @@ def _cover_from_skeleton(skeleton: dict[str, Any], engines: dict[str, Any]) -> d
     clean_time = _first_minutes(blob, ("clean", "standard", "straightforward"))
     exception_time = _first_minutes(blob, ("exception", "mismatch", "escalation"))
     exception_rate = _first_percent_text(blob)
+    first_pass_match = _first_percent_for_context(texts, "first-pass", "first pass")
     staff = _named_text(texts, "team") or _named_text(texts, "lead") or _named_text(texts, "owner")
+    engine_inputs = skeleton.get("engine_inputs") or {}
+    current_hours = engine_inputs.get("hours_mo") or engine_inputs.get("automatable_hours_mo")
+    hourly_cost = engine_inputs.get("loaded_hourly_cost_eur")
+    capacity = ""
+    if current_hours:
+        capacity = f"~{current_hours:g} hours/month"
+        if hourly_cost:
+            capacity += f" (~EUR {float(current_hours) * float(hourly_cost):,.0f}/month at the named loaded rate)"
     return {
         "title": skeleton.get("title"),
         "automation": skeleton.get("title"),
@@ -375,22 +449,23 @@ def _cover_from_skeleton(skeleton: dict[str, Any], engines: dict[str, Any]) -> d
         "sources_line": "Sources " + ", ".join(skeleton.get("conversation_ids") or []),
         "how_produced": "Generated automatically from the captured conversations. Missing facts are listed, never guessed.",
         "volume": f"~{volume}/month" if volume else "",
-        "capacity": (
-            f"~{engines['business_case']['inputs']['automatable_hours_mo']} hours/month in the automatable core"
-            if engines["business_case"]["inputs"].get("automatable_hours_mo")
-            else ""
-        ),
+        "capacity": capacity,
         "clean_handling_time": clean_time,
         "exception_handling_time": exception_time,
         "exception_rate": exception_rate,
         "staff_description": staff,
+        "quality_risk": (
+            f"First-pass match rate {first_pass_match}; invoices that do not match first pass require exception handling."
+            if first_pass_match
+            else ""
+        ),
         "hitl": "Exceptions are always decided by people.",
         "recommendation": (
             "Release for build at evolution stage 2 (autonomous with human control) only if all three "
             "quality gates pass. Blocking items are listed in chapter 11; numbered next steps are in chapter 13."
         ),
         "classification": _named_text(texts, "classification", "confidential") or _named_text(texts, "confidential"),
-        "residency": _named_text(texts, "residency") or _named_text(texts, "eu"),
+        "residency": _named_text(texts, "residency") or _named_eu_residency(texts),
         "retention": _named_text(texts, "retention") or _named_text(texts, "keep") or _named_text(texts, "archive"),
         "minimization": _named_text(texts, "iban") or _named_text(texts, "not kept") or _named_text(texts, "minimization"),
         "access": _named_text(texts, "least-privilege") or _named_text(texts, "least privilege"),
@@ -399,6 +474,23 @@ def _cover_from_skeleton(skeleton: dict[str, Any], engines: dict[str, Any]) -> d
         "inputs": _named_text(texts, "purchase order") or _named_text(texts, "invoice"),
         "result": _named_text(texts, "posted") or _named_text(texts, "exception queue"),
     }
+
+
+def _first_percent_for_context(texts: list[str], *needles: str) -> str:
+    for text in texts:
+        if not any(needle in text.lower() for needle in needles):
+            continue
+        match = re.search(r"(\d+(?:\.\d+)?)\s*(?:%|percent|per\s*cent)", text, re.I)
+        if match:
+            return f"{match.group(1)} %"
+    return ""
+
+
+def _named_eu_residency(texts: list[str]) -> str:
+    for text in texts:
+        if re.search(r"\bEU\b", text, re.I):
+            return text
+    return ""
 
 
 def _first_minutes(blob: str, needles: tuple[str, ...]) -> str:
@@ -459,6 +551,34 @@ def _merge_open_items(base: list[dict[str, Any]], extra: list[dict[str, Any]]) -
     return merged
 
 
+def _merge_exception_frequencies(
+    base: list[dict[str, Any]],
+    draft: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Keep assembly frequencies when the LLM assigns an unsupported percent."""
+    by_name = {str(item.get("name", "")).lower(): item for item in base}
+    merged: list[dict[str, Any]] = []
+    for item in draft:
+        name = str(item.get("name", "")).lower()
+        candidate = dict(item)
+        base_item = by_name.get(name)
+        if base_item and not _frequency_supported(candidate.get("frequency"), candidate.get("handling", "")):
+            candidate["frequency"] = base_item.get("frequency", candidate.get("frequency"))
+        merged.append(candidate)
+    return merged
+
+
+def _frequency_supported(frequency: Any, handling: Any) -> bool:
+    freq = str(frequency or "")
+    text = str(handling or "")
+    if not freq or "named in conversation" in freq.lower():
+        return True
+    match = re.search(r"(\d+(?:\.\d+)?)\s*%", freq)
+    if not match:
+        return True
+    return match.group(1) in text
+
+
 def _gaps_from_open_items(open_items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [
         {
@@ -485,6 +605,30 @@ def _optional_float(inputs: dict[str, Any], key: str) -> float | None:
     if key not in inputs or inputs[key] is None or inputs[key] == "":
         return None
     return float(inputs[key])
+
+
+def _optional_int(inputs: dict[str, Any], key: str) -> int | None:
+    value = _optional_float(inputs, key)
+    return int(value) if value is not None else None
+
+
+def _hours_saved_from_declared_target(
+    automatable_hours_mo: float,
+    target_remaining_hours_mo: float | None,
+) -> float | None:
+    """Prefer the customer-stated remaining-effort target over a default rate."""
+    if target_remaining_hours_mo is None or automatable_hours_mo <= 0:
+        return None
+    saved = automatable_hours_mo - target_remaining_hours_mo
+    return saved if saved >= 0 else None
+
+
+def _has_customer_declared_business_case_inputs(inputs: dict[str, Any]) -> bool:
+    """Preserve exact arithmetic when the customer supplied the monetary basis."""
+    return any(
+        _optional_float(inputs, key) is not None
+        for key in ("run_cost_eur_mo", "build_cost_eur", "target_remaining_hours_mo")
+    )
 
 
 def new_job_id() -> str:

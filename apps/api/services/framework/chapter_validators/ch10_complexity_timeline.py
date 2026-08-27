@@ -20,7 +20,7 @@ def validate(framework: dict[str, Any], chapter: dict[str, Any]) -> list[Chapter
         issues.append(ChapterIssue("10", "confidence", "Chapter 10 must include confidence with the effort range."))
     if "team" not in blob and not (estimate.get("team") or []):
         issues.append(ChapterIssue("10", "team", "Chapter 10 must name the team."))
-    if "driver" not in blob and "assumption" not in blob:
+    if "driver" not in blob:
         issues.append(ChapterIssue("10", "drivers", "Chapter 10 must include the effort drivers."))
     if not blocks_of(chapter, "timeline"):
         issues.append(ChapterIssue("10", "timeline", "Chapter 10 must include a week plan."))

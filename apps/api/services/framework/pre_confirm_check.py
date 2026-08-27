@@ -46,13 +46,21 @@ _STRONG_AI_CONTRADICTION = (
     " decides alone",
     "without a person",
     "without human",
-    " autonomously ",
     " auto-approves",
     "places orders",
     "signs contracts",
     "evaluates employees",
-    "decides whether",
-    "does not evaluate",
+)
+_AGENT_DECIDES = re.compile(
+    r"\b(ai|the agent|an agent|the automation|agent)\b[^.]{0,48}\bdecides?\s+whether\b",
+    re.I,
+)
+_BOUNDED_AUTONOMY = (
+    "within confirmed rules",
+    "within the rules",
+    "within tolerance",
+    "within agreed rules",
+    "standard path",
 )
 
 
@@ -107,6 +115,7 @@ def prepare_framework_for_confirm(framework: dict[str, Any]) -> None:
     chapter_5 = _chapter_or_none(framework, "5")
     if chapter_5 is not None:
         ensure_never_autonomous_statement(chapter_5)
+    _confirm_force_strip_soft_contradictions(framework)
 
 
 def scrub_ai_split_echoes(framework: dict[str, Any]) -> None:
@@ -188,6 +197,9 @@ def confirm_customer_report(
 
 
 def _phrases_overlap(left: str, right: str) -> bool:
+    # ES-13 is a semantic boundary check, not a stem-counting exercise.  Each
+    # word has exactly one normalized form, so "supplier" and the synthetic
+    # stem "suppl" cannot count as two separate overlaps.
     a = _content_tokens(left)
     b = _content_tokens(right)
     if not a or not b:
@@ -201,21 +213,27 @@ def _content_tokens(text: str) -> set[str]:
     raw = {token for token in re.findall(r"[a-z0-9]+", text.lower()) if token not in _STOP and len(token) > 2}
     stems: set[str] = set()
     for token in raw:
-        stems.add(token)
+        normalized = token
         for suffix in ("ing", "es", "ed", "s"):
             if token.endswith(suffix) and len(token) - len(suffix) >= 4:
-                stems.add(token[: -len(suffix)])
+                normalized = token[: -len(suffix)]
+                break
         if len(token) >= 5:
-            stems.add(token[:5])
+            normalized = normalized[:5]
+        stems.add(normalized)
     return stems
 
 
 def _text_outside_chapter_6(framework: dict[str, Any]) -> str:
-    parts: list[str] = [_flatten(framework.get("cover"))]
+    # ES-13 must reason about customer-facing statements, not serialised
+    # rendering metadata. In particular, a process-flow node has ``kind:
+    # agent``; combining that metadata with a later prose sentence containing
+    # "autonomously" can manufacture a false contradiction.
+    parts: list[str] = [_customer_facing_text(framework.get("cover"))]
     for chapter in framework.get("chapters") or []:
         if str(chapter.get("chapter_id")) == "6":
             continue
-        parts.append(_flatten(chapter.get("body")))
+        parts.append(_customer_facing_text(chapter.get("body")))
     return " ".join(part for part in parts if part)
 
 
@@ -324,14 +342,14 @@ def _scrub_body(body: Any, not_used: list[str], *, chapter_id: str | None = None
 
 
 def _chapter_needs_force_strip(chapter: dict[str, Any], not_used: list[str]) -> bool:
-    blob = _flatten(chapter.get("body"))
+    blob = _customer_facing_text(chapter.get("body"))
     for forbidden in not_used:
         for sentence in _ai_sentences(blob):
-            if _phrases_overlap(sentence, forbidden) and not _is_real_ai_contradiction(sentence, not_used):
+            if _is_hard_ai_contradiction(sentence, not_used):
+                continue
+            if _phrases_overlap(sentence, forbidden):
                 return True
-            if _should_neutralize_hitl_wording(sentence, not_used) and not _is_real_ai_contradiction(
-                sentence, not_used
-            ):
+            if _should_neutralize_hitl_wording(sentence, not_used):
                 return True
     return False
 
@@ -420,7 +438,46 @@ def _is_real_ai_contradiction(text: str, not_used: list[str]) -> bool:
     if text_has_never_autonomous_marker(cleaned):
         return False
     lower = cleaned.lower()
+    if " autonomously " in lower:
+        if any(marker in lower for marker in _BOUNDED_AUTONOMY):
+            return False
+        if any(token in lower for token in ("approv", "post", "release", "pay", "order", "sign")):
+            return True
+    if re.search(r"\bdecides?\s+whether\b", lower) and not _AGENT_DECIDES.search(cleaned):
+        return False
+    if _AGENT_DECIDES.search(cleaned):
+        return True
     return any(marker in lower for marker in _STRONG_AI_CONTRADICTION)
+
+
+def _is_hard_ai_contradiction(text: str, not_used: list[str]) -> bool:
+    return _is_real_ai_contradiction(text, not_used)
+
+
+def _chapter_has_hard_ai_contradiction(chapter: dict[str, Any], not_used: list[str]) -> bool:
+    blob = _customer_facing_text(chapter.get("body"))
+    return any(_is_hard_ai_contradiction(sentence, not_used) for sentence in _ai_sentences(blob))
+
+
+def _confirm_force_strip_soft_contradictions(framework: dict[str, Any]) -> None:
+    """Remove agent/AI actor wording outside chapter 6 when ES-13 would false-positive."""
+    chapter = _chapter_or_none(framework, "6")
+    if chapter is None:
+        return
+    splits = blocks_of(chapter, "ai_split")
+    if not splits:
+        return
+    not_used = [str(item).strip() for item in splits[0].get("not_used_for") or [] if str(item).strip()]
+    if not not_used:
+        return
+    for other in framework.get("chapters") or []:
+        chapter_id = str(other.get("chapter_id"))
+        if chapter_id == "6":
+            continue
+        if _chapter_has_hard_ai_contradiction(other, not_used):
+            continue
+        if _chapter_needs_force_strip(other, not_used):
+            other["body"] = _force_strip_ai_actor_body(other.get("body"), chapter_id=chapter_id)
 
 
 def _neutralize_ai_actor(text: str) -> str:
@@ -530,6 +587,55 @@ def _is_today_vs_agent_table(block: dict[str, Any]) -> bool:
         [str(block.get("caption") or ""), *(str(item) for item in (block.get("columns") or []))]
     ).lower()
     return "today" in text and "agent" in text
+
+
+def _customer_facing_text(value: Any) -> str:
+    """Flatten report content into sentence-delimited, customer-visible text.
+
+    This deliberately excludes structural keys such as process-flow ``kind`` and
+    ``id``. They are rendering metadata, never statements about what AI may do.
+    """
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, (int, float, bool)):
+        return str(value)
+    if isinstance(value, list):
+        return ". ".join(part for item in value if (part := _customer_facing_text(item)))
+    if not isinstance(value, dict):
+        return str(value)
+
+    kind = str(value.get("block") or "")
+    if kind in {"prose", "callout"}:
+        return str(value.get("text") or "")
+    if kind == "bullets":
+        return _customer_facing_text(value.get("items") or [])
+    if kind == "kv_rows":
+        rows = [
+            f"{row.get('label', '')}: {row.get('value', '')}"
+            for row in value.get("rows") or []
+            if isinstance(row, dict)
+        ]
+        return _customer_facing_text([value.get("caption") or "", *rows])
+    if kind == "table":
+        rows = [" ".join(str(cell) for cell in row) for row in value.get("rows") or [] if isinstance(row, list)]
+        return _customer_facing_text([value.get("caption") or "", value.get("columns") or [], *rows])
+    if kind == "process_flow":
+        labels = [
+            str(node.get("label") or "")
+            for node in value.get("nodes") or []
+            if isinstance(node, dict)
+        ]
+        edge_labels = [
+            str(edge.get("label") or "")
+            for edge in value.get("edges") or []
+            if isinstance(edge, dict) and edge.get("label")
+        ]
+        return _customer_facing_text([value.get("caption") or "", *labels, *edge_labels])
+
+    ignored = {"block", "chapter_id", "id", "kind", "from", "to", "source_refs", "excerpt_pointer"}
+    return _customer_facing_text([item for key, item in value.items() if key not in ignored])
 
 
 def _flatten(value: Any) -> str:

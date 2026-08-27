@@ -44,6 +44,7 @@ LANE_AGENT = HexColor("#1B3358")
 LANE_HUMAN = HexColor("#C4A35A")
 LANE_SYSTEM = HexColor("#5C574F")
 LANE_DECISION = HexColor("#7A3E12")
+META_LABEL_BG = HexColor("#E8EEF5")
 
 _PDF_LABELS = {
     "en": {
@@ -384,7 +385,7 @@ def _render_block(block: dict[str, Any], styles: dict[str, ParagraphStyle], view
         return bars
     if kind == "timeline":
         weeks = block.get("weeks") or []
-        data = [[Paragraph(f"<b>{week.get('id')}</b>", styles["th"]) for week in weeks]]
+        data = [[Paragraph(f"<b>{week.get('id')}</b>", styles["th_dark"]) for week in weeks]]
         data.append(
             [
                 Paragraph("<br/>".join(strip_citations(str(item)) for item in week.get("items") or []), styles["td"])
@@ -399,7 +400,7 @@ def _render_block(block: dict[str, Any], styles: dict[str, ParagraphStyle], view
         not_used = "<br/>".join(f"• {strip_citations(str(item))}" for item in block.get("not_used_for") or [])
         table = Table(
             [
-                [Paragraph("<b>AI is used for</b>", styles["th"]), Paragraph("<b>AI is NOT used for</b>", styles["th"])],
+                [Paragraph("<b>AI is used for</b>", styles["th_dark"]), Paragraph("<b>AI is NOT used for</b>", styles["th_dark"])],
                 [Paragraph(used, styles["td"]), Paragraph(not_used, styles["td"])],
             ],
             colWidths=[89 * mm, 89 * mm],
@@ -426,7 +427,7 @@ def _legend(styles: dict[str, ParagraphStyle]) -> Paragraph:
 
 
 def _kv_table(caption: str, rows: list[list[str]], styles: dict[str, ParagraphStyle]) -> list[Any]:
-    data = [[Paragraph("<b>Item</b>", styles["th"]), Paragraph("<b>Detail</b>", styles["th"])]]
+    data = [[Paragraph("<b>Item</b>", styles["th_dark"]), Paragraph("<b>Detail</b>", styles["th_dark"])]]
     for label, value in rows:
         data.append([Paragraph(label, styles["td_strong"]), Paragraph(value, styles["td"])])
     table = Table(data, colWidths=[48 * mm, 130 * mm])
@@ -442,7 +443,7 @@ def _data_table(block: dict[str, Any], styles: dict[str, ParagraphStyle]) -> Any
     columns = [strip_citations(str(col)) for col in block.get("columns") or []]
     width = 178 * mm
     col_w = [width / max(len(columns), 1)] * max(len(columns), 1)
-    header = [Paragraph(f"<b>{col}</b>", styles["th"]) for col in columns]
+    header = [Paragraph(f"<b>{col}</b>", styles["th_dark"]) for col in columns]
     data = [header]
     for row in block.get("rows") or []:
         data.append([Paragraph(strip_citations(str(cell)), styles["td"]) for cell in row])
@@ -452,19 +453,24 @@ def _data_table(block: dict[str, Any], styles: dict[str, ParagraphStyle]) -> Any
 
 
 def _meta_table(rows: list[list[str]]) -> Table:
+    """Cover metadata table — navy labels on a light cell (PDF-safe in all viewers).
+
+    White-on-navy looks correct in browsers but many PDF readers skip table cell
+    backgrounds, which makes white label text invisible on a white page.
+    """
     styles = _styles()
     data = [
-        [Paragraph(f"<b>{label}</b>", styles["td_strong"]), Paragraph(value, styles["td"])]
+        [Paragraph(strip_citations(label), styles["td_strong"]), Paragraph(strip_citations(value), styles["td"])]
         for label, value in rows
     ]
     table = Table(data, colWidths=[42 * mm, 136 * mm])
     table.setStyle(
         TableStyle(
             [
-                ("BACKGROUND", (0, 0), (0, -1), NAVY),
-                ("TEXTCOLOR", (0, 0), (0, -1), white),
+                ("BACKGROUND", (0, 0), (0, -1), META_LABEL_BG),
                 ("BACKGROUND", (1, 0), (1, -1), CARD),
-                ("BOX", (0, 0), (-1, -1), 0.3, RULE),
+                ("BOX", (0, 0), (-1, -1), 0.6, NAVY),
+                ("LINEBEFORE", (0, 0), (0, -1), 3, NAVY),
                 ("INNERGRID", (0, 0), (-1, -1), 0.3, RULE),
                 ("LEFTPADDING", (0, 0), (-1, -1), 8),
                 ("RIGHTPADDING", (0, 0), (-1, -1), 8),
@@ -480,8 +486,8 @@ def _meta_table(rows: list[list[str]]) -> Table:
 def _table_style() -> TableStyle:
     return TableStyle(
         [
-            ("BACKGROUND", (0, 0), (-1, 0), NAVY),
-            ("TEXTCOLOR", (0, 0), (-1, 0), white),
+            ("BACKGROUND", (0, 0), (-1, 0), META_LABEL_BG),
+            ("LINEBEFORE", (0, 0), (-1, 0), 2, NAVY),
             ("BACKGROUND", (0, 1), (-1, -1), CARD),
             ("ROWBACKGROUNDS", (0, 1), (-1, -1), [CARD, HexColor("#F3F0EA")]),
             ("BOX", (0, 0), (-1, -1), 0.3, RULE),
@@ -526,6 +532,7 @@ def _styles() -> dict[str, ParagraphStyle]:
         ),
         "muted": ParagraphStyle("muted", parent=base["Normal"], fontName="Times-Italic", fontSize=8, leading=11, textColor=MUTED),
         "th": ParagraphStyle("th", parent=base["Normal"], fontName="Times-Bold", fontSize=8, leading=11, textColor=white),
+        "th_dark": ParagraphStyle("th_dark", parent=base["Normal"], fontName="Times-Bold", fontSize=8, leading=11, textColor=NAVY),
         "td": ParagraphStyle("td", parent=base["Normal"], fontName="Times-Roman", fontSize=8.5, leading=11, textColor=INK),
         "td_strong": ParagraphStyle("td_strong", parent=base["Normal"], fontName="Times-Bold", fontSize=8.5, leading=11, textColor=NAVY),
         "banner": ParagraphStyle("banner", parent=base["Normal"], fontName="Times-Roman", fontSize=9, leading=12, textColor=INK),

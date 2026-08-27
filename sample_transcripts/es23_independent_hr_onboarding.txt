@@ -1,0 +1,11 @@
+Agent: HR onboarding paperwork automation scoping.
+
+Jordan: Roughly 120 new hires land each quarter, so about 40 a month. Onboarding coordinators log 180 hours monthly on repeatable paperwork — not the manager approval workshops. Incomplete files are 15 percent of cases.
+
+Jordan: We want coordinator effort under 50 hours within six months. Blended HR hourly is 35 euros loaded for your business case. The employee handbook revision is dated 2022-09-01 and is unrelated to monthly throughput.
+
+Agent: Any early automation-rate estimate?
+
+Jordan: Maybe 70 percent of packets could be straight-through — that's my gut, not a signed KPI.
+
+HRIS: SSO and Workday read APIs are approved; DocuSign write scope is pending. Support line is +49 30 555 0192 for access issues only.
