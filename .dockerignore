@@ -1,0 +1,23 @@
+# Git
+.git
+.gitignore
+
+# Dependencies and build output
+**/node_modules
+**/.next
+**/__pycache__
+**/.pytest_cache
+**/*.pyc
+
+# Local env and secrets
+.env
+apps/web/.env.local
+
+# Generated runtime artifacts
+tmp/
+.tmp_e2e/
+
+# Editor and OS
+.cursor/
+.vscode/
+**/.DS_Store

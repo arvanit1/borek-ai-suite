@@ -2,5 +2,29 @@
   "name": "borek-web",
   "version": "0.1.0",
   "private": true,
-  "description": "Next.js frontend (AT-46..AT-49)"
+  "description": "Next.js frontend (AT-46..AT-49)",
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start --port 3000",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test:at46": "tsx src/lib/transcriptFormats.test.ts && tsx src/lib/uploadQueue.test.ts",
+    "test:at47": "tsx src/lib/frameworkEdit.test.ts && tsx src/lib/frameworkFieldEdit.test.ts && tsx src/lib/apiErrors.test.ts",
+    "test:at48": "tsx src/lib/planPreview.test.ts",
+    "test:at49": "tsx src/lib/deckCenter.test.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.8",
+    "next": "^15.2.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "@types/react": "^19.0.12",
+    "@types/react-dom": "^19.0.4",
+    "playwright": "^1.62.1",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.0"
+  }
 }

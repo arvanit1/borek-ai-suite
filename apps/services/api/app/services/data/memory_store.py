@@ -12,6 +12,7 @@ from typing import Any
 from uuid import UUID
 
 from app.services.api_errors import bad_request, conflict, not_found
+from app.services.deck_assets import materialize_stub_deck_assets
 
 ALLOWED_TRANSCRIPT_EXTENSIONS = {".txt", ".vtt", ".srt", ".docx"}
 ALLOWED_TRANSCRIPT_MIME_TYPES = {
@@ -27,6 +28,12 @@ _FIXTURE_PATH = (
     / "contracts"
     / "fixtures"
     / "framework_object.minimal.json"
+)
+_RICH_FIXTURE_PATH = (
+    Path(__file__).resolve().parents[6]
+    / "tests"
+    / "fixtures"
+    / "framework_object.confirmed.group_a.json"
 )
 _PLAN_FIXTURE_PATH = (
     Path(__file__).resolve().parents[6]
@@ -44,6 +51,16 @@ def _now() -> datetime:
 def _load_framework_template(opportunity_id: UUID) -> dict[str, Any]:
     payload = json.loads(_FIXTURE_PATH.read_text(encoding="utf-8"))
     payload = copy.deepcopy(payload)
+    if _RICH_FIXTURE_PATH.is_file():
+        rich = json.loads(_RICH_FIXTURE_PATH.read_text(encoding="utf-8"))
+        for index, chapter in enumerate(payload.get("chapters", [])):
+            rich_chapter = rich.get("chapters", [])[index] if index < len(rich.get("chapters", [])) else None
+            if rich_chapter and rich_chapter.get("source_refs"):
+                chapter["body"] = copy.deepcopy(rich_chapter.get("body", chapter.get("body")))
+                chapter["source_refs"] = copy.deepcopy(rich_chapter.get("source_refs", []))
+        payload["quality_scores"] = copy.deepcopy(rich.get("quality_scores", payload["quality_scores"]))
+        payload["kpis"] = copy.deepcopy(rich.get("kpis", payload["kpis"]))
+        payload["rules"] = copy.deepcopy(rich.get("rules", payload["rules"]))
     payload["opportunity_id"] = str(opportunity_id)
     payload["updated_at"] = _now().isoformat().replace("+00:00", "Z")
     payload["created_at"] = payload["updated_at"]
@@ -83,6 +100,7 @@ class MemoryDataStore:
     presentations: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     presentation_versions: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     slides: dict[UUID, dict[str, Any]] = field(default_factory=dict)
+    audit_logs: dict[UUID, dict[str, Any]] = field(default_factory=dict)
 
     def create_opportunity(
         self,
@@ -284,6 +302,30 @@ class MemoryDataStore:
         row["status"] = "confirmed"
         framework_json = row["framework_json"]
         framework_json["status"] = "confirmed"
+        return row
+
+    def update_latest_framework(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        framework_json: dict[str, Any],
+    ) -> dict[str, Any]:
+        row = self.get_latest_framework(opportunity_id=opportunity_id, user_id=user_id)
+        if row["status"] == "confirmed":
+            raise conflict("FRAMEWORK_IMMUTABLE", "Confirmed framework versions cannot be edited")
+        if row["status"] != "draft":
+            raise bad_request(
+                "FRAMEWORK_NOT_EDITABLE",
+                f"Framework version status {row['status']} cannot be edited",
+            )
+
+        updated = copy.deepcopy(framework_json)
+        updated["opportunity_id"] = str(opportunity_id)
+        updated["updated_at"] = _now().isoformat().replace("+00:00", "Z")
+        change_log = updated.setdefault("change_log", [])
+        change_log.append("Manual edit via framework review UI")
+        row["framework_json"] = updated
         return row
 
     def regenerate_chapter(
@@ -537,6 +579,13 @@ class MemoryDataStore:
 
         version_row["slides_json"] = slide_specs
         version_row["status"] = "ready"
+        assets = materialize_stub_deck_assets(
+            version_id=presentation_version_id,
+            slide_count=len(slide_specs),
+        )
+        version_row["pptx_storage_path"] = assets["pptx_storage_path"]
+        version_row["pdf_storage_path"] = assets["pdf_storage_path"]
+        version_row["preview_image_paths"] = assets["preview_image_paths"]
         return version_row
 
     def get_latest_presentation_version(
@@ -625,6 +674,48 @@ class MemoryDataStore:
         ]
         return sorted(rows, key=lambda row: row["slide_index"])
 
+    def get_latest_presentation_for_opportunity(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+    ) -> dict[str, Any]:
+        accessible_plan_ids = {
+            plan_id
+            for plan_id, plan in self.presentation_plans.items()
+            if self._user_can_access_plan(plan_id=plan_id, user_id=user_id)
+            and self.framework_versions.get(plan["framework_version_id"], {}).get("opportunity_id")
+            == opportunity_id
+        }
+        rows = [
+            row
+            for row in self.presentations.values()
+            if row["presentation_plan_id"] in accessible_plan_ids
+        ]
+        if not rows:
+            raise not_found(
+                "PRESENTATION_NOT_FOUND",
+                f"No presentation exists for opportunity {opportunity_id}",
+            )
+        return max(rows, key=lambda row: row["created_at"])
+
+    def get_presentation_version_assets(
+        self,
+        *,
+        presentation_id: UUID,
+        user_id: UUID,
+    ) -> dict[str, Any]:
+        version = self.get_latest_presentation_version(
+            presentation_id=presentation_id,
+            user_id=user_id,
+        )
+        if version.get("status") != "ready":
+            raise bad_request(
+                "PRESENTATION_NOT_READY",
+                "Presentation version is not ready for preview or download",
+            )
+        return version
+
     def _user_can_access_plan(self, *, plan_id: UUID, user_id: UUID) -> bool:
         plan = self.presentation_plans.get(plan_id)
         if plan is None:
@@ -634,6 +725,33 @@ class MemoryDataStore:
             return False
         opportunity = self.opportunities.get(framework["opportunity_id"])
         return opportunity is not None and opportunity["created_by"] == user_id
+
+    def append_audit_log(
+        self,
+        *,
+        actor_id: UUID,
+        action: str,
+        object_type: str,
+        object_id: UUID,
+    ) -> dict[str, Any]:
+        entry_id = uuid.uuid4()
+        now = _now()
+        row = {
+            "id": entry_id,
+            "actor_id": actor_id,
+            "action": action,
+            "object_type": object_type,
+            "object_id": object_id,
+            "timestamp": now,
+        }
+        self.audit_logs[entry_id] = row
+        return row
+
+    def list_audit_logs(self, *, actor_id: UUID | None = None) -> list[dict[str, Any]]:
+        rows = list(self.audit_logs.values())
+        if actor_id is not None:
+            rows = [row for row in rows if row["actor_id"] == actor_id]
+        return sorted(rows, key=lambda row: row["timestamp"])
 
 
 _memory_store = MemoryDataStore()

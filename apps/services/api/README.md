@@ -4,19 +4,14 @@ FastAPI service for the Framework & Presentation Pipeline. LLM calls and backgro
 
 ## Run locally
 
-From the repository root:
+From the repository root (recommended — loads `.env` from repo root):
 
 ```bash
-# Install Python deps (includes FastAPI + Celery)
-pip install -e ".[dev,api]"
-
-# Copy env template and fill required values
-cp .env.example .env
-
-# Start API (port 8000)
 cd apps/services/api
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+py -3 -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+The API reads `borek-ai-suite/.env` automatically regardless of which subdirectory you start from.
 
 Required environment variables (see `app/config.py`):
 

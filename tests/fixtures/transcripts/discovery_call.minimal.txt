@@ -1,0 +1,12 @@
+Client discovery call — invoice automation opportunity.
+
+Participants: Alex (Client IT), Sam (Borek Solutions).
+
+Alex: We process about twelve thousand invoices per month manually in SAP.
+Sam: What is the biggest pain point today?
+Alex: Three-way matching takes four days on average and errors require rework.
+Sam: Which systems are in scope?
+Alex: SAP ERP, our document management system, and email approvals.
+Sam: What does success look like in year one?
+Alex: Cut processing time by fifty percent and eliminate duplicate payments.
+Alex: Compliance requires a full audit trail for every automated decision.

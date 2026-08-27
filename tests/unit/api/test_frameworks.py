@@ -85,6 +85,53 @@ def test_regenerate_chapter_enqueues_job() -> None:
     assert response.json()["job_id"]
 
 
+def test_update_framework_persists_edits() -> None:
+    client = _client()
+    opportunity_id = _create_opportunity(client)
+    client.post(f"/opportunities/{opportunity_id}/framework/generate", headers=_headers())
+
+    latest = client.get(f"/opportunities/{opportunity_id}/framework", headers=_headers())
+    framework_json = latest.json()["framework_json"]
+    framework_json["title"] = "Updated framework title"
+    framework_json["chapters"][1]["body"] = [
+        {"summary": "Edited management summary with traceable facts."}
+    ]
+
+    patch = client.patch(
+        f"/opportunities/{opportunity_id}/framework",
+        headers=_headers(),
+        json={"framework_json": framework_json},
+    )
+    assert patch.status_code == 200
+    assert patch.json()["framework_json"]["title"] == "Updated framework title"
+
+    reloaded = client.get(f"/opportunities/{opportunity_id}/framework", headers=_headers())
+    assert reloaded.json()["framework_json"]["title"] == "Updated framework title"
+
+
+def test_update_framework_rejects_confirmed_version() -> None:
+    client = _client()
+    opportunity_id = _create_opportunity(client)
+    client.post(f"/opportunities/{opportunity_id}/framework/generate", headers=_headers())
+    client.post(
+        f"/opportunities/{opportunity_id}/framework/confirm",
+        headers=_headers(),
+        json={},
+    )
+
+    latest = client.get(f"/opportunities/{opportunity_id}/framework", headers=_headers())
+    framework_json = latest.json()["framework_json"]
+    framework_json["title"] = "Should not save"
+
+    patch = client.patch(
+        f"/opportunities/{opportunity_id}/framework",
+        headers=_headers(),
+        json={"framework_json": framework_json},
+    )
+    assert patch.status_code == 409
+    assert patch.json()["error"]["code"] == "FRAMEWORK_IMMUTABLE"
+
+
 def test_render_requires_confirmed_framework() -> None:
     client = _client()
     opportunity_id = _create_opportunity(client)

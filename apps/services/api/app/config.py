@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Self
 
 from pydantic import Field, model_validator
@@ -9,12 +10,14 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.database_url import resolve_database_url
 
+_REPO_ROOT = Path(__file__).resolve().parents[4]
+
 
 class Settings(BaseSettings):
     """All required backend configuration from environment variables."""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(_REPO_ROOT / ".env", ".env"),
         env_file_encoding="utf-8",
         extra="ignore",
     )

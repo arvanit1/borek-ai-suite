@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, File, UploadFile
 from app.auth import get_current_user
 from app.dependencies import AuthUserDep, DataStoreDep
 from app.schemas.transcripts import TranscriptResponse, TranscriptUploadResponse
+from app.services.audit import AuditAction, AuditObjectType, record_audit_event
 from app.services.data.supabase_store import validate_transcript_upload
 
 router = APIRouter(dependencies=[Depends(get_current_user)])
@@ -35,6 +36,13 @@ async def upload_transcript(
         file_name=file_name,
         mime_type=file.content_type or "text/plain",
         storage_path=storage_path,
+    )
+    record_audit_event(
+        store,
+        actor_id=user.id,
+        action=AuditAction.TRANSCRIPT_UPLOAD,
+        object_type=AuditObjectType.TRANSCRIPT,
+        object_id=row["id"],
     )
     transcript = _to_response(row)
     return TranscriptUploadResponse(
@@ -82,5 +90,12 @@ def regenerate_transcript(
         opportunity_id=opportunity_id,
         transcript_id=transcript_id,
         user_id=user.id,
+    )
+    record_audit_event(
+        store,
+        actor_id=user.id,
+        action=AuditAction.TRANSCRIPT_REGENERATE,
+        object_type=AuditObjectType.TRANSCRIPT,
+        object_id=transcript_id,
     )
     return _to_response(row)
