@@ -8,19 +8,19 @@
 import type PptxGenJS from "pptxgenjs";
 
 import type { LayoutId, SlideSpecBase } from "../src/contracts.js";
+import { renderContext01 } from "./group_a/renderContext01.js";
+import { renderCover01 } from "./group_a/renderCover01.js";
+import { renderProblemSolution01 } from "./group_a/renderProblemSolution01.js";
+import { renderRequirementsMatrix01 } from "./group_a/renderRequirementsMatrix01.js";
+import { renderScope01 } from "./group_a/renderScope01.js";
 import {
   renderArchitecture01Stub,
   renderCompliance01Stub,
-  renderContext01Stub,
-  renderCover01Stub,
   renderExecutiveSummary01Stub,
   renderMilestones01Stub,
   renderNextSteps01Stub,
   renderOpenQuestions01Stub,
-  renderProblemSolution01Stub,
   renderProcessFlow01Stub,
-  renderRequirementsMatrix01Stub,
-  renderScope01Stub,
   renderSuccessMetrics01Stub,
   renderTeamFte01Stub,
   renderTimeline01Stub,
@@ -28,6 +28,18 @@ import {
 } from "./stubs.js";
 
 export type RenderFn = LayoutRenderFn;
+
+type ValidatedLayoutRenderFn<TSpec extends SlideSpecBase> = (
+  pptx: PptxGenJS,
+  spec: Readonly<TSpec>,
+) => unknown;
+
+/** Register a layout-specific renderer after upstream validation has matched its layoutId. */
+function registerValidatedRenderer<TSpec extends SlideSpecBase>(
+  render: ValidatedLayoutRenderFn<TSpec>,
+): RenderFn {
+  return render as unknown as RenderFn;
+}
 
 /** Thrown when slide.layoutId is not registered in LAYOUT_REGISTRY. */
 export class UnsupportedLayoutError extends Error {
@@ -42,12 +54,12 @@ export class UnsupportedLayoutError extends Error {
  * BT/JJ/MS tickets replace stub values — do not add per-layout switches elsewhere.
  */
 export const LAYOUT_REGISTRY: Record<LayoutId, RenderFn> = {
-  COVER_01: renderCover01Stub,
+  COVER_01: registerValidatedRenderer(renderCover01),
   EXECUTIVE_SUMMARY_01: renderExecutiveSummary01Stub,
-  CONTEXT_01: renderContext01Stub,
-  PROBLEM_SOLUTION_01: renderProblemSolution01Stub,
-  SCOPE_01: renderScope01Stub,
-  REQUIREMENTS_MATRIX_01: renderRequirementsMatrix01Stub,
+  CONTEXT_01: registerValidatedRenderer(renderContext01),
+  PROBLEM_SOLUTION_01: registerValidatedRenderer(renderProblemSolution01),
+  SCOPE_01: registerValidatedRenderer(renderScope01),
+  REQUIREMENTS_MATRIX_01: registerValidatedRenderer(renderRequirementsMatrix01),
   PROCESS_FLOW_01: renderProcessFlow01Stub,
   TIMELINE_01: renderTimeline01Stub,
   MILESTONES_01: renderMilestones01Stub,
