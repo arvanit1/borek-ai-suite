@@ -1,4 +1,4 @@
-/** BT-20 focused renderer tests. */
+/** BT-20 renderer checks and BT-23 Group A coverage. */
 
 import assert from "node:assert/strict";
 
@@ -20,6 +20,7 @@ import {
 const minimalFixture = minimalFixtureJson as Scope01SlideSpec;
 const realisticFixture = realisticFixtureJson as Scope01SlideSpec;
 const rendererSource = readRendererSource(new URL("./renderScope01.ts", import.meta.url));
+const bt23OpportunityName = "Long opportunity ä ö ü Ä Ö Ü ß & / % + (Pilot's) -";
 
 assert.match(rendererSource, /MASTER_CONTENT_NAME/);
 assert.match(rendererSource, /addSlideTitle\(/);
@@ -68,7 +69,7 @@ const maximumFixture: Scope01SlideSpec = {
   schema_version: "1.0",
   layoutId: "SCOPE_01",
   sectionLabel: "SCOPE & UMFANG".padEnd(32, "Ä"),
-  title: "Scope für kontrollierte Automatisierung ".padEnd(72, "Ü"),
+  title: bt23OpportunityName.padEnd(72, "X"),
   subtitle: "Included now & deliberately planned for later ".padEnd(100, "ß"),
   sourceChapterIds: ["3", "5"],
   included: Array.from({ length: 7 }, (_, index) =>
@@ -78,12 +79,12 @@ const maximumFixture: Scope01SlideSpec = {
     `Später ${index + 1}: geprüft & geplant `.padEnd(72, String(index + 1)),
   ),
 };
+assert.equal(maximumFixture.title.length, 72, "BT-23 scope opportunity name must reach BT-15 max");
 const maximum = await renderToPptx((pptx) => renderScope01(pptx, maximumFixture));
 assertXmlContains(maximum.slideXml, [
-  maximumFixture.title,
+  bt23OpportunityName.replace("&", "&amp;").replace("'", "&apos;"),
+  maximumFixture.included[0].replace("&", "&amp;"),
   maximumFixture.included[6].replace("&", "&amp;"),
-  "&amp;",
-  "Ä",
 ]);
 
 process.stdout.write("BT-20 SCOPE_01 renderer checks passed\n");

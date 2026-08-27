@@ -1,4 +1,4 @@
-/** BT-18 focused renderer tests. */
+/** BT-18 renderer checks and BT-23 Group A coverage. */
 
 import assert from "node:assert/strict";
 
@@ -18,6 +18,7 @@ import {
 const minimalFixture = minimalFixtureJson as Context01SlideSpec;
 const realisticFixture = realisticFixtureJson as Context01SlideSpec;
 const rendererSource = readRendererSource(new URL("./renderContext01.ts", import.meta.url));
+const bt23OpportunityName = "Long opportunity ä ö ü Ä Ö Ü ß & / % + (Pilot's) -";
 
 assertRendererUsesSharedPrimitives(rendererSource, 4);
 
@@ -68,14 +69,20 @@ for (const fixture of [minimalFixture, realisticFixture]) {
 const maximumFixture: Context01SlideSpec = {
   ...structuredClone(realisticFixture),
   sectionLabel: "K".repeat(32),
-  title: "Kontext und Übergang ".padEnd(72, "X"),
+  title: bt23OpportunityName.padEnd(72, "X"),
   subtitle: "Controlled automation & menschliche Prüfung ".padEnd(100, "Y"),
   problem: { title: "Problem ".padEnd(32, "P"), description: "Ä".repeat(160) },
   solution: { title: "Solution ".padEnd(32, "S"), description: "B".repeat(160) },
   currentState: { title: "Ist-Zustand ".padEnd(32, "I"), description: "C".repeat(160) },
   targetState: { title: "Target state ".padEnd(32, "T"), description: "D".repeat(160) },
 };
+assert.equal(maximumFixture.title.length, 72, "BT-23 context opportunity name must reach BT-15 max");
 const maximum = await renderToPptx((pptx) => renderContext01(pptx, maximumFixture));
-assertXmlContains(maximum.slideXml, [maximumFixture.title, "Ä".repeat(160), "&amp;"]);
+assertXmlContains(maximum.slideXml, [
+  bt23OpportunityName.replace("&", "&amp;").replace("'", "&apos;"),
+  "Ä".repeat(160),
+  maximumFixture.currentState.title,
+  maximumFixture.targetState.title,
+]);
 
 process.stdout.write("BT-18 CONTEXT_01 renderer checks passed\n");
