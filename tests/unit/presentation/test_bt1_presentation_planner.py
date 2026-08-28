@@ -88,7 +88,12 @@ def test_confirmed_framework_produces_one_validated_plan_with_preserved_fields(
 
     request = planner.calls[0]["planning_input"]
     assert request is not None
-    assert set(request) == {"instructions", "frameworkObject", "targetSchema"}
+    assert set(request) == {
+        "instructions",
+        "frameworkObject",
+        "chapterLayoutGuidance",
+        "targetSchema",
+    }
     assert request["frameworkObject"]["status"] == "confirmed"
     assert request["targetSchema"]["title"] == "PresentationPlan"
     assert planner.calls[0]["prompt_version"] == PROMPT_VERSION

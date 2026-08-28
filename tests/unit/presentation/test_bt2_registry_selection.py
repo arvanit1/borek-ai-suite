@@ -25,8 +25,14 @@ from services.presentation.registry_validation import (
 ROOT = Path(__file__).resolve().parents[3]
 FRAMEWORK_FIXTURE = ROOT / "tests" / "fixtures" / "framework_object.confirmed.group_a.json"
 PLAN_FIXTURE = ROOT / "packages" / "contracts" / "fixtures" / "presentation_plan.minimal.json"
-PLANNER_PATH = ROOT / "apps" / "api" / "services" / "presentation" / "planner.py"
-PROMPT_PATH = ROOT / "apps" / "api" / "llm" / "openai" / "prompts" / "presentation_planner_v1.txt"
+REGISTRY_VALIDATION_PATH = (
+    ROOT
+    / "apps"
+    / "api"
+    / "services"
+    / "presentation"
+    / "registry_validation.py"
+)
 
 
 class CountingPlanner:
@@ -127,9 +133,8 @@ def test_valid_bt1_flow_remains_one_call_and_needs_no_api_key(
     assert "ANTHROPIC_API_KEY" not in os.environ
 
 
-def test_bt2_does_not_add_bt3_mapping_guidance() -> None:
-    source = PLANNER_PATH.read_text(encoding="utf-8")
-    prompt = PROMPT_PATH.read_text(encoding="utf-8")
+def test_bt2_registry_validation_remains_independent_of_bt3_guidance() -> None:
+    source = REGISTRY_VALIDATION_PATH.read_text(encoding="utf-8")
 
-    assert "chapter_layout_map" not in source
-    assert "chapter_layout_map" not in prompt
+    assert "layout_registry.json" in source
+    assert "chapter_layout" not in source

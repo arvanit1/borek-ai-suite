@@ -1,4 +1,4 @@
-"""BT-1: one-call Presentation Planner from a confirmed FrameworkObject."""
+"""One-call Presentation Planner from a confirmed FrameworkObject."""
 
 from __future__ import annotations
 
@@ -21,6 +21,9 @@ from packages.contracts.validators import (
     ContractValidationError,
     validate_presentation_plan_business_rules,
 )
+from services.presentation.chapter_layout_guidance import (
+    load_chapter_layout_guidance,
+)
 from services.presentation.registry_validation import (
     validate_registry_layout_selection,
 )
@@ -30,7 +33,7 @@ PROMPT_PATH = (
     / "llm"
     / "openai"
     / "prompts"
-    / "presentation_planner_v1.txt"
+    / "presentation_planner_v2.txt"
 )
 PROMPT_VERSION = load_prompt_version(str(PROMPT_PATH))
 PRESENTATION_PLAN_SCHEMA_PATH = (
@@ -81,6 +84,7 @@ def plan_presentation(
     planning_input = {
         "instructions": PROMPT_PATH.read_text(encoding="utf-8"),
         "frameworkObject": framework_payload,
+        "chapterLayoutGuidance": load_chapter_layout_guidance(),
         "targetSchema": json.loads(
             PRESENTATION_PLAN_SCHEMA_PATH.read_text(encoding="utf-8")
         ),
