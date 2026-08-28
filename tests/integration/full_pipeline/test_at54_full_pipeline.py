@@ -51,8 +51,13 @@ def test_at54_fixture_transcript_runs_through_full_pipeline() -> None:
     assert result.presentation_plan_id
     assert result.presentation_id
     assert len(result.slide_ids) >= 1
-    assert result.pptx_bytes.startswith(b"PK")
-    assert len(result.pptx_bytes) > 1000, "pptx must be a real file, not a PK header stub"
+    assert result.pptx_bytes.startswith(b"PK"), (
+        "PPTX must start with PK (ZIP magic bytes)"
+    )
+    assert len(result.pptx_bytes) > 1000, (
+        f"PPTX appears to be a stub ({len(result.pptx_bytes)} bytes); "
+        "expected a real file > 1000 bytes"
+    )
 
     plan = client.get(
         f"/opportunities/{result.opportunity_id}/presentation-plan",
