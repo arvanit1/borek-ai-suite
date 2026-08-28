@@ -155,3 +155,35 @@ def test_render_requires_confirmed_framework() -> None:
     )
     assert allowed.status_code == 202
     assert allowed.json()["job_id"]
+
+
+def test_confirm_framework_blocks_es13_chapter6_contradiction() -> None:
+    client = _client()
+    opportunity_id = _create_opportunity(client)
+    client.post(f"/opportunities/{opportunity_id}/framework/generate", headers=_headers())
+
+    latest = client.get(f"/opportunities/{opportunity_id}/framework", headers=_headers())
+    framework_json = latest.json()["framework_json"]
+    chapter_6 = next(ch for ch in framework_json["chapters"] if ch["chapter_id"] == "6")
+    ai_split = next(block for block in chapter_6["body"] if block.get("block") == "ai_split")
+    ai_split["used_for"] = ["Deciding whether a case matches"]
+    ai_split["not_used_for"] = ["Deciding whether a case matches", "Evaluating employees"]
+
+    patch = client.patch(
+        f"/opportunities/{opportunity_id}/framework",
+        headers=_headers(),
+        json={"framework_json": framework_json},
+    )
+    assert patch.status_code == 200
+
+    confirm = client.post(
+        f"/opportunities/{opportunity_id}/framework/confirm",
+        headers=_headers(),
+        json={},
+    )
+    assert confirm.status_code == 422
+    assert confirm.json()["error"]["code"] == "PRE_CONFIRM_FAILED"
+    assert "contradicts" in confirm.json()["error"]["message"].lower()
+
+    reloaded = client.get(f"/opportunities/{opportunity_id}/framework", headers=_headers())
+    assert reloaded.json()["status"] == "draft"

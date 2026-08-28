@@ -13,6 +13,7 @@ from uuid import UUID
 
 from app.services.api_errors import bad_request, conflict, not_found
 from app.services.deck_assets import materialize_stub_deck_assets
+from app.services.framework_stub_template import load_framework_stub_template
 
 ALLOWED_TRANSCRIPT_EXTENSIONS = {".txt", ".vtt", ".srt", ".docx"}
 ALLOWED_TRANSCRIPT_MIME_TYPES = {
@@ -277,8 +278,30 @@ class MemoryDataStore:
         opportunity_id: UUID,
         user_id: UUID,
         framework_version_id: UUID | None,
+        confirmed_framework_json: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        if framework_version_id is not None:
+        if confirmed_framework_json is not None:
+            if framework_version_id is not None:
+                row = self.get_framework_version(
+                    framework_version_id=framework_version_id,
+                    user_id=user_id,
+                )
+                if row["opportunity_id"] != opportunity_id:
+                    raise not_found(
+                        "FRAMEWORK_NOT_FOUND",
+                        f"Framework version {framework_version_id} was not found",
+                    )
+            else:
+                row = self.get_latest_framework(opportunity_id=opportunity_id, user_id=user_id)
+
+            if row["status"] == "confirmed":
+                raise conflict("FRAMEWORK_ALREADY_CONFIRMED", "Framework version is already confirmed")
+            if row["status"] != "draft":
+                raise bad_request(
+                    "FRAMEWORK_NOT_CONFIRMABLE",
+                    f"Framework version status {row['status']} cannot be confirmed",
+                )
+        elif framework_version_id is not None:
             row = self.get_framework_version(
                 framework_version_id=framework_version_id,
                 user_id=user_id,
@@ -300,8 +323,9 @@ class MemoryDataStore:
             )
 
         row["status"] = "confirmed"
-        framework_json = row["framework_json"]
+        framework_json = confirmed_framework_json if confirmed_framework_json is not None else row["framework_json"]
         framework_json["status"] = "confirmed"
+        row["framework_json"] = framework_json
         return row
 
     def update_latest_framework(
@@ -356,7 +380,7 @@ class MemoryDataStore:
         opportunity_id: UUID,
         user_id: UUID,
     ) -> dict[str, Any]:
-        framework_json = _load_framework_template(opportunity_id)
+        framework_json = load_framework_stub_template(opportunity_id)
         return self.create_framework_version(
             opportunity_id=opportunity_id,
             user_id=user_id,

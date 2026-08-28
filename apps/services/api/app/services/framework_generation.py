@@ -5,7 +5,9 @@ from __future__ import annotations
 from uuid import UUID
 
 from app.services import job_service
+from app.services.api_errors import bad_request, conflict, not_found
 from app.services.data import DataStore
+from app.services.es13_confirm import apply_es13_confirm_gate
 
 
 def enqueue_framework_generate(store: DataStore, *, opportunity_id: UUID, user_id: UUID):
@@ -36,6 +38,36 @@ def enqueue_regenerate_chapter(
     return framework_version, job
 
 
+def _resolve_draft_framework_row(
+    store: DataStore,
+    *,
+    opportunity_id: UUID,
+    user_id: UUID,
+    framework_version_id: UUID | None,
+) -> dict:
+    if framework_version_id is not None:
+        row = store.get_framework_version(
+            framework_version_id=framework_version_id,
+            user_id=user_id,
+        )
+        if row["opportunity_id"] != opportunity_id:
+            raise not_found(
+                "FRAMEWORK_NOT_FOUND",
+                f"Framework version {framework_version_id} was not found",
+            )
+    else:
+        row = store.get_latest_framework(opportunity_id=opportunity_id, user_id=user_id)
+
+    if row["status"] == "confirmed":
+        raise conflict("FRAMEWORK_ALREADY_CONFIRMED", "Framework version is already confirmed")
+    if row["status"] != "draft":
+        raise bad_request(
+            "FRAMEWORK_NOT_CONFIRMABLE",
+            f"Framework version status {row['status']} cannot be confirmed",
+        )
+    return row
+
+
 def confirm_framework(
     store: DataStore,
     *,
@@ -43,10 +75,18 @@ def confirm_framework(
     user_id: UUID,
     framework_version_id: UUID | None,
 ):
+    row = _resolve_draft_framework_row(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user_id,
+        framework_version_id=framework_version_id,
+    )
+    confirmed_json = apply_es13_confirm_gate(row["framework_json"])
     return store.confirm_framework(
         opportunity_id=opportunity_id,
         user_id=user_id,
         framework_version_id=framework_version_id,
+        confirmed_framework_json=confirmed_json,
     )
 
 

@@ -20,6 +20,7 @@ from app.services.data.memory_store import (
     _framework_refs_to_chapter_ids,
 )
 from app.services.deck_assets import materialize_stub_deck_assets
+from app.services.framework_stub_template import load_framework_stub_template
 
 _FIXTURE_PATH = (
     Path(__file__).resolve().parents[6]
@@ -407,6 +408,7 @@ class SupabaseDataStore:
         opportunity_id: UUID,
         user_id: UUID,
         framework_version_id: UUID | None,
+        confirmed_framework_json: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         if framework_version_id is not None:
             row = self.get_framework_version(
@@ -429,7 +431,9 @@ class SupabaseDataStore:
                 f"Framework version status {row['status']} cannot be confirmed",
             )
 
-        framework_json = copy.deepcopy(row["framework_json"])
+        framework_json = copy.deepcopy(
+            confirmed_framework_json if confirmed_framework_json is not None else row["framework_json"]
+        )
         framework_json["status"] = "confirmed"
         response = self._request(
             "PATCH",
@@ -478,12 +482,7 @@ class SupabaseDataStore:
         opportunity_id: UUID,
         user_id: UUID,
     ) -> dict[str, Any]:
-        payload = json.loads(_FIXTURE_PATH.read_text(encoding="utf-8"))
-        payload = copy.deepcopy(payload)
-        payload["opportunity_id"] = str(opportunity_id)
-        now = datetime.now(UTC).isoformat().replace("+00:00", "Z")
-        payload["created_at"] = now
-        payload["updated_at"] = now
+        payload = load_framework_stub_template(opportunity_id)
         return self.create_framework_version(
             opportunity_id=opportunity_id,
             user_id=user_id,
