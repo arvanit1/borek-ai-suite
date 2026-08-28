@@ -178,11 +178,17 @@ BT/JJ/MS replace individual stubs in `apps/renderer/layouts/stubs.ts` without ch
 - `docker compose up --build` brings up **web**, **api**, **worker**, **renderer**, **redis**
 - Internal service wiring via `REDIS_URL` and `RENDERER_URL`
 - Supabase + LLM credentials loaded from root `.env` only
+- **Worker** stays healthy (requires `redis` PyPI package + Celery healthcheck)
+- **API** image includes `tests/fixtures/renderer/minimal.pptx` for deck stub downloads in Docker
+- **Renderer** image includes LibreOffice + poppler (AT-9 preview tooling)
+- **Web** image copies `apps/web/public` (logo/static assets)
 
 **Run stack:**
 ```powershell
 copy .env.example .env
+# Fill Supabase keys; set OPENAI_API_KEY=local-dev-not-used for stub/demo mode
 docker compose up --build
+# After changing NEXT_PUBLIC_SUPABASE_* rebuild web: docker compose build --no-cache web
 ```
 
 **Tests:** `tests/unit/devops/test_at50_compose.py`.

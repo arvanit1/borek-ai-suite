@@ -15,6 +15,7 @@ COPY apps/services/api ./apps/services/api
 COPY apps/api ./apps/api
 COPY config ./config
 COPY packages ./packages
+COPY tests/fixtures/renderer ./tests/fixtures/renderer
 
 RUN pip install --no-cache-dir .
 

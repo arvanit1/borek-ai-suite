@@ -1,7 +1,12 @@
 FROM node:20-bookworm-slim
 
+# AT-9 preview pipeline: LibreOffice (pptx→pdf) + poppler (pdf→png)
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
+    && apt-get install -y --no-install-recommends \
+        curl \
+        libreoffice-writer \
+        libreoffice-impress \
+        poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -16,6 +21,8 @@ COPY packages/contracts ./packages/contracts
 WORKDIR /app/apps/renderer
 
 ENV RENDERER_PORT=4000
+ENV SOFFICE_PATH=/usr/bin/soffice
+ENV PDFTOPPM_PATH=/usr/bin/pdftoppm
 EXPOSE 4000
 
 HEALTHCHECK --interval=15s --timeout=5s --retries=5 \

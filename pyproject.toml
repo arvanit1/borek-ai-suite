@@ -17,8 +17,10 @@ dependencies = [
     "anthropic>=0.40.0",
     "reportlab>=4.2.5",
     "celery>=5.4.0",
+    "redis>=5.0.0",
     "sqlalchemy>=2.0.0",
     "PyJWT>=2.9.0",
+    "cryptography>=42.0.0",
 ]
 
 [project.optional-dependencies]
