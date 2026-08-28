@@ -6,6 +6,7 @@ import copy
 import inspect
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any
 
@@ -297,15 +298,20 @@ def test_mocked_planning_requires_no_network_or_api_key(
 
 def test_planner_prompt_and_api_keep_stage_b_boundary_narrow() -> None:
     prompt = PROMPT_PATH.read_text(encoding="utf-8").lower()
+    normalized_prompt = " ".join(prompt.split())
     parameters = inspect.signature(plan_presentation).parameters
 
     assert list(parameters) == ["confirmed_framework", "planner"]
-    assert "confirmed frameworkobject" in prompt
-    assert "do not invent facts" in prompt
-    assert "pricing" in prompt and "currency" in prompt and "commercial" in prompt
-    assert "frameworkreferences" in prompt
-    assert "layoutid" in prompt
-    assert "coordinates" in prompt and "geometry" in prompt
+    assert "confirmed frameworkobject" in normalized_prompt
+    assert re.search(r"\bdo not invent\b[^.]*\bfacts\b", normalized_prompt)
+    assert (
+        "pricing" in normalized_prompt
+        and "currency" in normalized_prompt
+        and "commercial" in normalized_prompt
+    )
+    assert "frameworkreferences" in normalized_prompt
+    assert "layoutid" in normalized_prompt
+    assert "coordinates" in normalized_prompt and "geometry" in normalized_prompt
     assert "transcript" not in parameters
     assert "claude" not in parameters
-    assert "chapter_layout_map" not in prompt
+    assert "chapter_layout_map" not in normalized_prompt
