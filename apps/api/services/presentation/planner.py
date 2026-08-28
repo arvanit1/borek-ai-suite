@@ -21,6 +21,9 @@ from packages.contracts.validators import (
     ContractValidationError,
     validate_presentation_plan_business_rules,
 )
+from services.presentation.registry_validation import (
+    validate_registry_layout_selection,
+)
 
 PROMPT_PATH = (
     Path(__file__).resolve().parents[2]
@@ -97,7 +100,9 @@ def plan_presentation(
 
     try:
         plan = consume_presentation_plan(copy.deepcopy(raw_plan))
-        validate_presentation_plan_business_rules(plan.model_dump(mode="json"))
+        validated_payload = plan.model_dump(mode="json")
+        validate_presentation_plan_business_rules(validated_payload)
+        validate_registry_layout_selection(validated_payload)
     except (SchemaVersionMismatchError, ValidationError, ContractValidationError) as exc:
         raise PresentationPlanValidationError(
             f"Invalid PresentationPlan: {exc}"
