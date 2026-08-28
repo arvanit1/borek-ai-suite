@@ -4,7 +4,7 @@ WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-ENV PYTHONPATH=/app/apps/services/api:/app/apps/api
+ENV PYTHONPATH=/app:/app/apps/services/api:/app/apps/api
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \
@@ -14,7 +14,7 @@ COPY pyproject.toml README.md ./
 COPY apps/services/api ./apps/services/api
 COPY apps/api ./apps/api
 COPY config ./config
-COPY packages/contracts ./packages/contracts
+COPY packages ./packages
 
 RUN pip install --no-cache-dir .
 

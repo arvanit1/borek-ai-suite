@@ -12,7 +12,7 @@ from services.framework.guardrails import lint_numbers, _flatten_customer_text
 from services.framework.pipeline import generate_customer_framework, run_engines
 
 ROOT = Path(__file__).resolve().parents[3]
-KM_PATH = ROOT / "generated/customer_reports/.store/knowledge/5c315b96-ff44-499b-8c44-b807443ba4ce.json"
+KM_PATH = ROOT / "packages/contracts/fixtures/knowledge_model.purchase_requisition.json"
 
 
 def _km_fact(
@@ -35,8 +35,7 @@ def _km_fact(
 
 
 def _purchase_requisition_km_model() -> dict:
-    model = json.loads(KM_PATH.read_text(encoding="utf-8"))[0]
-    return {key: value for key, value in model.items() if key != "opportunity_id"}
+    return json.loads(KM_PATH.read_text(encoding="utf-8"))
 
 
 def test_es23_stored_km_with_origin_fields_harvests_client_numbers() -> None:

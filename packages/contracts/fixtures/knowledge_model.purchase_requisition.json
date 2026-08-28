@@ -1,0 +1,63 @@
+{
+  "conversation_id": "C1",
+  "facts": [
+    {
+      "statement": "Process about 850 purchase requisitions per month across three business units",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Client",
+          "excerpt_pointer": "turn:1"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high"
+    },
+    {
+      "statement": "Current process requires roughly 95 hours per month in the repeatable core",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Client",
+          "excerpt_pointer": "turn:1"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high"
+    },
+    {
+      "statement": "Loaded cost is EUR 48 per hour",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Client",
+          "excerpt_pointer": "turn:8"
+        }
+      ],
+      "origin": "SOURCE_FACT",
+      "confidence": "high"
+    }
+  ],
+  "stated_requirements": [
+    {
+      "statement": "Cut manual checking time from 95 hours per month to under 20 hours",
+      "source_refs": [
+        {
+          "conversation_id": "C1",
+          "speaker_role": "Client",
+          "excerpt_pointer": "turn:5"
+        }
+      ],
+      "origin": "USER_INPUT",
+      "confidence": "high"
+    }
+  ],
+  "constraints": [],
+  "named_systems": [],
+  "named_rules": [],
+  "named_exceptions": [],
+  "people_and_roles": [],
+  "timeline_mentions": [],
+  "risks": [],
+  "unknowns": []
+}
