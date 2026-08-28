@@ -3,16 +3,19 @@
 from __future__ import annotations
 
 import copy
+import inspect
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 from services.observability.llm_logger import LlmStage, invoke_llm
-from services.slides.content_generation.group_a.common import (
-    StructuredGenerationRequest,
-    StructuredGenerator,
-)
-from services.slides.group_a_compression import GroupACompressFieldsFn
-from services.validation.constraint_validator import ConstraintViolation
+
+if TYPE_CHECKING:
+    from services.slides.content_generation.group_a.common import (
+        StructuredGenerationRequest,
+        StructuredGenerator,
+    )
+    from services.slides.group_a_compression import GroupACompressFieldsFn
+    from services.validation.constraint_validator import ConstraintViolation
 
 DEFAULT_MODEL = "gpt-4.1-mini"
 DEFAULT_PROMPT_VERSION = "v1"
@@ -32,7 +35,7 @@ class LlmClient:
         self,
         *,
         model: str = DEFAULT_MODEL,
-        executor: Callable[[LlmStage, str, str, int], LlmUsageResult] | None = None,
+        executor: Callable[..., LlmUsageResult] | None = None,
     ) -> None:
         self._model = model
         self._executor = executor or _stub_executor
@@ -62,6 +65,7 @@ class LlmClient:
     def complete_planning(
         self,
         *,
+        planning_input: dict[str, Any] | None = None,
         prompt_version: str = DEFAULT_PROMPT_VERSION,
         retry_count: int = 0,
     ) -> dict[str, Any]:
@@ -70,11 +74,13 @@ class LlmClient:
             model=self._model,
             prompt_version=prompt_version,
             retry_count=retry_count,
-            call=lambda: self._executor(
+            call=lambda: _invoke_executor(
+                self._executor,
                 LlmStage.PLANNING,
                 "presentation_planner",
                 prompt_version,
                 retry_count,
+                request=planning_input,
             ),
             input_tokens=lambda value: value.input_tokens,
             output_tokens=lambda value: value.output_tokens,
@@ -155,13 +161,39 @@ def _stub_executor(
     operation: str,
     prompt_version: str,
     retry_count: int,
+    request: dict[str, Any] | None = None,
 ) -> LlmUsageResult:
-    _ = (stage, operation, prompt_version, retry_count)
+    _ = (stage, operation, prompt_version, retry_count, request)
     return LlmUsageResult(
         payload={"schema_version": "1.0.0", "status": "stub"},
         input_tokens=128,
         output_tokens=64,
     )
+
+
+def _invoke_executor(
+    executor: Callable[..., LlmUsageResult],
+    stage: LlmStage,
+    operation: str,
+    prompt_version: str,
+    retry_count: int,
+    *,
+    request: dict[str, Any] | None,
+) -> LlmUsageResult:
+    """Pass planning input to request-aware executors without breaking legacy ones."""
+    arguments = (stage, operation, prompt_version, retry_count)
+    if request is None:
+        return executor(*arguments)
+
+    try:
+        inspect.signature(executor).bind(*arguments, request=request)
+    except TypeError as exc:
+        raise TypeError(
+            "Planning executor must accept the confirmed Framework request payload"
+        ) from exc
+    except ValueError:
+        pass
+    return executor(*arguments, request=copy.deepcopy(request))
 
 
 def load_prompt_version(path: str) -> str:
