@@ -593,6 +593,36 @@ def test_stage_b_boundaries_have_no_transcript_claude_or_network_inputs() -> Non
         assert forbidden not in provider_source
 
 
+def test_fixture_mode_stub_grounds_group_a_realistic_fixtures() -> None:
+    """AT-54 fixture mode must use the Invoice 3-Way Match chapters, not empty stubs.
+
+    Group A realistic SlideSpecs (including COVER_01 title "Invoice 3-Way Match")
+    are rejected unless those numbers exist in the attributed chapters.
+    """
+    from app.services.framework_stub_template import load_framework_stub_template
+
+    framework = load_framework_stub_template(UUID("11111111-1111-4111-8111-111111111111"))
+    framework["status"] = "confirmed"
+    chapter_1 = next(
+        chapter for chapter in framework["chapters"] if str(chapter["chapter_id"]) == "1"
+    )
+    assert "3-Way Match" in json.dumps(chapter_1)
+
+    for index, (layout_id, _filename, references) in enumerate(GROUP_A_CASES, start=1):
+        spec = stage_b.build_slide_spec_for_planned_slide(
+            planned={
+                "order": index,
+                "purpose": f"fixture-mode-{layout_id}",
+                "layoutId": layout_id,
+                "frameworkReferences": references,
+            },
+            framework_json=framework,
+            structured_generate=_structured_fixture,
+            compress_fields=_identity_compression,
+        )
+        assert spec["layoutId"] == layout_id
+
+
 @pytest.mark.parametrize(
     ("layout_id", "references", "required_field"),
     [

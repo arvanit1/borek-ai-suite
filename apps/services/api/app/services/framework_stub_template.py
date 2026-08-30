@@ -9,18 +9,12 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
-_FIXTURE_PATH = (
-    Path(__file__).resolve().parents[5]
-    / "packages"
-    / "contracts"
-    / "fixtures"
-    / "framework_object.minimal.json"
+_CONTRACTS_FIXTURES = (
+    Path(__file__).resolve().parents[5] / "packages" / "contracts" / "fixtures"
 )
+_FIXTURE_PATH = _CONTRACTS_FIXTURES / "framework_object.minimal.json"
 _RICH_FIXTURE_PATHS = tuple(
-    Path(__file__).resolve().parents[5]
-    / "tests"
-    / "fixtures"
-    / f"framework_object.confirmed.group_{group}.json"
+    _CONTRACTS_FIXTURES / f"framework_object.confirmed.group_{group}.json"
     for group in ("a", "b", "c")
 )
 
@@ -82,7 +76,11 @@ def load_framework_stub_template(opportunity_id: UUID) -> dict[str, Any]:
     payload = copy.deepcopy(payload)
     for index, rich_fixture_path in enumerate(_RICH_FIXTURE_PATHS):
         if not rich_fixture_path.is_file():
-            continue
+            raise FileNotFoundError(
+                f"Missing fixture-mode FrameworkObject {rich_fixture_path.name}. "
+                "Confirmed group fixtures must ship under packages/contracts/fixtures "
+                "so Docker/API can ground Group A SlideSpecs."
+            )
         rich = json.loads(rich_fixture_path.read_text(encoding="utf-8"))
         _merge_rich_chapters(payload, rich)
         if index == 0:
