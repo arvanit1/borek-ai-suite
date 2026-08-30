@@ -1,4 +1,9 @@
-"""Presentation planning/generation stubs wired for Blenard BT-1 (AT-42 / AT-43)."""
+"""Presentation planning/generation orchestration (AT-42 / AT-43).
+
+BT-1 `plan_presentation` and Group A generators (BT-9..13) are invoked from the
+data stores. Group B/C layouts stay metadata stubs until JJ/MS wire their
+generators. Deck files remain stub artifacts until the renderer is called.
+"""
 
 from __future__ import annotations
 

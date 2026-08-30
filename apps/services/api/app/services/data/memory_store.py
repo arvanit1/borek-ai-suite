@@ -14,6 +14,12 @@ from uuid import UUID
 from app.services.api_errors import bad_request, conflict, not_found
 from app.services.deck_assets import materialize_stub_deck_assets
 from app.services.framework_stub_template import load_framework_stub_template
+from app.services.stage_b_orchestration import (
+    build_slide_spec_for_planned_slide,
+    build_stub_slide_spec,
+    framework_refs_to_chapter_ids,
+    plan_json_from_confirmed_framework,
+)
 
 ALLOWED_TRANSCRIPT_EXTENSIONS = {".txt", ".vtt", ".srt", ".docx"}
 ALLOWED_TRANSCRIPT_MIME_TYPES = {
@@ -35,13 +41,6 @@ _RICH_FIXTURE_PATH = (
     / "tests"
     / "fixtures"
     / "framework_object.confirmed.group_a.json"
-)
-_PLAN_FIXTURE_PATH = (
-    Path(__file__).resolve().parents[6]
-    / "packages"
-    / "contracts"
-    / "fixtures"
-    / "presentation_plan.minimal.json"
 )
 
 
@@ -68,28 +67,16 @@ def _load_framework_template(opportunity_id: UUID) -> dict[str, Any]:
     return payload
 
 
-def _load_presentation_plan_template() -> dict[str, Any]:
-    return copy.deepcopy(json.loads(_PLAN_FIXTURE_PATH.read_text(encoding="utf-8")))
-
-
 def _framework_refs_to_chapter_ids(refs: list[str]) -> list[str]:
-    chapter_ids: list[str] = []
-    for ref in refs:
-        if ref.startswith("chapter_"):
-            chapter_ids.append(ref.removeprefix("chapter_"))
-        elif ref == "opportunity":
-            chapter_ids.append("0")
-    return chapter_ids or ["1"]
+    return framework_refs_to_chapter_ids(refs)
 
 
 def _build_stub_slide_spec(*, order: int, layout_id: str, source_chapter_ids: list[str]) -> dict[str, Any]:
-    return {
-        "schema_version": "1.0",
-        "slideId": f"slide_{order:02d}",
-        "layoutId": layout_id,
-        "title": f"Slide {order}",
-        "sourceChapterIds": source_chapter_ids,
-    }
+    return build_stub_slide_spec(
+        order=order,
+        layout_id=layout_id,
+        source_chapter_ids=source_chapter_ids,
+    )
 
 
 @dataclass
@@ -475,10 +462,14 @@ class MemoryDataStore:
         framework_version_id: UUID,
         user_id: UUID,
     ) -> dict[str, Any]:
+        framework = self.get_framework_version(
+            framework_version_id=framework_version_id,
+            user_id=user_id,
+        )
         return self.create_presentation_plan(
             framework_version_id=framework_version_id,
             user_id=user_id,
-            plan_json=_load_presentation_plan_template(),
+            plan_json=plan_json_from_confirmed_framework(framework["framework_json"]),
         )
 
     def create_presentation(
@@ -559,7 +550,11 @@ class MemoryDataStore:
         user_id: UUID,
         plan_json: dict[str, Any],
     ) -> dict[str, Any]:
-        self.get_presentation(presentation_id=presentation_id, user_id=user_id)
+        presentation = self.get_presentation(presentation_id=presentation_id, user_id=user_id)
+        plan = self.get_presentation_plan(
+            presentation_plan_id=presentation["presentation_plan_id"],
+            user_id=user_id,
+        )
         existing = [
             row
             for row in self.presentation_versions.values()
@@ -579,14 +574,17 @@ class MemoryDataStore:
         }
         self.presentation_versions[presentation_version_id] = version_row
 
+        framework = self.get_framework_version(
+            framework_version_id=plan["framework_version_id"],
+            user_id=user_id,
+        )
         slide_specs: list[dict[str, Any]] = []
         for planned in sorted(plan_json.get("slides", []), key=lambda item: item["order"]):
             layout_id = planned["layoutId"]
             source_chapter_ids = _framework_refs_to_chapter_ids(planned.get("frameworkReferences", []))
-            slide_spec = _build_stub_slide_spec(
-                order=int(planned["order"]),
-                layout_id=layout_id,
-                source_chapter_ids=source_chapter_ids,
+            slide_spec = build_slide_spec_for_planned_slide(
+                planned=planned,
+                framework_json=framework["framework_json"],
             )
             slide_id = uuid.uuid4()
             slide_row = {

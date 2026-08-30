@@ -16,8 +16,11 @@ from app.config import settings
 from app.services.api_errors import bad_request, conflict, not_found
 from app.services.data.memory_store import (
     ALLOWED_TRANSCRIPT_EXTENSIONS,
-    _build_stub_slide_spec,
     _framework_refs_to_chapter_ids,
+)
+from app.services.stage_b_orchestration import (
+    build_slide_spec_for_planned_slide,
+    plan_json_from_confirmed_framework,
 )
 from app.services.deck_assets import materialize_stub_deck_assets
 from app.services.framework_stub_template import load_framework_stub_template
@@ -28,13 +31,6 @@ _FIXTURE_PATH = (
     / "contracts"
     / "fixtures"
     / "framework_object.minimal.json"
-)
-_PLAN_FIXTURE_PATH = (
-    Path(__file__).resolve().parents[6]
-    / "packages"
-    / "contracts"
-    / "fixtures"
-    / "presentation_plan.minimal.json"
 )
 
 
@@ -587,11 +583,14 @@ class SupabaseDataStore:
         framework_version_id: UUID,
         user_id: UUID,
     ) -> dict[str, Any]:
-        plan_json = copy.deepcopy(json.loads(_PLAN_FIXTURE_PATH.read_text(encoding="utf-8")))
+        framework = self.get_framework_version(
+            framework_version_id=framework_version_id,
+            user_id=user_id,
+        )
         return self.create_presentation_plan(
             framework_version_id=framework_version_id,
             user_id=user_id,
-            plan_json=plan_json,
+            plan_json=plan_json_from_confirmed_framework(framework["framework_json"]),
         )
 
     def create_presentation(
@@ -704,14 +703,22 @@ class SupabaseDataStore:
             raise bad_request("PRESENTATION_VERSION_CREATE_FAILED", version_response.text)
         version_row = _normalize_presentation_version(version_response.json()[0])
 
+        presentation = self.get_presentation(presentation_id=presentation_id, user_id=user_id)
+        plan = self.get_presentation_plan(
+            presentation_plan_id=presentation["presentation_plan_id"],
+            user_id=user_id,
+        )
+        framework = self.get_framework_version(
+            framework_version_id=plan["framework_version_id"],
+            user_id=user_id,
+        )
         slide_specs: list[dict[str, Any]] = []
         for planned in sorted(plan_json.get("slides", []), key=lambda item: item["order"]):
             layout_id = planned["layoutId"]
             source_chapter_ids = _framework_refs_to_chapter_ids(planned.get("frameworkReferences", []))
-            slide_spec = _build_stub_slide_spec(
-                order=int(planned["order"]),
-                layout_id=layout_id,
-                source_chapter_ids=source_chapter_ids,
+            slide_spec = build_slide_spec_for_planned_slide(
+                planned=planned,
+                framework_json=framework["framework_json"],
             )
             slide_payload = {
                 "presentation_version_id": str(version_row["id"]),
