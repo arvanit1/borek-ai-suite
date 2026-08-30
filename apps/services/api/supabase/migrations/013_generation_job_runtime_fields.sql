@@ -1,0 +1,13 @@
+-- AT-36: persistent job errors, results, and §24 execution metrics.
+
+ALTER TABLE generation_jobs
+  ADD COLUMN IF NOT EXISTS failed_stage TEXT,
+  ADD COLUMN IF NOT EXISTS error_retryable BOOLEAN,
+  ADD COLUMN IF NOT EXISTS result_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS ai_input_tokens BIGINT NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS ai_output_tokens BIGINT NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS number_of_ai_calls INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS render_duration_ms BIGINT NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS storage_size_bytes BIGINT NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS generation_cost_estimate NUMERIC(14, 6) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now();

@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from uuid import UUID
 
-from app.services.api_errors import not_found
+from app.services.api_errors import conflict, not_found
 from app.services.data import DataStore
 from app.services.deck_assets import resolve_pdf_path, resolve_pptx_path, resolve_preview_image_path
 
@@ -21,6 +21,7 @@ def build_deck_center_payload(
         presentation_id=presentation_id,
         user_id=user_id,
     )
+    _require_ready(version)
     slides = store.list_slides(presentation_id=presentation_id, user_id=user_id)
     presentation_id_str = str(presentation_id)
 
@@ -59,6 +60,7 @@ def resolve_deck_file_path(
         presentation_id=presentation_id,
         user_id=user_id,
     )
+    _require_ready(version)
     version_id = version["id"]
     if kind == "pptx":
         path = Path(version["pptx_storage_path"]) if version.get("pptx_storage_path") else resolve_pptx_path(version_id=version_id)
@@ -83,6 +85,7 @@ def resolve_deck_preview_image_path(
         presentation_id=presentation_id,
         user_id=user_id,
     )
+    _require_ready(version)
     preview_paths = version.get("preview_image_paths") or []
     if slide_index < len(preview_paths):
         path = Path(str(preview_paths[slide_index]))
@@ -96,3 +99,11 @@ def resolve_deck_preview_image_path(
             f"Preview image for slide {slide_index + 1} was not found",
         )
     return path
+
+
+def _require_ready(version: dict) -> None:
+    if version.get("status") != "ready":
+        raise conflict(
+            "PRESENTATION_NOT_READY",
+            "Presentation artifacts are not ready for preview or download",
+        )

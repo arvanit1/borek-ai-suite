@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Self
+from typing import Literal, Self
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -45,9 +45,23 @@ class Settings(BaseSettings):
         min_length=1,
     )
     RENDERER_URL: str = Field(..., min_length=1)
+    RENDERER_TIMEOUT_SECONDS: float = Field(default=120.0, gt=0)
+    RENDERER_EXECUTION_MODE: Literal["fixture", "live"] = Field(
+        default="live",
+        description="fixture only for isolated tests; live invokes the renderer service",
+    )
+    ARTIFACT_ROOT: str = Field(
+        default="tmp/deck_assets",
+        min_length=1,
+        description="Private filesystem shared by API and worker for generated artifacts",
+    )
     API_DATA_BACKEND: str = Field(
         default="supabase",
         description="memory for unit tests; supabase for PostgREST with caller JWT",
+    )
+    AI_EXECUTION_MODE: Literal["fixture", "live"] = Field(
+        default="fixture",
+        description="fixture for deterministic local/test runs; live invokes configured LLM providers",
     )
 
     API_HOST: str = "0.0.0.0"

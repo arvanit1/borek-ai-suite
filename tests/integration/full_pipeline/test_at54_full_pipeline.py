@@ -5,6 +5,7 @@ from __future__ import annotations
 import uuid
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.auth import create_test_access_token
@@ -41,7 +42,12 @@ def test_at54_harness_module_declares_pipeline_stages() -> None:
         assert stage in source
 
 
-def test_at54_fixture_transcript_runs_through_full_pipeline() -> None:
+def test_at54_fixture_transcript_runs_through_full_pipeline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "API_DATA_BACKEND", "memory")
+    monkeypatch.setattr(settings, "AI_EXECUTION_MODE", "fixture")
+    monkeypatch.setattr(settings, "RENDERER_EXECUTION_MODE", "fixture")
     client = _client()
     result = run_full_pipeline(client, headers=_headers())
 

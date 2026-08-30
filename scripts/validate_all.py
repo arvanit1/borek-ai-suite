@@ -69,6 +69,7 @@ def main() -> int:
         if not ts_path.is_file():
             raise SystemExit(f"TypeScript codegen did not produce {ts_name}")
     run(["npm", "run", "typecheck", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:server", "--workspace", "borek-renderer"], shell=True)
     run(["npm", "run", "typecheck", "--workspace", "borek-web"], shell=True)
     run(["npm", "run", "test:at46", "--workspace", "borek-web"], shell=True)
     run(["npm", "run", "test:at47", "--workspace", "borek-web"], shell=True)

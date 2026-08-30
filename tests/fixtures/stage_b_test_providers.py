@@ -18,6 +18,22 @@ GROUP_A_FIXTURES = {
     "SCOPE_01": "scope_01.realistic.json",
     "REQUIREMENTS_MATRIX_01": "requirements_matrix_01.realistic.json",
 }
+GROUP_B_FIXTURE_DIR = (
+    ROOT / "packages" / "contracts" / "fixtures" / "slide_spec" / "group_b"
+)
+GROUP_C_FIXTURE_DIR = ROOT / "packages" / "contracts" / "fixtures" / "slide_spec"
+LAYOUT_FIXTURES = {
+    **{layout_id: GROUP_A_FIXTURE_DIR / filename for layout_id, filename in GROUP_A_FIXTURES.items()},
+    "PROCESS_FLOW_01": GROUP_B_FIXTURE_DIR / "process_flow_01.realistic.json",
+    "TIMELINE_01": GROUP_B_FIXTURE_DIR / "timeline_01.realistic.json",
+    "MILESTONES_01": GROUP_B_FIXTURE_DIR / "milestones_01.realistic.json",
+    "TEAM_FTE_01": GROUP_B_FIXTURE_DIR / "team_fte_01.realistic.json",
+    "ARCHITECTURE_01": GROUP_C_FIXTURE_DIR / "architecture_01.minimal.json",
+    "COMPLIANCE_01": GROUP_C_FIXTURE_DIR / "compliance_01.minimal.json",
+    "SUCCESS_METRICS_01": GROUP_C_FIXTURE_DIR / "success_metrics_01.minimal.json",
+    "OPEN_QUESTIONS_01": GROUP_C_FIXTURE_DIR / "open_questions_01.minimal.json",
+    "NEXT_STEPS_01": GROUP_C_FIXTURE_DIR / "next_steps_01.minimal.json",
+}
 GROUP_A_PLAN = {
     "schema_version": "1.0",
     "title": "Deterministic Group A test presentation",
@@ -62,8 +78,8 @@ class DeterministicPlanningClient:
 
 
 def deterministic_structured_generate(request: Any) -> dict[str, Any]:
-    filename = GROUP_A_FIXTURES[request.layout_id]
-    return json.loads((GROUP_A_FIXTURE_DIR / filename).read_text(encoding="utf-8"))
+    path = LAYOUT_FIXTURES[request.layout_id]
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def deterministic_compress_fields(

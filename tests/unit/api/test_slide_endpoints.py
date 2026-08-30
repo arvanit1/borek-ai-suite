@@ -78,7 +78,34 @@ def test_regenerate_slide_enqueues_job() -> None:
     assert body["status"] == "queued"
 
 
-def test_change_layout_enqueues_job_and_updates_slide() -> None:
+def test_change_layout_enqueues_job_and_creates_new_version() -> None:
+    client = _client()
+    presentation_id, slide_id = _create_presentation_with_slides(client)
+
+    response = client.post(
+        f"/presentations/{presentation_id}/slides/{slide_id}/change-layout",
+        headers=_headers(),
+        json={"layout_id": "COVER_01"},
+    )
+    assert response.status_code == 202
+    body = response.json()
+    assert body["job_id"]
+    assert body["status"] == "queued"
+
+    job = client.get(f"/jobs/{body['job_id']}", headers=_headers()).json()
+    assert job["status"] == "COMPLETED"
+    new_slide_id = job["result"]["slide_id"]
+    assert new_slide_id != slide_id
+
+    slide = client.get(
+        f"/presentations/{presentation_id}/slides/{new_slide_id}",
+        headers=_headers(),
+    )
+    assert slide.status_code == 200
+    assert slide.json()["layout_id"] == "COVER_01"
+
+
+def test_change_layout_rejects_different_category() -> None:
     client = _client()
     presentation_id, slide_id = _create_presentation_with_slides(client)
 
@@ -87,18 +114,9 @@ def test_change_layout_enqueues_job_and_updates_slide() -> None:
         headers=_headers(),
         json={"layout_id": "CONTEXT_01"},
     )
-    assert response.status_code == 202
-    body = response.json()
-    assert body["job_id"]
-    assert body["status"] == "queued"
 
-    slide = client.get(
-        f"/presentations/{presentation_id}/slides/{slide_id}",
-        headers=_headers(),
-    )
-    assert slide.status_code == 200
-    assert slide.json()["layout_id"] == "CONTEXT_01"
-    assert slide.json()["slide_spec"]["layoutId"] == "CONTEXT_01"
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "LAYOUT_CATEGORY_MISMATCH"
 
 
 def test_change_layout_rejects_unknown_layout_id() -> None:

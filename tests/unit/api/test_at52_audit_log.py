@@ -175,10 +175,17 @@ def test_state_changing_endpoints_emit_required_audit_actions() -> None:
     )
     assert regenerate_slide.status_code == 202
 
+    latest_slides = client.get(
+        f"/presentations/{presentation_id}/slides",
+        headers=_headers(),
+    )
+    slide_id = latest_slides.json()[0]["id"]
+    current_layout = latest_slides.json()[0]["layout_id"]
+
     change_layout = client.post(
         f"/presentations/{presentation_id}/slides/{slide_id}/change-layout",
         headers=_headers(),
-        json={"layout_id": "CONTEXT_01"},
+        json={"layout_id": current_layout},
     )
     assert change_layout.status_code == 202
 

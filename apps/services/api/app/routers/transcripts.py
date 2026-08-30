@@ -11,7 +11,11 @@ from app.auth import get_current_user
 from app.dependencies import AuthUserDep, DataStoreDep
 from app.schemas.transcripts import TranscriptResponse, TranscriptUploadResponse
 from app.services.audit import AuditAction, AuditObjectType, record_audit_event
+from app.services.api_errors import bad_request
 from app.services.data.supabase_store import validate_transcript_upload
+from services.transcript.conversation_ids import next_conversation_id
+from services.transcript.ingestion import TranscriptIngestionError
+from services.transcript.speaker_turns import split_speaker_turns
 
 router = APIRouter(dependencies=[Depends(get_current_user)])
 
@@ -29,13 +33,35 @@ async def upload_transcript(
 ) -> TranscriptUploadResponse:
     file_name = file.filename or "upload.txt"
     validate_transcript_upload(file_name, file.content_type)
-    storage_path = f"transcripts/{opportunity_id}/{uuid4()}{Path(file_name).suffix.lower()}"
+    content = await file.read()
+    try:
+        turns = split_speaker_turns(file_name, content)
+    except TranscriptIngestionError as exc:
+        raise bad_request("INVALID_TRANSCRIPT_CONTENT", exc.user_message) from exc
+
+    existing = store.list_transcripts(opportunity_id=opportunity_id, user_id=user.id)
+    conversation_id = next_conversation_id(
+        [str(row.get("conversation_id") or "") for row in existing]
+    )
+    sections = [
+        {
+            "section_index": turn.turn_index,
+            "speaker_role": turn.speaker,
+            "content": turn.text,
+            "metadata": {"conversation_id": conversation_id},
+        }
+        for turn in turns
+    ]
+    storage_path = f"{opportunity_id}/{uuid4()}{Path(file_name).suffix.lower()}"
     row = store.create_transcript(
         opportunity_id=opportunity_id,
         user_id=user.id,
         file_name=file_name,
         mime_type=file.content_type or "text/plain",
         storage_path=storage_path,
+        conversation_id=conversation_id,
+        content=content,
+        sections=sections,
     )
     record_audit_event(
         store,

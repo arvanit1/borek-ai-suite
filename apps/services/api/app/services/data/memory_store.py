@@ -11,8 +11,9 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
+from app.config import settings
 from app.services.api_errors import bad_request, conflict, not_found
-from app.services.deck_assets import materialize_stub_deck_assets
+from app.services.deck_assets import materialize_fixture_deck_assets
 from app.services.framework_stub_template import load_framework_stub_template
 from app.services.stage_b_orchestration import (
     build_slide_spec_for_planned_slide,
@@ -74,7 +75,30 @@ class MemoryDataStore:
     presentations: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     presentation_versions: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     slides: dict[UUID, dict[str, Any]] = field(default_factory=dict)
+    generation_jobs: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     audit_logs: dict[UUID, dict[str, Any]] = field(default_factory=dict)
+
+    def create_generation_job(self, payload: dict[str, Any]) -> dict[str, Any]:
+        row = copy.deepcopy(payload)
+        row.setdefault("id", uuid.uuid4())
+        row.setdefault("created_at", _now())
+        self.generation_jobs[row["id"]] = row
+        return copy.deepcopy(row)
+
+    def get_generation_job(self, job_id: UUID) -> dict[str, Any] | None:
+        row = self.generation_jobs.get(job_id)
+        return copy.deepcopy(row) if row is not None else None
+
+    def update_generation_job(
+        self,
+        job_id: UUID,
+        updates: dict[str, Any],
+    ) -> dict[str, Any]:
+        row = self.generation_jobs.get(job_id)
+        if row is None:
+            raise not_found("JOB_NOT_FOUND", f"No job found with id {job_id}")
+        row.update(copy.deepcopy(updates))
+        return copy.deepcopy(row)
 
     def create_opportunity(
         self,
@@ -133,6 +157,9 @@ class MemoryDataStore:
         file_name: str,
         mime_type: str,
         storage_path: str,
+        conversation_id: str,
+        content: bytes,
+        sections: list[dict[str, Any]],
     ) -> dict[str, Any]:
         self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
         transcript_id = uuid.uuid4()
@@ -142,6 +169,9 @@ class MemoryDataStore:
             "file_name": file_name,
             "mime_type": mime_type,
             "storage_path": storage_path,
+            "conversation_id": conversation_id,
+            "content": bytes(content),
+            "sections": copy.deepcopy(sections),
             "processing_status": "pending",
             "created_at": _now(),
         }
@@ -154,6 +184,41 @@ class MemoryDataStore:
             row for row in self.transcripts.values() if row["opportunity_id"] == opportunity_id
         ]
         return sorted(rows, key=lambda row: row["created_at"])
+
+    def list_transcript_sources(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+    ) -> list[dict[str, Any]]:
+        """Return persisted speaker turns for Stage A without reparsing uploads."""
+        return [
+            {
+                "id": row["id"],
+                "file_name": row["file_name"],
+                "conversation_id": row["conversation_id"],
+                "sections": copy.deepcopy(row["sections"]),
+            }
+            for row in self.list_transcripts(
+                opportunity_id=opportunity_id,
+                user_id=user_id,
+            )
+        ]
+
+    def update_transcript_processing_status(
+        self,
+        *,
+        opportunity_id: UUID,
+        transcript_id: UUID,
+        user_id: UUID,
+        processing_status: str,
+    ) -> None:
+        row = self.get_transcript(
+            opportunity_id=opportunity_id,
+            transcript_id=transcript_id,
+            user_id=user_id,
+        )
+        row["processing_status"] = processing_status
 
     def get_transcript(
         self,
@@ -190,6 +255,7 @@ class MemoryDataStore:
         user_id: UUID,
         framework_json: dict[str, Any],
         status: str = "draft",
+        framework_version_id: UUID | None = None,
     ) -> dict[str, Any]:
         self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
         existing = [
@@ -198,7 +264,7 @@ class MemoryDataStore:
             if row["opportunity_id"] == opportunity_id
         ]
         version_number = len(existing) + 1
-        framework_version_id = uuid.uuid4()
+        framework_version_id = framework_version_id or uuid.uuid4()
         row = {
             "id": framework_version_id,
             "opportunity_id": opportunity_id,
@@ -367,6 +433,7 @@ class MemoryDataStore:
         framework_version_id: UUID,
         user_id: UUID,
         plan_json: dict[str, Any],
+        presentation_plan_id: UUID | None = None,
     ) -> dict[str, Any]:
         framework = self.get_framework_version(
             framework_version_id=framework_version_id,
@@ -377,7 +444,7 @@ class MemoryDataStore:
                 "FRAMEWORK_NOT_CONFIRMED",
                 "Framework must be confirmed before creating a presentation plan",
             )
-        presentation_plan_id = uuid.uuid4()
+        presentation_plan_id = presentation_plan_id or uuid.uuid4()
         row = {
             "id": presentation_plan_id,
             "framework_version_id": framework_version_id,
@@ -587,15 +654,36 @@ class MemoryDataStore:
             slide_specs.append(copy.deepcopy(persisted_slide_spec))
 
         version_row["slides_json"] = slide_specs
-        version_row["status"] = "ready"
-        assets = materialize_stub_deck_assets(
-            version_id=presentation_version_id,
-            slide_count=len(slide_specs),
-        )
-        version_row["pptx_storage_path"] = assets["pptx_storage_path"]
-        version_row["pdf_storage_path"] = assets["pdf_storage_path"]
-        version_row["preview_image_paths"] = assets["preview_image_paths"]
+        if settings.RENDERER_EXECUTION_MODE == "fixture":
+            assets = materialize_fixture_deck_assets(
+                version_id=presentation_version_id,
+                slide_count=len(slide_specs),
+            )
+            self.update_presentation_version_assets(
+                presentation_version_id=presentation_version_id,
+                assets=assets,
+                status="ready",
+            )
         return version_row
+
+    def update_presentation_version_assets(
+        self,
+        *,
+        presentation_version_id: UUID,
+        assets: dict[str, object],
+        status: str,
+    ) -> dict[str, Any]:
+        row = self.presentation_versions.get(presentation_version_id)
+        if row is None:
+            raise not_found(
+                "PRESENTATION_VERSION_NOT_FOUND",
+                f"Presentation version {presentation_version_id} was not found",
+            )
+        row["pptx_storage_path"] = assets.get("pptx_storage_path")
+        row["pdf_storage_path"] = assets.get("pdf_storage_path")
+        row["preview_image_paths"] = list(assets.get("preview_image_paths") or [])
+        row["status"] = status
+        return copy.deepcopy(row)
 
     def get_latest_presentation_version(
         self,
@@ -639,13 +727,12 @@ class MemoryDataStore:
         slide_id: UUID,
         user_id: UUID,
     ) -> dict[str, Any]:
-        row = self.get_slide(
+        return self._create_edited_presentation_version(
             presentation_id=presentation_id,
             slide_id=slide_id,
             user_id=user_id,
+            layout_id=None,
         )
-        row["slide_spec"] = copy.deepcopy(row["slide_spec"])
-        return row
 
     def change_slide_layout(
         self,
@@ -655,16 +742,105 @@ class MemoryDataStore:
         user_id: UUID,
         layout_id: str,
     ) -> dict[str, Any]:
-        row = self.get_slide(
+        return self._create_edited_presentation_version(
+            presentation_id=presentation_id,
+            slide_id=slide_id,
+            user_id=user_id,
+            layout_id=layout_id,
+        )
+
+    def _create_edited_presentation_version(
+        self,
+        *,
+        presentation_id: UUID,
+        slide_id: UUID,
+        user_id: UUID,
+        layout_id: str | None,
+    ) -> dict[str, Any]:
+        target = self.get_slide(
             presentation_id=presentation_id,
             slide_id=slide_id,
             user_id=user_id,
         )
-        slide_spec = copy.deepcopy(row["slide_spec"])
-        slide_spec["layoutId"] = layout_id
-        row["layout_id"] = layout_id
-        row["slide_spec"] = slide_spec
-        return row
+        previous = self.get_latest_presentation_version(
+            presentation_id=presentation_id,
+            user_id=user_id,
+        )
+        presentation = self.get_presentation(presentation_id=presentation_id, user_id=user_id)
+        plan = self.get_presentation_plan(
+            presentation_plan_id=presentation["presentation_plan_id"],
+            user_id=user_id,
+        )
+        framework = self.get_framework_version(
+            framework_version_id=plan["framework_version_id"],
+            user_id=user_id,
+        )
+        old_slides = [
+            row
+            for row in self.slides.values()
+            if row["presentation_version_id"] == previous["id"]
+        ]
+        old_slides.sort(key=lambda row: row["slide_index"])
+        version_id = uuid.uuid4()
+        version = {
+            "id": version_id,
+            "presentation_id": presentation_id,
+            "version_number": int(previous["version_number"]) + 1,
+            "slides_json": [],
+            "pptx_storage_path": None,
+            "pdf_storage_path": None,
+            "status": "generating",
+            "created_at": _now(),
+        }
+        self.presentation_versions[version_id] = version
+
+        edited: dict[str, Any] | None = None
+        specs: list[dict[str, Any]] = []
+        for old_slide in old_slides:
+            next_layout = layout_id if old_slide["id"] == target["id"] and layout_id else old_slide["layout_id"]
+            if old_slide["id"] == target["id"]:
+                references = [
+                    "opportunity" if chapter_id == "0" else f"chapter_{chapter_id}"
+                    for chapter_id in old_slide["source_chapter_ids"]
+                ]
+                spec = build_slide_spec_for_planned_slide(
+                    planned={
+                        "order": int(old_slide["slide_index"]) + 1,
+                        "layoutId": next_layout,
+                        "frameworkReferences": references,
+                    },
+                    framework_json=framework["framework_json"],
+                )
+            else:
+                spec = copy.deepcopy(old_slide["slide_spec"])
+            new_slide_id = uuid.uuid4()
+            new_slide = {
+                "id": new_slide_id,
+                "presentation_version_id": version_id,
+                "slide_index": old_slide["slide_index"],
+                "layout_id": next_layout,
+                "slide_spec": spec,
+                "source_chapter_ids": list(spec["sourceChapterIds"]),
+                "created_at": _now(),
+            }
+            self.slides[new_slide_id] = new_slide
+            specs.append(spec)
+            if old_slide["id"] == target["id"]:
+                edited = new_slide
+        version["slides_json"] = specs
+        if settings.RENDERER_EXECUTION_MODE == "fixture":
+            assets = materialize_fixture_deck_assets(
+                version_id=version_id,
+                slide_count=len(specs),
+            )
+            self.update_presentation_version_assets(
+                presentation_version_id=version_id,
+                assets=assets,
+                status="ready",
+            )
+        if edited is None:
+            raise not_found("SLIDE_NOT_FOUND", f"Slide {slide_id} was not found")
+        return edited
 
     def list_slides(
         self,

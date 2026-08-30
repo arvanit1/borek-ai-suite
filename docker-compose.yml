@@ -28,6 +28,7 @@ services:
       RENDERER_PORT: ${RENDERER_PORT:-4000}
       SOFFICE_PATH: ${SOFFICE_PATH:-/usr/bin/soffice}
       PDFTOPPM_PATH: ${PDFTOPPM_PATH:-/usr/bin/pdftoppm}
+      RENDERER_MAX_REQUEST_BYTES: ${RENDERER_MAX_REQUEST_BYTES:-10485760}
     ports:
       - "${RENDERER_PUBLISH_PORT:-4000}:4000"
     healthcheck:
@@ -47,8 +48,13 @@ services:
       REDIS_URL: redis://redis:6379/0
       RENDERER_URL: http://renderer:${RENDERER_PORT:-4000}
       API_DATA_BACKEND: ${API_DATA_BACKEND:-supabase}
+      AI_EXECUTION_MODE: ${AI_EXECUTION_MODE:-fixture}
+      RENDERER_EXECUTION_MODE: ${RENDERER_EXECUTION_MODE:-live}
+      ARTIFACT_ROOT: /artifacts
       API_HOST: 0.0.0.0
       API_PORT: 8000
+    volumes:
+      - presentation_artifacts:/artifacts
     ports:
       - "${API_PUBLISH_PORT:-8000}:8000"
     depends_on:
@@ -74,6 +80,11 @@ services:
       REDIS_URL: redis://redis:6379/0
       RENDERER_URL: http://renderer:${RENDERER_PORT:-4000}
       API_DATA_BACKEND: ${API_DATA_BACKEND:-supabase}
+      AI_EXECUTION_MODE: ${AI_EXECUTION_MODE:-fixture}
+      RENDERER_EXECUTION_MODE: ${RENDERER_EXECUTION_MODE:-live}
+      ARTIFACT_ROOT: /artifacts
+    volumes:
+      - presentation_artifacts:/artifacts
     depends_on:
       redis:
         condition: service_healthy
@@ -105,3 +116,6 @@ services:
     depends_on:
       api:
         condition: service_healthy
+
+volumes:
+  presentation_artifacts:

@@ -12,6 +12,7 @@ import {
   generatePresentation,
   getDeckCenter,
   getLatestPresentation,
+  waitForJob,
 } from "@/lib/api";
 import { isMissingPresentationError } from "@/lib/apiErrors";
 import { buildDownloadFilename, mapDeckSlides } from "@/lib/deckCenter";
@@ -80,6 +81,8 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
     setInfo(null);
     try {
       const generated = await generatePresentation(accessToken, opportunityId);
+      setInfo("Presentation rendering is running…");
+      await waitForJob(accessToken, generated.job_id);
       setPresentation({
         id: generated.presentation_id,
         presentation_plan_id: generated.presentation_plan_id,

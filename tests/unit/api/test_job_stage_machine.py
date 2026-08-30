@@ -9,6 +9,7 @@ import pytest
 from app.schemas.jobs import JOB_PIPELINE_STAGES, JobResponse, JobStage, JobStatus
 from app.services import job_service
 from app.services.job_service import InvalidJobTransitionError, JobStore
+from app.services.data.memory_store import MemoryDataStore
 
 
 @pytest.fixture(autouse=True)
@@ -48,11 +49,12 @@ def test_job_status_enum_has_four_values() -> None:
     }
 
 
-def test_advance_stage_rejects_skipping_stages() -> None:
+def test_advance_stage_allows_job_specific_forward_stages() -> None:
     job = job_service.create_job(uuid.uuid4(), "framework_generation")
 
-    with pytest.raises(InvalidJobTransitionError):
-        job_service.advance_stage(job.id, JobStage.KNOWLEDGE_EXTRACTING)
+    advanced = job_service.advance_stage(job.id, JobStage.KNOWLEDGE_EXTRACTING)
+
+    assert advanced.current_stage == JobStage.KNOWLEDGE_EXTRACTING
 
 
 def test_advance_stage_rejects_going_backward() -> None:
@@ -86,11 +88,13 @@ def test_advance_stage_rejects_from_failed() -> None:
         job_service.advance_stage(job.id, JobStage.KNOWLEDGE_EXTRACTING)
 
 
-def test_complete_job_rejects_from_non_preview_stage() -> None:
+def test_complete_job_accepts_job_specific_terminal_stage() -> None:
     job = job_service.create_job(uuid.uuid4(), "framework_generation")
+    job_service.advance_stage(job.id, JobStage.FRAMEWORK_VALIDATING)
 
-    with pytest.raises(InvalidJobTransitionError):
-        job_service.complete_job(job.id)
+    completed = job_service.complete_job(job.id)
+
+    assert completed.current_stage == JobStage.COMPLETED
 
 
 def test_fail_job_accepted_from_non_terminal_stage() -> None:
@@ -140,6 +144,30 @@ def test_job_response_serializes_to_expected_json_shape() -> None:
     assert "started_at" in payload
     assert "completed_at" in payload
     assert payload["error"] is None
+
+
+def test_job_state_persists_in_data_store_repository() -> None:
+    repository = MemoryDataStore()
+    opportunity_id = uuid.uuid4()
+    created = job_service.create_job(
+        opportunity_id,
+        "presentation_planning",
+        repository=repository,
+    )
+
+    advanced = job_service.advance_stage(
+        created.id,
+        JobStage.PRESENTATION_PLANNING,
+        repository=repository,
+    )
+    completed = job_service.complete_job(
+        created.id,
+        repository=repository,
+        result_json={"presentation_plan_id": str(uuid.uuid4())},
+    )
+
+    assert advanced.status == JobStatus.RUNNING
+    assert job_service.get_job(created.id, repository=repository) == completed
 
 
 def _job_at_preview_rendering():

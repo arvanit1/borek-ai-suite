@@ -1,4 +1,4 @@
-"""Focused regression coverage for the post-PR-35 BT Stage B integration."""
+﻿"""Focused regression coverage for the post-PR-35 BT Stage B integration."""
 
 from __future__ import annotations
 
@@ -275,9 +275,9 @@ def test_valid_without_slide_spec_stops_without_fixture_fallback(
 
 @pytest.mark.parametrize(
     "layout_id",
-    ["PROCESS_FLOW_01", "ARCHITECTURE_01", "EXECUTIVE_SUMMARY_01"],
+    ["EXECUTIVE_SUMMARY_01"],
 )
-def test_non_group_a_layouts_fail_clearly(layout_id: str) -> None:
+def test_unowned_layouts_fail_clearly(layout_id: str) -> None:
     with pytest.raises(stage_b.UnsupportedSlideGeneratorError, match=layout_id):
         stage_b.build_slide_spec_for_planned_slide(
             planned={
@@ -401,7 +401,7 @@ def test_supabase_persistence_uses_validated_slide_spec_provenance(
     )
     monkeypatch.setattr(
         supabase_store_module,
-        "materialize_stub_deck_assets",
+        "materialize_fixture_deck_assets",
         lambda **_kwargs: {
             "pptx_storage_path": "test.pptx",
             "pdf_storage_path": "test.pdf",
@@ -591,3 +591,42 @@ def test_stage_b_boundaries_have_no_transcript_claude_or_network_inputs() -> Non
     ).read_text(encoding="utf-8").lower()
     for forbidden in ("openai_api_key", "anthropic", "httpx", "requests"):
         assert forbidden not in provider_source
+
+
+@pytest.mark.parametrize(
+    ("layout_id", "references", "required_field"),
+    [
+        ("PROCESS_FLOW_01", ["chapter_2", "chapter_4"], "phases"),
+        ("TIMELINE_01", ["chapter_10"], "phases"),
+        ("ARCHITECTURE_01", ["chapter_6", "chapter_7"], "components"),
+        ("COMPLIANCE_01", ["chapter_8"], "items"),
+        ("SUCCESS_METRICS_01", ["chapter_3", "chapter_9"], "criteria"),
+        ("OPEN_QUESTIONS_01", ["chapter_11"], "left"),
+        ("NEXT_STEPS_01", ["chapter_13"], "steps"),
+    ],
+)
+def test_group_b_and_c_layouts_route_to_owner_generators(
+    layout_id: str,
+    references: list[str],
+    required_field: str,
+) -> None:
+    from app.services.framework_stub_template import load_framework_stub_template
+    from tests.fixtures.stage_b_test_providers import deterministic_structured_generate
+
+    framework = load_framework_stub_template(UUID("11111111-1111-4111-8111-111111111111"))
+    framework["status"] = "confirmed"
+    spec = stage_b.build_slide_spec_for_planned_slide(
+        planned={
+            "order": 6,
+            "purpose": "owner-routed",
+            "layoutId": layout_id,
+            "frameworkReferences": references,
+        },
+        framework_json=framework,
+        structured_generate=deterministic_structured_generate,
+        compress_fields=_identity_compression,
+    )
+
+    assert spec["layoutId"] == layout_id
+    assert spec["slideId"] == "slide_06"
+    assert spec[required_field]

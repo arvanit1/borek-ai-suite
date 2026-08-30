@@ -18,9 +18,8 @@ _LAYOUT_REGISTRY_PATH = (
     / "contracts"
     / "layout_registry.json"
 )
-VALID_LAYOUT_IDS = frozenset(
-    json.loads(_LAYOUT_REGISTRY_PATH.read_text(encoding="utf-8"))["layouts"].keys(),
-)
+LAYOUT_REGISTRY = json.loads(_LAYOUT_REGISTRY_PATH.read_text(encoding="utf-8"))["layouts"]
+VALID_LAYOUT_IDS = frozenset(LAYOUT_REGISTRY.keys())
 
 
 class GeneratePresentationPlanRequest(BaseModel):

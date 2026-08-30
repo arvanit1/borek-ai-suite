@@ -168,6 +168,8 @@ def test_generate_presentation_requires_plan_then_enqueues_job() -> None:
         "REQUIREMENTS_MATRIX_01",
     }
     assert {spec["layoutId"] for spec in version["slides_json"]} == expected_layout_ids
+    cover = next(spec for spec in version["slides_json"] if spec["layoutId"] == "COVER_01")
+    assert cover.get("statBadges")
     for slide in get_memory_store().list_slides(
         presentation_id=uuid.UUID(body["presentation_id"]),
         user_id=USER_ID,

@@ -60,6 +60,8 @@ class JobResponse(BaseModel):
     started_at: datetime | None = None
     completed_at: datetime | None = None
     error: JobErrorDetail | None = None
+    result: dict = Field(default_factory=dict)
+    metrics: dict = Field(default_factory=dict)
 
 
 class JobEnqueueResponse(BaseModel):

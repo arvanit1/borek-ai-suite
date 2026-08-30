@@ -1,22 +1,64 @@
-"""Framework generation stub wired for Endrit ES-9 / ES-12 (AT-41)."""
+"""Framework generation orchestration for Endrit ES-5 / ES-9 / ES-13 (AT-41)."""
 
 from __future__ import annotations
 
+import uuid
+from pathlib import Path
 from uuid import UUID
 
+from app.config import settings
 from app.services import job_service
 from app.services.api_errors import bad_request, conflict, not_found
 from app.services.data import DataStore
 from app.services.es13_confirm import apply_es13_confirm_gate
+from app.services.stage_a_orchestration import generate_framework_from_transcripts
+from app.services.deck_assets import deck_assets_root
+from services.framework.rendering.customer_pdf import render_customer_pdf
 
 
 def enqueue_framework_generate(store: DataStore, *, opportunity_id: UUID, user_id: UUID):
-    framework_version = store.generate_framework_stub(
+    store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+    framework_version_id = uuid.uuid4()
+    job = job_service.create_job(
+        opportunity_id=opportunity_id,
+        job_type="framework_generation",
+        repository=store,
+    )
+    from app.worker import run_framework_generation_task
+
+    args = (
+        str(job.id),
+        str(opportunity_id),
+        str(user_id),
+        str(framework_version_id),
+    )
+    if settings.API_DATA_BACKEND == "memory":
+        run_framework_generation_task.run(*args)
+    else:
+        run_framework_generation_task.delay(*args)
+    return {"id": framework_version_id}, job
+
+
+def execute_framework_generate(
+    store: DataStore,
+    *,
+    opportunity_id: UUID,
+    user_id: UUID,
+    framework_version_id: UUID,
+):
+    framework_json = generate_framework_from_transcripts(
+        store,
         opportunity_id=opportunity_id,
         user_id=user_id,
     )
-    job = job_service.create_job(opportunity_id=opportunity_id, job_type="framework_generation")
-    return framework_version, job
+    framework_version = store.create_framework_version(
+        opportunity_id=opportunity_id,
+        user_id=user_id,
+        framework_json=framework_json,
+        status="draft",
+        framework_version_id=framework_version_id,
+    )
+    return framework_version
 
 
 def enqueue_regenerate_chapter(
@@ -34,8 +76,35 @@ def enqueue_regenerate_chapter(
     job = job_service.create_job(
         opportunity_id=opportunity_id,
         job_type="framework_regenerate_chapter",
+        repository=store,
     )
     return framework_version, job
+
+
+def execute_framework_render(
+    store: DataStore,
+    *,
+    framework_version_id: UUID,
+    user_id: UUID,
+) -> Path:
+    framework = store.get_framework_version(
+        framework_version_id=framework_version_id,
+        user_id=user_id,
+    )
+    output_dir = deck_assets_root() / "frameworks" / str(framework_version_id)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / "report.pdf"
+    output_path.write_bytes(
+        render_customer_pdf(
+            framework["framework_json"],
+            lang=str(framework["framework_json"].get("language") or "en"),
+        )
+    )
+    return output_path
+
+
+def resolve_framework_render_path(framework_version_id: UUID) -> Path:
+    return deck_assets_root() / "frameworks" / str(framework_version_id) / "report.pdf"
 
 
 def _resolve_draft_framework_row(
@@ -121,5 +190,20 @@ def enqueue_framework_render(
             "FRAMEWORK_NOT_CONFIRMED",
             "Framework must be confirmed before render",
         )
-    job = job_service.create_job(opportunity_id=opportunity_id, job_type="framework_render")
+    job = job_service.create_job(
+        opportunity_id=opportunity_id,
+        job_type="framework_render",
+        repository=store,
+    )
+    from app.worker import run_framework_render_task
+
+    args = (
+        str(job.id),
+        str(framework_version["id"]),
+        str(user_id),
+    )
+    if settings.API_DATA_BACKEND == "memory":
+        run_framework_render_task.run(*args)
+    else:
+        run_framework_render_task.delay(*args)
     return framework_version, job
