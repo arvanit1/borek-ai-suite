@@ -1,16 +1,17 @@
-"""Wire BT-1 planner and Group A generators into AT-42 / AT-43 (Stage B)."""
+"""BT-owned Stage B planning and Group A content-generation boundaries.
+
+The shared platform must provide the live LLM callbacks. This module deliberately
+contains no fixture or provider fallback: unavailable providers, unsupported layouts,
+and invalid generation results fail explicitly.
+"""
 
 from __future__ import annotations
 
 import copy
-import json
-from pathlib import Path
 from typing import Any
 
-from services.presentation.planner import (
-    PresentationPlannerError,
-    plan_presentation,
-)
+from services.presentation.planner import PlanningClient, plan_presentation
+from services.slides.content_generation.group_a.common import StructuredGenerator
 from services.slides.content_generation.group_a.context_01 import generate_context_01
 from services.slides.content_generation.group_a.cover_01 import generate_cover_01
 from services.slides.content_generation.group_a.problem_solution_01 import (
@@ -20,86 +21,63 @@ from services.slides.content_generation.group_a.requirements_matrix_01 import (
     generate_requirements_matrix_01,
 )
 from services.slides.content_generation.group_a.scope_01 import generate_scope_01
-from services.slides.content_generation.group_a.common import (
-    GroupAContentGenerationError,
-    StructuredGenerationRequest,
-)
+from services.slides.group_a_compression import GroupACompressFieldsFn
 
-_REPO_ROOT = Path(__file__).resolve().parents[5]
-_PLAN_FIXTURE_PATH = (
-    _REPO_ROOT / "packages" / "contracts" / "fixtures" / "presentation_plan.minimal.json"
-)
-_GROUP_A_FIXTURE_DIR = (
-    _REPO_ROOT / "packages" / "contracts" / "fixtures" / "slide_spec" / "group_a"
-)
+
+class StageBIntegrationError(RuntimeError):
+    """Base error for the production Stage B integration boundary."""
+
+
+class StageBProviderUnavailableError(StageBIntegrationError):
+    """The shared platform has not supplied a required live provider."""
+
+
+class UnsupportedSlideGeneratorError(StageBIntegrationError):
+    """The BT-owned router was asked to generate a non-Group-A layout."""
+
+
+class GroupASlideGenerationError(StageBIntegrationError):
+    """A Group A generator did not return a valid, persistable SlideSpec."""
+
 
 _GROUP_A_LAYOUTS: dict[str, Any] = {
-    "COVER_01": (generate_cover_01, "cover_01.realistic.json"),
-    "CONTEXT_01": (generate_context_01, "context_01.realistic.json"),
-    "PROBLEM_SOLUTION_01": (generate_problem_solution_01, "problem_solution_01.realistic.json"),
-    "SCOPE_01": (generate_scope_01, "scope_01.realistic.json"),
-    "REQUIREMENTS_MATRIX_01": (
-        generate_requirements_matrix_01,
-        "requirements_matrix_01.realistic.json",
-    ),
+    "COVER_01": generate_cover_01,
+    "CONTEXT_01": generate_context_01,
+    "PROBLEM_SOLUTION_01": generate_problem_solution_01,
+    "SCOPE_01": generate_scope_01,
+    "REQUIREMENTS_MATRIX_01": generate_requirements_matrix_01,
 }
 
 
-class FixturePlanningClient:
-    """BT-1 PlanningClient that returns the canonical plan fixture (no live OpenAI)."""
-
-    def complete_planning(
-        self,
-        *,
-        planning_input: dict[str, Any] | None = None,
-        prompt_version: str = "v1",
-        retry_count: int = 0,
-    ) -> dict[str, Any]:
-        _ = (planning_input, prompt_version, retry_count)
-        return json.loads(_PLAN_FIXTURE_PATH.read_text(encoding="utf-8"))
+def get_live_planning_client() -> PlanningClient:
+    """Return the shared live planner once AT provides its production implementation."""
+    raise StageBProviderUnavailableError(
+        "No shared live PlanningClient is registered for Stage B"
+    )
 
 
-def _group_a_fixture_generator(layout_id: str) -> Any:
-    filename = _GROUP_A_LAYOUTS[layout_id][1]
-
-    def generate(request: StructuredGenerationRequest) -> dict[str, Any]:
-        _ = request
-        return json.loads((_GROUP_A_FIXTURE_DIR / filename).read_text(encoding="utf-8"))
-
-    return generate
+def get_live_structured_generator() -> StructuredGenerator:
+    """Return the shared live structured-output callback once it is available."""
+    raise StageBProviderUnavailableError(
+        "No shared live structured-generation provider is registered for Stage B"
+    )
 
 
-def framework_refs_to_chapter_ids(refs: list[str]) -> list[str]:
-    chapter_ids: list[str] = []
-    for ref in refs:
-        if ref.startswith("chapter_"):
-            chapter_ids.append(ref.removeprefix("chapter_"))
-        elif ref == "opportunity":
-            chapter_ids.append("0")
-    return chapter_ids or ["1"]
+def get_live_compression_fields() -> GroupACompressFieldsFn:
+    """Return the shared targeted compression callback once it is available."""
+    raise StageBProviderUnavailableError(
+        "No shared live compression provider is registered for Stage B"
+    )
 
 
-def build_stub_slide_spec(
+def plan_json_from_confirmed_framework(
+    framework_json: dict[str, Any],
     *,
-    order: int,
-    layout_id: str,
-    source_chapter_ids: list[str],
+    planner: PlanningClient | None = None,
 ) -> dict[str, Any]:
-    return {
-        "schema_version": "1.0",
-        "slideId": f"slide_{order:02d}",
-        "layoutId": layout_id,
-        "title": f"Slide {order}",
-        "sourceChapterIds": source_chapter_ids,
-    }
-
-
-def plan_json_from_confirmed_framework(framework_json: dict[str, Any]) -> dict[str, Any]:
-    """Run BT-1 `plan_presentation` and return JSON for persistence."""
-    try:
-        plan = plan_presentation(framework_json, planner=FixturePlanningClient())
-    except PresentationPlannerError:
-        return json.loads(_PLAN_FIXTURE_PATH.read_text(encoding="utf-8"))
+    """Run BT-1 once and return only its validated PresentationPlan JSON."""
+    live_planner = planner if planner is not None else get_live_planning_client()
+    plan = plan_presentation(copy.deepcopy(framework_json), planner=live_planner)
     return plan.model_dump(mode="json")
 
 
@@ -107,32 +85,55 @@ def build_slide_spec_for_planned_slide(
     *,
     planned: dict[str, Any],
     framework_json: dict[str, Any] | None,
+    structured_generate: StructuredGenerator | None = None,
+    compress_fields: GroupACompressFieldsFn | None = None,
 ) -> dict[str, Any]:
-    """Build a SlideSpec: Group A via BT-9..13, other layouts stay metadata stubs (JJ/MS)."""
+    """Route one planned Group A slide and return its validated SlideSpec.
+
+    Group B, Group C, and EXECUTIVE_SUMMARY_01 are deliberately outside this
+    BT-owned router. The future shared dispatcher must route those layouts to their
+    respective owners rather than representing them as successful metadata stubs.
+    """
     order = int(planned["order"])
     layout_id = str(planned["layoutId"])
-    source_chapter_ids = framework_refs_to_chapter_ids(planned.get("frameworkReferences") or [])
-    if framework_json is None or layout_id not in _GROUP_A_LAYOUTS:
-        return build_stub_slide_spec(
-            order=order,
-            layout_id=layout_id,
-            source_chapter_ids=source_chapter_ids,
+    generate_fn = _GROUP_A_LAYOUTS.get(layout_id)
+    if generate_fn is None:
+        raise UnsupportedSlideGeneratorError(
+            f"UNSUPPORTED_SLIDE_GENERATOR: no BT Group A generator for {layout_id!r}"
+        )
+    if framework_json is None:
+        raise StageBIntegrationError(
+            "A confirmed FrameworkObject is required for Group A generation"
         )
 
-    generate_fn, fixture_name = _GROUP_A_LAYOUTS[layout_id]
-    try:
-        result = generate_fn(
-            copy.deepcopy(framework_json),
-            structured_generate=_group_a_fixture_generator(layout_id),
-            compress_fields=lambda offending, _violations: offending,
+    live_structured_generate = (
+        structured_generate
+        if structured_generate is not None
+        else get_live_structured_generator()
+    )
+    live_compress_fields = (
+        compress_fields
+        if compress_fields is not None
+        else get_live_compression_fields()
+    )
+    result = generate_fn(
+        copy.deepcopy(framework_json),
+        structured_generate=live_structured_generate,
+        compress_fields=live_compress_fields,
+    )
+    if result.status != "VALID":
+        raise GroupASlideGenerationError(
+            f"{layout_id} generation failed validation: "
+            f"{result.message or result.error_code or 'VALIDATION_FAILED'}"
         )
-        if result.status == "VALID" and isinstance(result.slide_spec, dict):
-            spec = copy.deepcopy(result.slide_spec)
-            spec["slideId"] = f"slide_{order:02d}"
-            return spec
-    except GroupAContentGenerationError:
-        pass
+    if not isinstance(result.slide_spec, dict):
+        raise GroupASlideGenerationError(
+            f"{layout_id} generation returned VALID without a SlideSpec"
+        )
 
-    spec = json.loads((_GROUP_A_FIXTURE_DIR / fixture_name).read_text(encoding="utf-8"))
-    spec["slideId"] = f"slide_{order:02d}"
-    return spec
+    # The platform assigns the stable presentation-local slide id after generation.
+    # Work on a defensive copy so the validated generator result and every content/
+    # provenance field remain unchanged.
+    slide_spec = copy.deepcopy(result.slide_spec)
+    slide_spec["slideId"] = f"slide_{order:02d}"
+    return slide_spec
