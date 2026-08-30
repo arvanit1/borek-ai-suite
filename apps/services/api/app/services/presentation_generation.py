@@ -1,8 +1,8 @@
 """Presentation planning/generation orchestration (AT-42 / AT-43).
 
-BT-1 `plan_presentation` and Group A generators (BT-9..13) are invoked from the
-data stores. Group B/C layouts stay metadata stubs until JJ/MS wire their
-generators. Deck files remain stub artifacts until the renderer is called.
+BT-1 and the BT-owned Group A generators are invoked from the data stores.
+Unsupported layout groups fail at the BT router until their owners connect them.
+Deck rendering remains blocked on shared renderer orchestration.
 """
 
 from __future__ import annotations
@@ -88,7 +88,7 @@ def enqueue_presentation_plan_generate(
         user_id=user_id,
         framework_version_id=framework_version_id,
     )
-    plan = store.generate_presentation_plan_stub(
+    plan = store.generate_presentation_plan(
         framework_version_id=framework["id"],
         user_id=user_id,
     )
