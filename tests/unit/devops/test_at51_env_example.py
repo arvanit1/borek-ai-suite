@@ -14,6 +14,7 @@ CANONICAL_ENV_VARS = frozenset(
         # apps/services/api/app/config.py
         "ANTHROPIC_API_KEY",
         "OPENAI_API_KEY",
+        "OPENAI_PRESENTATION_MODEL",
         "SUPABASE_URL",
         "SUPABASE_ANON_KEY",
         "SUPABASE_SERVICE_ROLE_KEY",

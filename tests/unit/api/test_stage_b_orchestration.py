@@ -57,7 +57,6 @@ GROUP_A_PLAN = {
     ],
 }
 
-_UNPATCHED_LIVE_PLANNER = stage_b.get_live_planning_client
 _UNPATCHED_LIVE_STRUCTURED = stage_b.get_live_structured_generator
 _UNPATCHED_LIVE_COMPRESSION = stage_b.get_live_compression_fields
 
@@ -126,9 +125,8 @@ def _memory_store_with_framework() -> tuple[MemoryDataStore, UUID, UUID, dict[st
     return store, user_id, framework["id"], framework_json
 
 
-def test_live_provider_factories_fail_clearly_until_shared_providers_exist() -> None:
+def test_live_slide_provider_factories_fail_until_shared_providers_exist() -> None:
     for factory in (
-        _UNPATCHED_LIVE_PLANNER,
         _UNPATCHED_LIVE_STRUCTURED,
         _UNPATCHED_LIVE_COMPRESSION,
     ):
