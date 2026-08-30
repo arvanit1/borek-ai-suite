@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from app.auth import create_test_access_token
 from app.config import settings
 from app.main import create_app
+from app.services.data.memory_store import get_memory_store
 
 USER_ID = uuid.UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
 
@@ -154,6 +155,15 @@ def test_generate_presentation_requires_plan_then_enqueues_job() -> None:
     fetched = client.get(f"/presentations/{body['presentation_id']}", headers=_headers())
     assert fetched.status_code == 200
     assert fetched.json()["presentation_plan_id"] == presentation_plan_id
+
+    version = get_memory_store().get_latest_presentation_version(
+        presentation_id=uuid.UUID(body["presentation_id"]),
+        user_id=USER_ID,
+    )
+    cover = next(spec for spec in version["slides_json"] if spec["layoutId"] == "COVER_01")
+    assert cover.get("statBadges")
+    process = next(spec for spec in version["slides_json"] if spec["layoutId"] == "PROCESS_FLOW_01")
+    assert process["title"].startswith("Slide")
 
 
 def _create_presentation(client: TestClient, opportunity_id: str) -> str:
