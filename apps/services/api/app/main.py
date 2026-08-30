@@ -13,7 +13,9 @@ from app.routers import frameworks, health, jobs, opportunities, presentations, 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    # Settings are validated at import time — fail fast on missing env vars.
+    from app.services.stage_b_providers import install_runtime_stage_b_providers
+
+    install_runtime_stage_b_providers()
     yield
 
 

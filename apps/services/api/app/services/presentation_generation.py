@@ -1,8 +1,7 @@
 """Presentation planning/generation orchestration (AT-42 / AT-43).
 
-The owner-provided planner and Group A/B/C generators are invoked from the data
-stores. The unowned executive-summary layout stays a metadata stub. Deck files
-remain stub artifacts until the renderer is called.
+HTTP handlers only enqueue jobs. Workers invoke the owner planner and Group A/B/C
+generators, then render validated artifacts. EXECUTIVE_SUMMARY_01 stays fail-closed.
 """
 
 from __future__ import annotations
@@ -17,6 +16,7 @@ from app.services.api_errors import bad_request, not_found
 from app.services.data import DataStore
 from app.services.renderer_client import render_deck_assets
 from app.services.stage_b_orchestration import plan_json_from_confirmed_framework
+from app.services.stage_b_providers import install_runtime_stage_b_providers
 
 
 def _dispatch_task(task, *args: str) -> None:
@@ -124,6 +124,7 @@ def execute_presentation_planning(
     user_id: UUID,
     presentation_plan_id: UUID,
 ) -> dict:
+    install_runtime_stage_b_providers()
     framework = store.get_framework_version(
         framework_version_id=framework_version_id,
         user_id=user_id,
@@ -187,6 +188,7 @@ def execute_presentation_generation(
     presentation_id: UUID,
     user_id: UUID,
 ) -> tuple[dict, dict]:
+    install_runtime_stage_b_providers()
     presentation = store.get_presentation(presentation_id=presentation_id, user_id=user_id)
     plan = store.get_presentation_plan(
         presentation_plan_id=presentation["presentation_plan_id"],
@@ -263,6 +265,7 @@ def execute_slide_regenerate(
     slide_id: UUID,
     user_id: UUID,
 ) -> dict:
+    install_runtime_stage_b_providers()
     return store.regenerate_slide(
         presentation_id=presentation_id,
         slide_id=slide_id,
@@ -327,6 +330,7 @@ def execute_slide_change_layout(
     user_id: UUID,
     layout_id: str,
 ) -> dict:
+    install_runtime_stage_b_providers()
     return store.change_slide_layout(
         presentation_id=presentation_id,
         slide_id=slide_id,

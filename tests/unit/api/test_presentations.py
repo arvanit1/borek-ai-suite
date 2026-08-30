@@ -160,15 +160,23 @@ def test_generate_presentation_requires_plan_then_enqueues_job() -> None:
         presentation_id=uuid.UUID(body["presentation_id"]),
         user_id=USER_ID,
     )
+    expected_layout_ids = {
+        "COVER_01",
+        "CONTEXT_01",
+        "PROBLEM_SOLUTION_01",
+        "SCOPE_01",
+        "REQUIREMENTS_MATRIX_01",
+    }
+    assert {spec["layoutId"] for spec in version["slides_json"]} == expected_layout_ids
     cover = next(spec for spec in version["slides_json"] if spec["layoutId"] == "COVER_01")
     assert cover.get("statBadges")
-    process = next(spec for spec in version["slides_json"] if spec["layoutId"] == "PROCESS_FLOW_01")
-    assert process["sourceChapterIds"] == ["2", "4"]
-    assert process.get("phases")
-    timeline = next(spec for spec in version["slides_json"] if spec["layoutId"] == "TIMELINE_01")
-    assert timeline["sourceChapterIds"] == ["10"]
-    assert timeline.get("phases")
-    assert timeline.get("milestones")
+    for slide in get_memory_store().list_slides(
+        presentation_id=uuid.UUID(body["presentation_id"]),
+        user_id=USER_ID,
+    ):
+        assert slide["layout_id"] == slide["slide_spec"]["layoutId"]
+        assert slide["source_chapter_ids"] == slide["slide_spec"]["sourceChapterIds"]
+        assert slide["slide_spec"].get("fieldProvenance")
 
 
 def _create_presentation(client: TestClient, opportunity_id: str) -> str:

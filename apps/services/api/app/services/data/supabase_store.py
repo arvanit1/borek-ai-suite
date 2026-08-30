@@ -14,10 +14,7 @@ import httpx
 
 from app.config import settings
 from app.services.api_errors import bad_request, conflict, not_found
-from app.services.data.memory_store import (
-    ALLOWED_TRANSCRIPT_EXTENSIONS,
-    _framework_refs_to_chapter_ids,
-)
+from app.services.data.memory_store import ALLOWED_TRANSCRIPT_EXTENSIONS
 from app.services.stage_b_orchestration import (
     build_slide_spec_for_planned_slide,
     plan_json_from_confirmed_framework,
@@ -757,7 +754,7 @@ class SupabaseDataStore:
             )
         return plan
 
-    def generate_presentation_plan_stub(
+    def generate_presentation_plan(
         self,
         *,
         framework_version_id: UUID,
@@ -894,23 +891,24 @@ class SupabaseDataStore:
         )
         slide_specs: list[dict[str, Any]] = []
         for planned in sorted(plan_json.get("slides", []), key=lambda item: item["order"]):
-            layout_id = planned["layoutId"]
-            source_chapter_ids = _framework_refs_to_chapter_ids(planned.get("frameworkReferences", []))
             slide_spec = build_slide_spec_for_planned_slide(
                 planned=planned,
                 framework_json=framework["framework_json"],
             )
+            persisted_slide_spec = copy.deepcopy(slide_spec)
             slide_payload = {
                 "presentation_version_id": str(version_row["id"]),
                 "slide_index": int(planned["order"]) - 1,
-                "layout_id": layout_id,
-                "slide_spec": slide_spec,
-                "source_chapter_ids": source_chapter_ids,
+                "layout_id": persisted_slide_spec["layoutId"],
+                "slide_spec": persisted_slide_spec,
+                "source_chapter_ids": copy.deepcopy(
+                    persisted_slide_spec["sourceChapterIds"]
+                ),
             }
             slide_response = self._request("POST", "slides", json_body=slide_payload)
             if slide_response.status_code not in (200, 201):
                 raise bad_request("SLIDE_CREATE_FAILED", slide_response.text)
-            slide_specs.append(slide_spec)
+            slide_specs.append(copy.deepcopy(persisted_slide_spec))
 
         patch_response = self._request(
             "PATCH",

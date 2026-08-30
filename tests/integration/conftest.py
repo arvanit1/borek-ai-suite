@@ -31,6 +31,8 @@ _TEST_ENV = {
     "SUPABASE_ANON_KEY": "test-supabase-anon-key",
     "SUPABASE_SERVICE_ROLE_KEY": "test-supabase-service-role",
     "API_DATA_BACKEND": "memory",
+    "AI_EXECUTION_MODE": "fixture",
+    "RENDERER_EXECUTION_MODE": "fixture",
     "SUPABASE_JWT_SECRET": "test-supabase-jwt-secret-with-32-byte-minimum-length",
     "REDIS_URL": "redis://localhost:6379/0",
     "DATABASE_URL": "postgresql://postgres:postgres@localhost:5432/borek",
@@ -44,9 +46,11 @@ for key, value in _TEST_ENV.items():
 
 from app.services.data.memory_store import reset_memory_store
 from app.services.job_service import reset_job_store
+from tests.fixtures.stage_b_test_providers import install_stage_b_test_providers
 
 
 @pytest.fixture(autouse=True)
-def _reset_in_memory_backends() -> None:
+def _reset_in_memory_backends(monkeypatch: pytest.MonkeyPatch) -> None:
     reset_memory_store()
     reset_job_store()
+    install_stage_b_test_providers(monkeypatch)

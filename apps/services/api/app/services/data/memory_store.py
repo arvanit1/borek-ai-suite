@@ -17,8 +17,6 @@ from app.services.deck_assets import materialize_fixture_deck_assets
 from app.services.framework_stub_template import load_framework_stub_template
 from app.services.stage_b_orchestration import (
     build_slide_spec_for_planned_slide,
-    build_stub_slide_spec,
-    framework_refs_to_chapter_ids,
     plan_json_from_confirmed_framework,
 )
 
@@ -66,18 +64,6 @@ def _load_framework_template(opportunity_id: UUID) -> dict[str, Any]:
     payload["updated_at"] = _now().isoformat().replace("+00:00", "Z")
     payload["created_at"] = payload["updated_at"]
     return payload
-
-
-def _framework_refs_to_chapter_ids(refs: list[str]) -> list[str]:
-    return framework_refs_to_chapter_ids(refs)
-
-
-def _build_stub_slide_spec(*, order: int, layout_id: str, source_chapter_ids: list[str]) -> dict[str, Any]:
-    return build_stub_slide_spec(
-        order=order,
-        layout_id=layout_id,
-        source_chapter_ids=source_chapter_ids,
-    )
 
 
 @dataclass
@@ -523,7 +509,7 @@ class MemoryDataStore:
             )
         return plan
 
-    def generate_presentation_plan_stub(
+    def generate_presentation_plan(
         self,
         *,
         framework_version_id: UUID,
@@ -647,24 +633,25 @@ class MemoryDataStore:
         )
         slide_specs: list[dict[str, Any]] = []
         for planned in sorted(plan_json.get("slides", []), key=lambda item: item["order"]):
-            layout_id = planned["layoutId"]
-            source_chapter_ids = _framework_refs_to_chapter_ids(planned.get("frameworkReferences", []))
             slide_spec = build_slide_spec_for_planned_slide(
                 planned=planned,
                 framework_json=framework["framework_json"],
             )
+            persisted_slide_spec = copy.deepcopy(slide_spec)
             slide_id = uuid.uuid4()
             slide_row = {
                 "id": slide_id,
                 "presentation_version_id": presentation_version_id,
                 "slide_index": int(planned["order"]) - 1,
-                "layout_id": layout_id,
-                "slide_spec": slide_spec,
-                "source_chapter_ids": source_chapter_ids,
+                "layout_id": persisted_slide_spec["layoutId"],
+                "slide_spec": persisted_slide_spec,
+                "source_chapter_ids": copy.deepcopy(
+                    persisted_slide_spec["sourceChapterIds"]
+                ),
                 "created_at": _now(),
             }
             self.slides[slide_id] = slide_row
-            slide_specs.append(slide_spec)
+            slide_specs.append(copy.deepcopy(persisted_slide_spec))
 
         version_row["slides_json"] = slide_specs
         if settings.RENDERER_EXECUTION_MODE == "fixture":
