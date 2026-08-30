@@ -59,8 +59,9 @@ def test_get_job_status_after_framework_generate() -> None:
     body = status.json()
     assert body["job_id"] == job_id
     assert body["job_type"] == "framework_generation"
-    assert body["status"] == JobStatus.QUEUED.value
-    assert body["current_stage"] == JobStage.QUEUED.value
+    assert body["status"] == JobStatus.COMPLETED.value
+    assert body["current_stage"] == JobStage.COMPLETED.value
+    assert body["result"]["framework_version_id"] == generate.json()["framework_version_id"]
     assert body["error"] is None
 
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from time import monotonic, sleep
 
 from fastapi.testclient import TestClient
 
@@ -20,6 +21,27 @@ class FullPipelineResult:
     presentation_id: str
     slide_ids: tuple[str, ...]
     pptx_bytes: bytes
+
+
+def _wait_for_job(
+    client: TestClient,
+    *,
+    headers: dict[str, str],
+    job_id: str,
+    timeout_seconds: float = 30,
+) -> dict:
+    deadline = monotonic() + timeout_seconds
+    while monotonic() < deadline:
+        response = client.get(f"/jobs/{job_id}", headers=headers)
+        if response.status_code != 200:
+            raise AssertionError(f"job status failed: {response.status_code} {response.text}")
+        job = response.json()
+        if job["status"] == "COMPLETED":
+            return job
+        if job["status"] == "FAILED":
+            raise AssertionError(f"generation job failed: {job['error']}")
+        sleep(0.05)
+    raise AssertionError(f"generation job {job_id} did not complete")
 
 
 def run_full_pipeline(
@@ -63,6 +85,11 @@ def run_full_pipeline(
             f"framework generate failed: {generate_framework.status_code} {generate_framework.text}"
         )
     framework_version_id = generate_framework.json()["framework_version_id"]
+    _wait_for_job(
+        client,
+        headers=headers,
+        job_id=generate_framework.json()["job_id"],
+    )
 
     confirm = client.post(
         f"/opportunities/{opportunity_id}/framework/confirm",
@@ -82,6 +109,7 @@ def run_full_pipeline(
     if plan.status_code != 202:
         raise AssertionError(f"plan generate failed: {plan.status_code} {plan.text}")
     presentation_plan_id = plan.json()["presentation_plan_id"]
+    _wait_for_job(client, headers=headers, job_id=plan.json()["job_id"])
 
     presentation = client.post(
         f"/opportunities/{opportunity_id}/presentation/generate",
@@ -96,6 +124,7 @@ def run_full_pipeline(
             f"presentation generate failed: {presentation.status_code} {presentation.text}"
         )
     presentation_id = presentation.json()["presentation_id"]
+    _wait_for_job(client, headers=headers, job_id=presentation.json()["job_id"])
 
     slides = client.get(f"/presentations/{presentation_id}/slides", headers=headers)
     if slides.status_code != 200:

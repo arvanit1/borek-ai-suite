@@ -46,6 +46,20 @@ export class ApiRequestError extends Error {
   }
 }
 
+export interface JobResponse {
+  job_id: string;
+  job_type: string;
+  status: "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED";
+  current_stage: string;
+  result: Record<string, unknown>;
+  error: {
+    code: string;
+    message: string;
+    stage: string;
+    retryable: boolean;
+  } | null;
+}
+
 async function parseError(response: Response): Promise<ApiRequestError> {
   let message = `Request failed (${response.status})`;
   let code: string | undefined;
@@ -87,6 +101,36 @@ export async function apiFetch<T>(
   }
 
   return (await response.json()) as T;
+}
+
+export async function getJob(
+  accessToken: string,
+  jobId: string,
+): Promise<JobResponse> {
+  return apiFetch<JobResponse>(`/jobs/${jobId}`, accessToken);
+}
+
+export async function waitForJob(
+  accessToken: string,
+  jobId: string,
+  timeoutMs = 240_000,
+): Promise<JobResponse> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const job = await getJob(accessToken, jobId);
+    if (job.status === "COMPLETED") {
+      return job;
+    }
+    if (job.status === "FAILED") {
+      throw new ApiRequestError(
+        job.error?.message ?? "Generation job failed",
+        422,
+        job.error?.code,
+      );
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  throw new ApiRequestError("Generation job timed out", 408, "JOB_TIMEOUT");
 }
 
 export async function apiFetchBlob(

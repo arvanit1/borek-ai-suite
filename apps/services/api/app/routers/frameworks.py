@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
+from fastapi.responses import FileResponse
 
 from app.auth import get_current_user
 from app.dependencies import AuthUserDep, DataStoreDep
@@ -38,6 +39,33 @@ def get_framework_version(
         user_id=user.id,
     )
     return _to_response(row)
+
+
+@router.get("/{framework_version_id}/render")
+def download_framework_render(
+    framework_version_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+    format: str = Query(default="pdf"),
+) -> FileResponse:
+    if format != "pdf":
+        from app.services.api_errors import bad_request
+
+        raise bad_request(
+            "UNSUPPORTED_FRAMEWORK_FORMAT",
+            "Only PDF framework rendering is currently implemented",
+        )
+    store.get_framework_version(framework_version_id=framework_version_id, user_id=user.id)
+    path = framework_generation.resolve_framework_render_path(framework_version_id)
+    if not path.is_file():
+        from app.services.api_errors import not_found
+
+        raise not_found("FRAMEWORK_RENDER_NOT_FOUND", "Framework PDF is not ready")
+    return FileResponse(
+        path,
+        media_type="application/pdf",
+        filename=f"{framework_version_id}-customer-report.pdf",
+    )
 
 
 @opportunity_router.get("/{opportunity_id}/framework", response_model=FrameworkVersionResponse)

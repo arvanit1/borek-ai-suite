@@ -15,6 +15,8 @@ celery_app = Celery(
 celery_app.conf.task_serializer = "json"
 celery_app.conf.result_serializer = "json"
 celery_app.conf.accept_content = ["json"]
+celery_app.conf.task_always_eager = settings.API_DATA_BACKEND == "memory"
+celery_app.conf.task_eager_propagates = False
 
 
 @celery_app.task(name="tasks.health_check")
@@ -33,3 +35,321 @@ def advance_job_stage_task(job_id: str, next_stage: str) -> dict[str, str]:
 
     job = job_service.advance_stage(UUID(job_id), JobStage(next_stage))
     return {"job_id": str(job.id), "current_stage": job.current_stage.value}
+
+
+@celery_app.task(name="tasks.run_presentation_planning")
+def run_presentation_planning_task(
+    job_id: str,
+    framework_version_id: str,
+    user_id: str,
+    presentation_plan_id: str,
+) -> dict[str, str]:
+    from uuid import UUID
+
+    from app.schemas.jobs import JobStage
+    from app.services import job_service, presentation_generation
+    from app.services.data import build_worker_data_store
+
+    store = build_worker_data_store()
+    parsed_job_id = UUID(job_id)
+    stage = JobStage.PRESENTATION_PLANNING
+    try:
+        job_service.advance_stage(parsed_job_id, stage, repository=store)
+        plan = presentation_generation.execute_presentation_planning(
+            store,
+            framework_version_id=UUID(framework_version_id),
+            user_id=UUID(user_id),
+            presentation_plan_id=UUID(presentation_plan_id),
+        )
+        job_service.complete_job(
+            parsed_job_id,
+            repository=store,
+            result_json={"presentation_plan_id": str(plan["id"])},
+        )
+        return {"job_id": job_id, "presentation_plan_id": str(plan["id"])}
+    except Exception as exc:
+        job_service.fail_job(
+            parsed_job_id,
+            getattr(exc, "code", "PRESENTATION_PLANNING_FAILED"),
+            str(exc),
+            stage,
+            bool(getattr(exc, "retryable", False)),
+            repository=store,
+        )
+        raise
+
+
+@celery_app.task(name="tasks.run_framework_generation")
+def run_framework_generation_task(
+    job_id: str,
+    opportunity_id: str,
+    user_id: str,
+    framework_version_id: str,
+) -> dict[str, str]:
+    from uuid import UUID
+
+    from app.schemas.jobs import JobStage
+    from app.services import framework_generation, job_service
+    from app.services.data import build_worker_data_store
+
+    store = build_worker_data_store()
+    parsed_job_id = UUID(job_id)
+    stage = JobStage.TRANSCRIPT_PROCESSING
+    try:
+        job_service.advance_stage(parsed_job_id, stage, repository=store)
+        stage = JobStage.KNOWLEDGE_EXTRACTING
+        job_service.advance_stage(parsed_job_id, stage, repository=store)
+        stage = JobStage.FRAMEWORK_SYNTHESIZING
+        job_service.advance_stage(parsed_job_id, stage, repository=store)
+        framework = framework_generation.execute_framework_generate(
+            store,
+            opportunity_id=UUID(opportunity_id),
+            user_id=UUID(user_id),
+            framework_version_id=UUID(framework_version_id),
+        )
+        stage = JobStage.FRAMEWORK_VALIDATING
+        job_service.advance_stage(parsed_job_id, stage, repository=store)
+        job_service.complete_job(
+            parsed_job_id,
+            repository=store,
+            result_json={"framework_version_id": str(framework["id"])},
+        )
+        return {"job_id": job_id, "framework_version_id": str(framework["id"])}
+    except Exception as exc:
+        job_service.fail_job(
+            parsed_job_id,
+            getattr(exc, "code", "FRAMEWORK_GENERATION_FAILED"),
+            str(exc),
+            stage,
+            bool(getattr(exc, "retryable", False)),
+            repository=store,
+        )
+        raise
+
+
+@celery_app.task(name="tasks.run_framework_render")
+def run_framework_render_task(
+    job_id: str,
+    framework_version_id: str,
+    user_id: str,
+) -> dict[str, str]:
+    from uuid import UUID
+
+    from app.schemas.jobs import JobStage
+    from app.services import framework_generation, job_service
+    from app.services.data import build_worker_data_store
+
+    store = build_worker_data_store()
+    parsed_job_id = UUID(job_id)
+    stage = JobStage.PREVIEW_RENDERING
+    try:
+        job_service.advance_stage(parsed_job_id, stage, repository=store)
+        path = framework_generation.execute_framework_render(
+            store,
+            framework_version_id=UUID(framework_version_id),
+            user_id=UUID(user_id),
+        )
+        job_service.record_metrics(
+            parsed_job_id,
+            repository=store,
+            storage_size_bytes=path.stat().st_size,
+        )
+        job_service.complete_job(
+            parsed_job_id,
+            repository=store,
+            result_json={
+                "framework_version_id": framework_version_id,
+                "pdf_download_url": (
+                    f"/frameworks/{framework_version_id}/render?format=pdf"
+                ),
+            },
+        )
+        return {"job_id": job_id, "framework_version_id": framework_version_id}
+    except Exception as exc:
+        job_service.fail_job(
+            parsed_job_id,
+            "FRAMEWORK_RENDER_FAILED",
+            str(exc),
+            stage,
+            False,
+            repository=store,
+        )
+        raise
+
+
+@celery_app.task(name="tasks.run_presentation_generation")
+def run_presentation_generation_task(
+    job_id: str,
+    presentation_id: str,
+    user_id: str,
+) -> dict[str, str]:
+    from uuid import UUID
+    from time import monotonic
+
+    from app.schemas.jobs import JobStage
+    from app.services import job_service, presentation_generation
+    from app.services.data import build_worker_data_store
+
+    store = build_worker_data_store()
+    parsed_job_id = UUID(job_id)
+    stage = JobStage.SLIDE_GENERATING
+    try:
+        job_service.advance_stage(parsed_job_id, stage, repository=store)
+        version, plan = presentation_generation.execute_presentation_generation(
+            store,
+            presentation_id=UUID(presentation_id),
+            user_id=UUID(user_id),
+        )
+        stage = JobStage.SLIDE_VALIDATING
+        job_service.advance_stage(parsed_job_id, stage, repository=store)
+        stage = JobStage.PPTX_RENDERING
+        job_service.advance_stage(parsed_job_id, stage, repository=store)
+        render_started = monotonic()
+        version = presentation_generation.render_presentation_version(
+            store,
+            version=version,
+            plan=plan,
+        )
+        job_service.record_metrics(
+            parsed_job_id,
+            repository=store,
+            render_duration_ms=int((monotonic() - render_started) * 1000),
+            storage_size_bytes=int(version.get("storage_size_bytes") or 0),
+        )
+        stage = JobStage.PREVIEW_RENDERING
+        job_service.advance_stage(parsed_job_id, stage, repository=store)
+        job_service.complete_job(
+            parsed_job_id,
+            repository=store,
+            result_json={
+                "presentation_id": presentation_id,
+                "presentation_version_id": str(version["id"]),
+            },
+        )
+        return {
+            "job_id": job_id,
+            "presentation_id": presentation_id,
+            "presentation_version_id": str(version["id"]),
+        }
+    except Exception as exc:
+        job_service.fail_job(
+            parsed_job_id,
+            getattr(exc, "code", "PRESENTATION_GENERATION_FAILED"),
+            str(exc),
+            stage,
+            bool(getattr(exc, "retryable", False)),
+            repository=store,
+        )
+        raise
+
+
+def _run_slide_task(
+    *,
+    job_id: str,
+    presentation_id: str,
+    slide_id: str,
+    user_id: str,
+    layout_id: str | None,
+) -> dict[str, str]:
+    from uuid import UUID
+
+    from app.schemas.jobs import JobStage
+    from app.services import job_service, presentation_generation
+    from app.services.data import build_worker_data_store
+
+    store = build_worker_data_store()
+    parsed_job_id = UUID(job_id)
+    stage = JobStage.SLIDE_GENERATING
+    try:
+        job_service.advance_stage(parsed_job_id, stage, repository=store)
+        if layout_id is None:
+            slide = presentation_generation.execute_slide_regenerate(
+                store,
+                presentation_id=UUID(presentation_id),
+                slide_id=UUID(slide_id),
+                user_id=UUID(user_id),
+            )
+        else:
+            slide = presentation_generation.execute_slide_change_layout(
+                store,
+                presentation_id=UUID(presentation_id),
+                slide_id=UUID(slide_id),
+                user_id=UUID(user_id),
+                layout_id=layout_id,
+            )
+        stage = JobStage.SLIDE_VALIDATING
+        job_service.advance_stage(parsed_job_id, stage, repository=store)
+        version = store.get_latest_presentation_version(
+            presentation_id=UUID(presentation_id),
+            user_id=UUID(user_id),
+        )
+        presentation = store.get_presentation(
+            presentation_id=UUID(presentation_id),
+            user_id=UUID(user_id),
+        )
+        plan = store.get_presentation_plan(
+            presentation_plan_id=presentation["presentation_plan_id"],
+            user_id=UUID(user_id),
+        )
+        stage = JobStage.PPTX_RENDERING
+        job_service.advance_stage(parsed_job_id, stage, repository=store)
+        version = presentation_generation.render_presentation_version(
+            store,
+            version=version,
+            plan=plan,
+        )
+        stage = JobStage.PREVIEW_RENDERING
+        job_service.advance_stage(parsed_job_id, stage, repository=store)
+        job_service.complete_job(
+            parsed_job_id,
+            repository=store,
+            result_json={
+                "presentation_id": presentation_id,
+                "presentation_version_id": str(version["id"]),
+                "slide_id": str(slide["id"]),
+            },
+        )
+        return {"job_id": job_id, "slide_id": str(slide["id"])}
+    except Exception as exc:
+        job_service.fail_job(
+            parsed_job_id,
+            getattr(exc, "code", "SLIDE_GENERATION_FAILED"),
+            str(exc),
+            stage,
+            bool(getattr(exc, "retryable", False)),
+            repository=store,
+        )
+        raise
+
+
+@celery_app.task(name="tasks.run_slide_regenerate")
+def run_slide_regenerate_task(
+    job_id: str,
+    presentation_id: str,
+    slide_id: str,
+    user_id: str,
+) -> dict[str, str]:
+    return _run_slide_task(
+        job_id=job_id,
+        presentation_id=presentation_id,
+        slide_id=slide_id,
+        user_id=user_id,
+        layout_id=None,
+    )
+
+
+@celery_app.task(name="tasks.run_slide_change_layout")
+def run_slide_change_layout_task(
+    job_id: str,
+    presentation_id: str,
+    slide_id: str,
+    user_id: str,
+    layout_id: str,
+) -> dict[str, str]:
+    return _run_slide_task(
+        job_id=job_id,
+        presentation_id=presentation_id,
+        slide_id=slide_id,
+        user_id=user_id,
+        layout_id=layout_id,
+    )

@@ -17,3 +17,10 @@ def build_data_store(access_token: str | None) -> DataStore:
     if not access_token:
         raise ValueError("Supabase data backend requires a bearer access token")
     return SupabaseDataStore(access_token)
+
+
+def build_worker_data_store() -> DataStore:
+    """Build the worker store without putting user JWTs on the broker."""
+    if settings.API_DATA_BACKEND == "memory":
+        return get_memory_store()
+    return SupabaseDataStore(settings.SUPABASE_SERVICE_ROLE_KEY)

@@ -22,7 +22,7 @@ from app.services.stage_b_orchestration import (
     build_slide_spec_for_planned_slide,
     plan_json_from_confirmed_framework,
 )
-from app.services.deck_assets import materialize_stub_deck_assets
+from app.services.deck_assets import materialize_fixture_deck_assets
 from app.services.framework_stub_template import load_framework_stub_template
 
 _FIXTURE_PATH = (
@@ -106,17 +106,77 @@ def _normalize_slide(row: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _normalize_generation_job(row: dict[str, Any]) -> dict[str, Any]:
+    normalized = {
+        **row,
+        "id": UUID(str(row["id"])),
+        "opportunity_id": UUID(str(row["opportunity_id"])),
+        "presentation_id": (
+            UUID(str(row["presentation_id"])) if row.get("presentation_id") else None
+        ),
+    }
+    for field in ("started_at", "completed_at", "created_at"):
+        if normalized.get(field):
+            normalized[field] = _parse_timestamp(normalized[field])
+    return normalized
+
+
 class SupabaseDataStore:
     """PostgREST client scoped to the authenticated user's access token."""
 
     def __init__(self, access_token: str) -> None:
         self._base_url = settings.SUPABASE_URL.rstrip("/")
+        api_key = (
+            settings.SUPABASE_SERVICE_ROLE_KEY
+            if access_token == settings.SUPABASE_SERVICE_ROLE_KEY
+            else settings.SUPABASE_ANON_KEY
+        )
         self._headers = {
-            "apikey": settings.SUPABASE_ANON_KEY,
+            "apikey": api_key,
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",
             "Prefer": "return=representation",
         }
+
+    def create_generation_job(self, payload: dict[str, Any]) -> dict[str, Any]:
+        body = copy.deepcopy(payload)
+        for key, value in list(body.items()):
+            if isinstance(value, (UUID, datetime)):
+                body[key] = value.isoformat() if isinstance(value, datetime) else str(value)
+        response = self._request("POST", "generation_jobs", json_body=body)
+        if response.status_code not in (200, 201):
+            raise bad_request("JOB_CREATE_FAILED", response.text)
+        return _normalize_generation_job(response.json()[0])
+
+    def get_generation_job(self, job_id: UUID) -> dict[str, Any] | None:
+        response = self._request(
+            "GET",
+            "generation_jobs",
+            params={"id": f"eq.{job_id}", "select": "*", "limit": "1"},
+        )
+        if response.status_code != 200:
+            raise bad_request("JOB_READ_FAILED", response.text)
+        rows = response.json()
+        return _normalize_generation_job(rows[0]) if rows else None
+
+    def update_generation_job(
+        self,
+        job_id: UUID,
+        updates: dict[str, Any],
+    ) -> dict[str, Any]:
+        body = copy.deepcopy(updates)
+        for key, value in list(body.items()):
+            if isinstance(value, (UUID, datetime)):
+                body[key] = value.isoformat() if isinstance(value, datetime) else str(value)
+        response = self._request(
+            "PATCH",
+            "generation_jobs",
+            params={"id": f"eq.{job_id}"},
+            json_body=body,
+        )
+        if response.status_code != 200 or not response.json():
+            raise not_found("JOB_NOT_FOUND", f"No job found with id {job_id}")
+        return _normalize_generation_job(response.json()[0])
 
     def _request(
         self,
@@ -135,6 +195,28 @@ class SupabaseDataStore:
             timeout=30.0,
         )
         return response
+
+    def _upload_transcript_content(
+        self,
+        *,
+        storage_path: str,
+        mime_type: str,
+        content: bytes,
+    ) -> None:
+        headers = {
+            "apikey": self._headers["apikey"],
+            "Authorization": self._headers["Authorization"],
+            "Content-Type": mime_type,
+            "x-upsert": "false",
+        }
+        response = httpx.post(
+            f"{self._base_url}/storage/v1/object/transcripts/{storage_path}",
+            headers=headers,
+            content=content,
+            timeout=30.0,
+        )
+        if response.status_code not in (200, 201):
+            raise bad_request("TRANSCRIPT_STORAGE_FAILED", response.text)
 
     def create_opportunity(
         self,
@@ -160,22 +242,29 @@ class SupabaseDataStore:
         return _normalize_opportunity(row)
 
     def list_opportunities(self, *, user_id: UUID) -> list[dict[str, Any]]:
-        _ = user_id
         response = self._request(
             "GET",
             "opportunities",
-            params={"select": "*", "order": "created_at.desc"},
+            params={
+                "select": "*",
+                "created_by": f"eq.{user_id}",
+                "order": "created_at.desc",
+            },
         )
         if response.status_code != 200:
             raise bad_request("OPPORTUNITY_LIST_FAILED", response.text)
         return [_normalize_opportunity(row) for row in response.json()]
 
     def get_opportunity(self, *, opportunity_id: UUID, user_id: UUID) -> dict[str, Any]:
-        _ = user_id
         response = self._request(
             "GET",
             "opportunities",
-            params={"select": "*", "id": f"eq.{opportunity_id}", "limit": "1"},
+            params={
+                "select": "*",
+                "id": f"eq.{opportunity_id}",
+                "created_by": f"eq.{user_id}",
+                "limit": "1",
+            },
         )
         if response.status_code != 200 or not response.json():
             raise not_found("OPPORTUNITY_NOT_FOUND", f"Opportunity {opportunity_id} was not found")
@@ -188,13 +277,15 @@ class SupabaseDataStore:
         user_id: UUID,
         updates: dict[str, Any],
     ) -> dict[str, Any]:
-        _ = user_id
         payload = {key: value for key, value in updates.items() if value is not None}
         payload["updated_at"] = datetime.now(UTC).isoformat()
         response = self._request(
             "PATCH",
             "opportunities",
-            params={"id": f"eq.{opportunity_id}"},
+            params={
+                "id": f"eq.{opportunity_id}",
+                "created_by": f"eq.{user_id}",
+            },
             json_body=payload,
         )
         if response.status_code not in (200, 204) or not response.json():
@@ -209,20 +300,47 @@ class SupabaseDataStore:
         file_name: str,
         mime_type: str,
         storage_path: str,
+        conversation_id: str,
+        content: bytes,
+        sections: list[dict[str, Any]],
     ) -> dict[str, Any]:
         _ = user_id
         self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        self._upload_transcript_content(
+            storage_path=storage_path,
+            mime_type=mime_type,
+            content=content,
+        )
         payload = {
             "opportunity_id": str(opportunity_id),
             "file_name": file_name,
             "mime_type": mime_type,
             "storage_path": storage_path,
+            "conversation_id": conversation_id,
             "processing_status": "pending",
         }
         response = self._request("POST", "transcripts", json_body=payload)
         if response.status_code not in (200, 201):
             raise bad_request("TRANSCRIPT_UPLOAD_FAILED", response.text)
-        return _normalize_transcript(response.json()[0])
+        transcript = _normalize_transcript(response.json()[0])
+        section_payloads = [
+            {
+                "transcript_id": str(transcript["id"]),
+                "section_index": int(section["section_index"]),
+                "speaker_role": section.get("speaker_role"),
+                "content": str(section["content"]),
+                "metadata": copy.deepcopy(section.get("metadata") or {}),
+            }
+            for section in sections
+        ]
+        section_response = self._request(
+            "POST",
+            "transcript_sections",
+            json_body=section_payloads,
+        )
+        if section_response.status_code not in (200, 201):
+            raise bad_request("TRANSCRIPT_SECTIONS_CREATE_FAILED", section_response.text)
+        return transcript
 
     def list_transcripts(self, *, opportunity_id: UUID, user_id: UUID) -> list[dict[str, Any]]:
         _ = user_id
@@ -239,6 +357,62 @@ class SupabaseDataStore:
         if response.status_code != 200:
             raise bad_request("TRANSCRIPT_LIST_FAILED", response.text)
         return [_normalize_transcript(row) for row in response.json()]
+
+    def list_transcript_sources(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+    ) -> list[dict[str, Any]]:
+        """Return persisted speaker turns for Stage A under caller RLS."""
+        transcripts = self.list_transcripts(
+            opportunity_id=opportunity_id,
+            user_id=user_id,
+        )
+        sources: list[dict[str, Any]] = []
+        for transcript in transcripts:
+            response = self._request(
+                "GET",
+                "transcript_sections",
+                params={
+                    "select": "section_index,speaker_role,content,metadata",
+                    "transcript_id": f"eq.{transcript['id']}",
+                    "order": "section_index.asc",
+                },
+            )
+            if response.status_code != 200:
+                raise bad_request("TRANSCRIPT_SECTIONS_LIST_FAILED", response.text)
+            sources.append(
+                {
+                    "id": transcript["id"],
+                    "file_name": transcript["file_name"],
+                    "conversation_id": transcript["conversation_id"],
+                    "sections": response.json(),
+                }
+            )
+        return sources
+
+    def update_transcript_processing_status(
+        self,
+        *,
+        opportunity_id: UUID,
+        transcript_id: UUID,
+        user_id: UUID,
+        processing_status: str,
+    ) -> None:
+        self.get_transcript(
+            opportunity_id=opportunity_id,
+            transcript_id=transcript_id,
+            user_id=user_id,
+        )
+        response = self._request(
+            "PATCH",
+            "transcripts",
+            params={"id": f"eq.{transcript_id}"},
+            json_body={"processing_status": processing_status},
+        )
+        if response.status_code not in (200, 204):
+            raise bad_request("TRANSCRIPT_STATUS_UPDATE_FAILED", response.text)
 
     def get_transcript(
         self,
@@ -293,6 +467,7 @@ class SupabaseDataStore:
         user_id: UUID,
         framework_json: dict[str, Any],
         status: str = "draft",
+        framework_version_id: UUID | None = None,
     ) -> dict[str, Any]:
         self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
         latest = self._request(
@@ -316,6 +491,8 @@ class SupabaseDataStore:
             "framework_json": framework_json,
             "created_by": str(user_id),
         }
+        if framework_version_id is not None:
+            payload["id"] = str(framework_version_id)
         response = self._request("POST", "framework_versions", json_body=payload)
         if response.status_code not in (200, 201):
             raise bad_request("FRAMEWORK_CREATE_FAILED", response.text)
@@ -492,6 +669,7 @@ class SupabaseDataStore:
         framework_version_id: UUID,
         user_id: UUID,
         plan_json: dict[str, Any],
+        presentation_plan_id: UUID | None = None,
     ) -> dict[str, Any]:
         framework = self.get_framework_version(
             framework_version_id=framework_version_id,
@@ -506,6 +684,8 @@ class SupabaseDataStore:
             "framework_version_id": str(framework_version_id),
             "plan_json": plan_json,
         }
+        if presentation_plan_id is not None:
+            payload["id"] = str(presentation_plan_id)
         response = self._request("POST", "presentation_plans", json_body=payload)
         if response.status_code not in (200, 201):
             raise bad_request("PRESENTATION_PLAN_CREATE_FAILED", response.text)
@@ -736,26 +916,43 @@ class SupabaseDataStore:
             "PATCH",
             "presentation_versions",
             params={"id": f"eq.{version_row['id']}"},
-            json_body={"slides_json": slide_specs, "status": "ready"},
+            json_body={"slides_json": slide_specs, "status": "generating"},
         )
         if patch_response.status_code not in (200, 204) or not patch_response.json():
             raise bad_request("PRESENTATION_VERSION_UPDATE_FAILED", patch_response.text)
         version_row = _normalize_presentation_version(patch_response.json()[0])
-        assets = materialize_stub_deck_assets(
-            version_id=version_row["id"],
-            slide_count=len(slide_specs),
-        )
+        if settings.RENDERER_EXECUTION_MODE == "fixture":
+            assets = materialize_fixture_deck_assets(
+                version_id=version_row["id"],
+                slide_count=len(slide_specs),
+            )
+            version_row = self.update_presentation_version_assets(
+                presentation_version_id=version_row["id"],
+                assets=assets,
+                status="ready",
+            )
+        return version_row
+
+    def update_presentation_version_assets(
+        self,
+        *,
+        presentation_version_id: UUID,
+        assets: dict[str, object],
+        status: str,
+    ) -> dict[str, Any]:
         asset_patch = self._request(
             "PATCH",
             "presentation_versions",
-            params={"id": f"eq.{version_row['id']}"},
+            params={"id": f"eq.{presentation_version_id}"},
             json_body={
                 "pptx_storage_path": assets["pptx_storage_path"],
                 "pdf_storage_path": assets["pdf_storage_path"],
+                "status": status,
             },
         )
-        if asset_patch.status_code in (200, 204) and asset_patch.json():
-            version_row = _normalize_presentation_version(asset_patch.json()[0])
+        if asset_patch.status_code not in (200, 204) or not asset_patch.json():
+            raise bad_request("PRESENTATION_VERSION_UPDATE_FAILED", asset_patch.text)
+        version_row = _normalize_presentation_version(asset_patch.json()[0])
         version_row["preview_image_paths"] = assets["preview_image_paths"]
         return version_row
 
@@ -816,12 +1013,12 @@ class SupabaseDataStore:
         slide_id: UUID,
         user_id: UUID,
     ) -> dict[str, Any]:
-        row = self.get_slide(
+        return self._create_edited_presentation_version(
             presentation_id=presentation_id,
             slide_id=slide_id,
             user_id=user_id,
+            layout_id=None,
         )
-        return row
 
     def change_slide_layout(
         self,
@@ -831,22 +1028,112 @@ class SupabaseDataStore:
         user_id: UUID,
         layout_id: str,
     ) -> dict[str, Any]:
-        row = self.get_slide(
+        return self._create_edited_presentation_version(
+            presentation_id=presentation_id,
+            slide_id=slide_id,
+            user_id=user_id,
+            layout_id=layout_id,
+        )
+
+    def _create_edited_presentation_version(
+        self,
+        *,
+        presentation_id: UUID,
+        slide_id: UUID,
+        user_id: UUID,
+        layout_id: str | None,
+    ) -> dict[str, Any]:
+        target = self.get_slide(
             presentation_id=presentation_id,
             slide_id=slide_id,
             user_id=user_id,
         )
-        slide_spec = copy.deepcopy(row["slide_spec"])
-        slide_spec["layoutId"] = layout_id
-        response = self._request(
-            "PATCH",
-            "slides",
-            params={"id": f"eq.{slide_id}"},
-            json_body={"layout_id": layout_id, "slide_spec": slide_spec},
+        previous = self.get_latest_presentation_version(
+            presentation_id=presentation_id,
+            user_id=user_id,
         )
-        if response.status_code not in (200, 204) or not response.json():
-            raise bad_request("SLIDE_LAYOUT_CHANGE_FAILED", response.text)
-        return _normalize_slide(response.json()[0])
+        old_slides = self.list_slides(presentation_id=presentation_id, user_id=user_id)
+        presentation = self.get_presentation(presentation_id=presentation_id, user_id=user_id)
+        plan = self.get_presentation_plan(
+            presentation_plan_id=presentation["presentation_plan_id"],
+            user_id=user_id,
+        )
+        framework = self.get_framework_version(
+            framework_version_id=plan["framework_version_id"],
+            user_id=user_id,
+        )
+        version_response = self._request(
+            "POST",
+            "presentation_versions",
+            json_body={
+                "presentation_id": str(presentation_id),
+                "version_number": int(previous["version_number"]) + 1,
+                "slides_json": [],
+                "status": "generating",
+            },
+        )
+        if version_response.status_code not in (200, 201):
+            raise bad_request("PRESENTATION_VERSION_CREATE_FAILED", version_response.text)
+        version = _normalize_presentation_version(version_response.json()[0])
+
+        edited: dict[str, Any] | None = None
+        specs: list[dict[str, Any]] = []
+        for old_slide in old_slides:
+            next_layout = layout_id if old_slide["id"] == target["id"] and layout_id else old_slide["layout_id"]
+            if old_slide["id"] == target["id"]:
+                references = [
+                    "opportunity" if chapter_id == "0" else f"chapter_{chapter_id}"
+                    for chapter_id in old_slide["source_chapter_ids"]
+                ]
+                spec = build_slide_spec_for_planned_slide(
+                    planned={
+                        "order": int(old_slide["slide_index"]) + 1,
+                        "layoutId": next_layout,
+                        "frameworkReferences": references,
+                    },
+                    framework_json=framework["framework_json"],
+                )
+            else:
+                spec = copy.deepcopy(old_slide["slide_spec"])
+            slide_response = self._request(
+                "POST",
+                "slides",
+                json_body={
+                    "presentation_version_id": str(version["id"]),
+                    "slide_index": old_slide["slide_index"],
+                    "layout_id": next_layout,
+                    "slide_spec": spec,
+                    "source_chapter_ids": spec["sourceChapterIds"],
+                },
+            )
+            if slide_response.status_code not in (200, 201):
+                raise bad_request("SLIDE_CREATE_FAILED", slide_response.text)
+            new_slide = _normalize_slide(slide_response.json()[0])
+            specs.append(spec)
+            if old_slide["id"] == target["id"]:
+                edited = new_slide
+
+        patch = self._request(
+            "PATCH",
+            "presentation_versions",
+            params={"id": f"eq.{version['id']}"},
+            json_body={"slides_json": specs},
+        )
+        if patch.status_code not in (200, 204) or not patch.json():
+            raise bad_request("PRESENTATION_VERSION_UPDATE_FAILED", patch.text)
+        if settings.RENDERER_EXECUTION_MODE == "fixture":
+            assets = materialize_fixture_deck_assets(
+                version_id=version["id"],
+                slide_count=len(specs),
+            )
+            self.update_presentation_version_assets(
+                presentation_version_id=version["id"],
+                assets=assets,
+                status="ready",
+            )
+        if edited is None:
+            raise not_found("SLIDE_NOT_FOUND", f"Slide {slide_id} was not found")
+        return edited
 
     def list_slides(
         self,
@@ -908,7 +1195,7 @@ class SupabaseDataStore:
                 "PRESENTATION_NOT_READY",
                 "Presentation version is not ready for preview or download",
             )
-        preview_dir_assets = materialize_stub_deck_assets(
+        preview_dir_assets = materialize_fixture_deck_assets(
             version_id=version["id"],
             slide_count=max(len(version.get("slides_json") or []), 1),
         )

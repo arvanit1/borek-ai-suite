@@ -85,3 +85,32 @@ def test_migrations_contain_no_application_logic() -> None:
     for filename in EXPECTED_FILES:
         content = (MIGRATIONS_DIR / filename).read_text(encoding="utf-8")
         assert forbidden.search(content) is None
+
+
+def test_stage_a_wiring_migration_adds_private_transcript_storage() -> None:
+    path = MIGRATIONS_DIR / "012_transcript_content_storage.sql"
+    content = path.read_text(encoding="utf-8")
+    assert "ADD COLUMN IF NOT EXISTS conversation_id TEXT" in content
+    assert "storage.buckets" in content
+    assert "VALUES ('transcripts', 'transcripts', false)" in content
+    assert "users_own_transcript_objects" in content
+    assert "created_by = auth.uid()" in content
+
+
+def test_generation_job_runtime_migration_adds_results_and_metrics() -> None:
+    content = (
+        MIGRATIONS_DIR / "013_generation_job_runtime_fields.sql"
+    ).read_text(encoding="utf-8")
+    for column in (
+        "failed_stage",
+        "error_retryable",
+        "result_json",
+        "ai_input_tokens",
+        "ai_output_tokens",
+        "number_of_ai_calls",
+        "render_duration_ms",
+        "storage_size_bytes",
+        "generation_cost_estimate",
+        "created_at",
+    ):
+        assert f"ADD COLUMN IF NOT EXISTS {column}" in content

@@ -56,9 +56,11 @@
     "test:ms19": "tsx layouts/group_c/renderOpenQuestions01.test.ts",
     "test:ms20": "tsx layouts/group_c/renderNextSteps01.test.ts",
     "test:ms21": "tsx layouts/dispatcher.test.ts",
+    "test:server": "tsx render_service.test.ts",
     "start:server": "tsx server.ts"
   },
   "dependencies": {
+    "archiver": "^8.0.0",
     "pngjs": "^7.0.0",
     "pptxgenjs": "^3.12.0"
   },

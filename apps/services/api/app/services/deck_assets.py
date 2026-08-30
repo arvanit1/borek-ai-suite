@@ -6,9 +6,10 @@ import shutil
 from pathlib import Path
 from uuid import UUID
 
+from app.config import settings
+
 _ROOT = Path(__file__).resolve().parents[5]
 _MINIMAL_PPTX = _ROOT / "tests" / "fixtures" / "renderer" / "minimal.pptx"
-_ASSETS_ROOT = _ROOT / "tmp" / "deck_assets"
 
 # Valid 1x1 PNG (transparent).
 _MINIMAL_PNG = bytes.fromhex(
@@ -20,13 +21,14 @@ _MINIMAL_PDF = b"%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n"
 
 
 def deck_assets_root() -> Path:
-    root = _ASSETS_ROOT
+    configured = Path(settings.ARTIFACT_ROOT)
+    root = configured if configured.is_absolute() else _ROOT / configured
     root.mkdir(parents=True, exist_ok=True)
     return root
 
 
-def materialize_stub_deck_assets(*, version_id: UUID, slide_count: int) -> dict[str, object]:
-    """Write pptx/pdf/png preview files for a presentation version."""
+def materialize_fixture_deck_assets(*, version_id: UUID, slide_count: int) -> dict[str, object]:
+    """Write deterministic placeholder assets for isolated tests only."""
     output_dir = deck_assets_root() / str(version_id)
     output_dir.mkdir(parents=True, exist_ok=True)
 

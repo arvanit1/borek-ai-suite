@@ -39,9 +39,9 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 
-COPY --from=builder /app/apps/web/.next ./apps/web/.next
-COPY --from=builder /app/apps/web/public ./apps/web/public
-COPY --from=builder /app/apps/web/package.json ./apps/web/package.json
+COPY --chown=node:node --from=builder /app/apps/web/.next ./apps/web/.next
+COPY --chown=node:node --from=builder /app/apps/web/public ./apps/web/public
+COPY --chown=node:node --from=builder /app/apps/web/package.json ./apps/web/package.json
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
 
@@ -51,4 +51,5 @@ EXPOSE 3000
 HEALTHCHECK --interval=15s --timeout=5s --retries=5 \
   CMD curl -fsS http://127.0.0.1:3000/ || exit 1
 
+USER node
 CMD ["npm", "run", "start"]

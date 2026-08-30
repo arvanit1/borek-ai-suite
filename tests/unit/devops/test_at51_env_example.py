@@ -24,6 +24,7 @@ CANONICAL_ENV_VARS = frozenset(
         "REDIS_URL",
         "RENDERER_URL",
         "API_DATA_BACKEND",
+        "AI_EXECUTION_MODE",
         "API_HOST",
         "API_PORT",
         # apps/web

@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 from app.auth import create_test_access_token
 from app.config import settings
 from app.main import create_app
+from app.services.data.memory_store import get_memory_store
 
 USER_ID = uuid.UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
 
@@ -64,6 +65,12 @@ def test_upload_list_and_get_transcript() -> None:
     )
     assert detail.status_code == 200
     assert detail.json()["file_name"] == "meeting.txt"
+    source = get_memory_store().list_transcript_sources(
+        opportunity_id=uuid.UUID(opportunity_id),
+        user_id=USER_ID,
+    )[0]
+    assert source["conversation_id"] == "C1"
+    assert source["sections"][0]["content"] == "hello transcript"
 
 
 def test_upload_rejects_invalid_extension() -> None:
@@ -79,13 +86,38 @@ def test_upload_rejects_invalid_extension() -> None:
     assert response.json()["error"]["code"] == "INVALID_TRANSCRIPT_FORMAT"
 
 
+def test_upload_assigns_stable_conversation_ids_per_opportunity() -> None:
+    client = _client()
+    opportunity_id = _create_opportunity(client)
+
+    for name in ("first.txt", "second.txt"):
+        response = client.post(
+            f"/opportunities/{opportunity_id}/transcripts",
+            headers=_headers(),
+            files={"file": (name, io.BytesIO(b"Alex: Valid transcript"), "text/plain")},
+        )
+        assert response.status_code == 201
+
+    sources = get_memory_store().list_transcript_sources(
+        opportunity_id=uuid.UUID(opportunity_id),
+        user_id=USER_ID,
+    )
+    assert [source["conversation_id"] for source in sources] == ["C1", "C2"]
+
+
 def test_regenerate_transcript_resets_processing_status() -> None:
     client = _client()
     opportunity_id = _create_opportunity(client)
     upload = client.post(
         f"/opportunities/{opportunity_id}/transcripts",
         headers=_headers(),
-        files={"file": ("meeting.vtt", io.BytesIO(b"WEBVTT"), "text/vtt")},
+        files={
+            "file": (
+                "meeting.vtt",
+                io.BytesIO(b"WEBVTT\n\n00:00:00.000 --> 00:00:02.000\nAlex: Hello"),
+                "text/vtt",
+            )
+        },
     )
     transcript_id = upload.json()["transcript"]["id"]
 

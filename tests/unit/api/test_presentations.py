@@ -163,7 +163,12 @@ def test_generate_presentation_requires_plan_then_enqueues_job() -> None:
     cover = next(spec for spec in version["slides_json"] if spec["layoutId"] == "COVER_01")
     assert cover.get("statBadges")
     process = next(spec for spec in version["slides_json"] if spec["layoutId"] == "PROCESS_FLOW_01")
-    assert process["title"].startswith("Slide")
+    assert process["sourceChapterIds"] == ["2", "4"]
+    assert process.get("phases")
+    timeline = next(spec for spec in version["slides_json"] if spec["layoutId"] == "TIMELINE_01")
+    assert timeline["sourceChapterIds"] == ["10"]
+    assert timeline.get("phases")
+    assert timeline.get("milestones")
 
 
 def _create_presentation(client: TestClient, opportunity_id: str) -> str:

@@ -113,7 +113,7 @@ def test_update_framework_rejects_confirmed_version() -> None:
     client = _client()
     opportunity_id = _create_opportunity(client)
     client.post(f"/opportunities/{opportunity_id}/framework/generate", headers=_headers())
-    client.post(
+    confirmed = client.post(
         f"/opportunities/{opportunity_id}/framework/confirm",
         headers=_headers(),
         json={},
@@ -144,7 +144,7 @@ def test_render_requires_confirmed_framework() -> None:
     assert blocked.status_code == 400
     assert blocked.json()["error"]["code"] == "FRAMEWORK_NOT_CONFIRMED"
 
-    client.post(
+    confirmed = client.post(
         f"/opportunities/{opportunity_id}/framework/confirm",
         headers=_headers(),
         json={},
@@ -155,6 +155,13 @@ def test_render_requires_confirmed_framework() -> None:
     )
     assert allowed.status_code == 202
     assert allowed.json()["job_id"]
+
+    pdf = client.get(
+        f"/frameworks/{confirmed.json()['id']}/render?format=pdf",
+        headers=_headers(),
+    )
+    assert pdf.status_code == 200, pdf.text
+    assert pdf.content.startswith(b"%PDF")
 
 
 def test_confirm_framework_blocks_es13_chapter6_contradiction() -> None:

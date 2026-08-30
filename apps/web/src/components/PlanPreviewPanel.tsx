@@ -10,6 +10,7 @@ import {
   generatePresentationPlan,
   getLatestFramework,
   getLatestPresentationPlan,
+  waitForJob,
 } from "@/lib/api";
 import { isMissingPresentationPlanError } from "@/lib/apiErrors";
 import { extractSlidePreviewRows, formatLayoutLabel } from "@/lib/planPreview";
@@ -85,11 +86,13 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
     setError(null);
     setInfo(null);
     try {
-      await generatePresentationPlan(
+      const generated = await generatePresentationPlan(
         accessToken,
         opportunityId,
         frameworkVersionId ?? undefined,
       );
+      setInfo("Presentation planning is running…");
+      await waitForJob(accessToken, generated.job_id);
       await loadPlan();
       setInfo("Presentation plan ready. Review order, purpose, and layout below.");
     } catch (generateError) {

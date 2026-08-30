@@ -7,6 +7,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.auth import get_current_user
+from app.config import settings
 from app.dependencies import AuthUserDep, DataStoreDep
 from app.schemas.jobs import JobEnqueueResponse, JobResponse
 from app.services import job_service
@@ -37,7 +38,9 @@ def get_job_status(job_id: str, user: AuthUserDep, store: DataStoreDep) -> JobRe
             },
         ) from exc
 
-    job = job_service.get_job(parsed_id)
+    job = job_service.get_job(parsed_id, repository=store)
+    if job is None and settings.API_DATA_BACKEND == "memory":
+        job = job_service.get_job(parsed_id)
     if job is None:
         raise not_found("JOB_NOT_FOUND", f"No job found with id {job_id}")
 

@@ -1,4 +1,11 @@
-FROM node:20-bookworm-slim
+FROM node:20-bookworm-slim AS deps
+
+WORKDIR /app
+COPY package.json package-lock.json ./
+COPY apps/renderer/package.json apps/renderer/
+RUN npm ci --workspace borek-renderer
+
+FROM node:20-bookworm-slim AS runtime
 
 # AT-9 preview pipeline: LibreOffice (pptx→pdf) + poppler (pdf→png)
 RUN apt-get update \
@@ -11,12 +18,11 @@ RUN apt-get update \
 
 WORKDIR /app
 
-COPY package.json package-lock.json ./
-COPY apps/renderer/package.json apps/renderer/
-RUN npm ci --workspace borek-renderer
-
-COPY apps/renderer ./apps/renderer
-COPY packages/contracts ./packages/contracts
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/package.json /app/package-lock.json ./
+COPY --chown=node:node apps/renderer ./apps/renderer
+COPY --chown=node:node packages/contracts ./packages/contracts
+COPY --chown=node:node generated/typescript ./generated/typescript
 
 WORKDIR /app/apps/renderer
 
@@ -28,4 +34,5 @@ EXPOSE 4000
 HEALTHCHECK --interval=15s --timeout=5s --retries=5 \
   CMD curl -fsS http://127.0.0.1:4000/health || exit 1
 
+USER node
 CMD ["npm", "run", "start:server"]

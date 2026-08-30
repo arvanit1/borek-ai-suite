@@ -27,3 +27,15 @@ def test_health_check_task_is_registered() -> None:
 
 def test_advance_job_stage_task_is_registered() -> None:
     assert "tasks.advance_job_stage" in celery_app.tasks
+
+
+def test_generation_execution_tasks_are_registered() -> None:
+    for task_name in (
+        "tasks.run_framework_generation",
+        "tasks.run_framework_render",
+        "tasks.run_presentation_planning",
+        "tasks.run_presentation_generation",
+        "tasks.run_slide_regenerate",
+        "tasks.run_slide_change_layout",
+    ):
+        assert task_name in celery_app.tasks
