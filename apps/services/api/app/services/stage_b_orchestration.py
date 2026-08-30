@@ -89,10 +89,10 @@ _GROUP_C_LAYOUTS: dict[str, Any] = {
 
 
 def get_live_planning_client() -> PlanningClient:
-    """Return the shared live planner once AT provides its production implementation."""
-    raise StageBProviderUnavailableError(
-        "No shared live PlanningClient is registered for Stage B"
-    )
+    """Resolve the fixture or live BT-1 planner for the configured execution mode."""
+    from app.services.stage_b_providers import get_runtime_planning_client
+
+    return get_runtime_planning_client()
 
 
 def get_live_structured_generator() -> StructuredGenerator:

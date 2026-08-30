@@ -13,10 +13,11 @@ py -3 -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 The API reads `borek-ai-suite/.env` automatically regardless of which subdirectory you start from.
 
-Required environment variables (see `app/config.py`):
+Environment variables (see `app/config.py`):
 
 - `ANTHROPIC_API_KEY`
-- `OPENAI_API_KEY`
+- `OPENAI_API_KEY` (required only when `AI_EXECUTION_MODE=live`)
+- `OPENAI_PRESENTATION_MODEL` (optional; defaults to `gpt-4.1-mini`)
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `REDIS_URL`
