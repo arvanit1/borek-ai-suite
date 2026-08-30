@@ -51,6 +51,18 @@ def test_at50_api_dockerfile_includes_deck_fixture() -> None:
     assert "tests/fixtures/renderer" in dockerfile
 
 
+def test_at50_contracts_ship_confirmed_group_frameworks() -> None:
+    """Fixture-mode API/worker images copy packages/; those fixtures must be there."""
+    fixtures = ROOT / "packages" / "contracts" / "fixtures"
+    for group in ("a", "b", "c"):
+        path = fixtures / f"framework_object.confirmed.group_{group}.json"
+        assert path.is_file(), path
+    dockerfile = (ROOT / "docker/api/Dockerfile").read_text(encoding="utf-8")
+    worker = (ROOT / "docker/worker/Dockerfile").read_text(encoding="utf-8")
+    assert "COPY packages" in dockerfile
+    assert "COPY packages" in worker
+
+
 def test_at50_renderer_dockerfile_includes_preview_tooling() -> None:
     dockerfile = (ROOT / "docker/renderer/Dockerfile").read_text(encoding="utf-8")
     assert "libreoffice" in dockerfile.lower()
