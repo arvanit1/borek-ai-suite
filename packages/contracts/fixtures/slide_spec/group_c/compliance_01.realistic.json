@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "slideId": "slide_08",
+  "layoutId": "COMPLIANCE_01",
+  "sectionLabel": "COMPLIANCE",
+  "title": "Security, data protection and human control",
+  "subtitle": "The mailbox is read-only; exceptions stay in an approval queue",
+  "sourceChapterIds": ["8"],
+  "fieldProvenance": [
+    { "path": "sectionLabel", "sourceChapterIds": ["8"] },
+    { "path": "title", "sourceChapterIds": ["8"] },
+    { "path": "subtitle", "sourceChapterIds": ["8"] },
+    { "path": "items[0].icon", "sourceChapterIds": ["8"] },
+    { "path": "items[0].text", "sourceChapterIds": ["8"] },
+    { "path": "items[1].icon", "sourceChapterIds": ["8"] },
+    { "path": "items[1].text", "sourceChapterIds": ["8"] },
+    { "path": "items[2].icon", "sourceChapterIds": ["8"] },
+    { "path": "items[2].text", "sourceChapterIds": ["8"] },
+    { "path": "items[3].icon", "sourceChapterIds": ["8"] },
+    { "path": "items[3].text", "sourceChapterIds": ["8"] },
+    { "path": "darkBackground", "sourceChapterIds": ["8"] }
+  ],
+  "items": [
+    {
+      "icon": "lock",
+      "text": "Mailbox access stays read-only during rollout"
+    },
+    {
+      "icon": "shield",
+      "text": "Unmatched invoices remain in a human approval queue"
+    },
+    {
+      "icon": "eye",
+      "text": "Every extraction and match decision is traceable"
+    },
+    {
+      "icon": "users",
+      "text": "Posting still requires an accountable approver"
+    }
+  ],
+  "darkBackground": true
+}

@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "slideId": "slide_13",
+  "layoutId": "NEXT_STEPS_01",
+  "sectionLabel": "NEXT STEPS",
+  "title": "What happens next",
+  "subtitle": "Prepare access, then run a controlled test environment",
+  "sourceChapterIds": ["13"],
+  "fieldProvenance": [
+    { "path": "sectionLabel", "sourceChapterIds": ["13"] },
+    { "path": "title", "sourceChapterIds": ["13"] },
+    { "path": "subtitle", "sourceChapterIds": ["13"] },
+    { "path": "checklist[0]", "sourceChapterIds": ["13"] },
+    { "path": "checklist[1]", "sourceChapterIds": ["13"] },
+    { "path": "checklist[2]", "sourceChapterIds": ["13"] },
+    { "path": "checklist[3]", "sourceChapterIds": ["13"] },
+    { "path": "steps[0].number", "sourceChapterIds": ["13"] },
+    { "path": "steps[0].text", "sourceChapterIds": ["13"] },
+    { "path": "steps[1].number", "sourceChapterIds": ["13"] },
+    { "path": "steps[1].text", "sourceChapterIds": ["13"] },
+    { "path": "steps[2].number", "sourceChapterIds": ["13"] },
+    { "path": "steps[2].text", "sourceChapterIds": ["13"] },
+    { "path": "darkBackground", "sourceChapterIds": ["13"] }
+  ],
+  "checklist": [
+    "Confirm mailbox access path",
+    "Provide ERP field map",
+    "Name the exception owners",
+    "Agree the pilot invoice set"
+  ],
+  "steps": [
+    {
+      "number": 1,
+      "text": "Workshop exception rules with AP and finance"
+    },
+    {
+      "number": 2,
+      "text": "Connect mailbox and ERP in a test environment"
+    },
+    {
+      "number": 3,
+      "text": "Run a supervised pilot before production cutover"
+    }
+  ],
+  "darkBackground": true
+}
