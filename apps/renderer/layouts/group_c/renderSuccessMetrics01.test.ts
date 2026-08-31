@@ -65,4 +65,20 @@ assertXmlContains(maximum.slideXml, [
 ]);
 assert.doesNotMatch(maximum.slideXml, /€|\$|EUR|USD/);
 
+const minimumFixture: SuccessMetrics01SlideSpec = {
+  schema_version: "1.0",
+  layoutId: "SUCCESS_METRICS_01",
+  title: "Ein Kriterium",
+  sourceChapterIds: ["3", "9"],
+  criteria: [{ title: "Trefferquote", description: "Ohne manuellen Eingriff & Wartezeit" }],
+};
+const minimum = await renderToPptx((pptx) => renderSuccessMetrics01(pptx, minimumFixture));
+assert.equal(computeCardGridLayout(false, 1).cards.length, 1);
+assertXmlContains(minimum.slideXml, [
+  "Ein Kriterium",
+  "Trefferquote",
+  "Ohne manuellen Eingriff &amp; Wartezeit",
+]);
+assert.doesNotMatch(minimum.slideXml, /€|\$|EUR|USD/);
+
 process.stdout.write("MS-18 SUCCESS_METRICS_01 renderer checks passed\n");

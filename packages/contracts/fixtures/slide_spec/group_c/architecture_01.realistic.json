@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.0",
+  "slideId": "slide_06",
+  "layoutId": "ARCHITECTURE_01",
+  "sectionLabel": "ARCHITECTURE",
+  "title": "How the 3-way match is built",
+  "subtitle": "Mailbox, ERP, matching engine and approval stay in one controlled flow",
+  "sourceChapterIds": ["6", "7"],
+  "fieldProvenance": [
+    { "path": "sectionLabel", "sourceChapterIds": ["6"] },
+    { "path": "title", "sourceChapterIds": ["6"] },
+    { "path": "subtitle", "sourceChapterIds": ["6"] },
+    { "path": "components[0].number", "sourceChapterIds": ["6"] },
+    { "path": "components[0].title", "sourceChapterIds": ["6"] },
+    { "path": "components[0].description", "sourceChapterIds": ["6"] },
+    { "path": "components[1].number", "sourceChapterIds": ["6"] },
+    { "path": "components[1].title", "sourceChapterIds": ["6"] },
+    { "path": "components[1].description", "sourceChapterIds": ["6"] },
+    { "path": "components[2].number", "sourceChapterIds": ["7"] },
+    { "path": "components[2].title", "sourceChapterIds": ["7"] },
+    { "path": "components[2].description", "sourceChapterIds": ["7"] },
+    { "path": "components[3].number", "sourceChapterIds": ["7"] },
+    { "path": "components[3].title", "sourceChapterIds": ["7"] },
+    { "path": "components[3].description", "sourceChapterIds": ["7"] }
+  ],
+  "components": [
+    {
+      "number": 1,
+      "title": "AP Mailbox",
+      "description": "Read-only source of supplier invoices entering the match"
+    },
+    {
+      "number": 2,
+      "title": "ERP",
+      "description": "Purchase orders, goods receipts and postings stay in the system of record"
+    },
+    {
+      "number": 3,
+      "title": "Framework Engine",
+      "description": "Extracts lines, matches them and queues only true exceptions"
+    },
+    {
+      "number": 4,
+      "title": "Approval App",
+      "description": "Humans decide unmatched or blocked invoices before posting"
+    }
+  ]
+}

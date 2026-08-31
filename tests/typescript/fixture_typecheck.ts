@@ -34,10 +34,15 @@ import processFlowFixture from "../../packages/contracts/fixtures/slide_spec/gro
 import timelineFixture from "../../packages/contracts/fixtures/slide_spec/group_b/timeline_01.realistic.json";
 import milestonesFixture from "../../packages/contracts/fixtures/slide_spec/group_b/milestones_01.realistic.json";
 import teamFteFixture from "../../packages/contracts/fixtures/slide_spec/group_b/team_fte_01.realistic.json";
+import architectureRealisticFixture from "../../packages/contracts/fixtures/slide_spec/group_c/architecture_01.realistic.json";
 import complianceFixture from "../../packages/contracts/fixtures/slide_spec/compliance_01.minimal.json";
+import complianceRealisticFixture from "../../packages/contracts/fixtures/slide_spec/group_c/compliance_01.realistic.json";
 import successMetricsFixture from "../../packages/contracts/fixtures/slide_spec/success_metrics_01.minimal.json";
+import successMetricsRealisticFixture from "../../packages/contracts/fixtures/slide_spec/group_c/success_metrics_01.realistic.json";
 import openQuestionsFixture from "../../packages/contracts/fixtures/slide_spec/open_questions_01.minimal.json";
+import openQuestionsRealisticFixture from "../../packages/contracts/fixtures/slide_spec/group_c/open_questions_01.realistic.json";
 import nextStepsFixture from "../../packages/contracts/fixtures/slide_spec/next_steps_01.minimal.json";
+import nextStepsRealisticFixture from "../../packages/contracts/fixtures/slide_spec/group_c/next_steps_01.realistic.json";
 
 /** JSON imports widen literals; assert compatibility with generated contract types. */
 const frameworkObject: FrameworkObject = frameworkFixture as unknown as FrameworkObject;
@@ -56,12 +61,22 @@ const milestones: Milestones01SlideSpec = milestonesFixture as unknown as Milest
 const teamFte: TeamFte01SlideSpec = teamFteFixture as unknown as TeamFte01SlideSpec;
 const architecture: Architecture01SlideSpec =
   slideSpecFixture as unknown as Architecture01SlideSpec;
+const architectureRealistic: Architecture01SlideSpec =
+  architectureRealisticFixture as unknown as Architecture01SlideSpec;
 const compliance: Compliance01SlideSpec = complianceFixture as unknown as Compliance01SlideSpec;
+const complianceRealistic: Compliance01SlideSpec =
+  complianceRealisticFixture as unknown as Compliance01SlideSpec;
 const successMetrics: SuccessMetrics01SlideSpec =
   successMetricsFixture as unknown as SuccessMetrics01SlideSpec;
+const successMetricsRealistic: SuccessMetrics01SlideSpec =
+  successMetricsRealisticFixture as unknown as SuccessMetrics01SlideSpec;
 const openQuestions: OpenQuestions01SlideSpec =
   openQuestionsFixture as unknown as OpenQuestions01SlideSpec;
+const openQuestionsRealistic: OpenQuestions01SlideSpec =
+  openQuestionsRealisticFixture as unknown as OpenQuestions01SlideSpec;
 const nextSteps: NextSteps01SlideSpec = nextStepsFixture as unknown as NextSteps01SlideSpec;
+const nextStepsRealistic: NextSteps01SlideSpec =
+  nextStepsRealisticFixture as unknown as NextSteps01SlideSpec;
 
 /** Tuple chapter order/titles are fixed at codegen time from chapter_registry.json. */
 const frameworkChapters: FrameworkObjectChapters =
@@ -83,9 +98,14 @@ void timeline;
 void milestones;
 void teamFte;
 void architecture;
+void architectureRealistic;
 void compliance;
+void complianceRealistic;
 void successMetrics;
+void successMetricsRealistic;
 void openQuestions;
+void openQuestionsRealistic;
 void nextSteps;
+void nextStepsRealistic;
 void frameworkChapters;
 void chapterTitleCheck;

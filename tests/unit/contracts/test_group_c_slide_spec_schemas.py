@@ -106,6 +106,12 @@ def test_group_c_valid_fixtures(case_name: str) -> None:
     _validator(case_name).validate(_fixture(case_name))
 
 
+@pytest.mark.parametrize("case_name", CASES)
+def test_group_c_realistic_fixtures(case_name: str) -> None:
+    payload = _load_json(FIXTURE_DIR / "group_c" / f"{case_name}.realistic.json")
+    _validator(case_name).validate(payload)
+
+
 def test_architecture_existing_fixture_validates() -> None:
     _validator("architecture_01").validate(_fixture("architecture_01"))
 
