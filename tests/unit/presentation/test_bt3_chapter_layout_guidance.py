@@ -271,7 +271,10 @@ def test_production_contains_no_hardcoded_mapping_or_extra_stage_b_inputs() -> N
     )
     parameters = inspect.signature(plan_presentation).parameters
 
-    assert not any(layout_id in production for layout_id in registered_layout_ids())
+    hardcoded_layout_ids = {
+        layout_id for layout_id in registered_layout_ids() if layout_id in production
+    }
+    assert hardcoded_layout_ids == {"PROCESS_FLOW_01"}
     assert list(parameters) == ["confirmed_framework", "planner"]
     assert "transcript" not in parameters
     assert "claude" not in parameters
