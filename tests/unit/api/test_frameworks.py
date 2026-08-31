@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from app.auth import create_test_access_token
 from app.config import settings
 from app.main import create_app
+from app.services.data.memory_store import get_memory_store
 
 USER_ID = uuid.UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
 
@@ -71,6 +72,14 @@ def test_generate_get_and_confirm_framework() -> None:
     assert confirm.json()["status"] == "confirmed"
 
 
+def _set_latest_framework_status(opportunity_id: str, status: str) -> None:
+    store = get_memory_store()
+    for row in store.framework_versions.values():
+        if str(row["opportunity_id"]) == opportunity_id:
+            row["status"] = status
+            row["framework_json"]["status"] = status
+
+
 def test_regenerate_chapter_enqueues_job() -> None:
     client = _client()
     opportunity_id = _create_opportunity(client)
@@ -83,6 +92,9 @@ def test_regenerate_chapter_enqueues_job() -> None:
     )
     assert response.status_code == 202
     assert response.json()["job_id"]
+    job = client.get(f"/jobs/{response.json()['job_id']}", headers=_headers())
+    assert job.status_code == 200
+    assert job.json()["status"] == "COMPLETED"
 
 
 def test_update_framework_persists_edits() -> None:
@@ -107,6 +119,49 @@ def test_update_framework_persists_edits() -> None:
 
     reloaded = client.get(f"/opportunities/{opportunity_id}/framework", headers=_headers())
     assert reloaded.json()["framework_json"]["title"] == "Updated framework title"
+
+
+def test_review_actions_allow_in_review_and_lock_after_confirm() -> None:
+    client = _client()
+    opportunity_id = _create_opportunity(client)
+    client.post(f"/opportunities/{opportunity_id}/framework/generate", headers=_headers())
+    _set_latest_framework_status(opportunity_id, "in_review")
+
+    latest = client.get(f"/opportunities/{opportunity_id}/framework", headers=_headers())
+    assert latest.json()["status"] == "in_review"
+    framework_json = latest.json()["framework_json"]
+    framework_json["title"] = "Reviewed in-review title"
+
+    patch = client.patch(
+        f"/opportunities/{opportunity_id}/framework",
+        headers=_headers(),
+        json={"framework_json": framework_json},
+    )
+    assert patch.status_code == 200
+    assert patch.json()["framework_json"]["title"] == "Reviewed in-review title"
+
+    regenerate = client.post(
+        f"/opportunities/{opportunity_id}/framework/regenerate-chapter",
+        headers=_headers(),
+        json={"chapter_id": "3"},
+    )
+    assert regenerate.status_code == 202
+
+    confirm = client.post(
+        f"/opportunities/{opportunity_id}/framework/confirm",
+        headers=_headers(),
+        json={},
+    )
+    assert confirm.status_code == 200
+    assert confirm.json()["status"] == "confirmed"
+
+    blocked_regenerate = client.post(
+        f"/opportunities/{opportunity_id}/framework/regenerate-chapter",
+        headers=_headers(),
+        json={"chapter_id": "3"},
+    )
+    assert blocked_regenerate.status_code == 409
+    assert blocked_regenerate.json()["error"]["code"] == "FRAMEWORK_IMMUTABLE"
 
 
 def test_update_framework_rejects_confirmed_version() -> None:

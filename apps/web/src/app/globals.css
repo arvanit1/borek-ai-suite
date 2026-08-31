@@ -1228,6 +1228,13 @@ textarea {
   padding: 1.25rem;
 }
 
+.framework-chapter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
 .framework-chapter-header h3 {
   margin: 0.25rem 0 0;
 }

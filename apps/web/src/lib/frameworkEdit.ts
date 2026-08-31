@@ -3,7 +3,18 @@ import type { ConversationRef, FrameworkChapter, FrameworkObject } from "./frame
 export const EXPECTED_CHAPTER_COUNT = 14;
 
 export function isFrameworkEditable(status: string): boolean {
-  return status === "draft";
+  return status === "draft" || status === "in_review";
+}
+
+export function isFrameworkConfirmed(status: string): boolean {
+  return status === "confirmed";
+}
+
+export function canEditFramework(rowStatus: string, jsonStatus?: string): boolean {
+  if (isFrameworkConfirmed(rowStatus) || (jsonStatus != null && isFrameworkConfirmed(jsonStatus))) {
+    return false;
+  }
+  return isFrameworkEditable(rowStatus) || (jsonStatus != null && isFrameworkEditable(jsonStatus));
 }
 
 export function formatSourceRefLabel(ref: ConversationRef): string {

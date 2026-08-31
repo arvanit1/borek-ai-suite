@@ -14,6 +14,7 @@ from uuid import UUID
 from app.config import settings
 from app.services.api_errors import bad_request, conflict, not_found
 from app.services.deck_assets import materialize_fixture_deck_assets
+from app.services.framework_status import require_reviewable_framework
 from app.services.framework_stub_template import load_framework_stub_template
 from app.services.stage_b_orchestration import (
     build_slide_spec_for_planned_slide,
@@ -334,13 +335,7 @@ class MemoryDataStore:
             else:
                 row = self.get_latest_framework(opportunity_id=opportunity_id, user_id=user_id)
 
-            if row["status"] == "confirmed":
-                raise conflict("FRAMEWORK_ALREADY_CONFIRMED", "Framework version is already confirmed")
-            if row["status"] != "draft":
-                raise bad_request(
-                    "FRAMEWORK_NOT_CONFIRMABLE",
-                    f"Framework version status {row['status']} cannot be confirmed",
-                )
+            require_reviewable_framework(row["status"], action="confirm")
         elif framework_version_id is not None:
             row = self.get_framework_version(
                 framework_version_id=framework_version_id,
@@ -354,13 +349,7 @@ class MemoryDataStore:
         else:
             row = self.get_latest_framework(opportunity_id=opportunity_id, user_id=user_id)
 
-        if row["status"] == "confirmed":
-            raise conflict("FRAMEWORK_ALREADY_CONFIRMED", "Framework version is already confirmed")
-        if row["status"] != "draft":
-            raise bad_request(
-                "FRAMEWORK_NOT_CONFIRMABLE",
-                f"Framework version status {row['status']} cannot be confirmed",
-            )
+        require_reviewable_framework(row["status"], action="confirm")
 
         row["status"] = "confirmed"
         framework_json = confirmed_framework_json if confirmed_framework_json is not None else row["framework_json"]
@@ -376,13 +365,7 @@ class MemoryDataStore:
         framework_json: dict[str, Any],
     ) -> dict[str, Any]:
         row = self.get_latest_framework(opportunity_id=opportunity_id, user_id=user_id)
-        if row["status"] == "confirmed":
-            raise conflict("FRAMEWORK_IMMUTABLE", "Confirmed framework versions cannot be edited")
-        if row["status"] != "draft":
-            raise bad_request(
-                "FRAMEWORK_NOT_EDITABLE",
-                f"Framework version status {row['status']} cannot be edited",
-            )
+        require_reviewable_framework(row["status"], action="edit")
 
         updated = copy.deepcopy(framework_json)
         updated["opportunity_id"] = str(opportunity_id)
@@ -400,11 +383,7 @@ class MemoryDataStore:
         chapter_id: str,
     ) -> dict[str, Any]:
         row = self.get_latest_framework(opportunity_id=opportunity_id, user_id=user_id)
-        if row["status"] != "draft":
-            raise bad_request(
-                "FRAMEWORK_NOT_EDITABLE",
-                "Only draft framework versions support chapter regeneration",
-            )
+        require_reviewable_framework(row["status"], action="regenerate")
 
         chapters = row["framework_json"].get("chapters", [])
         if not any(str(chapter.get("chapter_id")) == chapter_id for chapter in chapters):

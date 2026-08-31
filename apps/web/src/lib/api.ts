@@ -110,6 +110,8 @@ export async function getJob(
   return apiFetch<JobResponse>(`/jobs/${jobId}`, accessToken);
 }
 
+export const FRAMEWORK_JOB_TIMEOUT_MS = 720_000;
+
 export async function waitForJob(
   accessToken: string,
   jobId: string,
@@ -234,6 +236,26 @@ export async function generateFramework(
     `/opportunities/${opportunityId}/framework/generate`,
     accessToken,
     { method: "POST" },
+  );
+}
+
+export interface FrameworkJobEnqueueResponse {
+  job_id: string;
+  status: string;
+}
+
+export async function regenerateFrameworkChapter(
+  accessToken: string,
+  opportunityId: string,
+  chapterId: string,
+): Promise<FrameworkJobEnqueueResponse> {
+  return apiFetch<FrameworkJobEnqueueResponse>(
+    `/opportunities/${opportunityId}/framework/regenerate-chapter`,
+    accessToken,
+    {
+      method: "POST",
+      body: JSON.stringify({ chapter_id: chapterId }),
+    },
   );
 }
 

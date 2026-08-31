@@ -28,6 +28,7 @@ from app.services.deck_assets import (
     resolve_pptx_path,
     resolve_preview_image_path,
 )
+from app.services.framework_status import require_reviewable_framework
 from app.services.framework_stub_template import load_framework_stub_template
 
 logger = logging.getLogger(__name__)
@@ -610,13 +611,7 @@ class SupabaseDataStore:
         framework_json: dict[str, Any],
     ) -> dict[str, Any]:
         row = self.get_latest_framework(opportunity_id=opportunity_id, user_id=user_id)
-        if row["status"] == "confirmed":
-            raise conflict("FRAMEWORK_IMMUTABLE", "Confirmed framework versions cannot be edited")
-        if row["status"] != "draft":
-            raise bad_request(
-                "FRAMEWORK_NOT_EDITABLE",
-                f"Framework version status {row['status']} cannot be edited",
-            )
+        require_reviewable_framework(row["status"], action="edit")
 
         updated = copy.deepcopy(framework_json)
         updated["opportunity_id"] = str(opportunity_id)
@@ -655,13 +650,7 @@ class SupabaseDataStore:
         else:
             row = self.get_latest_framework(opportunity_id=opportunity_id, user_id=user_id)
 
-        if row["status"] == "confirmed":
-            raise conflict("FRAMEWORK_ALREADY_CONFIRMED", "Framework version is already confirmed")
-        if row["status"] != "draft":
-            raise bad_request(
-                "FRAMEWORK_NOT_CONFIRMABLE",
-                f"Framework version status {row['status']} cannot be confirmed",
-            )
+        require_reviewable_framework(row["status"], action="confirm")
 
         framework_json = copy.deepcopy(
             confirmed_framework_json if confirmed_framework_json is not None else row["framework_json"]
@@ -685,11 +674,7 @@ class SupabaseDataStore:
         chapter_id: str,
     ) -> dict[str, Any]:
         row = self.get_latest_framework(opportunity_id=opportunity_id, user_id=user_id)
-        if row["status"] != "draft":
-            raise bad_request(
-                "FRAMEWORK_NOT_EDITABLE",
-                "Only draft framework versions support chapter regeneration",
-            )
+        require_reviewable_framework(row["status"], action="regenerate")
 
         framework_json = copy.deepcopy(row["framework_json"])
         chapters = framework_json.get("chapters", [])

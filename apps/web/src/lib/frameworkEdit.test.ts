@@ -5,6 +5,8 @@ import {
   countChaptersWithSourceRefs,
   formatSourceRefLabel,
   hasExpectedChapterCount,
+  canEditFramework,
+  isFrameworkConfirmed,
   isFrameworkEditable,
   updateChapter,
   updateChapterBodyField,
@@ -61,7 +63,14 @@ const sampleFramework: FrameworkObject = {
 };
 
 assert.equal(isFrameworkEditable("draft"), true);
+assert.equal(isFrameworkEditable("in_review"), true);
 assert.equal(isFrameworkEditable("confirmed"), false);
+assert.equal(isFrameworkConfirmed("confirmed"), true);
+assert.equal(canEditFramework("draft"), true);
+assert.equal(canEditFramework("in_review"), true);
+assert.equal(canEditFramework("draft", "in_review"), true);
+assert.equal(canEditFramework("confirmed"), false);
+assert.equal(canEditFramework("draft", "confirmed"), false);
 assert.equal(hasExpectedChapterCount(sampleFramework), true);
 assert.equal(countChaptersWithSourceRefs(sampleFramework), 1);
 

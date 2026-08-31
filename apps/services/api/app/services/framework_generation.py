@@ -8,9 +8,10 @@ from uuid import UUID
 
 from app.config import settings
 from app.services import job_service
-from app.services.api_errors import bad_request, conflict, not_found
+from app.services.api_errors import bad_request, not_found
 from app.services.data import DataStore
 from app.services.es13_confirm import apply_es13_confirm_gate
+from app.services.framework_status import require_reviewable_framework
 from app.services.stage_a_orchestration import generate_framework_from_transcripts
 from app.services.deck_assets import deck_assets_root
 from services.framework.rendering.customer_pdf import render_customer_pdf
@@ -78,6 +79,13 @@ def enqueue_regenerate_chapter(
         job_type="framework_regenerate_chapter",
         repository=store,
     )
+    from app.worker import run_framework_regenerate_chapter_task
+
+    args = (str(job.id), str(framework_version["id"]), chapter_id)
+    if settings.API_DATA_BACKEND == "memory":
+        run_framework_regenerate_chapter_task.run(*args)
+    else:
+        run_framework_regenerate_chapter_task.delay(*args)
     return framework_version, job
 
 
@@ -127,13 +135,7 @@ def _resolve_draft_framework_row(
     else:
         row = store.get_latest_framework(opportunity_id=opportunity_id, user_id=user_id)
 
-    if row["status"] == "confirmed":
-        raise conflict("FRAMEWORK_ALREADY_CONFIRMED", "Framework version is already confirmed")
-    if row["status"] != "draft":
-        raise bad_request(
-            "FRAMEWORK_NOT_CONFIRMABLE",
-            f"Framework version status {row['status']} cannot be confirmed",
-        )
+    require_reviewable_framework(row["status"], action="confirm")
     return row
 
 
