@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.auth import create_test_access_token
@@ -91,7 +92,10 @@ def test_generate_presentation_plan_enqueues_job_and_persists_plan() -> None:
     )
     assert latest.status_code == 200
     assert latest.json()["id"] == body["presentation_plan_id"]
-    assert latest.json()["plan_json"]["slides"]
+    slides = latest.json()["plan_json"]["slides"]
+    assert slides
+    assert all(slide["layoutId"] != "EXECUTIVE_SUMMARY_01" for slide in slides)
+    assert [slide["order"] for slide in slides] == list(range(1, len(slides) + 1))
 
     by_id = client.get(
         f"/presentation-plans/{body['presentation_plan_id']}",
@@ -113,6 +117,46 @@ def test_generate_presentation_rejects_non_confirmed_framework() -> None:
     )
     assert blocked.status_code == 400
     assert blocked.json()["error"]["code"] == "FRAMEWORK_NOT_CONFIRMED"
+
+
+def test_generate_presentation_rejects_unimplemented_layout_when_live(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "RENDERER_EXECUTION_MODE", "live")
+    client = _client()
+    opportunity_id = _create_opportunity(client)
+    framework_version_id = _confirm_framework(client, opportunity_id)
+    plan = get_memory_store().create_presentation_plan(
+        framework_version_id=uuid.UUID(framework_version_id),
+        user_id=USER_ID,
+        plan_json={
+            "schema_version": "1.0",
+            "title": "Dirty plan",
+            "slides": [
+                {
+                    "order": 1,
+                    "purpose": "cover",
+                    "layoutId": "COVER_01",
+                    "frameworkReferences": ["opportunity"],
+                },
+                {
+                    "order": 2,
+                    "purpose": "summary",
+                    "layoutId": "EXECUTIVE_SUMMARY_01",
+                    "frameworkReferences": ["chapter_1"],
+                },
+            ],
+        },
+    )
+
+    blocked = client.post(
+        f"/opportunities/{opportunity_id}/presentation/generate",
+        headers=_headers(),
+        json={"presentation_plan_id": str(plan["id"])},
+    )
+
+    assert blocked.status_code == 400
+    assert blocked.json()["error"]["code"] == "PRESENTATION_PLAN_NOT_GENERATABLE"
 
 
 def test_generate_presentation_requires_plan_then_enqueues_job() -> None:

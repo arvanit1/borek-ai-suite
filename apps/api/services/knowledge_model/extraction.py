@@ -11,7 +11,12 @@ from typing import Any
 
 import jsonschema
 
-from llm.claude.client import ClaudeClientError, structured_complete, sonnet_model
+from llm.claude.client import (
+    CLAUDE_STRUCTURED_MAX_TOKENS,
+    ClaudeClientError,
+    structured_complete,
+    sonnet_model,
+)
 from services.knowledge_model.contradictions import detect_contradictions
 from services.knowledge_model.origin_classification import (
     CONFIDENCE_VALUES,
@@ -81,21 +86,12 @@ def extract_knowledge_model(
         usage_holder: list[Any] = []
 
         def invoke() -> dict[str, Any]:
-            try:
-                raw = structured_complete(
-                    system,
-                    user,
-                    _extraction_tool_schema(schema),
-                    tool_name="submit_knowledge_model",
-                    tool_description="Submit the KnowledgeModel JSON for this transcript.",
-                    max_tokens=12000,
-                    temperature=0,
-                    usage_out=usage_holder,
-                )
-            except ClaudeClientError as exc:
-                raise KnowledgeExtractionError(exc.user_message) from exc
-            if not isinstance(raw, dict):
-                raise KnowledgeExtractionError("Claude did not return a JSON object for the KnowledgeModel.")
+            raw = anthropic_structured_complete(
+                system,
+                user,
+                _extraction_tool_schema(schema),
+                usage_out=usage_holder,
+            )
             return _stamp_identity(raw, identity)
 
         if complete is None:
@@ -144,19 +140,25 @@ def anthropic_structured_complete(
     system: str,
     user: str,
     schema: dict[str, Any],
+    *,
+    usage_out: list[Any] | None = None,
 ) -> dict[str, Any]:
     try:
-        return structured_complete(
+        raw = structured_complete(
             system,
             user,
             schema,
             tool_name="submit_knowledge_model",
             tool_description="Submit the KnowledgeModel JSON for this transcript.",
-            max_tokens=12000,
+            max_tokens=CLAUDE_STRUCTURED_MAX_TOKENS,
             temperature=0,
+            usage_out=usage_out,
         )
     except ClaudeClientError as exc:
         raise KnowledgeExtractionError(exc.user_message) from exc
+    if not isinstance(raw, dict):
+        raise KnowledgeExtractionError("Claude did not return a JSON object for the KnowledgeModel.")
+    return raw
 
 
 def _stamp_identity(raw: dict[str, Any], identity: TranscriptIdentity) -> dict[str, Any]:

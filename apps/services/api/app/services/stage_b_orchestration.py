@@ -9,7 +9,14 @@ unowned layouts, and invalid generation results fail explicitly.
 from __future__ import annotations
 
 import copy
+import logging
 from typing import Any
+
+from services.presentation.generatable_layouts import (
+    GENERATABLE_LAYOUT_IDS,
+    as_approved_generatable_plan,
+    filter_generatable_planned_slides,
+)
 
 from services.presentation.planner import PlanningClient, plan_presentation
 from services.slides.content_generation.group_a.common import StructuredGenerator
@@ -66,6 +73,8 @@ class GroupASlideGenerationError(SlideGenerationError):
     """A Group A generator did not return a valid, persistable SlideSpec."""
 
 
+logger = logging.getLogger(__name__)
+
 _GROUP_A_LAYOUTS: dict[str, Any] = {
     "COVER_01": generate_cover_01,
     "CONTEXT_01": generate_context_01,
@@ -87,6 +96,40 @@ _GROUP_C_LAYOUTS: dict[str, Any] = {
     "NEXT_STEPS_01": generate_next_steps_01,
 }
 
+if frozenset(_GROUP_A_LAYOUTS) | frozenset(_GROUP_B_LAYOUTS) | frozenset(
+    _GROUP_C_LAYOUTS
+) != GENERATABLE_LAYOUT_IDS:
+    raise RuntimeError(
+        "Stage B owner maps drifted from GENERATABLE_LAYOUT_IDS"
+    )
+
+
+def layout_has_owner_generator(layout_id: str) -> bool:
+    return layout_id in GENERATABLE_LAYOUT_IDS
+
+
+def planned_slides_with_generators(
+    plan_json: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Return planned slides that can actually be generated.
+
+    Unimplemented registry entries (currently EXECUTIVE_SUMMARY_01) are skipped
+    so a saved plan cannot fail the whole deck. Calling the generator for those
+    layouts still fail-closes.
+    """
+    kept, skipped = filter_generatable_planned_slides(plan_json)
+    for layout_id in skipped:
+        logger.warning(
+            "Skipping planned layout %s; no owner generator or renderer",
+            layout_id,
+        )
+    if not kept and skipped:
+        raise UnsupportedSlideGeneratorError(
+            "UNSUPPORTED_SLIDE_GENERATOR: plan contains only layouts with no "
+            "owner generator"
+        )
+    return kept
+
 
 def get_live_planning_client() -> PlanningClient:
     """Resolve the fixture or live BT-1 planner for the configured execution mode."""
@@ -96,17 +139,17 @@ def get_live_planning_client() -> PlanningClient:
 
 
 def get_live_structured_generator() -> StructuredGenerator:
-    """Return the shared live structured-output callback once it is available."""
-    raise StageBProviderUnavailableError(
-        "No shared live structured-generation provider is registered for Stage B"
-    )
+    """Resolve the fixture or live structured-output callback for this process."""
+    from app.services.stage_b_providers import get_runtime_structured_generator
+
+    return get_runtime_structured_generator()
 
 
 def get_live_compression_fields() -> GroupACompressFieldsFn:
-    """Return the shared targeted compression callback once it is available."""
-    raise StageBProviderUnavailableError(
-        "No shared live compression provider is registered for Stage B"
-    )
+    """Resolve the fixture or live compression callback for this process."""
+    from app.services.stage_b_providers import get_runtime_compression_fields
+
+    return get_runtime_compression_fields()
 
 
 def framework_refs_to_chapter_ids(refs: list[str]) -> list[str]:
@@ -127,7 +170,7 @@ def plan_json_from_confirmed_framework(
     """Run BT-1 once and return only its validated PresentationPlan JSON."""
     live_planner = planner if planner is not None else get_live_planning_client()
     plan = plan_presentation(copy.deepcopy(framework_json), planner=live_planner)
-    return plan.model_dump(mode="json")
+    return as_approved_generatable_plan(plan.model_dump(mode="json"))
 
 
 def build_slide_spec_for_planned_slide(
@@ -139,7 +182,7 @@ def build_slide_spec_for_planned_slide(
 ) -> dict[str, Any]:
     """Route one planned slide to its owner generator and return a validated SlideSpec.
 
-    EXECUTIVE_SUMMARY_01 stays fail-closed until an owner supplies a generator.
+    Unowned layouts such as EXECUTIVE_SUMMARY_01 fail here if invoked directly.
     """
     order = int(planned["order"])
     layout_id = str(planned["layoutId"])

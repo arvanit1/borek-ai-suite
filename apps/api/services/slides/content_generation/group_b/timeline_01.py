@@ -19,7 +19,13 @@ CONFIG = GroupBGenerationConfig(
     instructions=(
         "Create dual-band TIMELINE_01 content only from chapter 10. Keep milestone "
         "phaseId values aligned to phases[].id. Timeline end must not precede start. "
-        "Do not invent dates, phases, or checkpoints."
+        "Do not invent dates, phases, or checkpoints. "
+        "NUMBERS: Always spell out numbers as words when they appear in compound "
+        "terms or as approximations. Write 'seventy percent', never '70%' unless the "
+        "exact digit appears in the chapter text you were given. Write 'ten weeks', "
+        "never '10 weeks' unless the digit 10 appears in your source chapters. "
+        "Use digits only for quantities that appear as digits in the chapter text "
+        "you were given."
     ),
 )
 

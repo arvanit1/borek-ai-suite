@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 from enum import StrEnum
 from uuid import UUID
 
 from app.services.data import DataStore
+
+logger = logging.getLogger(__name__)
 
 
 class AuditAction(StrEnum):
@@ -41,10 +44,24 @@ def record_audit_event(
     object_type: AuditObjectType | str,
     object_id: UUID,
 ) -> None:
-    """Persist actor, action, object reference, and timestamp for a state change."""
-    store.append_audit_log(
-        actor_id=actor_id,
-        action=str(action),
-        object_type=str(object_type),
-        object_id=object_id,
-    )
+    """Persist actor, action, object reference, and timestamp for a state change.
+
+    Audit writes must not fail the originating 202. A timeout on the audit
+    insert after a successful enqueue is what produced "Failed to fetch" in
+    the live UI.
+    """
+    try:
+        store.append_audit_log(
+            actor_id=actor_id,
+            action=str(action),
+            object_type=str(object_type),
+            object_id=object_id,
+        )
+    except Exception:
+        logger.warning(
+            "Audit log write failed for %s on %s %s; continuing",
+            action,
+            object_type,
+            object_id,
+            exc_info=True,
+        )

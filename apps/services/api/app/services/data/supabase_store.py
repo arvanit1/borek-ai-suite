@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import copy
 import json
+import logging
+import time
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
@@ -13,14 +15,25 @@ from uuid import UUID
 import httpx
 
 from app.config import settings
-from app.services.api_errors import bad_request, conflict, not_found
+from app.services.api_errors import bad_request, conflict, not_found, service_unavailable
 from app.services.data.memory_store import ALLOWED_TRANSCRIPT_EXTENSIONS
 from app.services.stage_b_orchestration import (
     build_slide_spec_for_planned_slide,
     plan_json_from_confirmed_framework,
+    planned_slides_with_generators,
 )
-from app.services.deck_assets import materialize_fixture_deck_assets
+from app.services.deck_assets import (
+    materialize_fixture_deck_assets,
+    resolve_pdf_path,
+    resolve_pptx_path,
+    resolve_preview_image_path,
+)
 from app.services.framework_stub_template import load_framework_stub_template
+
+logger = logging.getLogger(__name__)
+_HTTP_CLIENT: httpx.Client | None = None
+_TRANSIENT_ERRORS = (httpx.TimeoutException, httpx.NetworkError)
+_MAX_ATTEMPTS = 3
 
 _FIXTURE_PATH = (
     Path(__file__).resolve().parents[6]
@@ -29,6 +42,57 @@ _FIXTURE_PATH = (
     / "fixtures"
     / "framework_object.minimal.json"
 )
+
+
+def _shared_client() -> httpx.Client:
+    global _HTTP_CLIENT
+    if _HTTP_CLIENT is None or _HTTP_CLIENT.is_closed:
+        _HTTP_CLIENT = httpx.Client(
+            timeout=30.0,
+            limits=httpx.Limits(max_keepalive_connections=10, max_connections=20),
+        )
+    return _HTTP_CLIENT
+
+
+def _request_with_retry(
+    method: str,
+    url: str,
+    *,
+    headers: dict[str, str],
+    params: dict[str, str] | None = None,
+    json: dict[str, Any] | list[dict[str, Any]] | None = None,
+    content: bytes | None = None,
+) -> httpx.Response:
+    last_error: Exception | None = None
+    for attempt in range(_MAX_ATTEMPTS):
+        try:
+            kwargs: dict[str, Any] = {
+                "method": method,
+                "url": url,
+                "headers": headers,
+                "params": params,
+            }
+            if content is not None:
+                kwargs["content"] = content
+            elif json is not None:
+                kwargs["json"] = json
+            return _shared_client().request(**kwargs)
+        except _TRANSIENT_ERRORS as exc:
+            last_error = exc
+            logger.warning(
+                "Supabase request %s %s failed (attempt %s/%s): %s",
+                method,
+                url,
+                attempt + 1,
+                _MAX_ATTEMPTS,
+                exc,
+            )
+            if attempt + 1 < _MAX_ATTEMPTS:
+                time.sleep(0.4 * (attempt + 1))
+    raise service_unavailable(
+        "SUPABASE_UNAVAILABLE",
+        "Supabase timed out. Retry the action.",
+    ) from last_error
 
 
 def _parse_timestamp(value: str | datetime) -> datetime:
@@ -183,15 +247,13 @@ class SupabaseDataStore:
         params: dict[str, str] | None = None,
         json_body: dict[str, Any] | list[dict[str, Any]] | None = None,
     ) -> httpx.Response:
-        response = httpx.request(
+        return _request_with_retry(
             method,
             f"{self._base_url}/rest/v1/{table}",
             headers=self._headers,
             params=params,
             json=json_body,
-            timeout=30.0,
         )
-        return response
 
     def _upload_transcript_content(
         self,
@@ -206,11 +268,11 @@ class SupabaseDataStore:
             "Content-Type": mime_type,
             "x-upsert": "false",
         }
-        response = httpx.post(
+        response = _request_with_retry(
+            "POST",
             f"{self._base_url}/storage/v1/object/transcripts/{storage_path}",
             headers=headers,
             content=content,
-            timeout=30.0,
         )
         if response.status_code not in (200, 201):
             raise bad_request("TRANSCRIPT_STORAGE_FAILED", response.text)
@@ -890,7 +952,7 @@ class SupabaseDataStore:
             user_id=user_id,
         )
         slide_specs: list[dict[str, Any]] = []
-        for planned in sorted(plan_json.get("slides", []), key=lambda item: item["order"]):
+        for planned in planned_slides_with_generators(plan_json):
             slide_spec = build_slide_spec_for_planned_slide(
                 planned=planned,
                 framework_json=framework["framework_json"],
@@ -1193,15 +1255,16 @@ class SupabaseDataStore:
                 "PRESENTATION_NOT_READY",
                 "Presentation version is not ready for preview or download",
             )
-        preview_dir_assets = materialize_fixture_deck_assets(
-            version_id=version["id"],
-            slide_count=max(len(version.get("slides_json") or []), 1),
-        )
+        version_id = version["id"]
+        slide_count = max(len(version.get("slides_json") or []), 1)
         if not version.get("pptx_storage_path"):
-            version["pptx_storage_path"] = preview_dir_assets["pptx_storage_path"]
+            version["pptx_storage_path"] = str(resolve_pptx_path(version_id=version_id).resolve())
         if not version.get("pdf_storage_path"):
-            version["pdf_storage_path"] = preview_dir_assets["pdf_storage_path"]
-        version["preview_image_paths"] = preview_dir_assets["preview_image_paths"]
+            version["pdf_storage_path"] = str(resolve_pdf_path(version_id=version_id).resolve())
+        version["preview_image_paths"] = [
+            str(resolve_preview_image_path(version_id=version_id, slide_index=index).resolve())
+            for index in range(slide_count)
+        ]
         return version
 
     def append_audit_log(

@@ -77,12 +77,12 @@ export const LAYOUT_REGISTRY: Record<LayoutId, RenderFn> = {
  * @example
  * dispatchSlide(pptx, slideSpec);
  */
-export function dispatchSlide(pptx: PptxGenJS, spec: SlideSpecBase): void {
+export function dispatchSlide(pptx: PptxGenJS, spec: SlideSpecBase): PptxGenJS.Slide | undefined {
   const render = LAYOUT_REGISTRY[spec.layoutId];
 
   if (!render) {
     throw new UnsupportedLayoutError(spec.layoutId);
   }
 
-  render(pptx, spec);
+  return render(pptx, spec) as PptxGenJS.Slide | undefined;
 }

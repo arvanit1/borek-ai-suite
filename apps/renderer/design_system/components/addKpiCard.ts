@@ -135,6 +135,8 @@ export function kpiCardValueTextOptions(layout: KpiCardTextLayout, variant: KpiC
     bold: true,
     align: "center" as const,
     valign: "middle" as const,
+    wrap: true,
+    shrinkText: true,
   };
 }
 
@@ -153,6 +155,8 @@ export function kpiCardLabelTextOptions(layout: KpiCardTextLayout, variant: KpiC
     fontSize: BorekTypography.defaultSizes.body,
     align: "center" as const,
     valign: "top" as const,
+    wrap: true,
+    shrinkText: true,
   };
 }
 

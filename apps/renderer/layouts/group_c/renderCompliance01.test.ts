@@ -10,7 +10,7 @@ import {
 } from "../../design_system/masters/MASTER_CLOSING.js";
 import { BorekSpacing } from "../../design_system/tokens/spacing.js";
 import { cardRowSizes, computeCardGridLayout } from "./cardGrid.js";
-import { renderCompliance01 } from "./renderCompliance01.js";
+import { complianceItemTitle, renderCompliance01 } from "./renderCompliance01.js";
 import {
   assertNoInlineDesignTokens,
   assertXmlContains,
@@ -54,7 +54,10 @@ assert.equal(first.slideXml, second.slideXml, "same SlideSpec must produce deter
 assertXmlContains(first.slideXml, [
   invoiceFixture.sectionLabel ?? "",
   xmlText(invoiceFixture.title),
-  ...invoiceFixture.items.flatMap((item) => [item.icon, xmlText(item.text)]),
+  ...invoiceFixture.items.flatMap((item) => [
+    complianceItemTitle(item.icon),
+    xmlText(item.text),
+  ]),
 ]);
 
 const lightFixture: Compliance01SlideSpec = {
@@ -63,7 +66,10 @@ const lightFixture: Compliance01SlideSpec = {
   subtitle: "Light variant & Kontrolle",
 };
 const light = await renderToPptx((pptx) => renderCompliance01(pptx, lightFixture));
-assertXmlContains(light.slideXml, ["Light variant &amp; Kontrolle", "lock"]);
+assertXmlContains(light.slideXml, [
+  "Light variant &amp; Kontrolle",
+  complianceItemTitle("lock"),
+]);
 
 const minimumFixture: Compliance01SlideSpec = {
   schema_version: "1.0",

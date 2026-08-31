@@ -55,7 +55,7 @@ const LABEL_AND_DATE = { label: "Pilot go-live", date: "Week 10" };
 assert.ok(existsSync(COMPONENT_TS), "addMilestone.ts must exist");
 assert.equal(MILESTONE_MARKER_SHAPE, "diamond");
 assert.equal(milestoneMarkerDiameter(), BorekGrid.rowGap * 2);
-assert.equal(milestoneLabelWidth(), milestoneMarkerDiameter() * 3);
+assert.equal(milestoneLabelWidth(), milestoneMarkerDiameter() * 6);
 assert.equal(milestoneLabelBandHeight(), BorekSpacing.footerHeight);
 assert.equal(milestoneBandGap(), BorekGrid.rowGap);
 
@@ -70,7 +70,10 @@ assert.equal(layoutNoDate.date, undefined);
 
 const layoutWithDate = computeMilestoneLayout(ANCHOR, LABEL_AND_DATE);
 assert.ok(layoutWithDate.date);
-assert.equal(layoutWithDate.date!.y, layoutWithDate.label.y + milestoneLabelBandHeight());
+assert.equal(
+  layoutWithDate.date!.y,
+  layoutWithDate.label.y + milestoneLabelBandHeight() + milestoneBandGap(),
+);
 
 const markerOptions = milestoneMarkerShapeOptions(layoutNoDate.marker);
 assert.equal(markerOptions.fill.color, BorekColors.primary);

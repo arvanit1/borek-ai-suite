@@ -25,7 +25,12 @@ CONFIG = GroupAGenerationConfig(
     instructions=(
         "Create the problem, solution, currentState, and targetState blocks using "
         "only chapters 1 and 2. Select, shorten, reorganize, or paraphrase grounded "
-        "content only; do not add facts or capabilities."
+        "content only; do not add facts or capabilities. "
+        "NUMBERS: Always spell out numbers as words when they appear in compound "
+        "terms or process names. Write 'three-way match', never '3-way match'. "
+        "Write 'three steps', never '3 steps'. Write 'two systems', never '2 systems'. "
+        "Use digits only for quantities that appear as digits in the chapter text "
+        "you were given."
     ),
 )
 

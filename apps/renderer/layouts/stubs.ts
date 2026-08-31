@@ -17,7 +17,10 @@ import { renderProcessFlow01 } from "./group_b/renderProcessFlow01.js";
 import { renderTeamFte01 } from "./group_b/renderTeamFte01.js";
 import { renderTimeline01 } from "./group_b/renderTimeline01.js";
 
-export type LayoutRenderFn = (pptx: PptxGenJS, spec: SlideSpecBase) => void;
+export type LayoutRenderFn = (
+  pptx: PptxGenJS,
+  spec: SlideSpecBase,
+) => PptxGenJS.Slide | void;
 
 /** Stub — executive summary layout (registered; renderer TBD). Layout: EXECUTIVE_SUMMARY_01 */
 export function renderExecutiveSummary01Stub(_pptx: PptxGenJS, _spec: SlideSpecBase): void {
@@ -25,21 +28,33 @@ export function renderExecutiveSummary01Stub(_pptx: PptxGenJS, _spec: SlideSpecB
 }
 
 /** JJ-15 renderer adapter. Group B dispatcher registration is JJ-19. */
-export function renderProcessFlow01Stub(pptx: PptxGenJS, spec: SlideSpecBase): void {
-  renderProcessFlow01(pptx, spec as ProcessFlow01SlideSpec);
+export function renderProcessFlow01Stub(
+  pptx: PptxGenJS,
+  spec: SlideSpecBase,
+): PptxGenJS.Slide {
+  return renderProcessFlow01(pptx, spec as ProcessFlow01SlideSpec);
 }
 
 /** JJ-16 renderer adapter. Group B dispatcher registration is JJ-19. */
-export function renderTimeline01Stub(pptx: PptxGenJS, spec: SlideSpecBase): void {
-  renderTimeline01(pptx, spec as Timeline01SlideSpec);
+export function renderTimeline01Stub(
+  pptx: PptxGenJS,
+  spec: SlideSpecBase,
+): PptxGenJS.Slide {
+  return renderTimeline01(pptx, spec as Timeline01SlideSpec);
 }
 
 /** JJ-17 renderer adapter. Group B dispatcher registration is JJ-19. */
-export function renderMilestones01Stub(pptx: PptxGenJS, spec: SlideSpecBase): void {
-  renderMilestones01(pptx, spec as Milestones01SlideSpec);
+export function renderMilestones01Stub(
+  pptx: PptxGenJS,
+  spec: SlideSpecBase,
+): PptxGenJS.Slide {
+  return renderMilestones01(pptx, spec as Milestones01SlideSpec);
 }
 
 /** JJ-18 renderer adapter. Group B dispatcher registration is JJ-19. */
-export function renderTeamFte01Stub(pptx: PptxGenJS, spec: SlideSpecBase): void {
-  renderTeamFte01(pptx, spec as TeamFte01SlideSpec);
+export function renderTeamFte01Stub(
+  pptx: PptxGenJS,
+  spec: SlideSpecBase,
+): PptxGenJS.Slide {
+  return renderTeamFte01(pptx, spec as TeamFte01SlideSpec);
 }
