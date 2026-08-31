@@ -18,6 +18,7 @@ from app.services.framework_stub_template import load_framework_stub_template
 from app.services.stage_b_orchestration import (
     build_slide_spec_for_planned_slide,
     plan_json_from_confirmed_framework,
+    planned_slides_with_generators,
 )
 
 ALLOWED_TRANSCRIPT_EXTENSIONS = {".txt", ".vtt", ".srt", ".docx"}
@@ -632,7 +633,7 @@ class MemoryDataStore:
             user_id=user_id,
         )
         slide_specs: list[dict[str, Any]] = []
-        for planned in sorted(plan_json.get("slides", []), key=lambda item: item["order"]):
+        for planned in planned_slides_with_generators(plan_json):
             slide_spec = build_slide_spec_for_planned_slide(
                 planned=planned,
                 framework_json=framework["framework_json"],

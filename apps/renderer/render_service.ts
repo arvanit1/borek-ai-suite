@@ -95,7 +95,12 @@ export async function renderArtifactBundle(requestValue: unknown): Promise<Buffe
   const workDir = await mkdtemp(join(tmpdir(), "borek-render-"));
   try {
     const pptxPath = join(workDir, "deck.pptx");
-    writeFileSync(pptxPath, await buildDeckBuffer(request.slideSpecs));
+    writeFileSync(
+      pptxPath,
+      await buildDeckBuffer(request.slideSpecs, {
+        opportunityTitle: request.presentationPlan.title,
+      }),
+    );
 
     let preview;
     try {

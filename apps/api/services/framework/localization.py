@@ -4,7 +4,12 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
-from llm.claude.client import ClaudeClientError, structured_complete, sonnet_model
+from llm.claude.client import (
+    CLAUDE_STRUCTURED_MAX_TOKENS,
+    ClaudeClientError,
+    structured_complete,
+    sonnet_model,
+)
 from services.observability.llm_logger import STAGE_LOCALIZE, run_logged_llm_call
 
 LocalizeFn = Callable[[str, str, dict[str, Any]], dict[str, Any]]
@@ -26,7 +31,7 @@ def make_localize_fn(
                     schema,
                     tool_name="submit_localized_report",
                     tool_description="Submit the localized customer report JSON.",
-                    max_tokens=16000,
+                    max_tokens=CLAUDE_STRUCTURED_MAX_TOKENS,
                     temperature=0,
                     usage_out=usage_holder,
                 )

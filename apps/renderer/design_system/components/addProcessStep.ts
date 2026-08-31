@@ -59,9 +59,9 @@ export function processStepVerticalGap(): number {
   return BorekGrid.rowGap;
 }
 
-/** Title band height inside a process step — derived from spacing token (AT-13). */
+/** Title band height inside a process step — two footer bands so names can wrap. */
 export function processStepTitleBandHeight(): number {
-  return BorekSpacing.footerHeight;
+  return BorekSpacing.footerHeight * 2;
 }
 
 /** Compute badge and text regions inside the caller-supplied step rectangle. */
@@ -129,6 +129,8 @@ export function processStepTitleTextOptions(layout: ProcessStepTextRect) {
     bold: true,
     align: "center" as const,
     valign: "top" as const,
+    wrap: true,
+    shrinkText: true,
   };
 }
 
@@ -143,6 +145,8 @@ export function processStepDescriptionTextOptions(layout: ProcessStepTextRect) {
     fontSize: BorekTypography.defaultSizes.body,
     align: "center" as const,
     valign: "top" as const,
+    wrap: true,
+    shrinkText: true,
   };
 }
 

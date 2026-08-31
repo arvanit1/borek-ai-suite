@@ -23,6 +23,8 @@
     "test:at19": "tsx design_system/components/addSlideTitle.test.ts",
     "test:at20": "tsx design_system/components/addSectionLabel.test.ts",
     "test:at21": "tsx design_system/components/addFooter.test.ts",
+    "test:logo": "tsx design_system/components/addLogo.test.ts",
+    "test:chrome": "tsx design_system/components/applySlideChrome.test.ts",
     "test:at22": "tsx design_system/components/addContentCard.test.ts",
     "test:at23": "tsx design_system/components/addKpiCard.test.ts",
     "test:at24": "tsx design_system/components/addNumberBadge.test.ts",

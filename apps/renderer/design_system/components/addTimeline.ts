@@ -336,6 +336,8 @@ export function timelineDateLabelTextOptions(labelRect: TimelineTextRect) {
     fontSize: BorekTypography.defaultSizes.body,
     align: "center" as const,
     valign: "bottom" as const,
+    wrap: true,
+    shrinkText: true,
   };
 }
 
@@ -351,6 +353,8 @@ export function timelinePhaseNameTextOptions(nameRect: TimelineTextRect) {
     bold: true,
     align: "center" as const,
     valign: "middle" as const,
+    wrap: true,
+    shrinkText: true,
   };
 }
 
@@ -365,6 +369,8 @@ export function timelinePhaseDescriptionTextOptions(descriptionRect: TimelineTex
     fontSize: BorekTypography.defaultSizes.body,
     align: "center" as const,
     valign: "top" as const,
+    wrap: true,
+    shrinkText: true,
   };
 }
 

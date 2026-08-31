@@ -557,3 +557,243 @@ def test_bt13_rejects_arbitrary_color_or_styling_values() -> None:
             _framework(),
             CapturingGenerator(output=requirements),
         )
+
+
+class _ContextSpec(dict):
+    """CONTEXT_01 SlideSpec plus the FrameworkObject used to validate it."""
+
+    framework: dict[str, Any]
+
+
+def build_context_01_spec(
+    *,
+    problem_description: str,
+    problem_provenance: list[str],
+    chapter_bodies: dict[str, str],
+) -> _ContextSpec:
+    framework = _framework()
+    for chapter in framework["chapters"]:
+        chapter_id = str(chapter.get("chapter_id"))
+        if chapter_id in chapter_bodies:
+            chapter["body"] = chapter_bodies[chapter_id]
+    spec = _ContextSpec(_slide(CASES["context"]))
+    spec.framework = framework
+    spec["problem"] = {
+        **copy.deepcopy(spec["problem"]),
+        "description": problem_description,
+    }
+    spec["solution"] = {
+        **copy.deepcopy(spec["solution"]),
+        "description": (
+            "A deterministic three-way match handles clean invoices "
+            "and explains every exception."
+        ),
+    }
+    spec["fieldProvenance"] = [
+        {
+            **copy.deepcopy(entry),
+            "sourceChapterIds": list(problem_provenance),
+        }
+        if entry["path"] == "problem.description"
+        else copy.deepcopy(entry)
+        for entry in spec["fieldProvenance"]
+    ]
+    return spec
+
+
+def validate_group_a_content(spec: dict[str, Any]) -> Any:
+    framework = getattr(spec, "framework", None)
+    if not isinstance(framework, dict):
+        raise TypeError("build_context_01_spec must be used to construct the spec")
+    return _run(
+        CASES["context"],
+        framework,
+        CapturingGenerator(output=dict(spec)),
+    )
+
+
+def test_bt14_digit_form_of_word_concept_fails_grounding() -> None:
+    """
+    BT-14: model writes "3-way match" (digit) but chapter
+    body contains only "three-way-match" (word form).
+    The digit 3 is ungrounded — must fail.
+    This is the exact live failure for opportunity
+    aff77ed5 CONTEXT_01 problem.description.
+    """
+    spec = build_context_01_spec(
+        problem_description=(
+            "Invoices require a 3-way match process "
+            "before payment is approved."
+        ),
+        problem_provenance=["2"],
+        chapter_bodies={
+            "1": "Management handles approval workflows.",
+            "2": (
+                "The process involves three-way-match "
+                "validation and approval steps."
+            ),
+        },
+    )
+    with pytest.raises(UngroundedContentError) as exc_info:
+        validate_group_a_content(spec)
+    assert "3" in str(exc_info.value)
+    assert "problem.description" in str(exc_info.value)
+
+
+def test_bt14_word_form_of_numeric_concept_passes_grounding() -> None:
+    """
+    BT-14: model writes "three-way match" (word form).
+    No digit token is extracted. Must pass.
+    This is what Fix 1 and Fix 3 produce.
+    """
+    spec = build_context_01_spec(
+        problem_description=(
+            "Invoices require a three-way match process "
+            "before payment is approved."
+        ),
+        problem_provenance=["2"],
+        chapter_bodies={
+            "1": "Management handles approval workflows.",
+            "2": (
+                "The process involves three-way-match "
+                "validation and approval steps."
+            ),
+        },
+    )
+    result = validate_group_a_content(spec)
+    assert result.status == "VALID"
+
+
+def test_sanitizer_converts_3way_to_three_way() -> None:
+    """
+    Fix 3 sanitizer: "3-way match" → "three-way match"
+    when "3" is not in any allowed chapter body.
+    """
+    from llm.live_slide_repair import _sanitize_ungrounded_digit_compounds
+
+    result = _sanitize_ungrounded_digit_compounds(
+        text="Invoices require a 3-way match process.",
+        allowed_chapter_bodies={
+            "1": "Management handles approval workflows.",
+            "2": "The process involves three-way-match validation.",
+        },
+        ungrounded_tokens={"3"},
+    )
+    assert "3-way" not in result
+    assert "three-way" in result
+
+
+def test_compression_restores_european_thousand_form() -> None:
+    """AT-8 must not turn a grounded 1.200 into an ungrounded 1200."""
+    from llm.client import _restore_source_number_forms
+
+    result = _restore_source_number_forms(
+        "Around 1.200 invoices arrive each month.",
+        "Around 1200 invoices arrive each month.",
+    )
+    assert "1.200" in result
+    assert "1200" not in result
+
+
+def test_sanitizer_leaves_grounded_digits_alone() -> None:
+    """
+    Fix 3 sanitizer: if "5" appears as a digit in the
+    chapter body, it is grounded and must not be changed.
+    """
+    from llm.live_slide_repair import _sanitize_ungrounded_digit_compounds
+
+    result = _sanitize_ungrounded_digit_compounds(
+        text="Processing 5 invoices per day.",
+        allowed_chapter_bodies={
+            "2": "The team processes 5 invoices per day on average."
+        },
+        ungrounded_tokens=set(),
+    )
+    assert "5" in result
+    assert "five" not in result
+
+
+class _ScopeSpec(dict):
+    framework: dict[str, Any]
+
+
+def build_scope_01_spec(
+    *,
+    included_1: str,
+    chapter_bodies: dict[str, str],
+) -> _ScopeSpec:
+    framework = _framework()
+    for chapter in framework["chapters"]:
+        chapter_id = str(chapter.get("chapter_id"))
+        if chapter_id in chapter_bodies:
+            chapter["body"] = chapter_bodies[chapter_id]
+    spec = _ScopeSpec(_slide(CASES["scope"]))
+    spec.framework = framework
+    included = list(spec["included"])
+    included[1] = included_1
+    spec["included"] = included
+    return spec
+
+
+def validate_group_a_scope(spec: dict[str, Any]) -> Any:
+    framework = getattr(spec, "framework", None)
+    if not isinstance(framework, dict):
+        raise TypeError("build_scope_01_spec must be used to construct the spec")
+    return _run(
+        CASES["scope"],
+        framework,
+        CapturingGenerator(output=dict(spec)),
+    )
+
+
+def test_bt14_scope_rejects_ungrounded_70() -> None:
+    spec = build_scope_01_spec(
+        included_1="Handles 70% of cases",
+        chapter_bodies={
+            "3": "handles seventy percent of cases",
+            "5": "reduces manual effort significantly",
+        },
+    )
+    with pytest.raises(UngroundedContentError) as exc_info:
+        validate_group_a_scope(spec)
+    assert "70" in str(exc_info.value)
+    assert "included[1]" in str(exc_info.value)
+
+
+def test_bt14_scope_accepts_word_form_seventy() -> None:
+    spec = build_scope_01_spec(
+        included_1="Handles seventy percent of cases",
+        chapter_bodies={
+            "3": "handles seventy percent of cases",
+            "5": "reduces manual effort significantly",
+        },
+    )
+    result = validate_group_a_scope(spec)
+    assert result.status == "VALID"
+
+
+def test_sanitizer_converts_70_percent_to_seventy_percent() -> None:
+    from llm.live_slide_repair import _sanitize_ungrounded_digit_compounds
+
+    result = _sanitize_ungrounded_digit_compounds(
+        text="Handles 70% of cases",
+        allowed_chapter_bodies={
+            "3": "handles seventy percent of cases",
+            "5": "reduces manual effort significantly",
+        },
+        ungrounded_tokens={"70"},
+    )
+    assert "70%" not in result
+    assert "seventy percent" in result
+
+
+def test_sanitizer_spells_ungrounded_250() -> None:
+    from llm.live_slide_repair import _sanitize_ungrounded_digit_compounds
+
+    result = _sanitize_ungrounded_digit_compounds(
+        text="Around 250 invoices need review.",
+        allowed_chapter_bodies={"2": "Invoices need review each month."},
+        ungrounded_tokens={"250"},
+    )
+    assert "250" not in result
+    assert "two hundred fifty" in result

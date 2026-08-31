@@ -1,12 +1,15 @@
 """Presentation planning/generation orchestration (AT-42 / AT-43).
 
 HTTP handlers only enqueue jobs. Workers invoke the owner planner and Group A/B/C
-generators, then render validated artifacts. EXECUTIVE_SUMMARY_01 stays fail-closed.
+generators, then render validated artifacts. Unimplemented layouts such as
+EXECUTIVE_SUMMARY_01 are stripped from the persisted approved plan so AT-10 can
+compare that plan to generated SlideSpecs without a silent count lie.
 """
 
 from __future__ import annotations
 
 import uuid
+from typing import Any
 from uuid import UUID
 
 from app.config import settings
@@ -17,6 +20,7 @@ from app.services.data import DataStore
 from app.services.renderer_client import render_deck_assets
 from app.services.stage_b_orchestration import plan_json_from_confirmed_framework
 from app.services.stage_b_providers import install_runtime_stage_b_providers
+from services.presentation.generatable_layouts import filter_generatable_planned_slides
 
 
 def _dispatch_task(task, *args: str) -> None:
@@ -84,6 +88,50 @@ def _resolve_presentation_plan(
             "Generate a presentation plan before generating the presentation",
         )
     return plan
+
+
+def unimplemented_layouts_in_plan(plan_json: dict[str, Any]) -> list[str]:
+    """Return unimplemented layout ids still sitting on the saved approved plan."""
+    kept, skipped = filter_generatable_planned_slides(plan_json)
+    planned = list(plan_json.get("slides") or [])
+    if skipped or len(planned) != len(kept):
+        return sorted(set(skipped)) or ["unknown"]
+    return []
+
+
+def _raise_if_plan_not_generatable(plan_json: dict[str, Any], *, as_http: bool) -> None:
+    names = unimplemented_layouts_in_plan(plan_json)
+    if not names:
+        return
+    message = (
+        "Approved plan includes unimplemented layouts "
+        f"({', '.join(names)}); regenerate the presentation plan before generating slides"
+    )
+    if as_http:
+        raise bad_request("PRESENTATION_PLAN_NOT_GENERATABLE", message)
+    raise RuntimeError(f"PRESENTATION_PLAN_NOT_GENERATABLE: {message}")
+
+
+def _assert_plan_matches_generated_specs(
+    plan_json: dict[str, Any],
+    slide_specs: list[dict[str, Any]] | None,
+) -> None:
+    planned = list(plan_json.get("slides") or [])
+    specs = list(slide_specs or [])
+    if len(planned) != len(specs):
+        raise RuntimeError(
+            "AT-10: approved plan slide count "
+            f"({len(planned)}) does not match generated SlideSpecs ({len(specs)}); "
+            "regenerate the presentation plan so every planned layout is generatable"
+        )
+    for index, (planned_slide, spec) in enumerate(zip(planned, specs, strict=True), start=1):
+        planned_id = planned_slide.get("layoutId")
+        spec_id = spec.get("layoutId")
+        if planned_id != spec_id:
+            raise RuntimeError(
+                f"AT-10: approved plan slide {index} is {planned_id} "
+                f"but generated SlideSpec is {spec_id}"
+            )
 
 
 def enqueue_presentation_plan_generate(
@@ -160,6 +208,8 @@ def enqueue_presentation_generate(
         framework_version_id=framework["id"],
         presentation_plan_id=presentation_plan_id,
     )
+    if settings.RENDERER_EXECUTION_MODE == "live":
+        _raise_if_plan_not_generatable(plan["plan_json"], as_http=True)
     presentation = store.create_presentation(
         presentation_plan_id=plan["id"],
         user_id=user_id,
@@ -194,6 +244,8 @@ def execute_presentation_generation(
         presentation_plan_id=presentation["presentation_plan_id"],
         user_id=user_id,
     )
+    if settings.RENDERER_EXECUTION_MODE == "live":
+        _raise_if_plan_not_generatable(plan["plan_json"], as_http=False)
     version = store.create_presentation_version_with_slides(
         presentation_id=presentation_id,
         user_id=user_id,
@@ -210,6 +262,7 @@ def render_presentation_version(
 ) -> dict:
     if settings.RENDERER_EXECUTION_MODE != "live":
         return version
+    _assert_plan_matches_generated_specs(plan["plan_json"], version.get("slides_json"))
     assets = render_deck_assets(
         version_id=version["id"],
         presentation_plan=plan["plan_json"],

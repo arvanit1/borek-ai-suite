@@ -14,8 +14,12 @@ from uuid import UUID
 
 import pytest
 
+from app.config import settings
+from app.services import presentation_generation
 from app.services import stage_b_orchestration as stage_b
+from app.services import stage_b_providers
 from app.services.data.memory_store import MemoryDataStore
+from llm.openai_executor import OpenAIProviderConfigurationError
 from app.services.data import supabase_store as supabase_store_module
 from app.services.data.supabase_store import SupabaseDataStore
 from services.presentation.planner import (
@@ -125,13 +129,46 @@ def _memory_store_with_framework() -> tuple[MemoryDataStore, UUID, UUID, dict[st
     return store, user_id, framework["id"], framework_json
 
 
-def test_live_slide_provider_factories_fail_until_shared_providers_exist() -> None:
-    for factory in (
-        _UNPATCHED_LIVE_STRUCTURED,
-        _UNPATCHED_LIVE_COMPRESSION,
-    ):
-        with pytest.raises(stage_b.StageBProviderUnavailableError):
-            factory()
+def test_unpatched_slide_providers_resolve_from_execution_mode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "AI_EXECUTION_MODE", "fixture")
+
+    assert _UNPATCHED_LIVE_STRUCTURED() is stage_b_providers.fixture_structured_generate
+    assert _UNPATCHED_LIVE_COMPRESSION() is stage_b_providers.fixture_compress_fields
+
+    monkeypatch.setattr(settings, "AI_EXECUTION_MODE", "live")
+    monkeypatch.setattr(settings, "OPENAI_API_KEY", "")
+    with pytest.raises(OpenAIProviderConfigurationError, match="OPENAI_API_KEY"):
+        _UNPATCHED_LIVE_STRUCTURED()
+    with pytest.raises(OpenAIProviderConfigurationError, match="OPENAI_API_KEY"):
+        _UNPATCHED_LIVE_COMPRESSION()
+
+
+def test_confirmed_plan_strips_unimplemented_layouts_and_renumbers() -> None:
+    dirty = copy.deepcopy(GROUP_A_PLAN)
+    dirty["slides"].insert(
+        1,
+        {
+            "order": 2,
+            "purpose": "summary",
+            "layoutId": "EXECUTIVE_SUMMARY_01",
+            "frameworkReferences": ["chapter_1"],
+        },
+    )
+    for index, slide in enumerate(dirty["slides"], start=1):
+        slide["order"] = index
+    planner = SpyPlanner(dirty)
+
+    result = stage_b.plan_json_from_confirmed_framework(_framework(), planner=planner)
+
+    assert all(slide["layoutId"] != "EXECUTIVE_SUMMARY_01" for slide in result["slides"])
+    assert [slide["order"] for slide in result["slides"]] == list(
+        range(1, len(result["slides"]) + 1)
+    )
+    assert [slide["layoutId"] for slide in result["slides"]] == [
+        slide["layoutId"] for slide in GROUP_A_PLAN["slides"]
+    ]
 
 
 def test_confirmed_framework_reaches_injected_bt1_planner_exactly_once() -> None:
@@ -287,6 +324,162 @@ def test_unowned_layouts_fail_clearly(layout_id: str) -> None:
             framework_json=_framework(),
             structured_generate=_structured_fixture,
             compress_fields=_identity_compression,
+        )
+
+
+def test_owner_maps_match_generatable_layout_ids() -> None:
+    owned = (
+        frozenset(stage_b._GROUP_A_LAYOUTS)
+        | frozenset(stage_b._GROUP_B_LAYOUTS)
+        | frozenset(stage_b._GROUP_C_LAYOUTS)
+    )
+    assert owned == stage_b.GENERATABLE_LAYOUT_IDS
+    assert "EXECUTIVE_SUMMARY_01" not in owned
+
+
+def test_live_generate_refuses_saved_plan_with_unimplemented_layout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "RENDERER_EXECUTION_MODE", "live")
+    store, user_id, framework_id, _framework_json = _memory_store_with_framework()
+    dirty = copy.deepcopy(GROUP_A_PLAN)
+    dirty["slides"] = [
+        copy.deepcopy(dirty["slides"][0]),
+        {
+            "order": 2,
+            "purpose": "summary",
+            "layoutId": "EXECUTIVE_SUMMARY_01",
+            "frameworkReferences": ["chapter_1"],
+        },
+    ]
+    dirty["slides"][0]["frameworkReferences"] = ["opportunity"]
+    plan = store.create_presentation_plan(
+        framework_version_id=framework_id,
+        user_id=user_id,
+        plan_json=dirty,
+    )
+    presentation = store.create_presentation(
+        presentation_plan_id=plan["id"],
+        user_id=user_id,
+        name="Refuse dirty live plan",
+    )
+
+    with pytest.raises(RuntimeError, match="PRESENTATION_PLAN_NOT_GENERATABLE"):
+        presentation_generation.execute_presentation_generation(
+            store,
+            presentation_id=presentation["id"],
+            user_id=user_id,
+        )
+
+    assert store.presentation_versions == {}
+
+
+def test_live_render_refuses_plan_spec_count_mismatch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "RENDERER_EXECUTION_MODE", "live")
+    called: list[dict[str, object]] = []
+    monkeypatch.setattr(
+        presentation_generation,
+        "render_deck_assets",
+        lambda **kwargs: called.append(kwargs) or {"pptx_storage_path": "x"},
+    )
+
+    with pytest.raises(RuntimeError, match="AT-10"):
+        presentation_generation.render_presentation_version(
+            store=MagicMock(),
+            version={"id": uuid.uuid4(), "slides_json": [{"layoutId": "COVER_01"}]},
+            plan={
+                "plan_json": {
+                    "slides": [
+                        {"layoutId": "COVER_01"},
+                        {"layoutId": "EXECUTIVE_SUMMARY_01"},
+                    ]
+                }
+            },
+        )
+
+    assert called == []
+
+
+def test_live_render_accepts_matching_plan_and_specs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "RENDERER_EXECUTION_MODE", "live")
+    version_id = uuid.uuid4()
+    assets = {
+        "pptx_storage_path": "pptx",
+        "pdf_storage_path": "pdf",
+        "storage_size_bytes": 12,
+    }
+    store = MagicMock()
+    store.update_presentation_version_assets.return_value = {
+        "id": version_id,
+        "status": "ready",
+        **assets,
+    }
+    monkeypatch.setattr(presentation_generation, "render_deck_assets", lambda **_k: assets)
+
+    result = presentation_generation.render_presentation_version(
+        store=store,
+        version={"id": version_id, "slides_json": [{"layoutId": "COVER_01"}]},
+        plan={"plan_json": {"slides": [{"layoutId": "COVER_01"}]}},
+    )
+
+    assert result["status"] == "ready"
+    assert result["storage_size_bytes"] == 12
+    store.update_presentation_version_assets.assert_called_once()
+
+
+def test_saved_plan_skips_unimplemented_layout_and_generates_the_rest() -> None:
+    store, user_id, framework_id, _framework_json = _memory_store_with_framework()
+    cover_plan = copy.deepcopy(GROUP_A_PLAN)
+    cover_plan["slides"] = [
+        copy.deepcopy(cover_plan["slides"][0]),
+        {
+            "order": 2,
+            "purpose": "summary",
+            "layoutId": "EXECUTIVE_SUMMARY_01",
+            "frameworkReferences": ["chapter_1"],
+        },
+    ]
+    cover_plan["slides"][0]["frameworkReferences"] = ["opportunity"]
+    plan = store.create_presentation_plan(
+        framework_version_id=framework_id,
+        user_id=user_id,
+        plan_json=cover_plan,
+    )
+    presentation = store.create_presentation(
+        presentation_plan_id=plan["id"],
+        user_id=user_id,
+        name="Skip unimplemented",
+    )
+
+    version = store.create_presentation_version_with_slides(
+        presentation_id=presentation["id"],
+        user_id=user_id,
+        plan_json=cover_plan,
+    )
+    slides = store.list_slides(presentation_id=presentation["id"], user_id=user_id)
+
+    assert version["status"] == "ready"
+    assert [slide["layout_id"] for slide in slides] == ["COVER_01"]
+    assert all(slide["layout_id"] != "EXECUTIVE_SUMMARY_01" for slide in slides)
+
+
+def test_plan_of_only_unimplemented_layouts_still_fails() -> None:
+    with pytest.raises(stage_b.UnsupportedSlideGeneratorError, match="only layouts"):
+        stage_b.planned_slides_with_generators(
+            {
+                "slides": [
+                    {
+                        "order": 1,
+                        "purpose": "summary",
+                        "layoutId": "EXECUTIVE_SUMMARY_01",
+                        "frameworkReferences": ["chapter_1"],
+                    }
+                ]
+            }
         )
 
 
@@ -658,3 +851,37 @@ def test_group_b_and_c_layouts_route_to_owner_generators(
     assert spec["layoutId"] == layout_id
     assert spec["slideId"] == "slide_06"
     assert spec[required_field]
+
+
+def test_supabase_ready_assets_do_not_rewrite_live_files(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = SupabaseDataStore("test-access-token")
+    version_id = uuid.uuid4()
+    presentation_id = uuid.uuid4()
+    user_id = uuid.uuid4()
+    ready = {
+        "id": version_id,
+        "presentation_id": presentation_id,
+        "status": "ready",
+        "version_number": 1,
+        "slides_json": [{"layoutId": "COVER_01"}, {"layoutId": "CONTEXT_01"}],
+        "pptx_storage_path": "/artifacts/live/deck.pptx",
+        "pdf_storage_path": "/artifacts/live/deck.pdf",
+    }
+    monkeypatch.setattr(store, "get_latest_presentation_version", lambda **_kwargs: ready)
+
+    def boom(**_kwargs: Any) -> dict[str, object]:
+        raise AssertionError("must not rematerialize fixture assets over live files")
+
+    monkeypatch.setattr(supabase_store_module, "materialize_fixture_deck_assets", boom)
+
+    assets = store.get_presentation_version_assets(
+        presentation_id=presentation_id,
+        user_id=user_id,
+    )
+
+    assert assets["pptx_storage_path"] == "/artifacts/live/deck.pptx"
+    assert assets["pdf_storage_path"] == "/artifacts/live/deck.pdf"
+    assert len(assets["preview_image_paths"]) == 2
+    assert all(str(version_id) in path for path in assets["preview_image_paths"])

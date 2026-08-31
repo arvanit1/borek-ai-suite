@@ -24,3 +24,10 @@ def conflict(code: str, message: str) -> HTTPException:
         status_code=status.HTTP_409_CONFLICT,
         detail={"code": code, "message": message},
     )
+
+
+def service_unavailable(code: str, message: str) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail={"code": code, "message": message},
+    )

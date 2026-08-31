@@ -6,6 +6,7 @@ import type { Timeline01SlideSpec } from "../../../../generated/typescript/contr
 import {
   addMilestone,
   milestoneLabelBandHeight,
+  milestoneLabelWidth,
   milestoneMarkerDiameter,
   type MilestoneAnchor,
   type MilestoneContent,
@@ -120,8 +121,8 @@ export function computeTimeline01Layout(
   const milestoneAnchors = phaseItems.slice(0, milestoneCount).map((_, index) => {
     const phaseLayout = timelineLayout.phases[index];
     const x = phaseLayout
-      ? phaseLayout.segment.x + phaseLayout.segment.w
-      : timeline.x + ((index + 1) / Math.max(phaseItems.length, 1)) * timeline.w;
+      ? phaseLayout.segment.x + phaseLayout.segment.w / 2
+      : timeline.x + ((index + 0.5) / Math.max(phaseItems.length, 1)) * timeline.w;
     return { x, y: milestoneTrackY };
   });
 
@@ -165,15 +166,30 @@ export function renderTimeline01(
 
   addTimeline(slide, layout.timeline, { phases: phaseItems });
 
-  spec.milestones.forEach((milestone, index) => {
+  const timelineLayout = computeTimelineLayout(layout.timeline, phaseItems);
+  const milestonesByPhase = new Map<string, Timeline01SlideSpec["milestones"]>();
+  for (const milestone of spec.milestones) {
+    const group = milestonesByPhase.get(milestone.phaseId) ?? [];
+    group.push(milestone);
+    milestonesByPhase.set(milestone.phaseId, group);
+  }
+
+  spec.milestones.forEach((milestone) => {
     const phaseIndex = spec.phases.findIndex((phase) => phase.id === milestone.phaseId);
-    const anchor =
+    const siblings = milestonesByPhase.get(milestone.phaseId) ?? [milestone];
+    const siblingIndex = siblings.indexOf(milestone);
+    const segment = phaseIndex >= 0 ? timelineLayout.phases[phaseIndex]?.segment : undefined;
+    const fallback =
       (phaseIndex >= 0 ? layout.milestoneAnchors[phaseIndex] : undefined) ??
-      layout.milestoneAnchors[index];
-    if (!anchor) {
+      layout.milestoneAnchors[0];
+    if (!fallback) {
       return;
     }
-    addMilestone(slide, anchor, milestoneContent(milestone));
+    const slotCount = Math.max(siblings.length, 1);
+    const x = segment
+      ? segment.x + ((siblingIndex + 0.5) / slotCount) * segment.w
+      : fallback.x + (siblingIndex - (slotCount - 1) / 2) * (milestoneLabelWidth() / 2);
+    addMilestone(slide, { x, y: layout.milestoneTrackY }, milestoneContent(milestone));
   });
 
   return slide;

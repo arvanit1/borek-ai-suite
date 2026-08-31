@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import copy
 import json
+from dataclasses import dataclass
 from typing import Any
 
 from llm.client import LlmUsageResult
+from llm.json_schema_bundle import JsonSchemaBundleError, prepare_openai_json_schema
 from services.observability.llm_logger import LlmStage
 
 
@@ -18,12 +20,32 @@ class OpenAIProviderConfigurationError(OpenAIProviderError):
     """The live OpenAI provider is not configured correctly."""
 
 
-class OpenAIPlanningResponseError(OpenAIProviderError):
+class OpenAIStructuredResponseError(OpenAIProviderError):
+    """OpenAI did not return usable structured JSON."""
+
+
+class OpenAIPlanningResponseError(OpenAIStructuredResponseError):
     """OpenAI did not return a usable structured PresentationPlan."""
 
 
+class OpenAISlideGenerationResponseError(OpenAIStructuredResponseError):
+    """OpenAI did not return a usable structured SlideSpec."""
+
+
+class OpenAICompressionResponseError(OpenAIStructuredResponseError):
+    """OpenAI did not return usable compressed field values."""
+
+
+@dataclass(frozen=True)
+class _OperationSpec:
+    schema_name: str
+    error_cls: type[OpenAIStructuredResponseError]
+    label: str
+    kind: str
+
+
 class OpenAIResponsesExecutor:
-    """Execute one schema-constrained BT-1 request through OpenAI Responses."""
+    """Execute schema-constrained Stage B requests through OpenAI Responses."""
 
     def __init__(
         self,
@@ -53,19 +75,31 @@ class OpenAIResponsesExecutor:
         request: dict[str, Any] | None = None,
     ) -> LlmUsageResult:
         _ = (prompt_version, retry_count)
-        if stage != LlmStage.PLANNING or operation != "presentation_planner":
+        spec = _operation_spec(stage, operation)
+        if spec is None:
             raise OpenAIProviderError(
-                "OpenAIResponsesExecutor currently supports BT-1 planning only"
+                f"OpenAIResponsesExecutor does not support {stage.value}/{operation}"
             )
         if not isinstance(request, dict):
-            raise OpenAIProviderError("BT-1 planning input must be an object")
+            raise OpenAIProviderError(f"{spec.label} input must be an object")
 
         instructions = request.get("instructions")
         target_schema = request.get("targetSchema")
         if not isinstance(instructions, str) or not instructions.strip():
-            raise OpenAIProviderError("BT-1 planning instructions are required")
+            raise OpenAIProviderError(f"{spec.label} instructions are required")
         if not isinstance(target_schema, dict):
-            raise OpenAIProviderError("BT-1 canonical targetSchema is required")
+            raise OpenAIProviderError(f"{spec.label} canonical targetSchema is required")
+        if spec.kind == "slide" and not isinstance(request.get("chapters"), (list, tuple)):
+            raise OpenAIProviderError("Slide generation chapters must be an array")
+        if spec.kind == "compression" and not isinstance(
+            request.get("offendingValues"), dict
+        ):
+            raise OpenAIProviderError("Compression offendingValues must be an object")
+
+        try:
+            schema_for_api = prepare_openai_json_schema(target_schema)
+        except JsonSchemaBundleError as exc:
+            raise OpenAIProviderError(f"{spec.label} targetSchema is not usable: {exc}") from exc
 
         model_input = copy.deepcopy(request)
         model_input.pop("instructions", None)
@@ -76,16 +110,46 @@ class OpenAIResponsesExecutor:
             text={
                 "format": {
                     "type": "json_schema",
-                    "name": "presentation_plan",
-                    "schema": copy.deepcopy(target_schema),
-                    # The canonical schema intentionally permits root extensions.
-                    # BT-1 performs the authoritative validation after this response.
+                    "name": spec.schema_name,
+                    "schema": schema_for_api,
                     "strict": False,
                 }
             },
             store=False,
         )
-        return _to_usage_result(response)
+        return _to_usage_result(response, error_cls=spec.error_cls, label=spec.label)
+
+
+def _operation_spec(stage: LlmStage, operation: str) -> _OperationSpec | None:
+    if stage == LlmStage.PLANNING and operation == "presentation_planner":
+        return _OperationSpec(
+            schema_name="presentation_plan",
+            error_cls=OpenAIPlanningResponseError,
+            label="BT-1 planning",
+            kind="planning",
+        )
+    if stage == LlmStage.SLIDE_GENERATION:
+        return _OperationSpec(
+            schema_name=_schema_format_name(operation),
+            error_cls=OpenAISlideGenerationResponseError,
+            label="slide generation",
+            kind="slide",
+        )
+    if stage == LlmStage.COMPRESSION and operation == "compression":
+        return _OperationSpec(
+            schema_name="compressed_fields",
+            error_cls=OpenAICompressionResponseError,
+            label="compression",
+            kind="compression",
+        )
+    return None
+
+
+def _schema_format_name(value: str) -> str:
+    cleaned = "".join(ch if ch.isalnum() or ch in "_-" else "_" for ch in value)
+    if not cleaned:
+        raise OpenAIProviderError("Structured output schema name is empty")
+    return cleaned[:64]
 
 
 def _create_openai_client(api_key: str) -> Any:
@@ -98,33 +162,30 @@ def _create_openai_client(api_key: str) -> Any:
     return OpenAI(api_key=api_key)
 
 
-def _to_usage_result(response: Any) -> LlmUsageResult:
+def _to_usage_result(
+    response: Any,
+    *,
+    error_cls: type[OpenAIStructuredResponseError] = OpenAIPlanningResponseError,
+    label: str = "planning",
+) -> LlmUsageResult:
     status = _field(response, "status")
     if status != "completed":
         detail = _field(response, "error") or _field(response, "incomplete_details")
-        raise OpenAIPlanningResponseError(
-            f"OpenAI planning response did not complete: {status!r} ({detail!r})"
+        raise error_cls(
+            f"OpenAI {label} response did not complete: {status!r} ({detail!r})"
         )
     if _contains_refusal(_field(response, "output")):
-        raise OpenAIPlanningResponseError(
-            "OpenAI refused the presentation planning request"
-        )
+        raise error_cls(f"OpenAI refused the {label} request")
 
     output_text = _field(response, "output_text")
     if not isinstance(output_text, str) or not output_text.strip():
-        raise OpenAIPlanningResponseError(
-            "OpenAI planning response contained no structured output"
-        )
+        raise error_cls(f"OpenAI {label} response contained no structured output")
     try:
         payload = json.loads(output_text)
     except json.JSONDecodeError as exc:
-        raise OpenAIPlanningResponseError(
-            "OpenAI planning response was not valid structured JSON"
-        ) from exc
+        raise error_cls(f"OpenAI {label} response was not valid structured JSON") from exc
     if not isinstance(payload, dict):
-        raise OpenAIPlanningResponseError(
-            "OpenAI planning response must be a JSON object"
-        )
+        raise error_cls(f"OpenAI {label} response must be a JSON object")
 
     usage = _field(response, "usage")
     return LlmUsageResult(
