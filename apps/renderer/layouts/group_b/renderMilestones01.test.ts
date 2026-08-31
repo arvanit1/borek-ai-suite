@@ -13,6 +13,7 @@ import {
   readRendererSource,
   renderToPptx,
 } from "../rendererTestHelpers.js";
+import { JJ20_ENGLISH, JJ20_GERMAN, JJ20_SPECIAL, padTo, xmlForAssert } from "./jj20Coverage.js";
 
 const minimalFixture = minimalFixtureJson as Milestones01SlideSpec;
 const realisticFixture = realisticFixtureJson as Milestones01SlideSpec;
@@ -93,5 +94,46 @@ assertXmlContains(maximum.slideXml, [
   "&amp;",
   "Ä",
 ]);
+
+const englishFixture: Milestones01SlideSpec = {
+  schema_version: "1.0",
+  layoutId: "MILESTONES_01",
+  title: JJ20_ENGLISH,
+  sourceChapterIds: ["10"],
+  milestones: [
+    { name: "ERP access confirmed", description: "Read-only purchase-order data available" },
+  ],
+};
+const germanFixture: Milestones01SlideSpec = {
+  schema_version: "1.0",
+  layoutId: "MILESTONES_01",
+  title: JJ20_GERMAN,
+  sourceChapterIds: ["10"],
+  milestones: [
+    { name: "ERP-Zugang bestätigt", description: "Nur-Lese-Bestelldaten stehen bereit" },
+  ],
+};
+const specialLongFixture: Milestones01SlideSpec = {
+  schema_version: "1.0",
+  layoutId: "MILESTONES_01",
+  title: padTo(`${JJ20_SPECIAL} gates `, 72),
+  sourceChapterIds: ["10"],
+  milestones: [
+    {
+      name: padTo("Long checkpoint name ", 40),
+      description: padTo("Deutsch & English gate ", 90),
+      date: "Week 14",
+    },
+  ],
+};
+
+const english = await renderToPptx((pptx) => renderMilestones01(pptx, englishFixture));
+const german = await renderToPptx((pptx) => renderMilestones01(pptx, germanFixture));
+const specialLong = await renderToPptx((pptx) => renderMilestones01(pptx, specialLongFixture));
+assertXmlContains(english.slideXml, [JJ20_ENGLISH, "ERP access confirmed"]);
+assertXmlContains(german.slideXml, [JJ20_GERMAN, "ERP-Zugang bestätigt"]);
+assert.equal(specialLongFixture.title.length, 72);
+assert.equal(specialLongFixture.milestones[0]!.name.length, 40);
+assertXmlContains(specialLong.slideXml, [xmlForAssert(JJ20_SPECIAL), "&amp;", "Ä"]);
 
 process.stdout.write("JJ-17 MILESTONES_01 renderer checks passed\n");

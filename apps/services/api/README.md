@@ -7,8 +7,8 @@ FastAPI service for the Framework & Presentation Pipeline. LLM calls and backgro
 From the repository root (recommended — loads `.env` from repo root):
 
 ```bash
-cd apps/services/api
-py -3 -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+# From the repository root (required so `app` and `services` both resolve)
+py -3 -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 --app-dir apps/services/api
 ```
 
 The API reads `borek-ai-suite/.env` automatically regardless of which subdirectory you start from.

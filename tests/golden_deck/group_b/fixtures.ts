@@ -5,6 +5,7 @@
 
 import { PNG } from "pngjs";
 
+import type { LayoutId, SlideSpecBase } from "../../../apps/renderer/src/contracts.js";
 import { computeTimelineLayout } from "../../../apps/renderer/design_system/components/addTimeline.js";
 import { BorekSlide } from "../../../apps/renderer/design_system/tokens/branding.js";
 import { BorekColors } from "../../../apps/renderer/design_system/tokens/colors.js";
@@ -15,6 +16,10 @@ import {
   buildTimeline01PhaseItems,
   computeTimeline01Layout,
 } from "../../../apps/renderer/layouts/group_b/renderTimeline01.js";
+import milestonesFixtureJson from "../../../packages/contracts/fixtures/slide_spec/group_b/milestones_01.realistic.json" with { type: "json" };
+import processFlowFixtureJson from "../../../packages/contracts/fixtures/slide_spec/group_b/process_flow_01.realistic.json" with { type: "json" };
+import teamFteFixtureJson from "../../../packages/contracts/fixtures/slide_spec/group_b/team_fte_01.realistic.json" with { type: "json" };
+import timelineFixtureJson from "../../../packages/contracts/fixtures/slide_spec/group_b/timeline_01.realistic.json" with { type: "json" };
 
 export const GROUP_B_GOLDEN_WIDTH = 320;
 export const GROUP_B_GOLDEN_HEIGHT = 180;
@@ -28,6 +33,45 @@ export const GROUP_B_GOLDEN_FILES = [
 ] as const;
 
 export type GroupBGoldenFile = (typeof GROUP_B_GOLDEN_FILES)[number];
+
+export type GroupBGoldenCase = {
+  id: string;
+  layoutId: LayoutId;
+  referenceFileName: GroupBGoldenFile;
+  sourceFixture: string;
+  spec: SlideSpecBase;
+};
+
+export const GROUP_B_GOLDEN_CASES: readonly GroupBGoldenCase[] = [
+  {
+    id: "group-b-process-flow-01",
+    layoutId: "PROCESS_FLOW_01",
+    referenceFileName: "process_flow_01.png",
+    sourceFixture: "process_flow_01.realistic.json",
+    spec: processFlowFixtureJson as unknown as SlideSpecBase,
+  },
+  {
+    id: "group-b-timeline-01",
+    layoutId: "TIMELINE_01",
+    referenceFileName: "timeline_01.png",
+    sourceFixture: "timeline_01.realistic.json",
+    spec: timelineFixtureJson as unknown as SlideSpecBase,
+  },
+  {
+    id: "group-b-milestones-01",
+    layoutId: "MILESTONES_01",
+    referenceFileName: "milestones_01.png",
+    sourceFixture: "milestones_01.realistic.json",
+    spec: milestonesFixtureJson as unknown as SlideSpecBase,
+  },
+  {
+    id: "group-b-team-fte-01",
+    layoutId: "TEAM_FTE_01",
+    referenceFileName: "team_fte_01.png",
+    sourceFixture: "team_fte_01.realistic.json",
+    spec: teamFteFixtureJson as unknown as SlideSpecBase,
+  },
+] as const;
 
 type Rgb = [number, number, number];
 
@@ -119,10 +163,10 @@ export function buildTimeline01Png(): PNG {
     { id: "p4", name: "Handover", description: "Operations" },
   ];
   const milestones = [
-    { phaseId: "p1", date: "Week 2" },
-    { phaseId: "p2", date: "Week 6" },
-    { phaseId: "p3", date: "Week 10" },
-    { phaseId: "p4", date: "Week 14" },
+    { id: "m1", name: "Access", phaseId: "p1", date: "Week 2" },
+    { id: "m2", name: "Rules", phaseId: "p2", date: "Week 6" },
+    { id: "m3", name: "Pilot", phaseId: "p3", date: "Week 10" },
+    { id: "m4", name: "Handover", phaseId: "p4", date: "Week 14" },
   ];
   const items = buildTimeline01PhaseItems(phases, milestones);
   const layout = computeTimeline01Layout(true, items, 4);
