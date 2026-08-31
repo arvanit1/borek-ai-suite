@@ -99,11 +99,32 @@ def plan_presentation(
         validated_payload = plan.model_dump(mode="json")
         validate_presentation_plan_business_rules(validated_payload)
         validate_registry_layout_selection(validated_payload)
+        _validate_unique_layout_ids(validated_payload)
     except (SchemaVersionMismatchError, ValidationError, ContractValidationError) as exc:
         raise PresentationPlanValidationError(
             f"Invalid PresentationPlan: {exc}"
         ) from exc
     return plan
+
+
+def _validate_unique_layout_ids(plan: dict[str, Any]) -> None:
+    """Fail closed when the one-call planner repeats any slide layout."""
+    seen: set[str] = set()
+    duplicates: set[str] = set()
+    for slide in plan.get("slides", []):
+        layout_id = slide.get("layoutId")
+        if not isinstance(layout_id, str):
+            continue
+        if layout_id in seen:
+            duplicates.add(layout_id)
+        seen.add(layout_id)
+
+    if duplicates:
+        duplicate_list = ", ".join(sorted(duplicates))
+        raise ContractValidationError(
+            "PresentationPlan layoutId values must be unique; "
+            f"duplicates: {duplicate_list}"
+        )
 
 
 def _confirmed_framework_payload(framework: Any) -> dict[str, Any]:

@@ -145,6 +145,17 @@ def test_fixture_mode_does_not_construct_openai_client(
     assert planner.complete_planning() == stage_b_providers._FIXTURE_PLAN
 
 
+def test_fixture_planner_remains_valid_under_unique_layout_rules() -> None:
+    plan = plan_presentation(
+        _framework(),
+        planner=stage_b_providers.FixturePlanningClient(),
+    )
+
+    layout_ids = [slide.layoutId.value for slide in plan.slides]
+    assert len(layout_ids) == len(set(layout_ids))
+    assert "PROCESS_FLOW_01" not in layout_ids
+
+
 def test_fixture_settings_do_not_require_openai_key(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

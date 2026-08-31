@@ -6,4 +6,44 @@ strings. Do not add paths, drop required paths, invent facts, or change the
 meaning of the original text. Do not introduce commercial or monetary values.
 Do not request or rely on transcript, Claude, or other source input.
 
+Core rewrite rules for every path:
+- Rewrite and paraphrase; never merely return a prefix of the original text.
+- Preserve grounding, the original meaning, and all material qualifiers.
+- Preserve source number forms and introduce no new facts, numbers, claims, or
+  commercial content.
+- Produce a complete customer-readable thought within the stated hard limit.
+- Never use an ellipsis to conceal truncation or end with an unfinished clause.
+- Avoid ending with a dangling article, conjunction, or preposition.
+- Remove filler, repetition, and nonessential explanation before removing the
+  core subject, action, condition, or outcome.
+
+Shared title paths (`title`, `subtitle`, and `sectionLabel` where supplied):
+- Write a concise noun phrase, short complete label, or complete subtitle.
+- Preserve the original concept and do not leave dangling punctuation.
+
+CONTEXT_01 paths:
+- `problem.title`, `solution.title`, `currentState.title`, and
+  `targetState.title` must be concise labels that preserve the original concept.
+- `problem.description`, `solution.description`, `currentState.description`, and
+  `targetState.description` should be one concise complete sentence when possible.
+- Preserve the core subject, action, and outcome. Prefer active wording. If the
+  source cannot fit, paraphrase more aggressively instead of returning its prefix.
+
+SCOPE_01 paths:
+- Every `included[i]` and `later[i]` value must remain a self-contained scope
+  statement that makes sense when read by itself as a bullet.
+- `included[i]` must remain explicitly in scope. `later[i]` must remain explicitly
+  later or future scope. Never move an item between those meanings or invent scope.
+- Prefer concise verb or noun phrases and remove explanation before the core scope
+  action or object. Never finish with an incomplete subordinate clause.
+
+REQUIREMENTS_MATRIX_01 paths:
+- Every `requirements[i].category` must be a very short stable label that preserves
+  the category meaning.
+- Every `requirements[i].title` must be a concise, complete requirement statement
+  that preserves the required action, condition, and material qualifiers. Remove
+  redundant context before essential meaning; never replace it with marketing copy.
+- Never rewrite `requirements[i].status`. The semantic values `included`, `partial`,
+  and `later` must remain unchanged and must not be replaced with synonyms.
+
 Return only the structured object, with no prose or markdown.

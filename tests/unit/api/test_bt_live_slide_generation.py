@@ -43,6 +43,9 @@ COVER_FIXTURE_PATH = (
 COVER_SCHEMA_PATH = (
     ROOT / "packages" / "contracts" / "slide_spec" / "group_a" / "cover_01.schema.json"
 )
+COMPRESSION_PROMPT_PATH = (
+    ROOT / "apps" / "api" / "llm" / "openai" / "prompts" / "slide_compression_v1.txt"
+)
 ORIGINAL_STRUCTURED = stage_b.get_live_structured_generator
 ORIGINAL_COMPRESSION = stage_b.get_live_compression_fields
 
@@ -400,6 +403,138 @@ def test_compression_sends_only_offending_paths() -> None:
     assert "instructions" not in sent_input
     assert "at most 40 characters" in responses.calls[0]["instructions"]
     assert responses.calls[0]["text"]["format"]["name"] == "compressed_fields"
+
+
+def _run_bt_compression(
+    *,
+    offending: dict[str, str],
+    rewritten: dict[str, str],
+    limits: dict[str, int],
+) -> tuple[dict[str, str], FakeResponses]:
+    executor, responses = _executor(rewritten)
+    client = LlmClient(model="gpt-4.1-mini", executor=executor)
+    compress = client.compression_fields_fn(
+        prompt_version="slide_compression_v1",
+        instructions=COMPRESSION_PROMPT_PATH.read_text(encoding="utf-8"),
+    )
+    violations = [
+        ConstraintViolation(
+            path=path,
+            code="max_length",
+            message="too long",
+            limit=limit,
+        )
+        for path, limit in limits.items()
+    ]
+    return compress(offending, violations), responses
+
+
+def test_context_compression_receives_complete_sentence_rewrite_guidance() -> None:
+    original = (
+        "Analysts currently spend substantial time manually comparing 1.200 "
+        "invoices, purchase orders and goods receipts across different systems "
+        "during every daily processing cycle without a unified workflow."
+    )
+    result, responses = _run_bt_compression(
+        offending={"problem.description": original},
+        rewritten={"problem.description": "Analysts manually compare 1200 invoices."},
+        limits={"problem.description": 160},
+    )
+
+    assert result == {
+        "problem.description": "Analysts manually compare 1.200 invoices."
+    }
+    assert len(responses.calls) == 1
+    instructions = " ".join(responses.calls[0]["instructions"].split()).lower()
+    assert "one concise complete sentence" in instructions
+    assert "never merely return a prefix" in instructions
+    assert "preserve source number forms" in instructions
+    assert "at most 160 characters" in instructions
+    request = json.loads(responses.calls[0]["input"])
+    assert request["targetSchema"]["properties"]["problem.description"][
+        "maxLength"
+    ] == 160
+
+
+def test_scope_compression_preserves_included_and_later_semantics() -> None:
+    result, responses = _run_bt_compression(
+        offending={
+            "included[0]": (
+                "Automate standard matching while retaining controls and review "
+                "across all source systems."
+            ),
+            "later[0]": (
+                "Supplier-response tracking remains planned for a later phase "
+                "after the core rollout."
+            ),
+        },
+        rewritten={
+            "included[0]": "Automate standard matching with review controls.",
+            "later[0]": "Add supplier-response tracking later.",
+            "unexpected.path": "must be ignored",
+        },
+        limits={"included[0]": 72, "later[0]": 72},
+    )
+
+    assert result == {
+        "included[0]": "Automate standard matching with review controls.",
+        "later[0]": "Add supplier-response tracking later.",
+    }
+    assert len(responses.calls) == 1
+    instructions = " ".join(responses.calls[0]["instructions"].split()).lower()
+    assert "self-contained scope statement" in instructions
+    assert "`included[i]` must remain explicitly in scope" in instructions
+    assert "`later[i]` must remain explicitly later or future scope" in instructions
+    request = json.loads(responses.calls[0]["input"])
+    assert set(request["targetSchema"]["required"]) == {"included[0]", "later[0]"}
+    assert set(result) == set(request["offendingValues"])
+
+
+def test_requirement_compression_preserves_requirement_and_never_rewrites_status() -> None:
+    result, responses = _run_bt_compression(
+        offending={
+            "requirements[0].category": "Data validation controls",
+            "requirements[0].title": (
+                "Flag duplicate invoice numbers for mandatory review before approval."
+            ),
+        },
+        rewritten={
+            "requirements[0].category": "Validation",
+            "requirements[0].title": "Flag duplicate invoice numbers for review.",
+            "requirements[0].status": "later",
+        },
+        limits={"requirements[0].category": 12, "requirements[0].title": 48},
+    )
+
+    assert result == {
+        "requirements[0].category": "Validation",
+        "requirements[0].title": "Flag duplicate invoice numbers for review.",
+    }
+    assert "requirements[0].status" not in result
+    assert len(responses.calls) == 1
+    instructions = " ".join(responses.calls[0]["instructions"].split()).lower()
+    assert "concise, complete requirement statement" in instructions
+    assert "never rewrite `requirements[i].status`" in instructions
+    assert "included`, `partial`, and `later`" in instructions
+
+
+def test_unknown_compression_path_uses_shared_safe_rewrite_rules() -> None:
+    result, responses = _run_bt_compression(
+        offending={"unrelated.note": "A long but grounded note requiring compression."},
+        rewritten={
+            "unrelated.note": "A concise grounded note.",
+            "new.path": "not allowed",
+        },
+        limits={"unrelated.note": 32},
+    )
+
+    assert result == {"unrelated.note": "A concise grounded note."}
+    assert len(responses.calls) == 1
+    instructions = " ".join(responses.calls[0]["instructions"].split()).lower()
+    assert "rewrite and paraphrase" in instructions
+    assert "do not add paths" in instructions
+    assert "introduce no new fact" in instructions
+    assert "never use an ellipsis" in instructions
 
 
 def test_compression_fits_overlong_model_output_without_mid_word_cut() -> None:
