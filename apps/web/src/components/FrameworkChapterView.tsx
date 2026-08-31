@@ -10,21 +10,37 @@ import type { FrameworkChapter } from "@/lib/frameworkTypes";
 interface FrameworkChapterViewProps {
   chapter: FrameworkChapter;
   editable: boolean;
+  regenerating?: boolean;
   onChange: (chapter: FrameworkChapter) => void;
+  onRegenerate?: () => void;
 }
 
 export function FrameworkChapterView({
   chapter,
   editable,
+  regenerating = false,
   onChange,
+  onRegenerate,
 }: FrameworkChapterViewProps) {
   const bodyBlocks = Array.isArray(chapter.body) ? chapter.body : null;
 
   return (
     <section className="framework-chapter">
       <header className="framework-chapter-header">
-        <p className="framework-chapter-id">Chapter {chapter.chapter_id}</p>
-        <h3>{chapter.title}</h3>
+        <div>
+          <p className="framework-chapter-id">Chapter {chapter.chapter_id}</p>
+          <h3>{chapter.title}</h3>
+        </div>
+        {onRegenerate ? (
+          <button
+            type="button"
+            className="btn btn-secondary"
+            disabled={!editable || regenerating}
+            onClick={onRegenerate}
+          >
+            {regenerating ? "Regenerating…" : "Regenerate chapter"}
+          </button>
+        ) : null}
       </header>
 
       <div className="framework-chapter-body">

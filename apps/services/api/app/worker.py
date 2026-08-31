@@ -177,6 +177,54 @@ def run_framework_render_task(
         raise
 
 
+@celery_app.task(name="tasks.run_framework_regenerate_chapter")
+def run_framework_regenerate_chapter_task(
+    job_id: str,
+    framework_version_id: str,
+    chapter_id: str,
+) -> dict[str, str]:
+    from uuid import UUID
+
+    from app.schemas.jobs import JobStage
+    from app.services import job_service
+    from app.services.data import build_worker_data_store
+
+    store = build_worker_data_store()
+    parsed_job_id = UUID(job_id)
+    stage = JobStage.TRANSCRIPT_PROCESSING
+    try:
+        job_service.advance_stage(parsed_job_id, stage, repository=store)
+        stage = JobStage.KNOWLEDGE_EXTRACTING
+        job_service.advance_stage(parsed_job_id, stage, repository=store)
+        stage = JobStage.FRAMEWORK_SYNTHESIZING
+        job_service.advance_stage(parsed_job_id, stage, repository=store)
+        stage = JobStage.FRAMEWORK_VALIDATING
+        job_service.advance_stage(parsed_job_id, stage, repository=store)
+        job_service.complete_job(
+            parsed_job_id,
+            repository=store,
+            result_json={
+                "framework_version_id": framework_version_id,
+                "chapter_id": chapter_id,
+            },
+        )
+        return {
+            "job_id": job_id,
+            "framework_version_id": framework_version_id,
+            "chapter_id": chapter_id,
+        }
+    except Exception as exc:
+        job_service.fail_job(
+            parsed_job_id,
+            getattr(exc, "code", "FRAMEWORK_REGENERATE_FAILED"),
+            str(exc),
+            stage,
+            bool(getattr(exc, "retryable", False)),
+            repository=store,
+        )
+        raise
+
+
 @celery_app.task(name="tasks.run_presentation_generation")
 def run_presentation_generation_task(
     job_id: str,

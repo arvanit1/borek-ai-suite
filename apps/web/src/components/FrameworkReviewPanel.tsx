@@ -9,16 +9,19 @@ import { FrameworkRootFieldsPanel } from "@/components/FrameworkRootFieldsPanel"
 import { PipelineStepper } from "@/components/PipelineStepper";
 import { SiteHeader } from "@/components/SiteHeader";
 import {
+  FRAMEWORK_JOB_TIMEOUT_MS,
   confirmFramework,
   generateFramework,
   getLatestFramework,
+  regenerateFrameworkChapter,
   updateFramework as persistFramework,
   waitForJob,
 } from "@/lib/api";
 import { isMissingFrameworkError } from "@/lib/apiErrors";
 import {
   EXPECTED_CHAPTER_COUNT,
-  isFrameworkEditable,
+  canEditFramework,
+  isFrameworkConfirmed,
   updateChapter,
   updateFrameworkRootField,
 } from "@/lib/frameworkEdit";
@@ -36,9 +39,16 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
+  const [regeneratingChapterId, setRegeneratingChapterId] = useState<string | null>(null);
 
-  const editable = frameworkVersion ? isFrameworkEditable(frameworkVersion.status) : false;
-  const frameworkConfirmed = frameworkVersion?.status === "confirmed";
+  const editable = frameworkVersion
+    ? canEditFramework(frameworkVersion.status, frameworkJson?.status)
+    : false;
+  const frameworkConfirmed = Boolean(
+    frameworkVersion &&
+      (isFrameworkConfirmed(frameworkVersion.status) ||
+        (frameworkJson != null && isFrameworkConfirmed(frameworkJson.status))),
+  );
 
   const loadFramework = useCallback(async () => {
     if (!accessToken) {
@@ -97,7 +107,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
     try {
       const generated = await generateFramework(accessToken, opportunityId);
       setInfo("Framework generation is running…");
-      await waitForJob(accessToken, generated.job_id);
+      await waitForJob(accessToken, generated.job_id, FRAMEWORK_JOB_TIMEOUT_MS);
       await loadFramework();
     } catch (generateError) {
       setError(generateError instanceof Error ? generateError.message : "Generate failed.");
@@ -122,6 +132,33 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Save failed.");
     } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleRegenerateChapter(chapterId: string) {
+    if (!accessToken) {
+      return;
+    }
+    setBusy(true);
+    setRegeneratingChapterId(chapterId);
+    setError(null);
+    setInfo(null);
+    try {
+      if (dirty && frameworkJson) {
+        await persistFramework(accessToken, opportunityId, frameworkJson);
+      }
+      const queued = await regenerateFrameworkChapter(accessToken, opportunityId, chapterId);
+      setInfo(`Regenerating chapter ${chapterId}…`);
+      await waitForJob(accessToken, queued.job_id, FRAMEWORK_JOB_TIMEOUT_MS);
+      await loadFramework();
+      setInfo(`Chapter ${chapterId} regeneration finished. Other chapters were left unchanged.`);
+    } catch (regenerateError) {
+      setError(
+        regenerateError instanceof Error ? regenerateError.message : "Chapter regenerate failed.",
+      );
+    } finally {
+      setRegeneratingChapterId(null);
       setBusy(false);
     }
   }
@@ -158,8 +195,8 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
           <p className="upload-eyebrow">Pipeline · Step 2 of 4</p>
           <h1>Framework review</h1>
           <p className="upload-lead">
-            Review all 14 chapters, inspect source references, and edit draft content before
-            confirmation.
+            Review all 14 chapters, inspect source references, and edit any field while the
+            framework is draft or in review. Confirmation locks the object.
           </p>
         </div>
       </div>
@@ -223,8 +260,8 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
                     <h2>Generate the framework draft</h2>
                     <p>
                       After transcripts are uploaded, generate the 14-chapter Customer Framework
-                      Report. You can review source references and edit every field before
-                      confirming.
+                      Report. You can review source references, edit every field, or regenerate a
+                      single chapter before confirming.
                     </p>
                   </div>
                 </header>
@@ -320,6 +357,18 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
                   </div>
                 </section>
 
+                {frameworkConfirmed ? (
+                  <div className="upload-banner upload-banner-info">
+                    <div>
+                      <strong>Framework confirmed</strong>
+                      <p>
+                        This version is locked. Fields, source references, and chapter regenerate
+                        stay read-only so Stage B can only use the confirmed object.
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
+
                 <FrameworkRootFieldsPanel
                   framework={frameworkJson}
                   editable={editable && !busy}
@@ -353,6 +402,12 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
                         <FrameworkChapterView
                           chapter={chapter}
                           editable={editable && !busy}
+                          regenerating={regeneratingChapterId === chapter.chapter_id}
+                          onRegenerate={
+                            editable
+                              ? () => void handleRegenerateChapter(chapter.chapter_id)
+                              : undefined
+                          }
                           onChange={(nextChapter) => {
                             applyFrameworkDraft(
                               updateChapter(frameworkJson, chapterIndex, nextChapter),
