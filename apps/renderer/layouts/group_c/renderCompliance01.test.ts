@@ -84,7 +84,11 @@ const minimum = await renderToPptx((pptx) => renderCompliance01(pptx, minimumFix
   expectedMasterName: MASTER_CLOSING_NAME,
 });
 assert.equal(computeCardGridLayout(false, 1, true).cards.length, 1);
-assertXmlContains(minimum.slideXml, ["Eine Kontrolle", "lock", "Nur lesender Zugriff"]);
+assertXmlContains(minimum.slideXml, [
+  "Eine Kontrolle",
+  complianceItemTitle("lock"),
+  "Nur lesender Zugriff",
+]);
 
 const maximumFixture: Compliance01SlideSpec = {
   schema_version: "1.0",
@@ -107,7 +111,7 @@ assert.equal(computeCardGridLayout(true, 6, true).cards.length, 6);
 assertXmlContains(maximum.slideXml, [
   xmlText(maximumFixture.title),
   xmlText(maximumFixture.items[0]!.text),
-  maximumFixture.items[5]!.icon,
+  complianceItemTitle(maximumFixture.items[5]!.icon),
   "Ä",
 ]);
 
