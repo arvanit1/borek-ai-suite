@@ -80,4 +80,27 @@ assertXmlContains(maximum.slideXml, [
   "Ä",
 ]);
 
+const minimumFixture: OpenQuestions01SlideSpec = {
+  schema_version: "1.0",
+  layoutId: "OPEN_QUESTIONS_01",
+  title: "Eine offene Frage",
+  sourceChapterIds: ["11"],
+  left: {
+    heading: "Frage",
+    items: ["Welches ERP-Feld gilt für PO & WE?"],
+  },
+  right: {
+    heading: "Annahme",
+    items: ["Mailbox bleibt read-only"],
+  },
+};
+const minimum = await renderToPptx((pptx) => renderOpenQuestions01(pptx, minimumFixture));
+assertXmlContains(minimum.slideXml, [
+  "Eine offene Frage",
+  "Frage",
+  "Annahme",
+  "Welches ERP-Feld gilt für PO &amp; WE?",
+  "Mailbox bleibt read-only",
+]);
+
 process.stdout.write("MS-19 OPEN_QUESTIONS_01 renderer checks passed\n");

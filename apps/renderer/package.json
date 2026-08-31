@@ -58,6 +58,8 @@
     "test:ms19": "tsx layouts/group_c/renderOpenQuestions01.test.ts",
     "test:ms20": "tsx layouts/group_c/renderNextSteps01.test.ts",
     "test:ms21": "tsx layouts/dispatcher.test.ts",
+    "test:ms22": "npm run test:ms16 && npm run test:ms17 && npm run test:ms18 && npm run test:ms19 && npm run test:ms20",
+    "test:ms23": "tsx ../../tests/golden_deck/group_c/run_regression.test.ts",
     "test:server": "tsx render_service.test.ts",
     "start:server": "tsx server.ts"
   },

@@ -65,4 +65,52 @@ const lightFixture: NextSteps01SlideSpec = {
 const light = await renderToPptx((pptx) => renderNextSteps01(pptx, lightFixture));
 assertXmlContains(light.slideXml, ["Light closing &amp; nächste Schritte", "1"]);
 
+const minimumFixture: NextSteps01SlideSpec = {
+  schema_version: "1.0",
+  layoutId: "NEXT_STEPS_01",
+  title: "Nächster Schritt",
+  sourceChapterIds: ["13"],
+  checklist: ["Mailbox-Pfad bestätigen"],
+  steps: [{ number: 1, text: "Workshop für Ausnahme & Regeln" }],
+  darkBackground: true,
+};
+const minimum = await renderToPptx((pptx) => renderNextSteps01(pptx, minimumFixture), {
+  registerMaster: registerMasterClosing,
+  expectedMasterName: MASTER_CLOSING_NAME,
+});
+assert.equal(computeNextSteps01Layout(false, true, 1).stepRows.length, 1);
+assertXmlContains(minimum.slideXml, [
+  "Nächster Schritt",
+  "Mailbox-Pfad bestätigen",
+  "Workshop für Ausnahme &amp; Regeln",
+]);
+
+const maximumFixture: NextSteps01SlideSpec = {
+  schema_version: "1.0",
+  layoutId: "NEXT_STEPS_01",
+  sectionLabel: "NÄCHSTE SCHRITTE".padEnd(32, "Ä"),
+  title: "What happens next für den Piloten ".padEnd(72, "Ü"),
+  subtitle: "Checklist & numbered handover ".padEnd(100, "ß"),
+  sourceChapterIds: ["13"],
+  checklist: Array.from({ length: 6 }, (_, index) =>
+    `Check ${index + 1}: ERP & Mailbox `.padEnd(72, String(index + 1)),
+  ),
+  steps: Array.from({ length: 6 }, (_, index) => ({
+    number: index + 1,
+    text: `Schritt ${index + 1}: Freigabe prüfen `.padEnd(100, String(index + 1)),
+  })),
+  darkBackground: true,
+};
+const maximum = await renderToPptx((pptx) => renderNextSteps01(pptx, maximumFixture), {
+  registerMaster: registerMasterClosing,
+  expectedMasterName: MASTER_CLOSING_NAME,
+});
+assert.equal(computeNextSteps01Layout(true, true, 6).stepRows.length, 6);
+assertXmlContains(maximum.slideXml, [
+  xmlText(maximumFixture.title),
+  xmlText(maximumFixture.checklist[0]!),
+  xmlText(maximumFixture.steps[5]!.text),
+  "Ä",
+]);
+
 process.stdout.write("MS-20 NEXT_STEPS_01 renderer checks passed\n");

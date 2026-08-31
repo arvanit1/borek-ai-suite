@@ -71,4 +71,44 @@ assertXmlContains(light.slideXml, [
   complianceItemTitle("lock"),
 ]);
 
+const minimumFixture: Compliance01SlideSpec = {
+  schema_version: "1.0",
+  layoutId: "COMPLIANCE_01",
+  title: "Eine Kontrolle",
+  sourceChapterIds: ["8"],
+  items: [{ icon: "lock", text: "Nur lesender Zugriff" }],
+  darkBackground: true,
+};
+const minimum = await renderToPptx((pptx) => renderCompliance01(pptx, minimumFixture), {
+  registerMaster: registerMasterClosing,
+  expectedMasterName: MASTER_CLOSING_NAME,
+});
+assert.equal(computeCardGridLayout(false, 1, true).cards.length, 1);
+assertXmlContains(minimum.slideXml, ["Eine Kontrolle", "lock", "Nur lesender Zugriff"]);
+
+const maximumFixture: Compliance01SlideSpec = {
+  schema_version: "1.0",
+  layoutId: "COMPLIANCE_01",
+  sectionLabel: "COMPLIANCE & SCHUTZ".padEnd(32, "Ä"),
+  title: "Security, Datenschutz & Kontrolle ".padEnd(72, "Ü"),
+  subtitle: "Human control stays in the queue ".padEnd(100, "ß"),
+  sourceChapterIds: ["8"],
+  items: Array.from({ length: 6 }, (_, index) => ({
+    icon: `icon${index + 1}`,
+    text: `Regel ${index + 1}: Mailbox & ERP `.padEnd(100, String(index + 1)),
+  })),
+  darkBackground: true,
+};
+const maximum = await renderToPptx((pptx) => renderCompliance01(pptx, maximumFixture), {
+  registerMaster: registerMasterClosing,
+  expectedMasterName: MASTER_CLOSING_NAME,
+});
+assert.equal(computeCardGridLayout(true, 6, true).cards.length, 6);
+assertXmlContains(maximum.slideXml, [
+  xmlText(maximumFixture.title),
+  xmlText(maximumFixture.items[0]!.text),
+  maximumFixture.items[5]!.icon,
+  "Ä",
+]);
+
 process.stdout.write("MS-17 COMPLIANCE_01 renderer checks passed\n");
