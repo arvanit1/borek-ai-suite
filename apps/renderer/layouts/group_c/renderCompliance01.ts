@@ -11,6 +11,27 @@ import { MASTER_CONTENT_NAME } from "../../design_system/masters/MASTER_CONTENT.
 import { computeCardGridLayout } from "./cardGrid.js";
 import { addSubtitle } from "./contentBand.js";
 
+/** Map Lucide-style icon keys to a human card title. Unknown keys are title-cased. */
+export function complianceItemTitle(icon: string): string {
+  const labels: Record<string, string> = {
+    lock: "Confidentiality",
+    "no-entry": "Guardrails",
+    "shield-check": "Audit trail",
+    shield: "Protection",
+    key: "Access control",
+    "user-check": "Human approval",
+    "user-shield": "Posting control",
+  };
+  if (labels[icon]) {
+    return labels[icon];
+  }
+  return icon
+    .split(/[-_]/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 /** Render one validated COMPLIANCE_01 SlideSpec using shared content-card primitives. */
 export function renderCompliance01(
   pptx: PptxGenJS,
@@ -35,7 +56,10 @@ export function renderCompliance01(
     if (!card) {
       return;
     }
-    addContentCard(slide, card, { title: item.icon, description: item.text });
+    addContentCard(slide, card, {
+      title: complianceItemTitle(item.icon),
+      description: item.text,
+    });
   });
 
   return slide;

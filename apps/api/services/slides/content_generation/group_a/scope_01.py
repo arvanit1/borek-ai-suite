@@ -22,7 +22,13 @@ CONFIG = GroupAGenerationConfig(
     ),
     instructions=(
         "Populate included and later using only chapters 3 and 5. Every later item "
-        "must be explicitly grounded in those chapters; never invent future scope."
+        "must be explicitly grounded in those chapters; never invent future scope. "
+        "NUMBERS: Always spell out numbers as words when they appear in compound "
+        "terms or as approximations. Write 'seventy percent', never '70%' unless the "
+        "exact digit appears in the chapter text you were given. Write 'ten weeks', "
+        "never '10 weeks' unless the digit 10 appears in your source chapters. "
+        "Use digits only for quantities that appear as digits in the chapter text "
+        "you were given."
     ),
 )
 

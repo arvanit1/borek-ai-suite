@@ -45,9 +45,9 @@ export function milestoneMarkerDiameter(): number {
   return BorekGrid.rowGap * 2;
 }
 
-/** Label band width — proportional to marker size (no hardcoded inch literals). */
+/** Label band width — wide enough for two wrapped words without stacking neighbors. */
 export function milestoneLabelWidth(): number {
-  return milestoneMarkerDiameter() * 3;
+  return milestoneMarkerDiameter() * 6;
 }
 
 /** Label band height — from spacing token (AT-13). */
@@ -94,7 +94,7 @@ export function computeMilestoneLayout(
     label,
     date: {
       x: label.x,
-      y: label.y + labelH,
+      y: label.y + labelH + gap,
       w: labelW,
       h: labelH,
     },
@@ -127,6 +127,8 @@ export function milestoneLabelTextOptions(label: MilestoneTextRect) {
     fontSize: BorekTypography.defaultSizes.body,
     align: "center" as const,
     valign: "top" as const,
+    wrap: true,
+    shrinkText: true,
   };
 }
 
@@ -141,6 +143,8 @@ export function milestoneDateTextOptions(date: MilestoneTextRect) {
     fontSize: BorekTypography.defaultSizes.body,
     align: "center" as const,
     valign: "top" as const,
+    wrap: true,
+    shrinkText: true,
   };
 }
 

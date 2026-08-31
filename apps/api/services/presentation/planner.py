@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import copy
-import json
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -24,6 +23,7 @@ from packages.contracts.validators import (
 from services.presentation.chapter_layout_guidance import (
     load_chapter_layout_guidance,
 )
+from services.presentation.generatable_layouts import planning_target_schema
 from services.presentation.registry_validation import (
     validate_registry_layout_selection,
 )
@@ -36,12 +36,6 @@ PROMPT_PATH = (
     / "presentation_planner_v2.txt"
 )
 PROMPT_VERSION = load_prompt_version(str(PROMPT_PATH))
-PRESENTATION_PLAN_SCHEMA_PATH = (
-    Path(__file__).resolve().parents[4]
-    / "packages"
-    / "contracts"
-    / "presentation_plan.schema.json"
-)
 
 
 class PresentationPlannerError(RuntimeError):
@@ -85,9 +79,7 @@ def plan_presentation(
         "instructions": PROMPT_PATH.read_text(encoding="utf-8"),
         "frameworkObject": framework_payload,
         "chapterLayoutGuidance": load_chapter_layout_guidance(),
-        "targetSchema": json.loads(
-            PRESENTATION_PLAN_SCHEMA_PATH.read_text(encoding="utf-8")
-        ),
+        "targetSchema": planning_target_schema(),
     }
     client = planner if planner is not None else LlmClient()
 

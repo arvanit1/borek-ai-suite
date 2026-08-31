@@ -101,6 +101,8 @@ export function contentCardTitleTextOptions(layout: ContentCardTextLayout) {
     bold: true,
     align: "left" as const,
     valign: "top" as const,
+    wrap: true,
+    shrinkText: true,
   };
 }
 
@@ -118,6 +120,8 @@ export function contentCardDescriptionTextOptions(layout: ContentCardTextLayout)
     fontSize: BorekTypography.defaultSizes.body,
     align: "left" as const,
     valign: "top" as const,
+    wrap: true,
+    shrinkText: true,
   };
 }
 

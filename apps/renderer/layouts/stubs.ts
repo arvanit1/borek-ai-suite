@@ -8,7 +8,10 @@ import type PptxGenJS from "pptxgenjs";
 
 import type { SlideSpecBase } from "../src/contracts.js";
 
-export type LayoutRenderFn = (pptx: PptxGenJS, spec: SlideSpecBase) => void;
+export type LayoutRenderFn = (
+  pptx: PptxGenJS,
+  spec: SlideSpecBase,
+) => PptxGenJS.Slide | void;
 
 /** Stub — executive summary layout (registered; renderer TBD). Layout: EXECUTIVE_SUMMARY_01 */
 export function renderExecutiveSummary01Stub(_pptx: PptxGenJS, _spec: SlideSpecBase): void {

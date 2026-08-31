@@ -9,7 +9,12 @@ from typing import Any, Callable
 
 import jsonschema
 
-from llm.claude.client import ClaudeClientError, sonnet_model, structured_complete
+from llm.claude.client import (
+    CLAUDE_STRUCTURED_MAX_TOKENS,
+    ClaudeClientError,
+    sonnet_model,
+    structured_complete,
+)
 from packages.contracts.validators import chapter_specs_from_registry
 from services.framework.chapter_builder import overlay_llm_chapters
 from services.framework.config_loader import repo_root, tone_voice
@@ -69,7 +74,7 @@ def synthesize_customer_draft(
                     schema,
                     tool_name="submit_customer_report",
                     tool_description="Submit the 14-chapter customer report draft.",
-                    max_tokens=64000,
+                    max_tokens=CLAUDE_STRUCTURED_MAX_TOKENS,
                     temperature=0,
                     usage_out=usage_holder,
                 )
@@ -153,7 +158,7 @@ def _anthropic_complete(system: str, user: str, schema: dict[str, Any]) -> dict[
         schema,
         tool_name="submit_customer_report",
         tool_description="Submit the 14-chapter customer report draft.",
-        max_tokens=64000,
+        max_tokens=CLAUDE_STRUCTURED_MAX_TOKENS,
         temperature=0,
     )
 
