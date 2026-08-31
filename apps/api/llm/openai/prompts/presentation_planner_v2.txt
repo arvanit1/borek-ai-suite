@@ -15,6 +15,14 @@ or Framework chapters.
 Rules:
 - Use only registered layoutId values permitted by the target schema and runtime
   registry.
+- Each layoutId may appear at most once in the PresentationPlan. Never use the same
+  layoutId for two different slides; combine or select content instead of duplicating
+  a layout for different chapter references.
+- PROCESS_FLOW_01 is optional and may appear zero or one time only. Choose it only
+  when the confirmed Framework contains a genuine ordered multi-step current-state
+  or target-state process that benefits from a process-flow slide.
+- Do not add PROCESS_FLOW_01 merely because chapterLayoutGuidance lists it. Omit it
+  when process-flow evidence is weak, thin, or redundant.
 - Treat chapterLayoutGuidance as recommendations; decide the appropriate ordered
   presentation structure in this single planning operation.
 - Do not invent unsupported slides, facts, customer claims, requirements, metrics,

@@ -14,6 +14,7 @@ import pytest
 
 from llm.client import LlmClient, LlmUsageResult
 from services.observability.llm_logger import LlmStage, get_llm_call_logs, reset_llm_call_logs
+from services.presentation import planner as planner_module
 from services.presentation.planner import (
     FrameworkNotConfirmedError,
     PROMPT_PATH,
@@ -261,6 +262,83 @@ def test_existing_at2_ordering_rules_reject_malformed_ordering(
         plan_presentation(confirmed_framework, planner=MockPlanner(response))
 
 
+def test_plan_without_process_flow_is_valid(
+    confirmed_framework: dict[str, Any], valid_plan: dict[str, Any]
+) -> None:
+    response = copy.deepcopy(valid_plan)
+    response["slides"] = [
+        slide for slide in response["slides"] if slide["layoutId"] != "PROCESS_FLOW_01"
+    ]
+    for order, slide in enumerate(response["slides"], start=1):
+        slide["order"] = order
+
+    result = plan_presentation(confirmed_framework, planner=MockPlanner(response))
+
+    assert all(slide.layoutId.value != "PROCESS_FLOW_01" for slide in result.slides)
+
+
+def test_plan_with_exactly_one_process_flow_is_valid(
+    confirmed_framework: dict[str, Any], valid_plan: dict[str, Any]
+) -> None:
+    result = plan_presentation(confirmed_framework, planner=MockPlanner(valid_plan))
+
+    assert sum(slide.layoutId.value == "PROCESS_FLOW_01" for slide in result.slides) == 1
+
+
+@pytest.mark.parametrize("duplicate_layout_id", ["PROCESS_FLOW_01", "CONTEXT_01", "SCOPE_01"])
+def test_duplicate_layout_is_rejected_once_without_retry_or_silent_removal(
+    confirmed_framework: dict[str, Any],
+    valid_plan: dict[str, Any],
+    duplicate_layout_id: str,
+) -> None:
+    response = copy.deepcopy(valid_plan)
+    original_slide = next(
+        slide for slide in response["slides"] if slide["layoutId"] == duplicate_layout_id
+    )
+    duplicate = copy.deepcopy(original_slide)
+    duplicate["order"] = len(response["slides"]) + 1
+    duplicate["purpose"] = f"duplicate {duplicate_layout_id}"
+    response["slides"].append(duplicate)
+    snapshot = copy.deepcopy(response)
+    planner = MockPlanner(response)
+
+    with pytest.raises(PresentationPlanValidationError, match=duplicate_layout_id):
+        plan_presentation(confirmed_framework, planner=planner)
+
+    assert len(planner.calls) == 1
+    assert planner.calls[0]["retry_count"] == 0
+    assert response == snapshot
+    assert len(response["slides"]) == len(valid_plan["slides"]) + 1
+
+
+def test_registry_validation_runs_before_duplicate_layout_validation(
+    confirmed_framework: dict[str, Any],
+    valid_plan: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    response = copy.deepcopy(valid_plan)
+    duplicate = copy.deepcopy(response["slides"][1])
+    duplicate["order"] = len(response["slides"]) + 1
+    response["slides"].append(duplicate)
+    registry_calls: list[dict[str, Any]] = []
+    original_validator = planner_module.validate_registry_layout_selection
+
+    def recording_registry_validator(payload: dict[str, Any]) -> None:
+        registry_calls.append(copy.deepcopy(payload))
+        original_validator(payload)
+
+    monkeypatch.setattr(
+        planner_module,
+        "validate_registry_layout_selection",
+        recording_registry_validator,
+    )
+
+    with pytest.raises(PresentationPlanValidationError, match="CONTEXT_01"):
+        plan_presentation(confirmed_framework, planner=MockPlanner(response))
+
+    assert registry_calls == [response]
+
+
 def test_mocked_planning_is_deterministic_and_does_not_mutate_response(
     confirmed_framework: dict[str, Any], valid_plan: dict[str, Any]
 ) -> None:
@@ -314,6 +392,10 @@ def test_planner_prompt_and_api_keep_stage_b_boundary_narrow() -> None:
     assert "frameworkreferences" in normalized_prompt
     assert "layoutid" in normalized_prompt
     assert "coordinates" in normalized_prompt and "geometry" in normalized_prompt
+    assert "each layoutid may appear at most once" in normalized_prompt
+    assert "never use the same layoutid for two different slides" in normalized_prompt
+    assert "process_flow_01 is optional and may appear zero or one time only" in normalized_prompt
+    assert "do not add process_flow_01 merely because" in normalized_prompt
     assert "transcript" not in parameters
     assert "claude" not in parameters
     assert "chapter_layout_map" not in normalized_prompt
