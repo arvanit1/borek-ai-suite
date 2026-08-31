@@ -18,6 +18,7 @@ import {
   readRendererSource,
   renderToPptx,
 } from "../rendererTestHelpers.js";
+import { JJ20_ENGLISH, JJ20_GERMAN, JJ20_SPECIAL, padTo, xmlForAssert } from "./jj20Coverage.js";
 
 const minimalFixture = minimalFixtureJson as TeamFte01SlideSpec;
 const realisticFixture = realisticFixtureJson as TeamFte01SlideSpec;
@@ -98,5 +99,45 @@ assertXmlContains(maximum.slideXml, [
   "&amp;",
   "Ä",
 ]);
+
+const englishFixture: TeamFte01SlideSpec = {
+  schema_version: "1.0",
+  layoutId: "TEAM_FTE_01",
+  title: JJ20_ENGLISH,
+  sourceChapterIds: ["10"],
+  roles: [{ role: "Process owner", fte: "0.3", responsibility: "Approve matching rules" }],
+  summary: [{ label: "Total FTE", value: "0.3" }],
+};
+const germanFixture: TeamFte01SlideSpec = {
+  schema_version: "1.0",
+  layoutId: "TEAM_FTE_01",
+  title: JJ20_GERMAN,
+  sourceChapterIds: ["10"],
+  roles: [{ role: "Prozesseigner", fte: "0,3", responsibility: "Freigabe der Prüfregeln" }],
+  summary: [{ label: "Gesamt-FTE", value: "0,3" }],
+};
+const specialLongFixture: TeamFte01SlideSpec = {
+  schema_version: "1.0",
+  layoutId: "TEAM_FTE_01",
+  title: padTo(`${JJ20_SPECIAL} team `, 72),
+  sourceChapterIds: ["10"],
+  roles: [
+    {
+      role: padTo("Long role name ", 32),
+      fte: "1–2",
+      responsibility: padTo("Deutsch & English duty ", 80),
+    },
+  ],
+  summary: [{ label: padTo("Capacity", 24), value: "1–2 FTE" }],
+};
+
+const english = await renderToPptx((pptx) => renderTeamFte01(pptx, englishFixture));
+const german = await renderToPptx((pptx) => renderTeamFte01(pptx, germanFixture));
+const specialLong = await renderToPptx((pptx) => renderTeamFte01(pptx, specialLongFixture));
+assertXmlContains(english.slideXml, [JJ20_ENGLISH, "Process owner", "0.3"]);
+assertXmlContains(german.slideXml, [JJ20_GERMAN, "Prozesseigner", "Gesamt-FTE"]);
+assert.equal(specialLongFixture.title.length, 72);
+assert.equal(specialLongFixture.roles[0]!.role.length, 32);
+assertXmlContains(specialLong.slideXml, [xmlForAssert(JJ20_SPECIAL), "&amp;", "Ä", "1–2"]);
 
 process.stdout.write("JJ-18 TEAM_FTE_01 renderer checks passed\n");

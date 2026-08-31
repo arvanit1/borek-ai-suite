@@ -34,6 +34,23 @@ def test_jj22_regression_runner_lists_group_b_files() -> None:
         assert file_name in source
 
 
+def test_jj22_uses_production_dispatcher_and_at55_runner() -> None:
+    deck_source = (GROUP_B_DIR / "build_deck.ts").read_text(encoding="utf-8")
+    test_source = (GROUP_B_DIR / "run_regression.test.ts").read_text(encoding="utf-8")
+    fixtures = (GROUP_B_DIR / "fixtures.ts").read_text(encoding="utf-8")
+    assert "dispatchSlide" in deck_source
+    assert "compareGoldenDeck" in test_source
+    assert "runGoldenDeckRegression" in test_source
+    assert "listGoldenDeckFiles" in test_source
+    for layout_id in (
+        "PROCESS_FLOW_01",
+        "TIMELINE_01",
+        "MILESTONES_01",
+        "TEAM_FTE_01",
+    ):
+        assert layout_id in fixtures
+
+
 def test_jj22_group_b_golden_deck_regression() -> None:
     result = subprocess.run(
         "npm run test:jj22 --workspace borek-renderer",

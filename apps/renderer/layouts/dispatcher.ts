@@ -13,19 +13,16 @@ import { renderCover01 } from "./group_a/renderCover01.js";
 import { renderProblemSolution01 } from "./group_a/renderProblemSolution01.js";
 import { renderRequirementsMatrix01 } from "./group_a/renderRequirementsMatrix01.js";
 import { renderScope01 } from "./group_a/renderScope01.js";
+import { renderMilestones01 } from "./group_b/renderMilestones01.js";
+import { renderProcessFlow01 } from "./group_b/renderProcessFlow01.js";
+import { renderTeamFte01 } from "./group_b/renderTeamFte01.js";
+import { renderTimeline01 } from "./group_b/renderTimeline01.js";
 import { renderArchitecture01 } from "./group_c/renderArchitecture01.js";
 import { renderCompliance01 } from "./group_c/renderCompliance01.js";
 import { renderNextSteps01 } from "./group_c/renderNextSteps01.js";
 import { renderOpenQuestions01 } from "./group_c/renderOpenQuestions01.js";
 import { renderSuccessMetrics01 } from "./group_c/renderSuccessMetrics01.js";
-import {
-  renderExecutiveSummary01Stub,
-  renderMilestones01Stub,
-  renderProcessFlow01Stub,
-  renderTeamFte01Stub,
-  renderTimeline01Stub,
-  type LayoutRenderFn,
-} from "./stubs.js";
+import { renderExecutiveSummary01Stub, type LayoutRenderFn } from "./stubs.js";
 
 export type RenderFn = LayoutRenderFn;
 
@@ -60,10 +57,10 @@ export const LAYOUT_REGISTRY: Record<LayoutId, RenderFn> = {
   PROBLEM_SOLUTION_01: registerValidatedRenderer(renderProblemSolution01),
   SCOPE_01: registerValidatedRenderer(renderScope01),
   REQUIREMENTS_MATRIX_01: registerValidatedRenderer(renderRequirementsMatrix01),
-  PROCESS_FLOW_01: renderProcessFlow01Stub,
-  TIMELINE_01: renderTimeline01Stub,
-  MILESTONES_01: renderMilestones01Stub,
-  TEAM_FTE_01: renderTeamFte01Stub,
+  PROCESS_FLOW_01: registerValidatedRenderer(renderProcessFlow01),
+  TIMELINE_01: registerValidatedRenderer(renderTimeline01),
+  MILESTONES_01: registerValidatedRenderer(renderMilestones01),
+  TEAM_FTE_01: registerValidatedRenderer(renderTeamFte01),
   ARCHITECTURE_01: registerValidatedRenderer(renderArchitecture01),
   COMPLIANCE_01: registerValidatedRenderer(renderCompliance01),
   SUCCESS_METRICS_01: registerValidatedRenderer(renderSuccessMetrics01),

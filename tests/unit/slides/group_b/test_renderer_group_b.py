@@ -24,7 +24,15 @@ def test_jj20_group_b_renderer_modules_exist() -> None:
     for _ticket, file_name, _script in LAYOUT_TESTS:
         path = RENDERER_LAYOUTS / file_name
         assert path.is_file(), f"expected renderer at {path}"
-        assert (RENDERER_LAYOUTS / file_name.replace(".ts", ".test.ts")).is_file()
+        test_path = RENDERER_LAYOUTS / file_name.replace(".ts", ".test.ts")
+        assert test_path.is_file()
+        source = test_path.read_text(encoding="utf-8")
+        assert "minimalFixture" in source
+        assert "maximumFixture" in source
+        assert "englishFixture" in source
+        assert "germanFixture" in source
+        assert "specialLongFixture" in source
+        assert "JJ20_SPECIAL" in source
 
 
 def test_jj20_process_flow_renderer() -> None:

@@ -18,6 +18,7 @@ import {
   readRendererSource,
   renderToPptx,
 } from "../rendererTestHelpers.js";
+import { JJ20_ENGLISH, JJ20_GERMAN, JJ20_SPECIAL, padTo, xmlForAssert } from "./jj20Coverage.js";
 
 const minimalFixture = minimalFixtureJson as Timeline01SlideSpec;
 const realisticFixture = realisticFixtureJson as Timeline01SlideSpec;
@@ -105,5 +106,52 @@ assertXmlContains(maximum.slideXml, [
   "&amp;",
   "Ä",
 ]);
+
+const englishFixture: Timeline01SlideSpec = {
+  schema_version: "1.0",
+  layoutId: "TIMELINE_01",
+  title: JJ20_ENGLISH,
+  sourceChapterIds: ["10"],
+  phases: [{ id: "p1", name: "Discover", description: "Confirm scope and access" }],
+  milestones: [{ id: "m1", name: "Access confirmed", phaseId: "p1", date: "Week 2" }],
+};
+const germanFixture: Timeline01SlideSpec = {
+  schema_version: "1.0",
+  layoutId: "TIMELINE_01",
+  title: JJ20_GERMAN,
+  sourceChapterIds: ["10"],
+  phases: [{ id: "p1", name: "Entdecken", description: "Umfang und Zugang bestätigen" }],
+  milestones: [{ id: "m1", name: "Zugang bestätigt", phaseId: "p1", date: "Woche 2" }],
+};
+const specialLongFixture: Timeline01SlideSpec = {
+  schema_version: "1.0",
+  layoutId: "TIMELINE_01",
+  title: padTo(`${JJ20_SPECIAL} roadmap `, 72),
+  sourceChapterIds: ["10"],
+  phases: [
+    {
+      id: "p1",
+      name: padTo("Long phase name ", 28),
+      description: padTo("Deutsch & English overlap ", 75),
+    },
+  ],
+  milestones: [
+    {
+      id: "m1",
+      name: padTo(`${JJ20_SPECIAL} `, 32),
+      phaseId: "p1",
+      date: "Week 2 to Week 8",
+    },
+  ],
+};
+
+const english = await renderToPptx((pptx) => renderTimeline01(pptx, englishFixture));
+const german = await renderToPptx((pptx) => renderTimeline01(pptx, germanFixture));
+const specialLong = await renderToPptx((pptx) => renderTimeline01(pptx, specialLongFixture));
+assertXmlContains(english.slideXml, [JJ20_ENGLISH, "Discover", "Access confirmed"]);
+assertXmlContains(german.slideXml, [JJ20_GERMAN, "Entdecken", "Zugang bestätigt"]);
+assert.equal(specialLongFixture.title.length, 72);
+assert.equal(specialLongFixture.phases[0]!.name.length, 28);
+assertXmlContains(specialLong.slideXml, [xmlForAssert(JJ20_SPECIAL), "&amp;", "Ä"]);
 
 process.stdout.write("JJ-16 TIMELINE_01 renderer checks passed\n");

@@ -18,6 +18,7 @@ import {
   readRendererSource,
   renderToPptx,
 } from "../rendererTestHelpers.js";
+import { JJ20_ENGLISH, JJ20_GERMAN, JJ20_SPECIAL, padTo, xmlForAssert } from "./jj20Coverage.js";
 
 const minimalFixture = minimalFixtureJson as ProcessFlow01SlideSpec;
 const realisticFixture = realisticFixtureJson as ProcessFlow01SlideSpec;
@@ -87,5 +88,44 @@ assertXmlContains(maximum.slideXml, [
   "&amp;",
   "Ä",
 ]);
+
+const englishFixture: ProcessFlow01SlideSpec = {
+  schema_version: "1.0",
+  layoutId: "PROCESS_FLOW_01",
+  title: JJ20_ENGLISH,
+  sourceChapterIds: ["2"],
+  phases: [{ number: 1, name: "Receive invoice", description: "Mailbox intake stays read-only" }],
+};
+const germanFixture: ProcessFlow01SlideSpec = {
+  schema_version: "1.0",
+  layoutId: "PROCESS_FLOW_01",
+  title: JJ20_GERMAN,
+  sourceChapterIds: ["2"],
+  phases: [
+    { number: 1, name: "Rechnung empfangen", description: "Posteingang bleibt schreibgeschützt" },
+  ],
+};
+const specialLongFixture: ProcessFlow01SlideSpec = {
+  schema_version: "1.0",
+  layoutId: "PROCESS_FLOW_01",
+  title: padTo(`${JJ20_SPECIAL} flow `, 72),
+  sourceChapterIds: ["2"],
+  phases: [
+    {
+      number: 1,
+      name: padTo(`${JJ20_SPECIAL} `, 32),
+      description: padTo("Deutsch & English exception path ", 80),
+    },
+  ],
+};
+
+const english = await renderToPptx((pptx) => renderProcessFlow01(pptx, englishFixture));
+const german = await renderToPptx((pptx) => renderProcessFlow01(pptx, germanFixture));
+const specialLong = await renderToPptx((pptx) => renderProcessFlow01(pptx, specialLongFixture));
+assertXmlContains(english.slideXml, [JJ20_ENGLISH, "Receive invoice"]);
+assertXmlContains(german.slideXml, [JJ20_GERMAN, "Rechnung empfangen"]);
+assert.equal(specialLongFixture.title.length, 72);
+assert.equal(specialLongFixture.phases[0]!.name.length, 32);
+assertXmlContains(specialLong.slideXml, [xmlForAssert(JJ20_SPECIAL), "&amp;", "Ä"]);
 
 process.stdout.write("JJ-15 PROCESS_FLOW_01 renderer checks passed\n");

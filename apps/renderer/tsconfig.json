@@ -16,6 +16,7 @@
     "scripts/**/*.ts",
     "design_system/**/*.ts",
     "layouts/**/*.ts",
-    "../../tests/golden_deck/group_a/**/*.ts"
+    "../../tests/golden_deck/group_a/**/*.ts",
+    "../../tests/golden_deck/group_b/**/*.ts"
   ]
 }

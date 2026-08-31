@@ -28,5 +28,7 @@ def test_jj19_group_b_layouts_are_registered() -> None:
     stubs = (ROOT / "apps" / "renderer" / "layouts" / "stubs.ts").read_text(encoding="utf-8")
     dispatcher = DISPATCHER_TS.read_text(encoding="utf-8")
     for name in ("renderProcessFlow01", "renderTimeline01", "renderMilestones01", "renderTeamFte01"):
-        assert f"from \"./group_b/{name}.js\"" in stubs or f"from './group_b/{name}.js'" in stubs
-        assert name in dispatcher
+        assert f'from "./group_b/{name}.js"' in dispatcher or f"from './group_b/{name}.js'" in dispatcher
+        assert f"{name}Stub" not in stubs
+    result = _run_shell("npm run test:jj19 --workspace borek-renderer")
+    assert result.returncode == 0, result.stderr or result.stdout

@@ -46,18 +46,16 @@ import { renderProblemSolution01 } from "./group_a/renderProblemSolution01.js";
 import { renderRequirementsMatrix01 } from "./group_a/renderRequirementsMatrix01.js";
 import { renderScope01 } from "./group_a/renderScope01.js";
 import { assertUsesMaster } from "./group_a/rendererTestHelpers.js";
+import { renderMilestones01 } from "./group_b/renderMilestones01.js";
+import { renderProcessFlow01 } from "./group_b/renderProcessFlow01.js";
+import { renderTeamFte01 } from "./group_b/renderTeamFte01.js";
+import { renderTimeline01 } from "./group_b/renderTimeline01.js";
 import { renderArchitecture01 } from "./group_c/renderArchitecture01.js";
 import { renderCompliance01 } from "./group_c/renderCompliance01.js";
 import { renderNextSteps01 } from "./group_c/renderNextSteps01.js";
 import { renderOpenQuestions01 } from "./group_c/renderOpenQuestions01.js";
 import { renderSuccessMetrics01 } from "./group_c/renderSuccessMetrics01.js";
-import {
-  renderExecutiveSummary01Stub,
-  renderMilestones01Stub,
-  renderProcessFlow01Stub,
-  renderTeamFte01Stub,
-  renderTimeline01Stub,
-} from "./stubs.js";
+import { renderExecutiveSummary01Stub } from "./stubs.js";
 import type { LayoutId, SlideSpecBase } from "../src/contracts.js";
 
 const LAYOUTS_DIR = fileURLToPath(new URL(".", import.meta.url));
@@ -105,6 +103,11 @@ assert.doesNotMatch(
   /render(?:Architecture|Compliance|SuccessMetrics|OpenQuestions|NextSteps)01Stub/,
   "completed Group C layouts must not retain stub renderers",
 );
+assert.doesNotMatch(
+  stubsSource,
+  /render(?:ProcessFlow|Timeline|Milestones|TeamFte)01Stub/,
+  "completed Group B layouts must not retain stub renderers",
+);
 
 const groupARenderers = {
   COVER_01: renderCover01,
@@ -112,6 +115,13 @@ const groupARenderers = {
   PROBLEM_SOLUTION_01: renderProblemSolution01,
   SCOPE_01: renderScope01,
   REQUIREMENTS_MATRIX_01: renderRequirementsMatrix01,
+};
+
+const groupBRenderers = {
+  PROCESS_FLOW_01: renderProcessFlow01,
+  TIMELINE_01: renderTimeline01,
+  MILESTONES_01: renderMilestones01,
+  TEAM_FTE_01: renderTeamFte01,
 };
 
 const groupCRenderers = {
@@ -124,10 +134,6 @@ const groupCRenderers = {
 
 const unchangedStubRenderers = {
   EXECUTIVE_SUMMARY_01: renderExecutiveSummary01Stub,
-  PROCESS_FLOW_01: renderProcessFlow01Stub,
-  TIMELINE_01: renderTimeline01Stub,
-  MILESTONES_01: renderMilestones01Stub,
-  TEAM_FTE_01: renderTeamFte01Stub,
 };
 
 for (const [layoutId, renderer] of Object.entries(groupARenderers)) {
@@ -135,6 +141,14 @@ for (const [layoutId, renderer] of Object.entries(groupARenderers)) {
     LAYOUT_REGISTRY[layoutId as LayoutId],
     renderer,
     `${layoutId} must map directly to its real Group A renderer`,
+  );
+}
+
+for (const [layoutId, renderer] of Object.entries(groupBRenderers)) {
+  assert.equal(
+    LAYOUT_REGISTRY[layoutId as LayoutId],
+    renderer,
+    `${layoutId} must map directly to its real Group B renderer`,
   );
 }
 
@@ -154,18 +168,22 @@ for (const [layoutId, renderer] of Object.entries(unchangedStubRenderers)) {
   );
 }
 
-assert.match(stubsSource, /renderProcessFlow01\(/);
-assert.match(stubsSource, /renderTimeline01\(/);
-assert.match(stubsSource, /renderMilestones01\(/);
-assert.match(stubsSource, /renderTeamFte01\(/);
-assert.doesNotMatch(stubsSource, /JJ-1[5-8] will replace/);
-assert.match(
-  dispatcherSource,
-  /PROCESS_FLOW_01: renderProcessFlow01Stub/,
-);
-assert.match(dispatcherSource, /TIMELINE_01: renderTimeline01Stub/);
-assert.match(dispatcherSource, /MILESTONES_01: renderMilestones01Stub/);
-assert.match(dispatcherSource, /TEAM_FTE_01: renderTeamFte01Stub/);
+for (const name of [
+  "renderProcessFlow01",
+  "renderTimeline01",
+  "renderMilestones01",
+  "renderTeamFte01",
+]) {
+  assert.match(
+    dispatcherSource,
+    new RegExp(`from "\\./group_b/${name}\\.js"`),
+    `JJ-19 must import ${name} from the Group B layout module`,
+  );
+}
+assert.match(dispatcherSource, /PROCESS_FLOW_01: registerValidatedRenderer\(renderProcessFlow01\)/);
+assert.match(dispatcherSource, /TIMELINE_01: registerValidatedRenderer\(renderTimeline01\)/);
+assert.match(dispatcherSource, /MILESTONES_01: registerValidatedRenderer\(renderMilestones01\)/);
+assert.match(dispatcherSource, /TEAM_FTE_01: registerValidatedRenderer\(renderTeamFte01\)/);
 
 function minimalSlideSpec(layoutId: LayoutId): SlideSpecBase {
   const implementedSpecs: Partial<Record<LayoutId, SlideSpecBase>> = {
@@ -215,6 +233,10 @@ const implementedMasters: Readonly<Record<string, string>> = {
   PROBLEM_SOLUTION_01: MASTER_CONTENT_NAME,
   SCOPE_01: MASTER_CONTENT_NAME,
   REQUIREMENTS_MATRIX_01: MASTER_CONTENT_NAME,
+  PROCESS_FLOW_01: MASTER_CONTENT_NAME,
+  TIMELINE_01: MASTER_CONTENT_NAME,
+  MILESTONES_01: MASTER_CONTENT_NAME,
+  TEAM_FTE_01: MASTER_CONTENT_NAME,
   ARCHITECTURE_01: MASTER_CONTENT_NAME,
   COMPLIANCE_01: MASTER_CLOSING_NAME,
   SUCCESS_METRICS_01: MASTER_CONTENT_NAME,
