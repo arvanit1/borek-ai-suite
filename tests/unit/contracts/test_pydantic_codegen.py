@@ -274,6 +274,18 @@ def test_group_c_fixture_validates_with_generated_pydantic_model(
     assert generated.layoutId == payload["layoutId"]
 
 
+@pytest.mark.parametrize("fixture_name,module_name,model_name", GROUP_C_MODELS)
+def test_group_c_realistic_fixture_validates_with_generated_pydantic_model(
+    fixture_name: str, module_name: str, model_name: str
+) -> None:
+    module = importlib.import_module(f"generated.python.contracts.{module_name}")
+    model = getattr(module, model_name)
+    fixture_path = FIXTURES_DIR / "slide_spec" / "group_c" / f"{fixture_name}.realistic.json"
+    payload = json.loads(fixture_path.read_text(encoding="utf-8"))
+    generated = model.model_validate(payload)
+    assert generated.layoutId == payload["layoutId"]
+
+
 @pytest.mark.parametrize("fixture_name,module_name,model_name", GROUP_A_MODELS)
 def test_group_a_generated_model_rejects_wrong_layout_id(
     fixture_name: str, module_name: str, model_name: str

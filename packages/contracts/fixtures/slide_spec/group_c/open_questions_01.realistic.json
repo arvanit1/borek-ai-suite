@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "slideId": "slide_11",
+  "layoutId": "OPEN_QUESTIONS_01",
+  "sectionLabel": "OPEN QUESTIONS",
+  "title": "What still needs confirmation",
+  "subtitle": "Open questions on the left, working assumptions on the right",
+  "sourceChapterIds": ["11"],
+  "fieldProvenance": [
+    { "path": "sectionLabel", "sourceChapterIds": ["11"] },
+    { "path": "title", "sourceChapterIds": ["11"] },
+    { "path": "subtitle", "sourceChapterIds": ["11"] },
+    { "path": "left.heading", "sourceChapterIds": ["11"] },
+    { "path": "left.items[0]", "sourceChapterIds": ["11"] },
+    { "path": "left.items[1]", "sourceChapterIds": ["11"] },
+    { "path": "left.items[2]", "sourceChapterIds": ["11"] },
+    { "path": "right.heading", "sourceChapterIds": ["11"] },
+    { "path": "right.items[0]", "sourceChapterIds": ["11"] },
+    { "path": "right.items[1]", "sourceChapterIds": ["11"] },
+    { "path": "right.items[2]", "sourceChapterIds": ["11"] }
+  ],
+  "left": {
+    "heading": "Open questions",
+    "items": [
+      "Which ERP fields are the source of truth for PO and goods receipt?",
+      "Who owns the first-wave exception rules in the pilot?",
+      "Which mailbox folder is the approved invoice intake path?"
+    ]
+  },
+  "right": {
+    "heading": "Assumptions",
+    "items": [
+      "Mailbox access stays read-only during the first rollout",
+      "Approvers already exist in the current AP process",
+      "The ERP remains the system of record for postings"
+    ]
+  }
+}

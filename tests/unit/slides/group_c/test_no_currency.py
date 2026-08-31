@@ -39,6 +39,22 @@ def test_ms14_invoice_metrics_fixture_passes() -> None:
     assert payload == before
 
 
+def test_ms14_realistic_metrics_fixture_passes() -> None:
+    path = (
+        ROOT
+        / "packages"
+        / "contracts"
+        / "fixtures"
+        / "slide_spec"
+        / "group_c"
+        / "success_metrics_01.realistic.json"
+    )
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    before = copy.deepcopy(payload)
+    reject_success_metrics_currency(payload)
+    assert payload == before
+
+
 def test_ms14_non_monetary_percent_metric_passes() -> None:
     payload = _metrics()
     payload["criteria"][0]["description"] = "Invoices auto-matched without a manual check"

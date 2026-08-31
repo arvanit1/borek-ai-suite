@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "slideId": "slide_09",
+  "layoutId": "SUCCESS_METRICS_01",
+  "sectionLabel": "SUCCESS METRICS",
+  "title": "How we measure a controlled match",
+  "subtitle": "Criteria only — no monetary amounts on this slide",
+  "sourceChapterIds": ["3", "9"],
+  "fieldProvenance": [
+    { "path": "sectionLabel", "sourceChapterIds": ["3"] },
+    { "path": "title", "sourceChapterIds": ["3"] },
+    { "path": "subtitle", "sourceChapterIds": ["3"] },
+    { "path": "criteria[0].title", "sourceChapterIds": ["3"] },
+    { "path": "criteria[0].description", "sourceChapterIds": ["3"] },
+    { "path": "criteria[1].title", "sourceChapterIds": ["9"] },
+    { "path": "criteria[1].description", "sourceChapterIds": ["9"] },
+    { "path": "criteria[2].title", "sourceChapterIds": ["3"] },
+    { "path": "criteria[2].description", "sourceChapterIds": ["3"] },
+    { "path": "criteria[3].title", "sourceChapterIds": ["9"] },
+    { "path": "criteria[3].description", "sourceChapterIds": ["9"] }
+  ],
+  "criteria": [
+    {
+      "title": "Auto-match rate",
+      "description": "Share of invoices matched without a manual line check"
+    },
+    {
+      "title": "Exception control",
+      "description": "Unmatched invoices stay visible until a person decides"
+    },
+    {
+      "title": "Cycle-time reduction",
+      "description": "Clean invoices leave the AP queue faster than the current process"
+    },
+    {
+      "title": "Traceable decisions",
+      "description": "Each match or exception can be explained from the source documents"
+    }
+  ]
+}
