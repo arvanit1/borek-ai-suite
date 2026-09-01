@@ -107,4 +107,17 @@ assert.equal(
   "Resuming presentation rendering…",
 );
 
+assert.match(
+  jobFailureMessage({
+    error: {
+      code: "PRESENTATION_PLANNING_FAILED",
+      message:
+        "Invalid PresentationPlan: PresentationPlan layoutId values must be unique; duplicates: CONTEXT_01",
+      stage: "PRESENTATION_PLANNING",
+      retryable: true,
+    },
+  }),
+  /unique layout/,
+);
+
 console.log("jobReconnect tests passed");

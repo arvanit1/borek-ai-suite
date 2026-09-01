@@ -62,6 +62,31 @@ def test_log_llm_call_persists_required_metadata_fields() -> None:
     assert entry.timestamp is not None
 
 
+def test_llm_call_record_to_json_dict_is_json_safe() -> None:
+    request_id = uuid.uuid4()
+    job_id = uuid.uuid4()
+    opportunity_id = uuid.uuid4()
+    entry = log_llm_call(
+        request_id=request_id,
+        stage=LlmStage.FRAMEWORK,
+        model="claude-sonnet-4",
+        prompt_version="synthesis_v1",
+        input_tokens=1200,
+        output_tokens=800,
+        latency_ms=1534.2,
+        retry_count=1,
+        job_id=job_id,
+        opportunity_id=opportunity_id,
+    )
+    payload = entry.to_json_dict()
+    import json
+
+    json.dumps(payload)
+    assert payload["request_id"] == str(request_id)
+    assert payload["job_id"] == str(job_id)
+    assert payload["opportunity_id"] == str(opportunity_id)
+
+
 def test_log_llm_call_rejects_confidential_fields() -> None:
     with pytest.raises(ValueError, match="confidential fields"):
         log_llm_call(

@@ -120,6 +120,7 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
             await waitForJob(token, decision.jobId);
           } catch (monitorError) {
             if (!cancelled) {
+              setInfo(null);
               setError(
                 monitorError instanceof Error ? monitorError.message : "Generation job failed.",
               );
@@ -129,6 +130,7 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
             }
           }
         } else if (decision.action === "failed") {
+          setInfo(null);
           setError(decision.message);
           if (decision.retryable) {
             setRetryJobId(decision.jobId);
@@ -150,6 +152,7 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
         }
       } catch (bootstrapError) {
         if (!cancelled) {
+          setInfo(null);
           setError(
             bootstrapError instanceof Error
               ? bootstrapError.message
@@ -188,6 +191,7 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
       await loadPlan();
       setInfo("Presentation plan ready. Review order, purpose, and layout below.");
     } catch (generateError) {
+      setInfo(null);
       setError(
         generateError instanceof Error ? generateError.message : "Plan generation failed.",
       );
@@ -205,13 +209,14 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
     }
     setBusy(true);
     setError(null);
-    setInfo("Retrying generation from the last failed stage…");
+    setInfo("Retrying generation from the last failed stage...");
     try {
       const queued = await retryJob(accessToken, retryJobId);
       setRetryJobId(null);
       await waitForJob(accessToken, queued.job_id);
       await loadPlan();
     } catch (retryError) {
+      setInfo(null);
       setError(retryError instanceof Error ? retryError.message : "Retry failed.");
       if (retryError instanceof ApiRequestError && retryError.retryable && retryError.jobId) {
         setRetryJobId(retryError.jobId);
@@ -252,7 +257,7 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
         <AppPageHeader
           kicker="Step 3 of 4"
           title="Presentation plan preview"
-          lead="Review the planned slide sequence — order, purpose, and layout — before committing to full deck generation."
+          lead="Review the planned slide sequence - order, purpose, and layout - before committing to full deck generation."
         />
 
         <div className="upload-layout">
@@ -311,7 +316,7 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
         {busy && !plan ? (
           <section className="upload-panel pipeline-panel-loading">
             <p className="upload-hint" data-testid="pipeline-job-progress">
-              {info ?? "Loading presentation plan…"}
+              {info ?? "Loading presentation plan..."}
             </p>
           </section>
         ) : null}

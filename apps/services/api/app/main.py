@@ -13,8 +13,10 @@ from app.routers import frameworks, health, jobs, opportunities, presentations, 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    from app.runtime_profile import log_runtime_profile
     from app.services.stage_b_providers import install_runtime_stage_b_providers
 
+    log_runtime_profile(component="api")
     install_runtime_stage_b_providers()
     yield
 

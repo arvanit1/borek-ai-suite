@@ -121,6 +121,7 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
             await waitForJob(token, decision.jobId);
           } catch (monitorError) {
             if (!cancelled) {
+              setInfo(null);
               setError(
                 monitorError instanceof Error ? monitorError.message : "Generation job failed.",
               );
@@ -130,6 +131,7 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
             }
           }
         } else if (decision.action === "failed") {
+          setInfo(null);
           setError(decision.message);
           if (decision.retryable) {
             setRetryJobId(decision.jobId);
@@ -182,6 +184,7 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
       await applyLatestPresentation();
       setInfo("Deck generated. Slide previews and downloads are ready below.");
     } catch (generateError) {
+      setInfo(null);
       setError(generateError instanceof Error ? generateError.message : "Deck generation failed.");
       if (generateError instanceof ApiRequestError && generateError.retryable && generateError.jobId) {
         setRetryJobId(generateError.jobId);
@@ -204,6 +207,7 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
       await waitForJob(accessToken, queued.job_id);
       await applyLatestPresentation();
     } catch (retryError) {
+      setInfo(null);
       setError(retryError instanceof Error ? retryError.message : "Retry failed.");
       if (retryError instanceof ApiRequestError && retryError.retryable && retryError.jobId) {
         setRetryJobId(retryError.jobId);

@@ -20,6 +20,13 @@ celery_app.conf.task_always_eager = settings.API_DATA_BACKEND == "memory"
 celery_app.conf.task_eager_propagates = False
 
 
+@celery_app.on_after_configure.connect
+def _log_worker_runtime_profile(**_kwargs) -> None:
+    from app.runtime_profile import log_runtime_profile
+
+    log_runtime_profile(component="worker")
+
+
 def _llm_observability_scope(store, job_id, opportunity_id=None):
     from services.observability.llm_logger import llm_observability_scope
     from app.services import job_service
@@ -88,12 +95,15 @@ def run_presentation_planning_task(
 
         return run_with_transient_retry(_run)
     except Exception as exc:
+        from app.services.planning_job_errors import format_presentation_planning_failure
+
+        error_code, message, retryable = format_presentation_planning_failure(exc)
         job_service.fail_job(
             parsed_job_id,
-            getattr(exc, "code", "PRESENTATION_PLANNING_FAILED"),
-            str(exc),
+            error_code,
+            message,
             stage,
-            bool(getattr(exc, "retryable", True)),
+            retryable,
             repository=store,
         )
         raise

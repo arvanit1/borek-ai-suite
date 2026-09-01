@@ -1,5 +1,6 @@
 const DEFAULT_API_URL = "http://localhost:8000";
 
+import { formatJobFailureMessage } from "./jobErrors";
 import { getSupabaseBrowserClient } from "./supabase";
 import type { FrameworkObject, FrameworkVersionResponse } from "./frameworkTypes";
 import type {
@@ -194,7 +195,7 @@ export async function waitForJob(
     }
     if (job.status === "FAILED") {
       throw new ApiRequestError(
-        job.error?.message ?? "Generation job failed",
+        formatJobFailureMessage(job.error),
         422,
         job.error?.code,
         { retryable: Boolean(job.error?.retryable), jobId: job.job_id },
@@ -475,4 +476,11 @@ export async function downloadPresentationFile(
   downloadPath: string,
 ): Promise<Blob> {
   return apiFetchBlob(downloadPath, accessToken);
+}
+
+export async function downloadFrameworkRender(
+  accessToken: string,
+  renderPath: string,
+): Promise<Blob> {
+  return apiFetchBlob(renderPath, accessToken);
 }
