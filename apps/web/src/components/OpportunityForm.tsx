@@ -1,8 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { OpportunityCreatePayload } from "@/lib/api";
+import {
+  clearOpportunityDraft,
+  loadOpportunityDraft,
+  saveOpportunityDraft,
+} from "@/lib/pipelineContext";
 
 export interface OpportunityFormValues {
   client_name: string;
@@ -20,20 +25,44 @@ const DEFAULT_VALUES: OpportunityFormValues = {
 
 interface OpportunityFormProps {
   disabled?: boolean;
+  existing?: OpportunityFormValues | null;
   onSubmit: (values: OpportunityCreatePayload) => Promise<void>;
 }
 
-export function OpportunityForm({ disabled = false, onSubmit }: OpportunityFormProps) {
-  const [values, setValues] = useState<OpportunityFormValues>(DEFAULT_VALUES);
+export function OpportunityForm({
+  disabled = false,
+  existing = null,
+  onSubmit,
+}: OpportunityFormProps) {
+  const [values, setValues] = useState<OpportunityFormValues>(existing ?? DEFAULT_VALUES);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [createdLabel, setCreatedLabel] = useState<string | null>(null);
+  const [createdLabel, setCreatedLabel] = useState<string | null>(
+    existing ? `${existing.client_name} — ${existing.opportunity_name}` : null,
+  );
+  const locked = Boolean(existing) || Boolean(createdLabel);
+
+  useEffect(() => {
+    if (existing) {
+      setValues(existing);
+      setCreatedLabel(`${existing.client_name} — ${existing.opportunity_name}`);
+      return;
+    }
+    const draft = loadOpportunityDraft();
+    if (draft) {
+      setValues(draft);
+    }
+  }, [existing]);
 
   function updateField<K extends keyof OpportunityFormValues>(
     key: K,
     value: OpportunityFormValues[K],
   ) {
-    setValues((current) => ({ ...current, [key]: value }));
+    setValues((current) => {
+      const next = { ...current, [key]: value };
+      saveOpportunityDraft(next);
+      return next;
+    });
   }
 
   async function handleSubmit(event: React.FormEvent) {
@@ -43,7 +72,7 @@ export function OpportunityForm({ disabled = false, onSubmit }: OpportunityFormP
     try {
       await onSubmit(values);
       setCreatedLabel(`${values.client_name} — ${values.opportunity_name}`);
-      setValues(DEFAULT_VALUES);
+      clearOpportunityDraft();
     } catch (submitError) {
       const message =
         submitError instanceof Error ? submitError.message : "Could not create opportunity.";
@@ -75,7 +104,7 @@ export function OpportunityForm({ disabled = false, onSubmit }: OpportunityFormP
             id="client_name"
             placeholder="e.g. Acme Corporation"
             value={values.client_name}
-            disabled={disabled || busy}
+            disabled={disabled || busy || locked}
             onChange={(event) => updateField("client_name", event.target.value)}
             required
           />
@@ -86,7 +115,7 @@ export function OpportunityForm({ disabled = false, onSubmit }: OpportunityFormP
             id="opportunity_name"
             placeholder="e.g. Q3 automation rollout"
             value={values.opportunity_name}
-            disabled={disabled || busy}
+            disabled={disabled || busy || locked}
             onChange={(event) => updateField("opportunity_name", event.target.value)}
             required
           />
@@ -97,7 +126,7 @@ export function OpportunityForm({ disabled = false, onSubmit }: OpportunityFormP
             id="department"
             placeholder="e.g. Sales Engineering"
             value={values.department}
-            disabled={disabled || busy}
+            disabled={disabled || busy || locked}
             onChange={(event) => updateField("department", event.target.value)}
             required
           />
@@ -107,7 +136,7 @@ export function OpportunityForm({ disabled = false, onSubmit }: OpportunityFormP
           <select
             id="language"
             value={values.language}
-            disabled={disabled || busy}
+            disabled={disabled || busy || locked}
             onChange={(event) => updateField("language", event.target.value)}
           >
             <option value="en">English</option>
@@ -118,8 +147,8 @@ export function OpportunityForm({ disabled = false, onSubmit }: OpportunityFormP
       </div>
 
       <div className="opportunity-form-actions">
-        <button type="submit" className="btn btn-primary" disabled={disabled || busy}>
-          {busy ? "Creating…" : "Create opportunity"}
+        <button type="submit" className="btn btn-primary" disabled={disabled || busy || locked}>
+          {busy ? "Creating…" : locked ? "Opportunity created" : "Create opportunity"}
         </button>
       </div>
     </form>

@@ -369,35 +369,6 @@ textarea {
   white-space: nowrap;
 }
 
-.site-pipeline {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.2rem;
-  flex: 1;
-  min-width: 0;
-}
-
-.site-pipeline-link {
-  padding: 0.4rem 0.85rem;
-  border-radius: 8px;
-  text-decoration: none;
-  color: rgba(255, 255, 255, 0.72);
-  font-weight: 600;
-  font-size: 0.88rem;
-  white-space: nowrap;
-}
-
-.site-pipeline-link:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.site-pipeline-link-active {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.12);
-}
-
 .site-nav {
   display: flex;
   align-items: center;
@@ -702,6 +673,8 @@ textarea {
 }
 
 .pipeline-rail-step {
+  position: relative;
+  background: #fff;
   border-right: 1px solid var(--color-border);
 }
 
@@ -714,8 +687,8 @@ textarea {
   grid-template-columns: auto minmax(0, 1fr);
   gap: 0.7rem;
   align-items: center;
-  min-height: 4.35rem;
-  padding: 0.8rem 1rem;
+  min-height: 4.5rem;
+  padding: 0.85rem 1.05rem;
   text-decoration: none;
   color: inherit;
 }
@@ -731,8 +704,9 @@ textarea {
   width: 1.85rem;
   height: 1.85rem;
   border-radius: 999px;
-  border: 1px solid var(--color-border);
-  background: #f8fafc;
+  border: 1.5px solid #d0d5dd;
+  background: #fff;
+  color: var(--color-text);
   font-size: 0.78rem;
   font-weight: 700;
   flex-shrink: 0;
@@ -745,7 +719,8 @@ textarea {
 }
 
 .pipeline-rail-copy strong {
-  font-size: 0.88rem;
+  font-size: 0.92rem;
+  font-weight: 700;
   color: var(--color-text);
 }
 
@@ -760,7 +735,16 @@ textarea {
 
 .pipeline-rail-active {
   background: var(--borek-primary-soft);
-  box-shadow: inset 0 3px 0 var(--borek-accent);
+}
+
+.pipeline-rail-active::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--borek-accent);
 }
 
 .pipeline-rail-active .pipeline-rail-link:hover {
@@ -1266,17 +1250,6 @@ textarea {
 }
 
 @media (max-width: 1024px) {
-  .site-header-inner {
-    flex-wrap: wrap;
-    row-gap: 0.5rem;
-  }
-
-  .site-pipeline {
-    order: 3;
-    flex: 1 1 100%;
-    justify-content: flex-start;
-  }
-
   .pipeline-rail {
     grid-template-columns: 1fr 1fr;
   }
@@ -1331,19 +1304,10 @@ textarea {
 
   .site-header-inner {
     padding: 0.7rem 1rem;
-    flex-wrap: wrap;
-    row-gap: 0.55rem;
   }
 
   .brand-logo-product {
     display: none;
-  }
-
-  .site-pipeline {
-    order: 3;
-    flex: 1 1 100%;
-    justify-content: flex-start;
-    overflow-x: auto;
   }
 
   .site-nav {

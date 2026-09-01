@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { pipelineHref } from "@/lib/pipelineContext";
+
 interface PipelineStepperProps {
   currentStep: 1 | 2 | 3 | 4;
   opportunityId?: string;
@@ -9,12 +11,15 @@ interface PipelineStepperProps {
 }
 
 function stepHref(stepId: number, opportunityId?: string): string {
-  if (stepId === 1) {
-    return "/upload";
-  }
   const path =
-    stepId === 2 ? "/framework-review" : stepId === 3 ? "/plan-preview" : "/deck-center";
-  return opportunityId ? `${path}?opportunityId=${encodeURIComponent(opportunityId)}` : path;
+    stepId === 1
+      ? "/upload"
+      : stepId === 2
+        ? "/framework-review"
+        : stepId === 3
+          ? "/plan-preview"
+          : "/deck-center";
+  return pipelineHref(path, opportunityId);
 }
 
 export function PipelineStepper({
@@ -64,11 +69,15 @@ export function PipelineStepper({
       {steps.map((step) => (
         <li
           key={step.id}
-          className={`pipeline-rail-step${
-            step.complete ? " pipeline-rail-complete" : step.active ? " pipeline-rail-active" : ""
+          className={`pipeline-rail-step${step.complete ? " pipeline-rail-complete" : ""}${
+            step.active ? " pipeline-rail-active" : ""
           }`}
         >
-          <Link href={stepHref(step.id, opportunityId)} className="pipeline-rail-link">
+          <Link
+            href={stepHref(step.id, opportunityId)}
+            className="pipeline-rail-link"
+            aria-current={step.active ? "step" : undefined}
+          >
             <span className="pipeline-rail-index" aria-hidden="true">
               {step.complete ? "✓" : step.id}
             </span>

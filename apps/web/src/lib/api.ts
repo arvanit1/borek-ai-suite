@@ -193,6 +193,23 @@ export async function createOpportunity(
   });
 }
 
+export async function getOpportunity(
+  accessToken: string,
+  opportunityId: string,
+): Promise<OpportunityResponse> {
+  return apiFetch<OpportunityResponse>(`/opportunities/${opportunityId}`, accessToken);
+}
+
+export async function listTranscripts(
+  accessToken: string,
+  opportunityId: string,
+): Promise<TranscriptResponse[]> {
+  return apiFetch<TranscriptResponse[]>(
+    `/opportunities/${opportunityId}/transcripts`,
+    accessToken,
+  );
+}
+
 export async function uploadTranscript(
   accessToken: string,
   opportunityId: string,

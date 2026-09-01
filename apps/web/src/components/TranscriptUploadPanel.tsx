@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { AppPageHeader } from "@/components/AppPageHeader";
 import { useAuth } from "@/components/AuthProvider";
@@ -10,20 +10,147 @@ import { OpportunityForm } from "@/components/OpportunityForm";
 import { PipelineStepper } from "@/components/PipelineStepper";
 import { SiteHeader } from "@/components/SiteHeader";
 import { UploadStepper } from "@/components/UploadStepper";
-import { createOpportunity, uploadTranscript } from "@/lib/api";
+import {
+  createOpportunity,
+  getOpportunity,
+  listTranscripts,
+  uploadTranscript,
+  type OpportunityResponse,
+} from "@/lib/api";
+import {
+  clearOpportunityDraft,
+  getCachedUploadSession,
+  opportunityLabel,
+  pipelineHref,
+  rememberUploadSession,
+  saveActiveOpportunity,
+} from "@/lib/pipelineContext";
 import { countByStatus } from "@/lib/uploadQueue";
 import type { TranscriptQueueItem } from "@/lib/uploadQueue";
-import { updateQueueItem } from "@/lib/uploadQueue";
+import { createRestoredQueueItem, updateQueueItem } from "@/lib/uploadQueue";
 
-export function TranscriptUploadPanel() {
+interface TranscriptUploadPanelProps {
+  initialOpportunityId?: string | null;
+}
+
+function storedFromResponse(opportunity: OpportunityResponse) {
+  return {
+    id: opportunity.id,
+    client_name: opportunity.client_name,
+    opportunity_name: opportunity.opportunity_name,
+    department: opportunity.department,
+    language: opportunity.language,
+  };
+}
+
+function mergeQueue(
+  cached: TranscriptQueueItem[],
+  remote: TranscriptQueueItem[],
+): TranscriptQueueItem[] {
+  const seenIds = new Set(
+    cached.map((item) => item.transcriptId).filter((id): id is string => Boolean(id)),
+  );
+  const extras = remote.filter((item) => !item.transcriptId || !seenIds.has(item.transcriptId));
+  return extras.length === 0 ? cached : [...cached, ...extras];
+}
+
+export function TranscriptUploadPanel({
+  initialOpportunityId = null,
+}: TranscriptUploadPanelProps) {
   const { accessToken, isAuthenticated, loading, session } = useAuth();
-  const [opportunityId, setOpportunityId] = useState<string | null>(null);
-  const [opportunityLabel, setOpportunityLabel] = useState<string | null>(null);
-  const [queueItems, setQueueItems] = useState<TranscriptQueueItem[]>([]);
-  const [uploadSummary, setUploadSummary] = useState<string | null>(null);
+  const cached = getCachedUploadSession();
+  const [opportunity, setOpportunity] = useState<OpportunityResponse | null>(
+    cached.opportunity && (!initialOpportunityId || cached.opportunity.id === initialOpportunityId)
+      ? {
+          ...cached.opportunity,
+          status: "active",
+        }
+      : null,
+  );
+  const [opportunityId, setOpportunityId] = useState<string | null>(
+    initialOpportunityId || cached.opportunity?.id || null,
+  );
+  const [opportunityLabelText, setOpportunityLabelText] = useState<string | null>(
+    cached.opportunity ? opportunityLabel(cached.opportunity) : null,
+  );
+  const [queueItems, setQueueItems] = useState<TranscriptQueueItem[]>(cached.queue);
+  const [uploadSummary, setUploadSummary] = useState<string | null>(cached.summary);
 
   const canUpload = isAuthenticated && Boolean(opportunityId);
   const statusCounts = useMemo(() => countByStatus(queueItems), [queueItems]);
+
+  useEffect(() => {
+    rememberUploadSession({
+      opportunity: opportunity ? storedFromResponse(opportunity) : getCachedUploadSession().opportunity,
+      queue: queueItems,
+      summary: uploadSummary,
+    });
+  }, [opportunity, queueItems, uploadSummary]);
+
+  useEffect(() => {
+    if (!accessToken) {
+      return;
+    }
+    const token = accessToken;
+    const cachedSession = getCachedUploadSession();
+    const restoreId = initialOpportunityId || cachedSession.opportunity?.id;
+    if (!restoreId) {
+      return;
+    }
+    const opportunityKey = restoreId;
+
+    let cancelled = false;
+
+    async function restore() {
+      try {
+        const loaded = await getOpportunity(token, opportunityKey);
+        if (cancelled) {
+          return;
+        }
+        const stored = storedFromResponse(loaded);
+        setOpportunity(loaded);
+        setOpportunityId(loaded.id);
+        setOpportunityLabelText(opportunityLabel(stored));
+        saveActiveOpportunity(stored);
+        clearOpportunityDraft();
+        if (typeof window !== "undefined") {
+          window.history.replaceState(null, "", pipelineHref("/upload", loaded.id));
+        }
+      } catch {
+        if (!cancelled && initialOpportunityId && !cachedSession.opportunity) {
+          setOpportunityId(null);
+        }
+        return;
+      }
+
+      try {
+        const transcripts = await listTranscripts(token, opportunityKey);
+        if (cancelled) {
+          return;
+        }
+        const remoteItems = transcripts.map((item) =>
+          createRestoredQueueItem(item.id, item.file_name),
+        );
+        setQueueItems((current) => {
+          const merged = mergeQueue(current.length > 0 ? current : cachedSession.queue, remoteItems);
+          return merged;
+        });
+        if (transcripts.length > 0) {
+          setUploadSummary((current) =>
+            current ??
+              `${transcripts.length} transcript${transcripts.length === 1 ? "" : "s"} already ingested.`,
+          );
+        }
+      } catch {
+        // Keep the restored opportunity even if the transcript list cannot be loaded.
+      }
+    }
+
+    void restore();
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, initialOpportunityId]);
 
   async function handleCreateOpportunity(values: {
     client_name: string;
@@ -34,10 +161,22 @@ export function TranscriptUploadPanel() {
     if (!accessToken) {
       throw new Error("Sign in is required before creating an opportunity.");
     }
-    const opportunity = await createOpportunity(accessToken, values);
-    setOpportunityId(opportunity.id);
-    setOpportunityLabel(`${values.client_name} — ${values.opportunity_name}`);
+    const created = await createOpportunity(accessToken, values);
+    const stored = storedFromResponse(created);
+    setOpportunity(created);
+    setOpportunityId(created.id);
+    setOpportunityLabelText(opportunityLabel(stored));
     setUploadSummary(null);
+    saveActiveOpportunity(stored);
+    clearOpportunityDraft();
+    rememberUploadSession({
+      opportunity: stored,
+      queue: queueItems,
+      summary: null,
+    });
+    if (typeof window !== "undefined") {
+      window.history.replaceState(null, "", pipelineHref("/upload", created.id));
+    }
   }
 
   async function handleUploadBatch(batch: TranscriptQueueItem[]) {
@@ -110,9 +249,9 @@ export function TranscriptUploadPanel() {
             {opportunityId ? (
               <div className="upload-meta-card">
                 <h3>Active opportunity</h3>
-                {opportunityLabel ? <p className="upload-meta-title">{opportunityLabel}</p> : null}
+                {opportunityLabelText ? <p className="upload-meta-title">{opportunityLabelText}</p> : null}
                 <Link
-                  href={`/framework-review?opportunityId=${opportunityId}`}
+                  href={pipelineHref("/framework-review", opportunityId)}
                   className="btn btn-primary btn-block"
                 >
                   Review framework
@@ -136,6 +275,16 @@ export function TranscriptUploadPanel() {
               </header>
               <OpportunityForm
                 disabled={!isAuthenticated || loading}
+                existing={
+                  opportunity
+                    ? {
+                        client_name: opportunity.client_name,
+                        opportunity_name: opportunity.opportunity_name,
+                        department: opportunity.department,
+                        language: opportunity.language,
+                      }
+                    : null
+                }
                 onSubmit={handleCreateOpportunity}
               />
             </section>

@@ -1,10 +1,17 @@
 import { RequireAuth } from "@/components/RequireAuth";
 import { TranscriptUploadPanel } from "@/components/TranscriptUploadPanel";
 
-export default function UploadPage() {
+interface UploadPageProps {
+  searchParams: Promise<{ opportunityId?: string }>;
+}
+
+export default async function UploadPage({ searchParams }: UploadPageProps) {
+  const params = await searchParams;
+  const opportunityId = params.opportunityId?.trim() || null;
+
   return (
     <RequireAuth>
-      <TranscriptUploadPanel />
+      <TranscriptUploadPanel initialOpportunityId={opportunityId} />
     </RequireAuth>
   );
 }
