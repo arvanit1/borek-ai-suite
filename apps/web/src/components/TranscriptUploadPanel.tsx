@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
+import { AppPageHeader } from "@/components/AppPageHeader";
 import { useAuth } from "@/components/AuthProvider";
 import { FileUploadQueue } from "@/components/FileUploadQueue";
 import { OpportunityForm } from "@/components/OpportunityForm";
+import { PipelineStepper } from "@/components/PipelineStepper";
 import { SiteHeader } from "@/components/SiteHeader";
 import { UploadStepper } from "@/components/UploadStepper";
 import { createOpportunity, uploadTranscript } from "@/lib/api";
@@ -84,21 +86,18 @@ export function TranscriptUploadPanel() {
   }
 
   return (
-    <div className="upload-page">
-      <SiteHeader signedInEmail={session?.user.email} />
+    <div className="app-workspace">
+      <SiteHeader signedInEmail={session?.user.email} opportunityId={opportunityId} />
 
-      <div className="upload-hero">
-        <div className="app-shell upload-hero-inner">
-          <h1>Transcript ingestion</h1>
-          <p className="upload-lead">
-            Attach client discovery transcripts to an opportunity. Unsupported formats are filtered
-            on your device before anything is sent to the server.
-          </p>
-        </div>
-      </div>
-
-      <div className="app-shell upload-body">
+      <div className="app-shell app-workspace-body">
         {!loading && isAuthenticated ? <span data-testid="auth-ready" hidden /> : null}
+
+        <PipelineStepper currentStep={1} opportunityId={opportunityId ?? undefined} />
+        <AppPageHeader
+          kicker="Step 1 of 4"
+          title="Transcript ingestion"
+          lead="Attach client discovery transcripts to an opportunity. Unsupported formats are filtered on your device before anything is sent to the server."
+        />
 
         <div className="upload-layout">
           <aside className="upload-sidebar">
@@ -112,22 +111,26 @@ export function TranscriptUploadPanel() {
               <div className="upload-meta-card">
                 <h3>Active opportunity</h3>
                 {opportunityLabel ? <p className="upload-meta-title">{opportunityLabel}</p> : null}
-                <code className="upload-meta-id">{opportunityId}</code>
                 <Link
                   href={`/framework-review?opportunityId=${opportunityId}`}
-                  className="btn btn-secondary btn-block"
+                  className="btn btn-primary btn-block"
                 >
                   Review framework
                 </Link>
               </div>
-            ) : null}
+            ) : (
+              <div className="upload-meta-card upload-meta-card-muted">
+                <h3>Active opportunity</h3>
+                <p className="upload-meta-empty">Create an opportunity to start this pipeline.</p>
+              </div>
+            )}
           </aside>
 
           <div className="upload-main">
             <section className="upload-panel">
               <header className="upload-panel-header">
                 <div>
-                  <h2>1 · Opportunity details</h2>
+                  <h2>Opportunity details</h2>
                   <p>Every upload is scoped to a sales opportunity record.</p>
                 </div>
               </header>
@@ -137,27 +140,29 @@ export function TranscriptUploadPanel() {
               />
             </section>
 
-            <section className="upload-panel">
+            <section
+              className={`upload-panel${
+                statusCounts.success > 0 && statusCounts.pending === 0 ? " upload-panel-settled" : ""
+              }`}
+            >
               <header className="upload-panel-header">
                 <div>
-                  <h2>2 · Transcript files</h2>
+                  <h2>Transcript files</h2>
                   <p>
-                    Select or drop multiple files. Each file is validated and tracked individually.
+                    {uploadSummary
+                      ? uploadSummary
+                      : "Select or drop multiple files. Each file is validated and tracked individually."}
                   </p>
                 </div>
-                {queueItems.length > 0 ? (
+                {queueItems.length > 0 && statusCounts.pending > 0 ? (
                   <div className="upload-stat-strip" aria-label="File queue summary">
-                    <span>{statusCounts.pending} ready</span>
-                    <span>{statusCounts.rejected} rejected</span>
-                    <span>{statusCounts.success} uploaded</span>
+                    {statusCounts.pending > 0 ? <span>{statusCounts.pending} ready</span> : null}
+                    {statusCounts.rejected > 0 ? <span>{statusCounts.rejected} rejected</span> : null}
+                    {statusCounts.success > 0 ? <span>{statusCounts.success} uploaded</span> : null}
                     {statusCounts.error > 0 ? <span>{statusCounts.error} failed</span> : null}
                   </div>
                 ) : null}
               </header>
-
-              {uploadSummary ? (
-                <div className="upload-banner upload-banner-success">{uploadSummary}</div>
-              ) : null}
 
               {!canUpload && isAuthenticated ? (
                 <p className="upload-hint">

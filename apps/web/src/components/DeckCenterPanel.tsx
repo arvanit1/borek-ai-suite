@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { AppPageHeader } from "@/components/AppPageHeader";
 import { useAuth } from "@/components/AuthProvider";
 import { PipelineStepper } from "@/components/PipelineStepper";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -122,21 +123,10 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
   }
 
   return (
-    <div className="upload-page">
-      <SiteHeader signedInEmail={session?.user.email} />
+    <div className="app-workspace">
+      <SiteHeader signedInEmail={session?.user.email} opportunityId={opportunityId} />
 
-      <div className="upload-hero">
-        <div className="app-shell upload-hero-inner">
-
-          <h1>Deck center</h1>
-          <p className="upload-lead">
-            Preview rendered slide images and download the generated deck before sharing with
-            clients.
-          </p>
-        </div>
-      </div>
-
-      <div className="app-shell upload-body">
+      <div className="app-shell app-workspace-body">
         {!loading && isAuthenticated ? <span data-testid="auth-ready" hidden /> : null}
 
         {!loading && !isAuthenticated ? (
@@ -153,17 +143,24 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
           </div>
         ) : null}
 
+        <PipelineStepper
+          currentStep={4}
+          opportunityId={opportunityId}
+          frameworkReady
+          frameworkConfirmed
+          planReady
+        />
+        <AppPageHeader
+          kicker="Step 4 of 4"
+          title="Deck center"
+          lead="Preview rendered slide images and download the generated deck before sharing with clients."
+        />
+
         <div className="upload-layout">
           <aside className="upload-sidebar">
-            <PipelineStepper
-              currentStep={4}
-              frameworkReady
-              frameworkConfirmed
-              planReady
-            />
             <div className="upload-meta-card">
               <h3>Active opportunity</h3>
-              <code className="upload-meta-id">{opportunityId}</code>
+              <p className="upload-meta-empty">Download the deck when slide previews look correct.</p>
               <Link
                 href={`/plan-preview?opportunityId=${opportunityId}`}
                 className="btn btn-secondary btn-block"

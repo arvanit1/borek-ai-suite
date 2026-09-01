@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { AppPageHeader } from "@/components/AppPageHeader";
 import { useAuth } from "@/components/AuthProvider";
 import { FrameworkChapterView } from "@/components/FrameworkChapterView";
 import { FrameworkRootFieldsPanel } from "@/components/FrameworkRootFieldsPanel";
@@ -187,21 +188,10 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
   }
 
   return (
-    <div className="upload-page">
-      <SiteHeader signedInEmail={session?.user.email} />
+    <div className="app-workspace">
+      <SiteHeader signedInEmail={session?.user.email} opportunityId={opportunityId} />
 
-      <div className="upload-hero">
-        <div className="app-shell upload-hero-inner">
-          <p className="upload-eyebrow">Pipeline · Step 2 of 4</p>
-          <h1>Framework review</h1>
-          <p className="upload-lead">
-            Review all 14 chapters, inspect source references, and edit any field while the
-            framework is draft or in review. Confirmation locks the object.
-          </p>
-        </div>
-      </div>
-
-      <div className="app-shell upload-body">
+      <div className="app-shell app-workspace-body">
         {!loading && isAuthenticated ? <span data-testid="auth-ready" hidden /> : null}
 
         {!loading && !isAuthenticated ? (
@@ -218,17 +208,23 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
           </div>
         ) : null}
 
+        <PipelineStepper
+          currentStep={2}
+          opportunityId={opportunityId}
+          frameworkReady={Boolean(frameworkVersion)}
+          frameworkConfirmed={frameworkConfirmed}
+        />
+        <AppPageHeader
+          kicker="Step 2 of 4"
+          title="Framework review"
+          lead="Review all 14 chapters, inspect source references, and edit any field while the framework is draft or in review. Confirmation locks the object."
+        />
+
         <div className="upload-layout">
           <aside className="upload-sidebar">
-            <PipelineStepper
-              currentStep={2}
-              frameworkReady={Boolean(frameworkVersion)}
-              frameworkConfirmed={frameworkConfirmed}
-            />
-
             <div className="upload-meta-card">
               <h3>Active opportunity</h3>
-              <code className="upload-meta-id">{opportunityId}</code>
+              <p className="upload-meta-empty">Continue when the 14-chapter draft is ready to lock.</p>
               <Link href={`/upload?opportunityId=${opportunityId}`} className="btn btn-secondary btn-block">
                 Back to upload
               </Link>

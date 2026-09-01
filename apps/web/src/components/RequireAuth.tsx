@@ -25,8 +25,10 @@ export function RequireAuth({ children }: RequireAuthProps) {
 
   if (loading) {
     return (
-      <div className="auth-loading">
-        <p>Checking your session…</p>
+      <div className="app-workspace">
+        <div className="auth-loading">
+          <p>Checking your session…</p>
+        </div>
       </div>
     );
   }

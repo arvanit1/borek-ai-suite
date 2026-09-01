@@ -1,0 +1,30 @@
+export const ABC_SYSTEMS_Q2_SAMPLE_FILENAME = "abc_systems_q2_automation_rollout.txt";
+
+export const ABC_SYSTEMS_Q2_SAMPLE_TRANSCRIPT = `Agent: Discovery call for ABC Systems — Q2 Automation Rollout. Scope for this opportunity is one process only: customer purchase-order confirmation in Order Management.
+
+Lena: ABC Systems is a mid-size industrial components distributor. Order Management confirms about 1,850 incoming customer purchase orders every month. These arrive as PDF or Excel attachments in the shared sales mailbox, or as a typed email. We do not treat EDI as in-scope for this rollout.
+
+Lena: A clean confirmation takes 5 to 8 minutes. The clerk opens SAP, finds or creates the sales order, checks available-to-promise stock against the requested date, compares the unit price to the customer contract, and checks that credit is not blocked. If those three checks pass, we confirm the order in SAP and the customer gets the standard order-acknowledgement form from the ERP, not from us typing an email.
+
+Lena: Exceptions take 20 to 25 minutes. About 18 percent of monthly volume is an exception today. The repeatable confirmation work — the clean checks — is about 148 hours per month. The whole Order Management team spends about 260 hours per month on this process including exception chasing.
+
+Lena: Today the trigger is a new mail in the shared sales-orders mailbox on Microsoft 365. The clerk downloads the attachment, keys the sold-to, ship-to, material, quantity, and requested date into SAP S/4HANA, then walks the three checks. If something fails they park the order and ping Sales or Credit on Teams. There is no structured reason code. Same-day rush orders are still confirmed by a person before 15:00.
+
+Lena: The rules we want encoded are simple. Price must match the customer contract within 1 percent. Requested quantity and date must be coverable from ATP stock. Credit status must not be blocked. If the order value is above EUR 25,000, a sales manager must still give one-click release even when the three checks pass. If the same customer PO number was already confirmed, never confirm again — flag a duplicate.
+
+Lena: Exceptions that must stay with people: new material not on the customer catalog, credit block, drop-ship from the vendor, customer-specific drawing or configuration, and same-day rush requested after 12:00. Drop-ship is about 4 percent of volume and stays out of the agent path for Q2. The agent must not send email to the customer on its own, must not create deliveries, and must not post invoices.
+
+Agent: What does success look like for the Q2 board?
+
+Lena: Cut the 148 hours of repeatable confirmation work to under 35 hours per month. Lift first-touch confirmation from 58 percent today to at least 80 percent. Duplicate PO confirmations must be zero. Clean orders that arrive before 12:00 should be confirmed the same working day. This supports the COO target to improve on-time-in-full by 3 percentage points in the second half of the year. Loaded clerk cost for the business case is EUR 54 per hour.
+
+Lena: We want this live inside Q2. Kick-off the week of 6 April. Sandbox and rule walkthrough in April. A 50-order pilot with two clerks from 11 May. Production cutover by 27 June so we can show the June board actuals, not a slide. If IT write access slips, we still go live assistive-only rather than miss the quarter.
+
+Priya: Systems for this process are the shared sales mailbox on Microsoft 365, read via Microsoft Graph, and SAP S/4HANA for sales orders, ATP, customer contracts, and credit status via OData read. SAP write to set the confirmation status still needs Security sign-off. We have a Q-system sandbox. Lena will give 40 anonymized purchase-order examples with prices kept, bank and personal names masked.
+
+Priya: Data classification is confidential because the files contain customer contract prices. Processing and storage in the EU only. No scoring of individual clerks. Every recommendation is logged with a reason code. Kill switch required. The agent must never evaluate people. Write access to SAP is pending until the 21 April security review.
+
+Lena: Stage 1 should be assistive — show the clerk the three-check result and a suggested confirmation in a side panel. Stage 2 is autonomous confirmation with human control: the agent confirms clean orders inside the rules and routes exceptions plus anything above EUR 25,000 for one-click release. That is the recommended build for Q2. Stage 3 could add EDI order acknowledgement after we have six months of telemetry. EDI is not in this rollout.
+
+Lena: Open item on our side: Credit still needs to confirm whether a soft credit warning — not a hard block — should hold the order or only raise a warning. Until they answer, treat a hard credit block as a hold. Soft warnings are an unknown.
+`;
