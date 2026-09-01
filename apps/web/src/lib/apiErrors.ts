@@ -1,5 +1,12 @@
 import { ApiRequestError } from "./api";
 
+export function isMissingOpportunityError(error: unknown): boolean {
+  if (!(error instanceof ApiRequestError)) {
+    return false;
+  }
+  return error.status === 404 || error.code === "NOT_FOUND" || error.code === "OPPORTUNITY_NOT_FOUND";
+}
+
 export function isMissingFrameworkError(error: unknown): boolean {
   if (!(error instanceof ApiRequestError)) {
     return false;

@@ -11,6 +11,7 @@ import {
   saveActiveOpportunity,
   saveActiveOpportunityId,
   saveOpportunityDraft,
+  clearActiveOpportunity,
 } from "./pipelineContext.js";
 
 assert.equal(pipelineHref("/upload"), "/upload");
@@ -69,5 +70,7 @@ rememberUploadSession({
   summary: "1 transcript ingested successfully.",
 });
 assert.equal(getCachedUploadSession().summary, "1 transcript ingested successfully.");
+clearActiveOpportunity();
+assert.equal(loadActiveOpportunity(), null);
 
 console.log("pipelineContext tests passed");
