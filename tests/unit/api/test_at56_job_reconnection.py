@@ -155,6 +155,91 @@ def test_wrong_user_cannot_see_active_job() -> None:
     assert response.status_code == 404, response.text
 
 
+def _confirm_framework(client: TestClient, opportunity_id: str) -> str:
+    generated = client.post(
+        f"/opportunities/{opportunity_id}/framework/generate",
+        headers=_headers(),
+    )
+    assert generated.status_code == 202, generated.text
+    confirm = client.post(
+        f"/opportunities/{opportunity_id}/framework/confirm",
+        headers=_headers(),
+        json={},
+    )
+    assert confirm.status_code == 200, confirm.text
+    return confirm.json()["id"]
+
+
+def test_duplicate_plan_generate_returns_existing_job() -> None:
+    client = _client()
+    opportunity_id = _create_opportunity(client)
+    _confirm_framework(client, opportunity_id)
+    plan_id = uuid.uuid4()
+    job = job_service.create_job(
+        uuid.UUID(opportunity_id),
+        "presentation_planning",
+        enqueue={"presentation_plan_id": str(plan_id), "user_id": str(USER_A)},
+        repository=get_memory_store(),
+    )
+    job = job_service.advance_stage(
+        job.id,
+        JobStage.TRANSCRIPT_PROCESSING,
+        repository=get_memory_store(),
+    )
+
+    with patch("app.worker.run_presentation_planning_task") as mocked:
+        first = client.post(
+            f"/opportunities/{opportunity_id}/presentation-plan/generate",
+            headers=_headers(),
+            json={},
+        )
+        second = client.post(
+            f"/opportunities/{opportunity_id}/presentation-plan/generate",
+            headers=_headers(),
+            json={},
+        )
+
+    assert first.status_code == 202, first.text
+    assert second.status_code == 202, second.text
+    assert first.json()["job_id"] == str(job.id)
+    assert second.json()["job_id"] == str(job.id)
+    assert first.json()["is_existing_job"] is True
+    assert second.json()["is_existing_job"] is True
+    assert first.json()["status"] == "running"
+    assert first.json()["presentation_plan_id"] == str(plan_id)
+    mocked.delay.assert_not_called()
+    mocked.run.assert_not_called()
+
+    store = get_memory_store()
+    planning_jobs = [
+        row
+        for row in store.generation_jobs.values()
+        if str(row.get("job_type") or "") == "presentation_planning"
+    ]
+    assert len(planning_jobs) == 1
+
+
+def test_plan_generate_does_not_reuse_running_deck_job() -> None:
+    client = _client()
+    opportunity_id = _create_opportunity(client)
+    _confirm_framework(client, opportunity_id)
+    deck_job = _create_job(opportunity_id, "presentation_generation")
+
+    with patch("app.worker.run_presentation_planning_task") as mocked:
+        response = client.post(
+            f"/opportunities/{opportunity_id}/presentation-plan/generate",
+            headers=_headers(),
+            json={},
+        )
+
+    assert response.status_code == 202, response.text
+    body = response.json()
+    assert body["is_existing_job"] is False
+    assert body["job_id"] != str(deck_job.id)
+    assert body["status"] == "queued"
+    mocked.run.assert_called_once()
+
+
 def test_stage_group_filters_correctly() -> None:
     client = _client()
     opportunity_id = _create_opportunity(client)
