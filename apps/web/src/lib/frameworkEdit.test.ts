@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   EXPECTED_CHAPTER_COUNT,
   countChaptersWithSourceRefs,
+  formatSourceRefDetail,
   formatSourceRefLabel,
   hasExpectedChapterCount,
   canEditFramework,
@@ -75,8 +76,35 @@ assert.equal(hasExpectedChapterCount(sampleFramework), true);
 assert.equal(countChaptersWithSourceRefs(sampleFramework), 1);
 
 const refLabel = formatSourceRefLabel(sampleFramework.chapters[1].source_refs[0]);
-assert.match(refLabel, /C1/);
-assert.match(refLabel, /dept_head/);
+assert.equal(refLabel, "From Department head in conversation 1, turn 12");
+assert.doesNotMatch(refLabel, /C1/);
+assert.doesNotMatch(refLabel, /dept_head/);
+assert.doesNotMatch(refLabel, /turn-12/);
+
+assert.equal(
+  formatSourceRefLabel({
+    conversation_id: "C1",
+    speaker_role: "it",
+    excerpt_pointer: "turn-34",
+  }),
+  "From IT in conversation 1, turn 34",
+);
+assert.equal(
+  formatSourceRefLabel({
+    conversation_id: "C6",
+    speaker_role: "Sandra",
+    excerpt_pointer: "turn:9",
+  }),
+  "From Sandra in conversation 6, turn 9",
+);
+assert.equal(
+  formatSourceRefDetail({
+    conversation_id: "C1",
+    speaker_role: "it",
+    excerpt_pointer: "turn-34",
+  }),
+  "IT · conversation 1 · turn 34",
+);
 
 const renamed = updateFrameworkRootField(sampleFramework, "title", "Updated title");
 assert.equal(renamed.title, "Updated title");

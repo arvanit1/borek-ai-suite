@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AppPageHeader } from "@/components/AppPageHeader";
 import { useAuth } from "@/components/AuthProvider";
@@ -41,6 +41,9 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
   const [info, setInfo] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const [regeneratingChapterId, setRegeneratingChapterId] = useState<string | null>(null);
+  const [activeChapterId, setActiveChapterId] = useState<string | null>(null);
+  const [hoveredChapterId, setHoveredChapterId] = useState<string | null>(null);
+  const chapterNavItemRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
 
   const editable = frameworkVersion
     ? canEditFramework(frameworkVersion.status, frameworkJson?.status)
@@ -92,6 +95,60 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       refCount: chapter.source_refs.length,
     }));
   }, [frameworkJson]);
+
+  const chapterIdsKey = chapterNav.map((item) => item.chapterId).join("|");
+  const highlightedChapterId = hoveredChapterId ?? activeChapterId;
+
+  useEffect(() => {
+    if (!chapterIdsKey) {
+      setActiveChapterId(null);
+      return;
+    }
+
+    const ids = chapterIdsKey.split("|");
+    const headerOffset = 140;
+
+    function updateActiveChapter() {
+      let current = ids[0];
+      for (const id of ids) {
+        const node = document.getElementById(`framework-chapter-${id}`);
+        if (!node) {
+          continue;
+        }
+        if (node.getBoundingClientRect().top - headerOffset <= 0) {
+          current = id;
+        }
+      }
+      setActiveChapterId((previous) => (previous === current ? previous : current));
+    }
+
+    updateActiveChapter();
+    window.addEventListener("scroll", updateActiveChapter, { passive: true });
+    window.addEventListener("resize", updateActiveChapter);
+    return () => {
+      window.removeEventListener("scroll", updateActiveChapter);
+      window.removeEventListener("resize", updateActiveChapter);
+    };
+  }, [chapterIdsKey]);
+
+  useEffect(() => {
+    if (!highlightedChapterId) {
+      return;
+    }
+    const item = chapterNavItemRefs.current[highlightedChapterId];
+    const sidebar = item?.closest(".framework-sidebar");
+    if (!item || !(sidebar instanceof HTMLElement)) {
+      return;
+    }
+    const sidebarRect = sidebar.getBoundingClientRect();
+    const itemRect = item.getBoundingClientRect();
+    const padding = 8;
+    if (itemRect.top < sidebarRect.top + padding) {
+      sidebar.scrollTop -= sidebarRect.top + padding - itemRect.top;
+    } else if (itemRect.bottom > sidebarRect.bottom - padding) {
+      sidebar.scrollTop += itemRect.bottom - (sidebarRect.bottom - padding);
+    }
+  }, [highlightedChapterId]);
 
   function applyFrameworkDraft(next: FrameworkObject) {
     setFrameworkJson(next);
@@ -375,26 +432,50 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
                   <aside className="framework-sidebar">
                     <h2>Chapters</h2>
                     <ol className="framework-chapter-nav">
-                      {chapterNav.map((item) => (
-                        <li key={item.chapterId}>
-                          <a
-                            href={`#framework-chapter-${item.chapterId}`}
-                            className="framework-chapter-nav-btn"
-                          >
-                            <span>{item.chapterId}</span>
-                            <span>{item.title}</span>
-                            {item.refCount > 0 ? (
-                              <span className="framework-ref-count">{item.refCount} refs</span>
-                            ) : null}
-                          </a>
-                        </li>
-                      ))}
+                      {chapterNav.map((item) => {
+                        const isHighlighted = highlightedChapterId === item.chapterId;
+                        return (
+                          <li key={item.chapterId}>
+                            <a
+                              ref={(node) => {
+                                chapterNavItemRefs.current[item.chapterId] = node;
+                              }}
+                              href={`#framework-chapter-${item.chapterId}`}
+                              className={
+                                isHighlighted
+                                  ? "framework-chapter-nav-btn framework-chapter-nav-btn-active"
+                                  : "framework-chapter-nav-btn"
+                              }
+                              aria-current={isHighlighted ? "true" : undefined}
+                              onClick={() => setActiveChapterId(item.chapterId)}
+                            >
+                              <span>{item.chapterId}</span>
+                              <span>{item.title}</span>
+                              {item.refCount > 0 ? (
+                                <span className="framework-ref-count">{item.refCount} refs</span>
+                              ) : null}
+                            </a>
+                          </li>
+                        );
+                      })}
                     </ol>
                   </aside>
 
-                  <div className="framework-main framework-all-chapters">
+                  <div
+                    className="framework-main framework-all-chapters"
+                    onMouseLeave={() => setHoveredChapterId(null)}
+                  >
                     {frameworkJson.chapters.map((chapter, chapterIndex) => (
-                      <div key={chapter.chapter_id} id={`framework-chapter-${chapter.chapter_id}`}>
+                      <div
+                        key={chapter.chapter_id}
+                        id={`framework-chapter-${chapter.chapter_id}`}
+                        className={
+                          highlightedChapterId === chapter.chapter_id
+                            ? "framework-chapter-anchor framework-chapter-anchor-active"
+                            : "framework-chapter-anchor"
+                        }
+                        onMouseEnter={() => setHoveredChapterId(chapter.chapter_id)}
+                      >
                         <FrameworkChapterView
                           chapter={chapter}
                           editable={editable && !busy}

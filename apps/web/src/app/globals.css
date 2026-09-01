@@ -1435,6 +1435,12 @@ textarea {
   padding: 1.1rem;
   position: sticky;
   top: 5.25rem;
+  max-height: calc(100vh - 6rem);
+  overflow: auto;
+}
+
+.framework-sidebar h2 {
+  margin: 0 0 0.75rem;
 }
 
 .framework-main {
@@ -1488,9 +1494,24 @@ textarea {
   text-decoration: none;
 }
 
+.framework-chapter-nav-btn:hover {
+  border-color: var(--color-primary);
+  background: var(--borek-primary-soft);
+  text-decoration: none;
+}
+
 .framework-chapter-nav-btn-active {
   border-color: var(--color-primary);
   background: var(--borek-primary-soft);
+  box-shadow: inset 3px 0 0 var(--color-primary);
+}
+
+.framework-chapter-anchor {
+  scroll-margin-top: 5.5rem;
+}
+
+.framework-chapter-anchor-active .framework-chapter {
+  border-color: var(--color-primary);
 }
 
 .framework-ref-count {
@@ -1545,17 +1566,14 @@ textarea {
 .source-ref-badge {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
   border-radius: 999px;
   background: #f2f4f7;
   border: 1px solid var(--color-border);
-  padding: 0.2rem 0.55rem;
+  padding: 0.2rem 0.7rem;
   font-size: 0.78rem;
-}
-
-.source-ref-badge-label {
-  font-weight: 700;
+  font-weight: 600;
   color: var(--color-primary);
+  line-height: 1.35;
 }
 
 .framework-root-fields {

@@ -1,15 +1,15 @@
 import type { ConversationRef } from "@/lib/frameworkTypes";
-import { formatSourceRefLabel } from "@/lib/frameworkEdit";
+import { formatSourceRefDetail, formatSourceRefLabel } from "@/lib/frameworkEdit";
 
 interface SourceRefBadgeProps {
   refItem: ConversationRef;
 }
 
 export function SourceRefBadge({ refItem }: SourceRefBadgeProps) {
+  const label = formatSourceRefLabel(refItem);
   return (
-    <span className="source-ref-badge" title={formatSourceRefLabel(refItem)}>
-      <span className="source-ref-badge-label">Source</span>
-      <span className="source-ref-badge-value">{formatSourceRefLabel(refItem)}</span>
+    <span className="source-ref-badge" title={formatSourceRefDetail(refItem)}>
+      {label}
     </span>
   );
 }
