@@ -1519,6 +1519,27 @@ textarea {
   gap: 0.5rem;
 }
 
+.framework-export-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1.25rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--border-subtle, #d8dee9);
+  border-radius: 0.75rem;
+  background: var(--surface-muted, #f6f8fb);
+}
+
+.framework-export-panel p {
+  margin: 0.35rem 0 0;
+  max-width: 42rem;
+  color: var(--text-muted, #4a5568);
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
 .pipeline-empty-panel .upload-panel-header {
   margin-bottom: 0;
   border-bottom: none;

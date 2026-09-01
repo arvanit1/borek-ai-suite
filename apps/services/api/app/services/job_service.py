@@ -437,11 +437,17 @@ def record_metrics(
 
 
 def job_to_response(job: Job) -> JobResponse:
+    from app.services.planning_job_errors import enrich_job_error_message
+
     error: JobErrorDetail | None = None
     if job.status == JobStatus.FAILED and job.failed_stage is not None:
+        error_payload = {
+            "code": job.error_code or "JOB_FAILED",
+            "message": job.error_message or "Job failed",
+        }
         error = JobErrorDetail(
-            code=job.error_code or "JOB_FAILED",
-            message=job.error_message or "Job failed",
+            code=str(error_payload["code"]),
+            message=enrich_job_error_message(error_payload),
             stage=job.failed_stage,
             retryable=bool(job.error_retryable),
         )

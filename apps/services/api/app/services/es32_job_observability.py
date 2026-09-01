@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict
+import json
 from typing import Any
 
 from services.observability.llm_logger import get_llm_call_logs, jobs_for_opportunity
@@ -22,11 +22,7 @@ def build_framework_job_observability(
         for item in jobs_for_opportunity(opportunity_id)
     ]
     at53_logs = [
-        {
-            **asdict(entry),
-            "timestamp": entry.timestamp.isoformat().replace("+00:00", "Z"),
-            "source": "at53",
-        }
+        {**entry.to_json_dict(), "source": "at53"}
         for entry in get_llm_call_logs()
         if entry.opportunity_id is not None
         and str(entry.opportunity_id) == str(opportunity_id)
@@ -41,7 +37,7 @@ def build_framework_job_observability(
     )
     input_tokens = sum(int(item.get("input_tokens") or 0) for item in llm_calls)
     output_tokens = sum(int(item.get("output_tokens") or 0) for item in llm_calls)
-    return {
+    payload = {
         "framework_version_id": framework_version_id,
         "opportunity_id": opportunity_id,
         "llm_calls": llm_calls,
@@ -51,6 +47,9 @@ def build_framework_job_observability(
         "ai_output_tokens": output_tokens,
         "number_of_ai_calls": len(llm_calls),
     }
+    # AT-53: job completion must survive Supabase JSON encoding.
+    json.dumps(payload)
+    return payload
 
 
 def apply_framework_job_observability(job: Any, payload: dict[str, Any]) -> None:

@@ -1,4 +1,5 @@
 import type { ActiveJobResponse } from "./api";
+import { formatJobFailureMessage } from "./jobErrors";
 
 export type ReconnectPage = "framework" | "plan" | "deck";
 export type JobStageGroup = "framework" | "presentation";
@@ -40,7 +41,7 @@ export function isMonitorableJobStatus(status: string): boolean {
 }
 
 export function jobFailureMessage(job: Pick<ActiveJobResponse, "error">): string {
-  return job.error?.message ?? "Generation job failed";
+  return formatJobFailureMessage(job.error ?? null);
 }
 
 export function inspectActiveJob(
