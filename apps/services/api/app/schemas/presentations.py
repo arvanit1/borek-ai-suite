@@ -48,7 +48,7 @@ class PresentationResponse(BaseModel):
 
 
 class PresentationPlanGenerateResponse(JobEnqueueResponse):
-    presentation_plan_id: UUID
+    presentation_plan_id: UUID | None = None
 
 
 class PresentationGenerateResponse(JobEnqueueResponse):

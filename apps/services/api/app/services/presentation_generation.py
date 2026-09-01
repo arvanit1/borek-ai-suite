@@ -136,6 +136,16 @@ def _assert_plan_matches_generated_specs(
             )
 
 
+def _existing_plan_payload(job: job_service.Job) -> dict[str, Any]:
+    enqueue = dict((job.result_json or {}).get("_enqueue") or {})
+    plan_id = enqueue.get("presentation_plan_id") or (job.result_json or {}).get(
+        "presentation_plan_id"
+    )
+    if plan_id:
+        return {"id": UUID(str(plan_id))}
+    return {"id": None}
+
+
 def enqueue_presentation_plan_generate(
     store: DataStore,
     *,
@@ -149,6 +159,15 @@ def enqueue_presentation_plan_generate(
         user_id=user_id,
         framework_version_id=framework_version_id,
     )
+    existing = job_service.reuse_active_generation_job(
+        store,
+        opportunity_id,
+        stage_group="presentation",
+        job_type="presentation_planning",
+    )
+    if existing is not None:
+        return _existing_plan_payload(existing), existing, True
+
     plan_id = uuid.uuid4()
     job = job_service.create_job(
         opportunity_id=opportunity_id,
@@ -169,7 +188,7 @@ def enqueue_presentation_plan_generate(
         str(user_id),
         str(plan_id),
     )
-    return {"id": plan_id}, job
+    return {"id": plan_id}, job, False
 
 
 def execute_presentation_planning(

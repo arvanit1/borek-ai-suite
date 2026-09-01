@@ -226,6 +226,8 @@ class SupabaseDataStore:
         self,
         opportunity_id: str | UUID,
         stage_group: str | None = None,
+        *,
+        job_type: str | None = None,
     ) -> dict[str, Any] | None:
         from app.services.job_service import select_reconnect_job
 
@@ -234,7 +236,9 @@ class SupabaseDataStore:
             "opportunity_id": f"eq.{opportunity_id}",
             "order": "created_at.desc",
         }
-        if stage_group == "framework":
+        if job_type:
+            params["job_type"] = f"eq.{job_type}"
+        elif stage_group == "framework":
             params["job_type"] = "ilike.*framework*"
         elif stage_group == "presentation":
             params["or"] = "(job_type.ilike.*presentation*,job_type.ilike.*slide*)"

@@ -144,6 +144,8 @@ class MemoryDataStore:
         self,
         opportunity_id: str | UUID,
         stage_group: str | None = None,
+        *,
+        job_type: str | None = None,
     ) -> dict[str, Any] | None:
         from app.services.job_service import select_reconnect_job
 
@@ -152,6 +154,7 @@ class MemoryDataStore:
             copy.deepcopy(row)
             for row in self.generation_jobs.values()
             if row.get("opportunity_id") == target
+            and (job_type is None or str(row.get("job_type") or "") == job_type)
         ]
         return select_reconnect_job(rows, stage_group=stage_group)
 

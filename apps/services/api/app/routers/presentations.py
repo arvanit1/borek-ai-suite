@@ -114,7 +114,7 @@ def generate_presentation_plan(
     user: AuthUserDep,
     store: DataStoreDep,
 ) -> PresentationPlanGenerateResponse:
-    plan, job = presentation_generation.enqueue_presentation_plan_generate(
+    plan, job, is_existing = presentation_generation.enqueue_presentation_plan_generate(
         store,
         opportunity_id=opportunity_id,
         user_id=user.id,
@@ -125,12 +125,13 @@ def generate_presentation_plan(
         actor_id=user.id,
         action=AuditAction.PRESENTATION_PLAN_GENERATE,
         object_type=AuditObjectType.PRESENTATION_PLAN,
-        object_id=plan["id"],
+        object_id=plan.get("id") or opportunity_id,
     )
     return PresentationPlanGenerateResponse(
         job_id=str(job.id),
-        status="queued",
-        presentation_plan_id=plan["id"],
+        status=job_service.enqueue_status_for_job(job, existing=is_existing),
+        is_existing_job=is_existing,
+        presentation_plan_id=plan.get("id"),
     )
 
 

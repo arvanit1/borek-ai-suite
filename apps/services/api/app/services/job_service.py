@@ -216,12 +216,16 @@ def reuse_active_generation_job(
     repository: Any,
     opportunity_id: uuid.UUID,
     stage_group: str | None = None,
+    *,
+    job_type: str | None = None,
 ) -> Job | None:
     getter = getattr(repository, "get_active_job_for_opportunity", None)
     if getter is None:
         return None
-    row = getter(opportunity_id, stage_group)
+    row = getter(opportunity_id, stage_group, job_type=job_type)
     if row is None or not is_non_terminal_job(row):
+        return None
+    if job_type is not None and str(row.get("job_type") or "") != job_type:
         return None
     return _job_from_row(row)
 
