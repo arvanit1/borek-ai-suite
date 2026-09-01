@@ -409,6 +409,15 @@ def get_job(job_id: uuid.UUID, *, repository: Any | None = None) -> Job | None:
     return _load(job_id, repository)
 
 
+def get_latest_job_for_opportunity(
+    opportunity_id: uuid.UUID,
+    *,
+    repository: Any,
+) -> Job | None:
+    row = repository.get_latest_generation_job_for_opportunity(opportunity_id)
+    return _job_from_row(row) if row is not None else None
+
+
 def record_metrics(
     job_id: uuid.UUID,
     *,
@@ -442,6 +451,7 @@ def job_to_response(job: Job) -> JobResponse:
         job_type=job.job_type,
         status=job.status,
         current_stage=job.current_stage,
+        created_at=job.created_at,
         started_at=job.started_at,
         completed_at=job.completed_at,
         error=error,

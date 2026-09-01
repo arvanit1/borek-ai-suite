@@ -57,6 +57,7 @@ class JobResponse(BaseModel):
     job_type: str
     status: JobStatus
     current_stage: JobStage
+    created_at: datetime
     started_at: datetime | None = None
     completed_at: datetime | None = None
     error: JobErrorDetail | None = None

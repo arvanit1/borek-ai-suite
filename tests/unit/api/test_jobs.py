@@ -11,6 +11,7 @@ from app.config import settings
 from app.main import create_app
 from app.schemas.jobs import JobStage, JobStatus
 from app.services import job_service
+from app.services.data.memory_store import get_memory_store
 
 USER_ID = uuid.UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
 OTHER_USER_ID = uuid.UUID("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")
@@ -102,3 +103,50 @@ def test_get_job_status_requires_opportunity_ownership() -> None:
 
     response = client.get(f"/jobs/{job.id}", headers=_headers(OTHER_USER_ID))
     assert response.status_code == 404
+
+
+def test_get_latest_opportunity_job_returns_latest_failure() -> None:
+    client = _client()
+    opportunity_id = _create_opportunity(client)
+    store = get_memory_store()
+    job_service.create_job(
+        uuid.UUID(opportunity_id),
+        "framework_generation",
+        repository=store,
+    )
+    latest = job_service.create_job(
+        uuid.UUID(opportunity_id),
+        "presentation_generation",
+        repository=store,
+    )
+    job_service.fail_job(
+        latest.id,
+        "PPTX_RENDER_FAILED",
+        "Renderer unavailable",
+        JobStage.PPTX_RENDERING,
+        retryable=True,
+        repository=store,
+    )
+
+    response = client.get(
+        f"/opportunities/{opportunity_id}/jobs/latest",
+        headers=_headers(),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["job_id"] == str(latest.id)
+    assert response.json()["status"] == JobStatus.FAILED.value
+    assert response.json()["created_at"] is not None
+
+
+def test_get_latest_opportunity_job_returns_null_without_jobs() -> None:
+    client = _client()
+    opportunity_id = _create_opportunity(client)
+
+    response = client.get(
+        f"/opportunities/{opportunity_id}/jobs/latest",
+        headers=_headers(),
+    )
+
+    assert response.status_code == 200
+    assert response.json() is None

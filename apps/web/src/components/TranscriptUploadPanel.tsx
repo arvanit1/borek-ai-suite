@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { AppPageHeader } from "@/components/AppPageHeader";
@@ -27,6 +28,7 @@ import {
   pipelineHref,
   rememberUploadSession,
   saveActiveOpportunity,
+  scopeUploadSession,
 } from "@/lib/pipelineContext";
 import { countByStatus } from "@/lib/uploadQueue";
 import type { TranscriptQueueItem } from "@/lib/uploadQueue";
@@ -62,10 +64,11 @@ export function TranscriptUploadPanel({
   initialOpportunityId = null,
   startFresh = false,
 }: TranscriptUploadPanelProps) {
+  const router = useRouter();
   const { accessToken, isAuthenticated, loading, session } = useAuth();
   const cached = startFresh
     ? { opportunity: null, queue: [], summary: null }
-    : getCachedUploadSession();
+    : scopeUploadSession(getCachedUploadSession(), initialOpportunityId);
   const [opportunity, setOpportunity] = useState<OpportunityResponse | null>(
     cached.opportunity && (!initialOpportunityId || cached.opportunity.id === initialOpportunityId)
       ? {
@@ -83,7 +86,9 @@ export function TranscriptUploadPanel({
   const [queueItems, setQueueItems] = useState<TranscriptQueueItem[]>(cached.queue);
   const [uploadSummary, setUploadSummary] = useState<string | null>(cached.summary);
 
-  const canUpload = isAuthenticated && Boolean(opportunityId);
+  const contextMatchesRequest = !initialOpportunityId || opportunityId === initialOpportunityId;
+  const canUpload =
+    isAuthenticated && !startFresh && Boolean(opportunityId) && contextMatchesRequest;
   const statusCounts = useMemo(() => countByStatus(queueItems), [queueItems]);
 
   useEffect(() => {
@@ -91,10 +96,24 @@ export function TranscriptUploadPanel({
       return;
     }
     clearPipelineContext();
-    if (typeof window !== "undefined") {
-      window.history.replaceState(null, "", "/upload");
+    setOpportunity(null);
+    setOpportunityId(null);
+    setOpportunityLabelText(null);
+    setQueueItems([]);
+    setUploadSummary(null);
+    router.replace("/upload");
+  }, [router, startFresh]);
+
+  useEffect(() => {
+    if (!initialOpportunityId || opportunityId === initialOpportunityId) {
+      return;
     }
-  }, [startFresh]);
+    setOpportunity(null);
+    setOpportunityId(initialOpportunityId);
+    setOpportunityLabelText(null);
+    setQueueItems([]);
+    setUploadSummary(null);
+  }, [initialOpportunityId, opportunityId]);
 
   useEffect(() => {
     rememberUploadSession({
@@ -112,7 +131,7 @@ export function TranscriptUploadPanel({
       return;
     }
     const token = accessToken;
-    const cachedSession = getCachedUploadSession();
+    const cachedSession = scopeUploadSession(getCachedUploadSession(), initialOpportunityId);
     const restoreId = initialOpportunityId || cachedSession.opportunity?.id;
     if (!restoreId) {
       return;
@@ -207,7 +226,7 @@ export function TranscriptUploadPanel({
   }
 
   async function handleUploadBatch(batch: TranscriptQueueItem[]) {
-    if (!accessToken || !opportunityId) {
+    if (!accessToken || !opportunityId || !contextMatchesRequest || startFresh) {
       throw new Error("Create an opportunity before uploading.");
     }
 

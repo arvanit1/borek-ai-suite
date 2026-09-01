@@ -129,6 +129,19 @@ class MemoryDataStore:
         row = self.generation_jobs.get(job_id)
         return copy.deepcopy(row) if row is not None else None
 
+    def get_latest_generation_job_for_opportunity(
+        self,
+        opportunity_id: UUID,
+    ) -> dict[str, Any] | None:
+        rows = [
+            row
+            for row in self.generation_jobs.values()
+            if row["opportunity_id"] == opportunity_id
+        ]
+        if not rows:
+            return None
+        return copy.deepcopy(max(rows, key=lambda row: row["created_at"]))
+
     def update_generation_job(
         self,
         job_id: UUID,

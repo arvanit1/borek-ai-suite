@@ -67,6 +67,9 @@ export interface JobResponse {
   job_type: string;
   status: "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED";
   current_stage: string;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
   result: Record<string, unknown>;
   error: JobErrorDetail | null;
 }
@@ -130,6 +133,7 @@ export async function getJob(
   return apiFetch<JobResponse>(`/jobs/${jobId}`, accessToken);
 }
 
+<<<<<<< Updated upstream
 export async function retryJob(
   accessToken: string,
   jobId: string,
@@ -164,6 +168,16 @@ export async function getActiveJob(
     }
     throw error;
   }
+=======
+export async function getLatestOpportunityJob(
+  accessToken: string,
+  opportunityId: string,
+): Promise<JobResponse | null> {
+  return apiFetch<JobResponse | null>(
+    `/opportunities/${opportunityId}/jobs/latest`,
+    accessToken,
+  );
+>>>>>>> Stashed changes
 }
 
 export const FRAMEWORK_JOB_TIMEOUT_MS = 720_000;
@@ -240,6 +254,7 @@ export interface TranscriptResponse {
   id: string;
   file_name: string;
   processing_status: string;
+  created_at: string;
 }
 
 export interface TranscriptUploadResponse {

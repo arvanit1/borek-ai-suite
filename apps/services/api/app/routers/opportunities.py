@@ -15,8 +15,13 @@ from app.schemas.opportunities import (
     OpportunityResponse,
     OpportunityUpdateRequest,
 )
+<<<<<<< Updated upstream
 from app.services import job_service
 from app.services.api_errors import not_found
+=======
+from app.schemas.jobs import JobResponse
+from app.services import job_service
+>>>>>>> Stashed changes
 from app.services.audit import AuditAction, AuditObjectType, record_audit_event
 
 router = APIRouter(dependencies=[Depends(get_current_user)])
@@ -95,6 +100,17 @@ def get_opportunity(
 ) -> OpportunityResponse:
     row = store.get_opportunity(opportunity_id=opportunity_id, user_id=user.id)
     return _to_response(row)
+
+
+@router.get("/{opportunity_id}/jobs/latest", response_model=JobResponse | None)
+def get_latest_opportunity_job(
+    opportunity_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> JobResponse | None:
+    store.get_opportunity(opportunity_id=opportunity_id, user_id=user.id)
+    job = job_service.get_latest_job_for_opportunity(opportunity_id, repository=store)
+    return job_service.job_to_response(job) if job is not None else None
 
 
 @router.patch("/{opportunity_id}", response_model=OpportunityResponse)

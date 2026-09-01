@@ -12,6 +12,7 @@ import {
   saveActiveOpportunity,
   saveActiveOpportunityId,
   saveOpportunityDraft,
+  scopeUploadSession,
   clearActiveOpportunity,
 } from "./pipelineContext.js";
 
@@ -79,5 +80,23 @@ assert.equal(loadActiveOpportunity(), null);
 assert.equal(loadOpportunityDraft(), null);
 assert.equal(getCachedUploadSession().opportunity, null);
 assert.deepEqual(getCachedUploadSession().queue, []);
+
+const cachedForFirst = {
+  opportunity: {
+    id: "opp-1",
+    client_name: "Acme",
+    opportunity_name: "Q3 rollout",
+    department: "Finance",
+    language: "en",
+  },
+  queue: [],
+  summary: "Pending upload",
+};
+assert.equal(scopeUploadSession(cachedForFirst, "opp-1"), cachedForFirst);
+assert.deepEqual(scopeUploadSession(cachedForFirst, "opp-2"), {
+  opportunity: null,
+  queue: [],
+  summary: null,
+});
 
 console.log("pipelineContext tests passed");

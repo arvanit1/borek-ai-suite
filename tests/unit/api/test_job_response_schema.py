@@ -16,6 +16,7 @@ def test_job_response_without_error_serializes_correctly() -> None:
         job_type="framework_generation",
         status=JobStatus.RUNNING,
         current_stage=JobStage.TRANSCRIPT_PROCESSING,
+        created_at=datetime(2026, 1, 1, tzinfo=UTC),
         started_at=datetime(2026, 1, 1, tzinfo=UTC),
         completed_at=None,
         error=None,
@@ -33,6 +34,7 @@ def test_job_response_with_error_serializes_correctly() -> None:
         job_type="presentation_generation",
         status=JobStatus.FAILED,
         current_stage=JobStage.FAILED,
+        created_at=datetime(2026, 1, 1, tzinfo=UTC),
         started_at=datetime(2026, 1, 1, tzinfo=UTC),
         completed_at=datetime(2026, 1, 2, tzinfo=UTC),
         error=JobErrorDetail(

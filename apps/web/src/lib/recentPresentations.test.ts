@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   buildRecentWorkItems,
   formatRecentDate,
+  latestActivityAt,
   type RecentWorkSnapshot,
 } from "./recentPresentations.js";
 
@@ -70,6 +71,26 @@ const authenticatedRows = buildRecentWorkItems([
 ]);
 assert.deepEqual(authenticatedRows.map((item) => item.opportunityId), ["owned-2", "owned-1"]);
 assert.ok(!authenticatedRows.some((item) => item.opportunityId === "cached-foreign"));
+
+const activitySorted = buildRecentWorkItems([
+  snapshot("new-opportunity", "2026-09-01T13:00:00Z"),
+  snapshot("recently-rendered", "2026-08-20T13:00:00Z", {
+    activityAt: "2026-09-01T14:00:00Z",
+  }),
+]);
+assert.deepEqual(
+  activitySorted.map((item) => item.opportunityId),
+  ["recently-rendered", "new-opportunity"],
+);
+assert.equal(
+  latestActivityAt(
+    "2026-08-20T13:00:00Z",
+    undefined,
+    "2026-09-01T14:00:00Z",
+    "invalid",
+  ),
+  "2026-09-01T14:00:00Z",
+);
 
 assert.equal(formatRecentDate("2026-09-01T23:30:00-05:00"), "2 Sep 2026");
 assert.equal(formatRecentDate("invalid"), "Date unavailable");

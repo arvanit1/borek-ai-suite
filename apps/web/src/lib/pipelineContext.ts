@@ -18,7 +18,7 @@ export interface StoredOpportunity {
   language: string;
 }
 
-interface CachedUploadSession {
+export interface CachedUploadSession {
   opportunity: StoredOpportunity | null;
   queue: TranscriptQueueItem[];
   summary: string | null;
@@ -163,4 +163,14 @@ export function rememberUploadSession(session: CachedUploadSession): void {
 
 export function getCachedUploadSession(): CachedUploadSession {
   return cachedUploadSession;
+}
+
+export function scopeUploadSession(
+  session: CachedUploadSession,
+  opportunityId?: string | null,
+): CachedUploadSession {
+  if (!opportunityId || session.opportunity?.id === opportunityId) {
+    return session;
+  }
+  return { opportunity: null, queue: [], summary: null };
 }

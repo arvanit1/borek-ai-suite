@@ -22,6 +22,7 @@ export interface RecentWorkSnapshot {
   deck?: {
     pptx_download_url: string;
   };
+  activityAt?: string;
   failed?: boolean;
 }
 
@@ -92,7 +93,8 @@ export function buildRecentWorkItems(snapshots: RecentWorkSnapshot[]): RecentWor
         opportunityId: snapshot.opportunity.id,
         clientName: snapshot.opportunity.client_name,
         opportunityName: snapshot.opportunity.opportunity_name,
-        updatedAt: snapshot.opportunity.updated_at || snapshot.opportunity.created_at,
+        updatedAt:
+          snapshot.activityAt || snapshot.opportunity.updated_at || snapshot.opportunity.created_at,
         lifecycle,
         statusLabel: STATUS_LABELS[lifecycle],
         actionLabel:
@@ -105,6 +107,16 @@ export function buildRecentWorkItems(snapshots: RecentWorkSnapshot[]): RecentWor
       } satisfies RecentWorkItem;
     })
     .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt));
+}
+
+export function latestActivityAt(...values: Array<string | null | undefined>): string {
+  const valid = values
+    .filter(
+      (value): value is string =>
+        typeof value === "string" && !Number.isNaN(Date.parse(value)),
+    )
+    .sort((left, right) => Date.parse(right) - Date.parse(left));
+  return valid[0] ?? "";
 }
 
 export function formatRecentDate(value: string): string {

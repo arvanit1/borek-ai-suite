@@ -4,16 +4,59 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import shutil
 import zipfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path, PurePosixPath
+from threading import Lock
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
+
+if os.name == "nt":
+    import msvcrt
+else:
+    import fcntl
 
 import httpx
 
 from app.config import settings
 from app.services.deck_assets import deck_assets_root
+
+_publication_locks: dict[UUID, Lock] = {}
+_publication_locks_guard = Lock()
+
+
+@contextmanager
+def _process_publication_lock(version_id: UUID) -> Iterator[None]:
+    lock_path = deck_assets_root() / f".{version_id}.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with lock_path.open("a+b") as lock_file:
+        if os.name == "nt":
+            if lock_path.stat().st_size == 0:
+                lock_file.write(b"\0")
+                lock_file.flush()
+            lock_file.seek(0)
+            msvcrt.locking(lock_file.fileno(), msvcrt.LK_LOCK, 1)
+        else:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            if os.name == "nt":
+                lock_file.seek(0)
+                msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+
+
+@contextmanager
+def _publication_lock(version_id: UUID) -> Iterator[None]:
+    with _publication_locks_guard:
+        thread_lock = _publication_locks.setdefault(version_id, Lock())
+    with thread_lock, _process_publication_lock(version_id):
+        yield
 
 
 class RendererClientError(RuntimeError):
@@ -67,8 +110,10 @@ def _extract_bundle(
     expected_slide_count: int,
 ) -> dict[str, object]:
     output_dir = deck_assets_root() / str(version_id)
-    shutil.rmtree(output_dir, ignore_errors=True)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    invocation_id = uuid4().hex
+    staging_dir = output_dir.with_name(f"{output_dir.name}.staging-{invocation_id}")
+    backup_dir = output_dir.with_name(f"{output_dir.name}.backup-{invocation_id}")
+    staging_dir.mkdir(parents=True, exist_ok=True)
 
     try:
         with zipfile.ZipFile(io.BytesIO(content)) as archive:
@@ -99,8 +144,8 @@ def _extract_bundle(
                     "Renderer manifest does not match the requested presentation",
                 )
 
-            (output_dir / "deck.pptx").write_bytes(archive.read("deck.pptx"))
-            (output_dir / "deck.pdf").write_bytes(archive.read("deck.pdf"))
+            (staging_dir / "deck.pptx").write_bytes(archive.read("deck.pptx"))
+            (staging_dir / "deck.pdf").write_bytes(archive.read("deck.pdf"))
             preview_paths: list[str] = []
             for index, source_name in enumerate(previews, start=1):
                 if source_name not in names:
@@ -108,23 +153,35 @@ def _extract_bundle(
                         "INVALID_RENDERER_ARCHIVE",
                         f"Renderer archive is missing {source_name}",
                     )
-                target = output_dir / f"slide-{index:03d}.png"
+                target = staging_dir / f"slide-{index:03d}.png"
                 target.write_bytes(archive.read(source_name))
-                preview_paths.append(str(target.resolve()))
+                preview_paths.append(str((output_dir / target.name).resolve()))
+
+        with _publication_lock(version_id):
+            if output_dir.exists():
+                output_dir.replace(backup_dir)
+            try:
+                staging_dir.replace(output_dir)
+            except OSError:
+                if backup_dir.exists() and not output_dir.exists():
+                    backup_dir.replace(output_dir)
+                raise
+            shutil.rmtree(backup_dir, ignore_errors=True)
+            storage_size_bytes = sum(
+                path.stat().st_size for path in output_dir.iterdir() if path.is_file()
+            )
 
         return {
             "pptx_storage_path": str((output_dir / "deck.pptx").resolve()),
             "pdf_storage_path": str((output_dir / "deck.pdf").resolve()),
             "preview_image_paths": preview_paths,
-            "storage_size_bytes": sum(
-                path.stat().st_size for path in output_dir.iterdir() if path.is_file()
-            ),
+            "storage_size_bytes": storage_size_bytes,
         }
     except RendererClientError:
-        shutil.rmtree(output_dir, ignore_errors=True)
+        shutil.rmtree(staging_dir, ignore_errors=True)
         raise
     except (OSError, ValueError, zipfile.BadZipFile, KeyError, json.JSONDecodeError) as exc:
-        shutil.rmtree(output_dir, ignore_errors=True)
+        shutil.rmtree(staging_dir, ignore_errors=True)
         raise RendererClientError(
             "INVALID_RENDERER_ARCHIVE",
             f"Could not store renderer artifacts: {exc}",

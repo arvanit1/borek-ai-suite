@@ -10,6 +10,7 @@ import {
   downloadPresentationFile,
   getDeckCenter,
   getLatestFramework,
+  getLatestOpportunityJob,
   getLatestPresentation,
   getLatestPresentationPlan,
   listOpportunities,
@@ -26,6 +27,7 @@ import { buildDownloadFilename } from "@/lib/deckCenter";
 import {
   buildRecentWorkItems,
   formatRecentDate,
+  latestActivityAt,
   type RecentWorkItem,
   type RecentWorkSnapshot,
 } from "@/lib/recentPresentations";
@@ -49,7 +51,7 @@ async function loadSnapshot(
   opportunity: ListedOpportunityResponse,
 ): Promise<RecentWorkSnapshot> {
   try {
-    const [transcripts, framework, plan, presentation] = await Promise.all([
+    const [transcripts, framework, plan, presentation, latestJob] = await Promise.all([
       listTranscripts(accessToken, opportunity.id),
       optionalResource(
         getLatestFramework(accessToken, opportunity.id),
@@ -63,6 +65,7 @@ async function loadSnapshot(
         getLatestPresentation(accessToken, opportunity.id),
         isMissingPresentationError,
       ),
+      getLatestOpportunityJob(accessToken, opportunity.id),
     ]);
 
     const deck = presentation
@@ -80,12 +83,26 @@ async function loadSnapshot(
       presentationId: presentation?.id,
       presentationName: deck?.presentation_name ?? presentation?.name,
       deck: deck ? { pptx_download_url: deck.pptx_download_url } : undefined,
+      activityAt: latestActivityAt(
+        opportunity.updated_at,
+        opportunity.created_at,
+        ...transcripts.map((transcript) => transcript.created_at),
+        framework?.created_at,
+        framework?.framework_json.updated_at,
+        plan?.created_at,
+        presentation?.created_at,
+        latestJob?.created_at,
+        latestJob?.started_at,
+        latestJob?.completed_at,
+      ),
+      failed: latestJob?.status === "FAILED",
     };
   } catch {
     return {
       opportunity,
       transcriptCount: 0,
       hasPlan: false,
+      activityAt: opportunity.updated_at || opportunity.created_at,
       failed: true,
     };
   }
