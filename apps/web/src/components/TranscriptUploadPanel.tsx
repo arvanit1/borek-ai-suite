@@ -17,7 +17,9 @@ import {
   uploadTranscript,
   type OpportunityResponse,
 } from "@/lib/api";
+import { isMissingOpportunityError } from "@/lib/apiErrors";
 import {
+  clearActiveOpportunity,
   clearOpportunityDraft,
   getCachedUploadSession,
   opportunityLabel,
@@ -116,9 +118,16 @@ export function TranscriptUploadPanel({
         if (typeof window !== "undefined") {
           window.history.replaceState(null, "", pipelineHref("/upload", loaded.id));
         }
-      } catch {
-        if (!cancelled && initialOpportunityId && !cachedSession.opportunity) {
+      } catch (restoreError) {
+        if (!cancelled && isMissingOpportunityError(restoreError)) {
+          clearActiveOpportunity();
+          setOpportunity(null);
           setOpportunityId(null);
+          setOpportunityLabelText(null);
+          setQueueItems([]);
+          if (typeof window !== "undefined") {
+            window.history.replaceState(null, "", "/upload");
+          }
         }
         return;
       }

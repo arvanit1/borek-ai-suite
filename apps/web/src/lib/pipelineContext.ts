@@ -137,6 +137,15 @@ export function clearOpportunityDraft(): void {
   getSessionStorage()?.removeItem(DRAFT_KEY);
 }
 
+export function clearActiveOpportunity(): void {
+  cachedUploadSession = {
+    opportunity: null,
+    queue: [],
+    summary: null,
+  };
+  getSessionStorage()?.removeItem(ACTIVE_KEY);
+}
+
 export function rememberUploadSession(session: CachedUploadSession): void {
   cachedUploadSession = session;
 }

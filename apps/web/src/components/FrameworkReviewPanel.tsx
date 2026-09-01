@@ -14,6 +14,7 @@ import {
   confirmFramework,
   generateFramework,
   getLatestFramework,
+  listTranscripts,
   regenerateFrameworkChapter,
   updateFramework as persistFramework,
   waitForJob,
@@ -41,6 +42,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
   const [info, setInfo] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const [regeneratingChapterId, setRegeneratingChapterId] = useState<string | null>(null);
+  const [transcriptCount, setTranscriptCount] = useState<number | null>(null);
   const [activeChapterId, setActiveChapterId] = useState<string | null>(null);
   const [hoveredChapterId, setHoveredChapterId] = useState<string | null>(null);
   const chapterNavItemRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
@@ -83,6 +85,27 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       void loadFramework();
     }
   }, [accessToken, loading, loadFramework]);
+
+  useEffect(() => {
+    if (!accessToken) {
+      return;
+    }
+    let cancelled = false;
+    void listTranscripts(accessToken, opportunityId)
+      .then((rows) => {
+        if (!cancelled) {
+          setTranscriptCount(rows.length);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setTranscriptCount(0);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, opportunityId]);
 
   const chapterNav = useMemo(() => {
     if (!frameworkJson) {
@@ -157,6 +180,10 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
 
   async function handleGenerate() {
     if (!accessToken) {
+      return;
+    }
+    if ((transcriptCount ?? 0) === 0) {
+      setError("Upload at least one transcript before generating a framework.");
       return;
     }
     setBusy(true);
@@ -322,15 +349,35 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
                   <div className="pipeline-empty-icon" aria-hidden="true">
                     14
                   </div>
-                  <p>No framework version exists yet for this opportunity.</p>
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    disabled={busy}
-                    onClick={() => void handleGenerate()}
-                  >
-                    Generate framework
-                  </button>
+                  {(transcriptCount ?? 0) === 0 ? (
+                    <>
+                      <p>
+                        No transcripts are attached to this opportunity yet. Upload at least one
+                        discovery transcript, then generate the framework.
+                      </p>
+                      <Link
+                        href={`/upload?opportunityId=${opportunityId}`}
+                        className="btn btn-primary"
+                      >
+                        Back to upload
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <p>
+                        {transcriptCount} transcript{transcriptCount === 1 ? "" : "s"} ready.
+                        Generate the 14-chapter draft to review it here.
+                      </p>
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        disabled={busy}
+                        onClick={() => void handleGenerate()}
+                      >
+                        Generate framework
+                      </button>
+                    </>
+                  )}
                 </div>
               </section>
             ) : null}
