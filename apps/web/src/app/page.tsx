@@ -1,5 +1,10 @@
-import { redirect } from "next/navigation";
+import { RecentPresentationsPanel } from "@/components/RecentPresentationsPanel";
+import { RequireAuth } from "@/components/RequireAuth";
 
 export default function HomePage() {
-  redirect("/login");
+  return (
+    <RequireAuth>
+      <RecentPresentationsPanel />
+    </RequireAuth>
+  );
 }

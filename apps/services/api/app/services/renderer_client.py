@@ -67,9 +67,8 @@ def _extract_bundle(
     expected_slide_count: int,
 ) -> dict[str, object]:
     output_dir = deck_assets_root() / str(version_id)
-    staging_dir = output_dir.with_name(f"{output_dir.name}.staging")
-    shutil.rmtree(staging_dir, ignore_errors=True)
-    staging_dir.mkdir(parents=True, exist_ok=True)
+    shutil.rmtree(output_dir, ignore_errors=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     try:
         with zipfile.ZipFile(io.BytesIO(content)) as archive:
@@ -100,8 +99,8 @@ def _extract_bundle(
                     "Renderer manifest does not match the requested presentation",
                 )
 
-            (staging_dir / "deck.pptx").write_bytes(archive.read("deck.pptx"))
-            (staging_dir / "deck.pdf").write_bytes(archive.read("deck.pdf"))
+            (output_dir / "deck.pptx").write_bytes(archive.read("deck.pptx"))
+            (output_dir / "deck.pdf").write_bytes(archive.read("deck.pdf"))
             preview_paths: list[str] = []
             for index, source_name in enumerate(previews, start=1):
                 if source_name not in names:
@@ -109,12 +108,10 @@ def _extract_bundle(
                         "INVALID_RENDERER_ARCHIVE",
                         f"Renderer archive is missing {source_name}",
                     )
-                target = staging_dir / f"slide-{index:03d}.png"
+                target = output_dir / f"slide-{index:03d}.png"
                 target.write_bytes(archive.read(source_name))
-                preview_paths.append(str((output_dir / target.name).resolve()))
+                preview_paths.append(str(target.resolve()))
 
-        shutil.rmtree(output_dir, ignore_errors=True)
-        staging_dir.replace(output_dir)
         return {
             "pptx_storage_path": str((output_dir / "deck.pptx").resolve()),
             "pdf_storage_path": str((output_dir / "deck.pdf").resolve()),
@@ -124,10 +121,10 @@ def _extract_bundle(
             ),
         }
     except RendererClientError:
-        shutil.rmtree(staging_dir, ignore_errors=True)
+        shutil.rmtree(output_dir, ignore_errors=True)
         raise
     except (OSError, ValueError, zipfile.BadZipFile, KeyError, json.JSONDecodeError) as exc:
-        shutil.rmtree(staging_dir, ignore_errors=True)
+        shutil.rmtree(output_dir, ignore_errors=True)
         raise RendererClientError(
             "INVALID_RENDERER_ARCHIVE",
             f"Could not store renderer artifacts: {exc}",

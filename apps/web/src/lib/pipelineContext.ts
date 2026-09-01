@@ -146,6 +146,17 @@ export function clearActiveOpportunity(): void {
   getSessionStorage()?.removeItem(ACTIVE_KEY);
 }
 
+export function clearPipelineContext(): void {
+  cachedUploadSession = {
+    opportunity: null,
+    queue: [],
+    summary: null,
+  };
+  const storage = getSessionStorage();
+  storage?.removeItem(ACTIVE_KEY);
+  storage?.removeItem(DRAFT_KEY);
+}
+
 export function rememberUploadSession(session: CachedUploadSession): void {
   cachedUploadSession = session;
 }

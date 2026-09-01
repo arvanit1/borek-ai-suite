@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 
 import {
+  clearPipelineContext,
   clearOpportunityDraft,
   getCachedUploadSession,
   loadActiveOpportunity,
@@ -72,5 +73,11 @@ rememberUploadSession({
 assert.equal(getCachedUploadSession().summary, "1 transcript ingested successfully.");
 clearActiveOpportunity();
 assert.equal(loadActiveOpportunity(), null);
+
+clearPipelineContext();
+assert.equal(loadActiveOpportunity(), null);
+assert.equal(loadOpportunityDraft(), null);
+assert.equal(getCachedUploadSession().opportunity, null);
+assert.deepEqual(getCachedUploadSession().queue, []);
 
 console.log("pipelineContext tests passed");

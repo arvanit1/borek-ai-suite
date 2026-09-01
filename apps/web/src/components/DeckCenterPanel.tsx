@@ -15,7 +15,10 @@ import {
   getLatestPresentation,
   waitForJob,
 } from "@/lib/api";
-import { isMissingPresentationError } from "@/lib/apiErrors";
+import {
+  isMissingPresentationError,
+  isPresentationNotReadyError,
+} from "@/lib/apiErrors";
 import { buildDownloadFilename, mapDeckSlides } from "@/lib/deckCenter";
 import type { DeckCenterResponse, PresentationResponse } from "@/lib/deckTypes";
 
@@ -57,7 +60,10 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
     } catch (loadError) {
       setPresentation(null);
       setDeck(null);
-      if (!isMissingPresentationError(loadError)) {
+      if (
+        !isMissingPresentationError(loadError) &&
+        !isPresentationNotReadyError(loadError)
+      ) {
         const message =
           loadError instanceof Error ? loadError.message : "Could not load presentation.";
         setError(message);

@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.schemas.errors import build_error_response
+from app.services.renderer_client import RendererClientError
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +63,17 @@ def register_error_handlers(app: FastAPI) -> None:
                 message="Request validation failed",
                 detail={"errors": exc.errors()},
             ),
+        )
+
+    @app.exception_handler(RendererClientError)
+    async def renderer_client_error_handler(
+        _request: Request,
+        exc: RendererClientError,
+    ) -> JSONResponse:
+        status_code = 503 if exc.retryable else 422
+        return JSONResponse(
+            status_code=status_code,
+            content=build_error_response(code=exc.code, message=str(exc)),
         )
 
     @app.exception_handler(Exception)

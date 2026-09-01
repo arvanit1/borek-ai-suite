@@ -27,3 +27,10 @@ export function isMissingPresentationError(error: unknown): boolean {
   }
   return error.status === 404 || error.code === "PRESENTATION_NOT_FOUND";
 }
+
+export function isPresentationNotReadyError(error: unknown): boolean {
+  if (!(error instanceof ApiRequestError)) {
+    return false;
+  }
+  return error.code === "PRESENTATION_NOT_READY";
+}

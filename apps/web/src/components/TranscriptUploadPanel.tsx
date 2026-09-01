@@ -21,6 +21,7 @@ import { isMissingOpportunityError } from "@/lib/apiErrors";
 import {
   clearActiveOpportunity,
   clearOpportunityDraft,
+  clearPipelineContext,
   getCachedUploadSession,
   opportunityLabel,
   pipelineHref,
@@ -33,6 +34,7 @@ import { createRestoredQueueItem, updateQueueItem } from "@/lib/uploadQueue";
 
 interface TranscriptUploadPanelProps {
   initialOpportunityId?: string | null;
+  startFresh?: boolean;
 }
 
 function storedFromResponse(opportunity: OpportunityResponse) {
@@ -58,9 +60,12 @@ function mergeQueue(
 
 export function TranscriptUploadPanel({
   initialOpportunityId = null,
+  startFresh = false,
 }: TranscriptUploadPanelProps) {
   const { accessToken, isAuthenticated, loading, session } = useAuth();
-  const cached = getCachedUploadSession();
+  const cached = startFresh
+    ? { opportunity: null, queue: [], summary: null }
+    : getCachedUploadSession();
   const [opportunity, setOpportunity] = useState<OpportunityResponse | null>(
     cached.opportunity && (!initialOpportunityId || cached.opportunity.id === initialOpportunityId)
       ? {
@@ -82,6 +87,16 @@ export function TranscriptUploadPanel({
   const statusCounts = useMemo(() => countByStatus(queueItems), [queueItems]);
 
   useEffect(() => {
+    if (!startFresh) {
+      return;
+    }
+    clearPipelineContext();
+    if (typeof window !== "undefined") {
+      window.history.replaceState(null, "", "/upload");
+    }
+  }, [startFresh]);
+
+  useEffect(() => {
     rememberUploadSession({
       opportunity: opportunity ? storedFromResponse(opportunity) : getCachedUploadSession().opportunity,
       queue: queueItems,
@@ -91,6 +106,9 @@ export function TranscriptUploadPanel({
 
   useEffect(() => {
     if (!accessToken) {
+      return;
+    }
+    if (startFresh) {
       return;
     }
     const token = accessToken;
@@ -159,7 +177,7 @@ export function TranscriptUploadPanel({
     return () => {
       cancelled = true;
     };
-  }, [accessToken, initialOpportunityId]);
+  }, [accessToken, initialOpportunityId, startFresh]);
 
   async function handleCreateOpportunity(values: {
     client_name: string;
