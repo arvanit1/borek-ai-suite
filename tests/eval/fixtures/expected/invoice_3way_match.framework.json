@@ -2899,7 +2899,27 @@
     "llm_used": false,
     "generated_at": "2026-08-26T10:00:00Z",
     "llm_job_log": [],
-    "process_scope": null
+    "process_scope": null,
+    "pii_handling": {
+      "redaction_enabled": true,
+      "applied_before_llm": true,
+      "policy_path": "config/pii_redaction.yaml",
+      "rules": {
+        "emails": true,
+        "phones": true,
+        "names": true
+      }
+    },
+    "prompt_observability": {
+      "llm_used": false,
+      "llm_model": "deterministic-builder",
+      "prompt_version": "framework-synthesis:v1",
+      "job_count": 0,
+      "stages": [],
+      "models": [],
+      "prompt_versions": [],
+      "total_tokens": 0
+    }
   },
   "render": {
     "allowed": true,
@@ -2907,5 +2927,101 @@
     "band": "ready_to_build",
     "reason": null
   },
-  "readiness_band": "ready_to_build"
+  "readiness_band": "ready_to_build",
+  "review_summary": {
+    "language": "en",
+    "headline": "Invoice 3-Way Match",
+    "executive_summary": "Accounts Payable matches around 3,000 invoices per month against purchase orders and goods receipts. At a glance Generated automatically from the captured conversations. Missing facts are listed, never guessed. Release for build at evolution stage 2 (autonomous with human control) only if all three quality gates pass. Blocking items are listed in chapter 11; numbered next steps are in chapter 13.",
+    "key_pain_points": [
+      "auto-match rate",
+      "manual handling time",
+      "Success target",
+      "Cycle time"
+    ],
+    "key_requirements": [
+      "Write access: ERP write access for payment postings needs formal approval from the IT lead.",
+      "Access approval: ERP write access for payment postings needs formal approval from the IT lead.",
+      "Test data / sandbox: SSO connection of the exception app is required. ERP sandbox with test data is available.",
+      "Identity / SSO: SSO connection of the exception app is required. ERP sandbox with test data is available.",
+      "Read access: Not named in the conversations. Recorded as an open item rather than guessed.",
+      "Sample / test data: Not named in the conversations. Recorded as an open item rather than guessed."
+    ],
+    "target_outcomes": [
+      "auto-match rate: at least 85 percent",
+      "manual handling time: at most 12 hours per month",
+      "Success target: Success target: 0 wrong postings outside tolerance, measured via audit log and Finance spot checks.",
+      "Cycle time: Not named in the conversations. Recorded as an open item rather than guessed."
+    ],
+    "assumptions": [
+      {
+        "item_type": "assumption",
+        "description": "Formal ERP write-access approval date is not in the transcript.",
+        "owner": "Business",
+        "status": null,
+        "chapter_id": null
+      },
+      {
+        "item_type": "assumption",
+        "description": "Target remaining hours mentioned in conversation but not parsed into engine_inputs — needs owner review (KPI manual handling time baseline about 73).",
+        "owner": "Business",
+        "status": null,
+        "chapter_id": null
+      },
+      {
+        "item_type": "assumption",
+        "description": "Number 13,770 was not named in the conversations. Recorded as an open item rather than guessed.",
+        "owner": "Business",
+        "status": null,
+        "chapter_id": null
+      }
+    ],
+    "open_questions": [],
+    "contradictions": [],
+    "evidence_warnings": [],
+    "readiness": {
+      "band": "ready_to_build",
+      "status_label": "READY TO BUILD",
+      "build_readiness": 94,
+      "conversation_quality": 82,
+      "opportunity_rating": 68,
+      "render_allowed": true,
+      "assumptions_banner": true
+    },
+    "blocking_items": [],
+    "score_rationale": {
+      "opportunity_rating": "Opportunity rating 68/100 from 73 hours/month and a 3-week path.",
+      "conversation_quality": "Conversation quality 82/100 (strong).",
+      "build_readiness": "Build-readiness 94/100 (ready to build)."
+    },
+    "source_coverage": {
+      "chapters_with_refs": 14,
+      "chapters_total": 14,
+      "chapters_missing_refs": 0
+    },
+    "confirm_ready": true,
+    "confirm_block_reason": null
+  },
+  "attention": {
+    "review_state": "REVIEW_RECOMMENDED",
+    "signals": [
+      {
+        "id": "REVIEW_RECOMMENDED",
+        "severity": "warning",
+        "message": "Build-readiness is 94/100 with documented assumptions.",
+        "action": "Review assumptions in chapter 11 before approval.",
+        "chapter_id": "11",
+        "count": 3
+      }
+    ]
+  },
+  "attention_signals": [
+    {
+      "id": "REVIEW_RECOMMENDED",
+      "severity": "warning",
+      "message": "Build-readiness is 94/100 with documented assumptions.",
+      "action": "Review assumptions in chapter 11 before approval.",
+      "chapter_id": "11",
+      "count": 3
+    }
+  ]
 }

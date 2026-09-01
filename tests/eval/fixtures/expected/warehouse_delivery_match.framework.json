@@ -1888,7 +1888,27 @@
     "llm_used": false,
     "generated_at": "2026-08-26T10:00:00Z",
     "llm_job_log": [],
-    "process_scope": null
+    "process_scope": null,
+    "pii_handling": {
+      "redaction_enabled": true,
+      "applied_before_llm": true,
+      "policy_path": "config/pii_redaction.yaml",
+      "rules": {
+        "emails": true,
+        "phones": true,
+        "names": true
+      }
+    },
+    "prompt_observability": {
+      "llm_used": false,
+      "llm_model": "deterministic-builder",
+      "prompt_version": "framework-synthesis:v1",
+      "job_count": 0,
+      "stages": [],
+      "models": [],
+      "prompt_versions": [],
+      "total_tokens": 0
+    }
   },
   "render": {
     "allowed": false,
@@ -1896,5 +1916,113 @@
     "band": "not_ready",
     "reason": "Build-readiness is 54/100. A customer report is not rendered below 60. Close the gaps first."
   },
-  "readiness_band": "not_ready"
+  "readiness_band": "not_ready",
+  "review_summary": {
+    "language": "en",
+    "headline": "Warehouse Delivery-Note Match",
+    "executive_summary": "The warehouse team matches about 500 delivery notes per month to outbound shipments. At a glance Generated automatically from the captured conversations. Missing facts are listed, never guessed. Release for build at evolution stage 2 (autonomous with human control) only if all three quality gates pass. Blocking items are listed in chapter 11; numbered next steps are in chapter 13.",
+    "key_pain_points": [
+      "Automation rate",
+      "Manual handling time",
+      "Quality / error rate",
+      "Cycle time"
+    ],
+    "key_requirements": [
+      "Read access: Not named in the conversations. Recorded as an open item rather than guessed.",
+      "Write access: Not named in the conversations. Recorded as an open item rather than guessed.",
+      "Sample / test data: Not named in the conversations. Recorded as an open item rather than guessed.",
+      "Rule confirmation: Not named in the conversations. Recorded as an open item rather than guessed.",
+      "Identity / SSO: Not named in the conversations. Recorded as an open item rather than guessed."
+    ],
+    "target_outcomes": [
+      "Automation rate: Not named in the conversations. Recorded as an open item rather than guessed.",
+      "Manual handling time: Not named in the conversations. Recorded as an open item rather than guessed.",
+      "Quality / error rate: Not named in the conversations. Recorded as an open item rather than guessed.",
+      "Cycle time: Not named in the conversations. Recorded as an open item rather than guessed."
+    ],
+    "assumptions": [
+      {
+        "item_type": "assumption",
+        "description": "The write path for automatic posting is not approved yet.",
+        "owner": "Business",
+        "status": null,
+        "chapter_id": null
+      },
+      {
+        "item_type": "assumption",
+        "description": "Sample documents have not been shared.",
+        "owner": "Business",
+        "status": null,
+        "chapter_id": null
+      }
+    ],
+    "open_questions": [],
+    "contradictions": [],
+    "evidence_warnings": [],
+    "readiness": {
+      "band": "not_ready",
+      "status_label": "BLOCKED",
+      "build_readiness": 54,
+      "conversation_quality": 58,
+      "opportunity_rating": 52,
+      "render_allowed": false,
+      "assumptions_banner": false
+    },
+    "blocking_items": [
+      {
+        "kind": "readiness",
+        "chapter_id": "11",
+        "message": "Build-readiness is 54/100. A customer report is not rendered below 60. Close the gaps first."
+      }
+    ],
+    "score_rationale": {
+      "opportunity_rating": "Opportunity rating 52/100 from 60 hours/month and a 2.2-week path.",
+      "conversation_quality": "Conversation quality 58/100 (usable).",
+      "build_readiness": "Build-readiness 54/100 (not ready)."
+    },
+    "source_coverage": {
+      "chapters_with_refs": 14,
+      "chapters_total": 14,
+      "chapters_missing_refs": 0
+    },
+    "confirm_ready": true,
+    "confirm_block_reason": null
+  },
+  "attention": {
+    "review_state": "MISSING_REQUIRED_INFORMATION",
+    "signals": [
+      {
+        "id": "MISSING_REQUIRED_INFORMATION",
+        "severity": "blocking",
+        "message": "Build-readiness is 54/100. A customer report is not rendered below 60. Close the gaps first.",
+        "action": "Close the open items in chapter 11 before approval.",
+        "chapter_id": "11"
+      },
+      {
+        "id": "REVIEW_RECOMMENDED",
+        "severity": "warning",
+        "message": "Build-readiness is 54/100 with documented assumptions.",
+        "action": "Review assumptions in chapter 11 before approval.",
+        "chapter_id": "11",
+        "count": 2
+      }
+    ]
+  },
+  "attention_signals": [
+    {
+      "id": "MISSING_REQUIRED_INFORMATION",
+      "severity": "blocking",
+      "message": "Build-readiness is 54/100. A customer report is not rendered below 60. Close the gaps first.",
+      "action": "Close the open items in chapter 11 before approval.",
+      "chapter_id": "11"
+    },
+    {
+      "id": "REVIEW_RECOMMENDED",
+      "severity": "warning",
+      "message": "Build-readiness is 54/100 with documented assumptions.",
+      "action": "Review assumptions in chapter 11 before approval.",
+      "chapter_id": "11",
+      "count": 2
+    }
+  ]
 }

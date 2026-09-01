@@ -1858,7 +1858,27 @@
     "llm_used": false,
     "generated_at": "2026-08-26T10:00:00Z",
     "llm_job_log": [],
-    "process_scope": null
+    "process_scope": null,
+    "pii_handling": {
+      "redaction_enabled": true,
+      "applied_before_llm": true,
+      "policy_path": "config/pii_redaction.yaml",
+      "rules": {
+        "emails": true,
+        "phones": true,
+        "names": true
+      }
+    },
+    "prompt_observability": {
+      "llm_used": false,
+      "llm_model": "deterministic-builder",
+      "prompt_version": "framework-synthesis:v1",
+      "job_count": 0,
+      "stages": [],
+      "models": [],
+      "prompt_versions": [],
+      "total_tokens": 0
+    }
   },
   "render": {
     "allowed": true,
@@ -1866,5 +1886,87 @@
     "band": "ready_with_assumptions",
     "reason": null
   },
-  "readiness_band": "ready_with_assumptions"
+  "readiness_band": "ready_with_assumptions",
+  "review_summary": {
+    "language": "en",
+    "headline": "Minimal AP Invoice Match",
+    "executive_summary": "The AP team receives about 200 supplier invoices per month and matches them to purchase orders in the ERP by hand. At a glance Generated automatically from the captured conversations. Missing facts are listed, never guessed. Release for build at evolution stage 2 (autonomous with human control) only if all three quality gates pass. Blocking items are listed in chapter 11; numbered next steps are in chapter 13.",
+    "key_pain_points": [
+      "Success means reaching at least 70 percent",
+      "Automation rate",
+      "Manual handling time",
+      "Cycle time"
+    ],
+    "key_requirements": [
+      "Access approval: Every posting still needs a human one-click approval.",
+      "Read access: Not named in the conversations. Recorded as an open item rather than guessed.",
+      "Write access: Not named in the conversations. Recorded as an open item rather than guessed.",
+      "Sample / test data: Not named in the conversations. Recorded as an open item rather than guessed.",
+      "Rule confirmation: Not named in the conversations. Recorded as an open item rather than guessed.",
+      "Identity / SSO: Not named in the conversations. Recorded as an open item rather than guessed."
+    ],
+    "target_outcomes": [
+      "Success means reaching at least 70 percent: Success means reaching at least 70 percent auto-match.",
+      "Automation rate: Not named in the conversations. Recorded as an open item rather than guessed.",
+      "Manual handling time: Not named in the conversations. Recorded as an open item rather than guessed.",
+      "Cycle time: Not named in the conversations. Recorded as an open item rather than guessed."
+    ],
+    "assumptions": [
+      {
+        "item_type": "assumption",
+        "description": "Sample invoices have not been provided yet.",
+        "owner": "Business",
+        "status": null,
+        "chapter_id": null
+      }
+    ],
+    "open_questions": [],
+    "contradictions": [],
+    "evidence_warnings": [],
+    "readiness": {
+      "band": "ready_with_assumptions",
+      "status_label": "READY WITH ASSUMPTIONS",
+      "build_readiness": 72,
+      "conversation_quality": 63,
+      "opportunity_rating": 60,
+      "render_allowed": true,
+      "assumptions_banner": true
+    },
+    "blocking_items": [],
+    "score_rationale": {
+      "opportunity_rating": "Opportunity rating 60/100 from 25 hours/month and a 1.6-week path.",
+      "conversation_quality": "Conversation quality 63/100 (usable).",
+      "build_readiness": "Build-readiness 72/100 (ready with assumptions)."
+    },
+    "source_coverage": {
+      "chapters_with_refs": 14,
+      "chapters_total": 14,
+      "chapters_missing_refs": 0
+    },
+    "confirm_ready": true,
+    "confirm_block_reason": null
+  },
+  "attention": {
+    "review_state": "REVIEW_RECOMMENDED",
+    "signals": [
+      {
+        "id": "REVIEW_RECOMMENDED",
+        "severity": "warning",
+        "message": "Build-readiness is 72/100 with documented assumptions.",
+        "action": "Review assumptions in chapter 11 before approval.",
+        "chapter_id": "11",
+        "count": 1
+      }
+    ]
+  },
+  "attention_signals": [
+    {
+      "id": "REVIEW_RECOMMENDED",
+      "severity": "warning",
+      "message": "Build-readiness is 72/100 with documented assumptions.",
+      "action": "Review assumptions in chapter 11 before approval.",
+      "chapter_id": "11",
+      "count": 1
+    }
+  ]
 }
