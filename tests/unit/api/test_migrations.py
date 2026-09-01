@@ -114,3 +114,12 @@ def test_generation_job_runtime_migration_adds_results_and_metrics() -> None:
         "created_at",
     ):
         assert f"ADD COLUMN IF NOT EXISTS {column}" in content
+
+
+def test_llm_calls_migration_creates_durable_observability_table() -> None:
+    content = (MIGRATIONS_DIR / "014_llm_calls.sql").read_text(encoding="utf-8")
+    assert "CREATE TABLE IF NOT EXISTS llm_calls" in content
+    assert "ALTER TABLE llm_calls ENABLE ROW LEVEL SECURITY;" in content
+    assert "users_own_llm_calls" in content
+    assert "ADD COLUMN IF NOT EXISTS llm_cost_eur" in content
+    assert "created_by = auth.uid()" in content

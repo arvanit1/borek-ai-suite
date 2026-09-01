@@ -6,18 +6,28 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { FrameworkChapterView } from "@/components/FrameworkChapterView";
 import { FrameworkRootFieldsPanel } from "@/components/FrameworkRootFieldsPanel";
+import { JobFailureAlert } from "@/components/JobFailureAlert";
 import { PipelineStepper } from "@/components/PipelineStepper";
 import { SiteHeader } from "@/components/SiteHeader";
 import {
+  ApiRequestError,
   FRAMEWORK_JOB_TIMEOUT_MS,
   confirmFramework,
   generateFramework,
+  getActiveJob,
   getLatestFramework,
   regenerateFrameworkChapter,
+  retryJob,
   updateFramework as persistFramework,
   waitForJob,
 } from "@/lib/api";
 import { isMissingFrameworkError } from "@/lib/apiErrors";
+import {
+  generationProgressMessage,
+  inspectActiveJob,
+  stageGroupForPage,
+} from "@/lib/jobReconnect";
+import { countFactSourceRefs } from "@/lib/frameworkEvidence";
 import {
   EXPECTED_CHAPTER_COUNT,
   canEditFramework,
@@ -40,6 +50,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
   const [info, setInfo] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const [regeneratingChapterId, setRegeneratingChapterId] = useState<string | null>(null);
+  const [retryJobId, setRetryJobId] = useState<string | null>(null);
 
   const editable = frameworkVersion
     ? canEditFramework(frameworkVersion.status, frameworkJson?.status)
@@ -50,12 +61,10 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
         (frameworkJson != null && isFrameworkConfirmed(frameworkJson.status))),
   );
 
-  const loadFramework = useCallback(async () => {
+  const applyLatestFramework = useCallback(async () => {
     if (!accessToken) {
       return;
     }
-    setBusy(true);
-    setError(null);
     try {
       const latest = await getLatestFramework(accessToken, opportunityId);
       setFrameworkVersion(latest);
@@ -65,20 +74,100 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       setFrameworkVersion(null);
       setFrameworkJson(null);
       if (!isMissingFrameworkError(loadError)) {
-        const message =
-          loadError instanceof Error ? loadError.message : "Could not load framework.";
-        setError(message);
+        throw loadError;
       }
-    } finally {
-      setBusy(false);
     }
   }, [accessToken, opportunityId]);
 
-  useEffect(() => {
-    if (!loading && accessToken) {
-      void loadFramework();
+  const loadFramework = useCallback(async () => {
+    if (!accessToken) {
+      return;
     }
-  }, [accessToken, loading, loadFramework]);
+    setBusy(true);
+    setError(null);
+    try {
+      await applyLatestFramework();
+    } catch (loadError) {
+      const message =
+        loadError instanceof Error ? loadError.message : "Could not load framework.";
+      setError(message);
+    } finally {
+      setBusy(false);
+    }
+  }, [accessToken, applyLatestFramework]);
+
+  useEffect(() => {
+    if (loading || !accessToken) {
+      return;
+    }
+    const token = accessToken;
+    let cancelled = false;
+    async function bootstrap() {
+      setBusy(true);
+      setError(null);
+      setInfo(null);
+      setRetryJobId(null);
+      try {
+        const job = await getActiveJob(
+          token,
+          opportunityId,
+          stageGroupForPage("framework"),
+        );
+        if (cancelled) {
+          return;
+        }
+        const decision = inspectActiveJob(job, "framework");
+        if (decision.action === "monitor") {
+          setInfo(generationProgressMessage("framework", true));
+          try {
+            await waitForJob(token, decision.jobId, FRAMEWORK_JOB_TIMEOUT_MS);
+          } catch (monitorError) {
+            if (!cancelled) {
+              setError(
+                monitorError instanceof Error ? monitorError.message : "Generation job failed.",
+              );
+              if (monitorError instanceof ApiRequestError && monitorError.retryable && monitorError.jobId) {
+                setRetryJobId(monitorError.jobId);
+              }
+            }
+          }
+        } else if (decision.action === "failed") {
+          setError(decision.message);
+          if (decision.retryable) {
+            setRetryJobId(decision.jobId);
+          }
+        }
+        if (cancelled) {
+          return;
+        }
+        try {
+          await applyLatestFramework();
+        } catch (loadError) {
+          if (!cancelled && decision.action !== "failed") {
+            const message =
+              loadError instanceof Error ? loadError.message : "Could not load framework.";
+            setError(message);
+          }
+        }
+      } catch (bootstrapError) {
+        if (!cancelled) {
+          setError(
+            bootstrapError instanceof Error
+              ? bootstrapError.message
+              : "Could not reconnect to the generation job.",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setBusy(false);
+        }
+      }
+    }
+    void bootstrap();
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, applyLatestFramework, loading, opportunityId]);
 
   const chapterNav = useMemo(() => {
     if (!frameworkJson) {
@@ -88,7 +177,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       index,
       chapterId: chapter.chapter_id,
       title: chapter.title,
-      refCount: chapter.source_refs.length,
+      refCount: countFactSourceRefs(chapter),
     }));
   }, [frameworkJson]);
 
@@ -104,13 +193,39 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
     setBusy(true);
     setError(null);
     setInfo(null);
+    setRetryJobId(null);
     try {
       const generated = await generateFramework(accessToken, opportunityId);
-      setInfo("Framework generation is running…");
+      setInfo(generationProgressMessage("framework", Boolean(generated.is_existing_job)));
       await waitForJob(accessToken, generated.job_id, FRAMEWORK_JOB_TIMEOUT_MS);
       await loadFramework();
     } catch (generateError) {
       setError(generateError instanceof Error ? generateError.message : "Generate failed.");
+      if (generateError instanceof ApiRequestError && generateError.retryable && generateError.jobId) {
+        setRetryJobId(generateError.jobId);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleRetry() {
+    if (!accessToken || !retryJobId) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    setInfo("Retrying generation from the last failed stage…");
+    try {
+      const queued = await retryJob(accessToken, retryJobId);
+      setRetryJobId(null);
+      await waitForJob(accessToken, queued.job_id, FRAMEWORK_JOB_TIMEOUT_MS);
+      await loadFramework();
+    } catch (retryError) {
+      setError(retryError instanceof Error ? retryError.message : "Retry failed.");
+      if (retryError instanceof ApiRequestError && retryError.retryable && retryError.jobId) {
+        setRetryJobId(retryError.jobId);
+      }
     } finally {
       setBusy(false);
     }
@@ -244,12 +359,21 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
           </aside>
 
           <div className="upload-main">
-            {error ? <div className="alert alert-error">{error}</div> : null}
+            {error ? (
+              <JobFailureAlert
+                message={error}
+                retryable={Boolean(retryJobId)}
+                retrying={busy}
+                onRetry={() => void handleRetry()}
+              />
+            ) : null}
             {info ? <div className="upload-banner upload-banner-success">{info}</div> : null}
 
             {busy && !frameworkVersion ? (
               <section className="upload-panel pipeline-panel-loading">
-                <p className="upload-hint">Loading framework…</p>
+                <p className="upload-hint" data-testid="pipeline-job-progress">
+                  {info ?? "Loading framework…"}
+                </p>
               </section>
             ) : null}
 

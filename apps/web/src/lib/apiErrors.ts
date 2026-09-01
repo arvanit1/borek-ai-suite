@@ -20,3 +20,10 @@ export function isMissingPresentationError(error: unknown): boolean {
   }
   return error.status === 404 || error.code === "PRESENTATION_NOT_FOUND";
 }
+
+export function isMissingActiveJobError(error: unknown): boolean {
+  if (!(error instanceof ApiRequestError)) {
+    return false;
+  }
+  return error.status === 404 || error.code === "ACTIVE_JOB_NOT_FOUND";
+}

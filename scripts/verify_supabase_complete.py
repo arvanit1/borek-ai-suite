@@ -42,6 +42,16 @@ def main() -> int:
                 "-v",
             ],
         ),
+        (
+            "AT-38 HTTP RLS isolation (two real users)",
+            [
+                sys.executable,
+                "-m",
+                "pytest",
+                "tests/integration/api/test_at38_rls_isolation.py",
+                "-v",
+            ],
+        ),
     ]
 
     for label, command in steps:

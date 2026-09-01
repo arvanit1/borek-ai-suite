@@ -196,3 +196,160 @@ def test_llm_client_routes_all_calls_through_invoke_llm() -> None:
     source = CLIENT_PATH.read_text(encoding="utf-8")
     assert "from services.observability.llm_logger import" in source
     assert source.count("invoke_llm(") >= 4
+
+
+REQUIRED_LLM_CALL_FIELDS = (
+    "request_id",
+    "job_id",
+    "opportunity_id",
+    "stage",
+    "provider",
+    "model",
+    "prompt_version",
+    "input_tokens",
+    "output_tokens",
+    "total_tokens",
+    "latency_ms",
+    "retry_count",
+    "status",
+    "error_category",
+    "estimated_cost_eur",
+)
+
+
+def test_llm_call_persisted_to_store() -> None:
+    from unittest.mock import MagicMock
+
+    from services.observability.llm_logger import llm_observability_scope
+
+    store = MagicMock()
+    job_id = uuid.uuid4()
+    opportunity_id = uuid.uuid4()
+    with llm_observability_scope(job_id=job_id, opportunity_id=opportunity_id, store=store):
+        invoke_llm(
+            stage=LlmStage.FRAMEWORK,
+            model="claude-sonnet-4",
+            prompt_version="synthesis_v1",
+            retry_count=0,
+            call=lambda: {"ok": True},
+            input_tokens=lambda _: 100,
+            output_tokens=lambda _: 50,
+        )
+
+    store.append_llm_call.assert_called_once()
+    record = store.append_llm_call.call_args.args[0]
+    stored = asdict(record)
+    for field_name in REQUIRED_LLM_CALL_FIELDS:
+        assert field_name in stored
+    assert stored["job_id"] == job_id
+    assert stored["opportunity_id"] == opportunity_id
+    assert stored["provider"] == "anthropic"
+    assert stored["status"] == "success"
+    assert stored["input_tokens"] == 100
+    assert stored["output_tokens"] == 50
+    assert stored["total_tokens"] == 150
+
+
+def test_llm_call_survives_restart() -> None:
+    from app.services.data.memory_store import MemoryDataStore
+
+    job_id = uuid.uuid4()
+    store = MemoryDataStore()
+    store.append_llm_call(
+        {
+            "request_id": uuid.uuid4(),
+            "job_id": job_id,
+            "opportunity_id": uuid.uuid4(),
+            "stage": "framework",
+            "provider": "anthropic",
+            "model": "claude-sonnet-4",
+            "prompt_version": "synthesis_v1",
+            "input_tokens": 10,
+            "output_tokens": 5,
+            "total_tokens": 15,
+            "latency_ms": 12,
+            "retry_count": 0,
+            "status": "success",
+            "estimated_cost_eur": 0.001,
+        }
+    )
+    reset_llm_call_logs()
+    snapshot = store.llm_calls
+    revived = MemoryDataStore(llm_calls=snapshot)
+    found = revived.get_llm_calls_for_job(str(job_id))
+    assert len(found) == 1
+    assert found[0]["input_tokens"] == 10
+    assert get_llm_call_logs() == []
+
+
+def test_no_confidential_content_in_llm_record() -> None:
+    from app.services.data.memory_store import MemoryDataStore
+    from services.observability.llm_logger import llm_observability_scope
+
+    store = MemoryDataStore()
+    job_id = uuid.uuid4()
+    with llm_observability_scope(job_id=job_id, opportunity_id=uuid.uuid4(), store=store):
+        invoke_llm(
+            stage=LlmStage.PLANNING,
+            model="gpt-4.1-mini",
+            prompt_version="presentation_planner_v1",
+            retry_count=0,
+            call=lambda: {
+                "prompt": "secret",
+                "messages": [{"content": "confidential transcript"}],
+                "body": "do not persist",
+            },
+            input_tokens=lambda _: 8,
+            output_tokens=lambda _: 4,
+        )
+
+    record = store.get_llm_calls_for_job(str(job_id))[0]
+    for forbidden in ("prompt", "messages", "content", "transcript", "body"):
+        assert forbidden not in record
+
+
+def test_job_metrics_aggregated_after_completion() -> None:
+    from app.schemas.jobs import JobStage
+    from app.services import job_service
+    from app.services.data.memory_store import MemoryDataStore
+    from app.services.job_service import JobStore
+    from services.observability.llm_logger import llm_observability_scope
+
+    store = MemoryDataStore()
+    original = job_service.job_store
+    job_service.job_store = JobStore()
+    try:
+        job = job_service.create_job(uuid.uuid4(), "framework_generation", repository=store)
+        job_service.advance_stage(
+            job.id,
+            JobStage.FRAMEWORK_VALIDATING,
+            repository=store,
+        )
+        with llm_observability_scope(
+            job_id=job.id,
+            opportunity_id=job.opportunity_id,
+            store=store,
+        ):
+            for tokens in ((100, 20), (200, 40), (50, 10)):
+                invoke_llm(
+                    stage=LlmStage.FRAMEWORK,
+                    model="claude-sonnet-4",
+                    prompt_version="synthesis_v1",
+                    retry_count=0,
+                    call=lambda pair=tokens: pair,
+                    input_tokens=lambda pair: pair[0],
+                    output_tokens=lambda pair: pair[1],
+                )
+        completed = job_service.complete_job(job.id, repository=store)
+        assert completed.number_of_ai_calls == 3
+        assert completed.ai_input_tokens == 350
+        assert completed.ai_output_tokens == 70
+        assert completed.llm_cost_eur > 0
+        row = store.get_generation_job(job.id)
+        assert row is not None
+        assert row["number_of_ai_calls"] == 3
+        assert row["ai_input_tokens"] == 350
+        assert row["ai_output_tokens"] == 70
+        assert float(row["llm_cost_eur"]) == completed.llm_cost_eur
+    finally:
+        job_service.job_store = original

@@ -37,13 +37,29 @@ export interface ApiErrorBody {
 export class ApiRequestError extends Error {
   readonly status: number;
   readonly code?: string;
+  readonly retryable?: boolean;
+  readonly jobId?: string;
 
-  constructor(message: string, status: number, code?: string) {
+  constructor(
+    message: string,
+    status: number,
+    code?: string,
+    extras?: { retryable?: boolean; jobId?: string },
+  ) {
     super(message);
     this.name = "ApiRequestError";
     this.status = status;
     this.code = code;
+    this.retryable = extras?.retryable;
+    this.jobId = extras?.jobId;
   }
+}
+
+export interface JobErrorDetail {
+  code: string;
+  message: string;
+  stage: string;
+  retryable: boolean;
 }
 
 export interface JobResponse {
@@ -52,12 +68,16 @@ export interface JobResponse {
   status: "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED";
   current_stage: string;
   result: Record<string, unknown>;
-  error: {
-    code: string;
-    message: string;
-    stage: string;
-    retryable: boolean;
-  } | null;
+  error: JobErrorDetail | null;
+}
+
+export interface ActiveJobResponse {
+  job_id: string;
+  job_type: string;
+  status: "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED";
+  current_stage: string;
+  started_at: string | null;
+  error: JobErrorDetail | null;
 }
 
 async function parseError(response: Response): Promise<ApiRequestError> {
@@ -110,6 +130,42 @@ export async function getJob(
   return apiFetch<JobResponse>(`/jobs/${jobId}`, accessToken);
 }
 
+export async function retryJob(
+  accessToken: string,
+  jobId: string,
+  fromStage?: string,
+): Promise<JobEnqueueResponse> {
+  const query = fromStage ? `?from_stage=${fromStage}` : "";
+  return apiFetch<JobEnqueueResponse>(`/jobs/${jobId}/retry${query}`, accessToken, {
+    method: "POST",
+  });
+}
+
+export interface JobEnqueueResponse {
+  job_id: string;
+  status: string;
+  is_existing_job?: boolean;
+}
+
+export async function getActiveJob(
+  accessToken: string,
+  opportunityId: string,
+  stageGroup?: "framework" | "presentation",
+): Promise<ActiveJobResponse | null> {
+  const query = stageGroup ? `?stage_group=${stageGroup}` : "";
+  try {
+    return await apiFetch<ActiveJobResponse>(
+      `/opportunities/${opportunityId}/jobs/active${query}`,
+      accessToken,
+    );
+  } catch (error) {
+    if (error instanceof ApiRequestError && error.status === 404) {
+      return null;
+    }
+    throw error;
+  }
+}
+
 export const FRAMEWORK_JOB_TIMEOUT_MS = 720_000;
 
 export async function waitForJob(
@@ -128,6 +184,7 @@ export async function waitForJob(
         job.error?.message ?? "Generation job failed",
         422,
         job.error?.code,
+        { retryable: Boolean(job.error?.retryable), jobId: job.job_id },
       );
     }
     await new Promise((resolve) => setTimeout(resolve, 500));
@@ -214,6 +271,7 @@ export interface FrameworkGenerateResponse {
   job_id: string;
   status: string;
   framework_version_id: string | null;
+  is_existing_job?: boolean;
 }
 
 export type { FrameworkVersionResponse };
@@ -242,6 +300,7 @@ export async function generateFramework(
 export interface FrameworkJobEnqueueResponse {
   job_id: string;
   status: string;
+  is_existing_job?: boolean;
 }
 
 export async function regenerateFrameworkChapter(

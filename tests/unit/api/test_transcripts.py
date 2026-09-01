@@ -127,3 +127,97 @@ def test_regenerate_transcript_resets_processing_status() -> None:
     )
     assert response.status_code == 200
     assert response.json()["processing_status"] == "pending"
+
+
+def _upload_transcript(client: TestClient, opportunity_id: str) -> str:
+    upload = client.post(
+        f"/opportunities/{opportunity_id}/transcripts",
+        headers=_headers(),
+        files={"file": ("meeting.txt", io.BytesIO(b"hello transcript"), "text/plain")},
+    )
+    assert upload.status_code == 201
+    return upload.json()["transcript"]["id"]
+
+
+def test_delete_transcript_success() -> None:
+    client = _client()
+    opportunity_id = _create_opportunity(client)
+    transcript_id = _upload_transcript(client, opportunity_id)
+
+    deleted = client.delete(
+        f"/opportunities/{opportunity_id}/transcripts/{transcript_id}",
+        headers=_headers(),
+    )
+    assert deleted.status_code == 204
+
+    missing = client.get(
+        f"/opportunities/{opportunity_id}/transcripts/{transcript_id}",
+        headers=_headers(),
+    )
+    assert missing.status_code == 404
+
+
+def test_delete_transcript_not_found() -> None:
+    client = _client()
+    opportunity_id = _create_opportunity(client)
+    missing_id = uuid.uuid4()
+
+    response = client.delete(
+        f"/opportunities/{opportunity_id}/transcripts/{missing_id}",
+        headers=_headers(),
+    )
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "TRANSCRIPT_NOT_FOUND"
+
+
+def test_delete_transcript_wrong_opportunity() -> None:
+    client = _client()
+    owner_opportunity = _create_opportunity(client)
+    other_opportunity = _create_opportunity(client)
+    transcript_id = _upload_transcript(client, owner_opportunity)
+
+    response = client.delete(
+        f"/opportunities/{other_opportunity}/transcripts/{transcript_id}",
+        headers=_headers(),
+    )
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "TRANSCRIPT_NOT_FOUND"
+    still_there = client.get(
+        f"/opportunities/{owner_opportunity}/transcripts/{transcript_id}",
+        headers=_headers(),
+    )
+    assert still_there.status_code == 200
+
+
+def test_delete_transcript_unauthorized() -> None:
+    client = _client()
+    opportunity_id = _create_opportunity(client)
+    transcript_id = _upload_transcript(client, opportunity_id)
+
+    response = client.delete(
+        f"/opportunities/{opportunity_id}/transcripts/{transcript_id}",
+    )
+    assert response.status_code == 401
+
+
+def test_delete_transcript_records_audit_event() -> None:
+    from app.services.audit.audit_log import AuditAction
+
+    client = _client()
+    opportunity_id = _create_opportunity(client)
+    transcript_id = _upload_transcript(client, opportunity_id)
+
+    response = client.delete(
+        f"/opportunities/{opportunity_id}/transcripts/{transcript_id}",
+        headers=_headers(),
+    )
+    assert response.status_code == 204
+
+    entries = [
+        entry
+        for entry in get_memory_store().list_audit_logs(actor_id=USER_ID)
+        if entry["action"] == AuditAction.TRANSCRIPT_DELETE.value
+    ]
+    assert len(entries) == 1
+    assert entries[0]["object_type"] == "transcript"
+    assert str(entries[0]["object_id"]) == transcript_id

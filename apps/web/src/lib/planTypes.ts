@@ -22,6 +22,7 @@ export interface PresentationPlanGenerateResponse {
   job_id: string;
   status: string;
   presentation_plan_id: string;
+  is_existing_job?: boolean;
 }
 
 export interface SlidePreviewRow {

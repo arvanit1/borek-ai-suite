@@ -96,7 +96,7 @@ def test_stale_provenance_is_removed() -> None:
     assert "missing.field" not in paths
 
 
-def test_cover_keeps_only_three_stat_badges() -> None:
+def test_cover_does_not_silently_drop_extra_stat_badges() -> None:
     spec = _cover(
         statBadges=[
             {"value": "80%", "label": "Automation rate"},
@@ -124,9 +124,9 @@ def test_cover_keeps_only_three_stat_badges() -> None:
 
     repaired = repair_live_slide_spec(spec, _request(chapters=("1",)))
 
-    assert len(repaired["statBadges"]) == 3
+    assert len(repaired["statBadges"]) == 5
     paths = {entry["path"] for entry in repaired["fieldProvenance"]}
-    assert "statBadges[3].value" not in paths
+    assert "statBadges[3].value" in paths
     assert "statBadges[2].value" in paths
 
 

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 
 import { ApiRequestError } from "./api.js";
 import {
+  isMissingActiveJobError,
   isMissingFrameworkError,
   isMissingPresentationError,
   isMissingPresentationPlanError,
@@ -24,5 +25,12 @@ assert.equal(
   ),
   true,
 );
+assert.equal(
+  isMissingActiveJobError(
+    new ApiRequestError("No job found for this opportunity", 404, "ACTIVE_JOB_NOT_FOUND"),
+  ),
+  true,
+);
+assert.equal(isMissingActiveJobError(new ApiRequestError("Server error", 500)), false);
 
 console.log("apiErrors tests passed");

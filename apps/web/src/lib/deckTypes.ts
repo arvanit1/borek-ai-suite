@@ -26,8 +26,9 @@ export interface PresentationResponse {
 export interface PresentationGenerateResponse {
   job_id: string;
   status: string;
-  presentation_id: string;
-  presentation_plan_id: string;
+  presentation_id: string | null;
+  presentation_plan_id: string | null;
+  is_existing_job?: boolean;
 }
 
 export interface SlidePreviewTile {

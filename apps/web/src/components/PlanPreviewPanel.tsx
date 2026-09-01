@@ -4,15 +4,24 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useAuth } from "@/components/AuthProvider";
+import { JobFailureAlert } from "@/components/JobFailureAlert";
 import { PipelineStepper } from "@/components/PipelineStepper";
 import { SiteHeader } from "@/components/SiteHeader";
 import {
+  ApiRequestError,
   generatePresentationPlan,
+  getActiveJob,
   getLatestFramework,
   getLatestPresentationPlan,
+  retryJob,
   waitForJob,
 } from "@/lib/api";
 import { isMissingPresentationPlanError } from "@/lib/apiErrors";
+import {
+  generationProgressMessage,
+  inspectActiveJob,
+  stageGroupForPage,
+} from "@/lib/jobReconnect";
 import { extractSlidePreviewRows, formatLayoutLabel } from "@/lib/planPreview";
 import type { PresentationPlanResponse } from "@/lib/planTypes";
 
@@ -28,6 +37,7 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const [retryJobId, setRetryJobId] = useState<string | null>(null);
 
   const slideRows = useMemo(() => {
     if (!plan) {
@@ -50,6 +60,21 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
     }
   }, [accessToken, opportunityId]);
 
+  const applyLatestPlan = useCallback(async () => {
+    if (!accessToken) {
+      return;
+    }
+    try {
+      const latest = await getLatestPresentationPlan(accessToken, opportunityId);
+      setPlan(latest);
+    } catch (loadError) {
+      setPlan(null);
+      if (!isMissingPresentationPlanError(loadError)) {
+        throw loadError;
+      }
+    }
+  }, [accessToken, opportunityId]);
+
   const loadPlan = useCallback(async () => {
     if (!accessToken) {
       return;
@@ -57,26 +82,91 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
     setBusy(true);
     setError(null);
     try {
-      const latest = await getLatestPresentationPlan(accessToken, opportunityId);
-      setPlan(latest);
+      await applyLatestPlan();
     } catch (loadError) {
-      setPlan(null);
-      if (!isMissingPresentationPlanError(loadError)) {
-        const message =
-          loadError instanceof Error ? loadError.message : "Could not load presentation plan.";
-        setError(message);
-      }
+      const message =
+        loadError instanceof Error ? loadError.message : "Could not load presentation plan.";
+      setError(message);
     } finally {
       setBusy(false);
     }
-  }, [accessToken, opportunityId]);
+  }, [accessToken, applyLatestPlan]);
 
   useEffect(() => {
-    if (!loading && accessToken) {
-      void loadFrameworkStatus();
-      void loadPlan();
+    if (loading || !accessToken) {
+      return;
     }
-  }, [accessToken, loading, loadFrameworkStatus, loadPlan]);
+    const token = accessToken;
+    let cancelled = false;
+    async function bootstrap() {
+      setBusy(true);
+      setError(null);
+      setInfo(null);
+      setRetryJobId(null);
+      try {
+        const job = await getActiveJob(
+          token,
+          opportunityId,
+          stageGroupForPage("plan"),
+        );
+        if (cancelled) {
+          return;
+        }
+        const decision = inspectActiveJob(job, "plan");
+        if (decision.action === "monitor") {
+          setInfo(generationProgressMessage("plan", true));
+          try {
+            await waitForJob(token, decision.jobId);
+          } catch (monitorError) {
+            if (!cancelled) {
+              setError(
+                monitorError instanceof Error ? monitorError.message : "Generation job failed.",
+              );
+              if (monitorError instanceof ApiRequestError && monitorError.retryable && monitorError.jobId) {
+                setRetryJobId(monitorError.jobId);
+              }
+            }
+          }
+        } else if (decision.action === "failed") {
+          setError(decision.message);
+          if (decision.retryable) {
+            setRetryJobId(decision.jobId);
+          }
+        }
+        if (cancelled) {
+          return;
+        }
+        try {
+          await applyLatestPlan();
+        } catch (loadError) {
+          if (!cancelled && decision.action !== "failed") {
+            const message =
+              loadError instanceof Error
+                ? loadError.message
+                : "Could not load presentation plan.";
+            setError(message);
+          }
+        }
+      } catch (bootstrapError) {
+        if (!cancelled) {
+          setError(
+            bootstrapError instanceof Error
+              ? bootstrapError.message
+              : "Could not reconnect to the generation job.",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setBusy(false);
+        }
+      }
+    }
+    void loadFrameworkStatus();
+    void bootstrap();
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, applyLatestPlan, loadFrameworkStatus, loading, opportunityId]);
 
   async function handleGeneratePlan() {
     if (!accessToken) {
@@ -85,13 +175,14 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
     setBusy(true);
     setError(null);
     setInfo(null);
+    setRetryJobId(null);
     try {
       const generated = await generatePresentationPlan(
         accessToken,
         opportunityId,
         frameworkVersionId ?? undefined,
       );
-      setInfo("Presentation planning is running…");
+      setInfo(generationProgressMessage("plan", Boolean(generated.is_existing_job)));
       await waitForJob(accessToken, generated.job_id);
       await loadPlan();
       setInfo("Presentation plan ready. Review order, purpose, and layout below.");
@@ -99,6 +190,31 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
       setError(
         generateError instanceof Error ? generateError.message : "Plan generation failed.",
       );
+      if (generateError instanceof ApiRequestError && generateError.retryable && generateError.jobId) {
+        setRetryJobId(generateError.jobId);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleRetry() {
+    if (!accessToken || !retryJobId) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    setInfo("Retrying generation from the last failed stage…");
+    try {
+      const queued = await retryJob(accessToken, retryJobId);
+      setRetryJobId(null);
+      await waitForJob(accessToken, queued.job_id);
+      await loadPlan();
+    } catch (retryError) {
+      setError(retryError instanceof Error ? retryError.message : "Retry failed.");
+      if (retryError instanceof ApiRequestError && retryError.retryable && retryError.jobId) {
+        setRetryJobId(retryError.jobId);
+      }
     } finally {
       setBusy(false);
     }
@@ -185,8 +301,23 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
           </div>
         ) : null}
 
-        {error ? <div className="alert alert-error">{error}</div> : null}
+        {error ? (
+          <JobFailureAlert
+            message={error}
+            retryable={Boolean(retryJobId)}
+            retrying={busy}
+            onRetry={() => void handleRetry()}
+          />
+        ) : null}
         {info ? <div className="upload-banner upload-banner-success">{info}</div> : null}
+
+        {busy && !plan ? (
+          <section className="upload-panel pipeline-panel-loading">
+            <p className="upload-hint" data-testid="pipeline-job-progress">
+              {info ?? "Loading presentation plan…"}
+            </p>
+          </section>
+        ) : null}
 
         {plan ? (
           <section className="upload-panel">

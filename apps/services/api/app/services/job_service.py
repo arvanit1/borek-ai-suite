@@ -27,6 +27,11 @@ class InvalidJobTransitionError(Exception):
         super().__init__(message)
 
 
+class JobNotRetryableError(Exception):
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+
+
 @dataclass
 class Job:
     id: uuid.UUID
@@ -49,6 +54,7 @@ class Job:
     render_duration_ms: int = 0
     storage_size_bytes: int = 0
     generation_cost_estimate: float = 0
+    llm_cost_eur: float = 0
 
 
 class JobStore:
@@ -92,6 +98,7 @@ def _job_from_row(row: dict[str, Any]) -> Job:
         render_duration_ms=int(row.get("render_duration_ms") or 0),
         storage_size_bytes=int(row.get("storage_size_bytes") or 0),
         generation_cost_estimate=float(row.get("generation_cost_estimate") or 0),
+        llm_cost_eur=float(row.get("llm_cost_eur") or row.get("generation_cost_estimate") or 0),
     )
 
 
@@ -117,6 +124,7 @@ def _job_payload(job: Job) -> dict[str, Any]:
         "render_duration_ms": job.render_duration_ms,
         "storage_size_bytes": job.storage_size_bytes,
         "generation_cost_estimate": job.generation_cost_estimate,
+        "llm_cost_eur": job.llm_cost_eur,
     }
 
 
@@ -151,11 +159,85 @@ def _ensure_not_terminal(job: Job) -> None:
         )
 
 
+_TERMINAL_JOB_STATUSES = {JobStatus.COMPLETED.value, JobStatus.FAILED.value}
+
+
+def job_matches_stage_group(job_type: str, stage_group: str | None) -> bool:
+    if not stage_group:
+        return True
+    name = str(job_type or "").lower()
+    if stage_group == "framework":
+        return "framework" in name
+    if stage_group == "presentation":
+        return "presentation" in name or "slide" in name
+    return True
+
+
+def _job_status_value(row: dict[str, Any]) -> str:
+    value = row.get("status")
+    return value.value if hasattr(value, "value") else str(value or "")
+
+
+def _job_timestamp(row: dict[str, Any], *keys: str) -> datetime:
+    for key in keys:
+        value = row.get(key)
+        if value is not None:
+            return value
+    return datetime.min.replace(tzinfo=UTC)
+
+
+def select_reconnect_job(
+    rows: list[dict[str, Any]],
+    *,
+    stage_group: str | None = None,
+) -> dict[str, Any] | None:
+    matched = [
+        row
+        for row in rows
+        if job_matches_stage_group(str(row.get("job_type") or ""), stage_group)
+    ]
+    active = [row for row in matched if _job_status_value(row) not in _TERMINAL_JOB_STATUSES]
+    if active:
+        return max(active, key=lambda row: _job_timestamp(row, "started_at", "created_at"))
+    if matched:
+        return max(matched, key=lambda row: _job_timestamp(row, "completed_at", "started_at", "created_at"))
+    return None
+
+
+def is_non_terminal_job(row: dict[str, Any] | Job | None) -> bool:
+    if row is None:
+        return False
+    if isinstance(row, Job):
+        return row.status not in {JobStatus.COMPLETED, JobStatus.FAILED}
+    return _job_status_value(row) not in _TERMINAL_JOB_STATUSES
+
+
+def reuse_active_generation_job(
+    repository: Any,
+    opportunity_id: uuid.UUID,
+    stage_group: str | None = None,
+) -> Job | None:
+    getter = getattr(repository, "get_active_job_for_opportunity", None)
+    if getter is None:
+        return None
+    row = getter(opportunity_id, stage_group)
+    if row is None or not is_non_terminal_job(row):
+        return None
+    return _job_from_row(row)
+
+
+def enqueue_status_for_job(job: Job, *, existing: bool) -> str:
+    if existing and job.status == JobStatus.RUNNING:
+        return "running"
+    return "queued"
+
+
 def create_job(
     opportunity_id: uuid.UUID,
     job_type: str,
     *,
     presentation_id: uuid.UUID | None = None,
+    enqueue: dict[str, Any] | None = None,
     repository: Any | None = None,
 ) -> Job:
     job = Job(
@@ -165,6 +247,7 @@ def create_job(
         status=JobStatus.QUEUED,
         current_stage=JobStage.QUEUED,
         presentation_id=presentation_id,
+        result_json={"_enqueue": dict(enqueue)} if enqueue else {},
     )
     return _save(job, repository, create=True)
 
@@ -200,6 +283,72 @@ def advance_stage(
     return _save(job, repository)
 
 
+def ensure_stage(
+    job_id: uuid.UUID,
+    stage: JobStage,
+    *,
+    repository: Any | None = None,
+) -> Job:
+    """Advance to *stage* or no-op if the job already reached it (AT-57 resume)."""
+    job = _load(job_id, repository)
+    if job is None:
+        raise JobNotFoundError(str(job_id))
+    if job.current_stage == stage:
+        if job.status == JobStatus.QUEUED and stage != JobStage.QUEUED:
+            job.status = JobStatus.RUNNING
+            job.started_at = job.started_at or datetime.now(UTC)
+            return _save(job, repository)
+        return job
+    if (
+        job.current_stage in JOB_PIPELINE_STAGES
+        and stage in JOB_PIPELINE_STAGES
+        and JOB_PIPELINE_STAGES.index(stage) < JOB_PIPELINE_STAGES.index(job.current_stage)
+    ):
+        return job
+    return advance_stage(job_id, stage, repository=repository)
+
+
+def resume_job(
+    job_id: uuid.UUID,
+    *,
+    from_stage: JobStage | None = None,
+    repository: Any | None = None,
+) -> Job:
+    """Reopen a failed retryable job at *from_stage* or the recorded failed_stage."""
+    job = _load(job_id, repository)
+    if job is None:
+        raise JobNotFoundError(str(job_id))
+    if job.status != JobStatus.FAILED:
+        raise InvalidJobTransitionError(
+            f"Job {job_id} cannot be resumed from status {job.status.value}",
+        )
+    if not job.error_retryable:
+        raise JobNotRetryableError(f"Job {job_id} is not retryable")
+    stage = from_stage or job.failed_stage
+    if stage is None or stage not in JOB_PIPELINE_STAGES:
+        raise InvalidJobTransitionError(
+            f"Job {job_id} has no pipeline stage to resume from",
+        )
+    if (
+        job.failed_stage is not None
+        and job.failed_stage in JOB_PIPELINE_STAGES
+        and JOB_PIPELINE_STAGES.index(stage) > JOB_PIPELINE_STAGES.index(job.failed_stage)
+    ):
+        raise InvalidJobTransitionError(
+            f"Job {job_id} cannot resume after failed stage {job.failed_stage.value}",
+        )
+    job.status = JobStatus.RUNNING
+    job.current_stage = stage
+    job.completed_at = None
+    job.error_code = None
+    job.error_message = None
+    job.failed_stage = None
+    job.error_retryable = None
+    if job.started_at is None:
+        job.started_at = datetime.now(UTC)
+    return _save(job, repository)
+
+
 def complete_job(
     job_id: uuid.UUID,
     *,
@@ -221,7 +370,8 @@ def complete_job(
     job.current_stage = JobStage.COMPLETED
     job.completed_at = datetime.now(UTC)
     if result_json is not None:
-        job.result_json = dict(result_json)
+        job.result_json = {**job.result_json, **dict(result_json)}
+    _apply_llm_job_metrics(job, repository)
     return _save(job, repository)
 
 
@@ -247,6 +397,7 @@ def fail_job(
     job.failed_stage = failed_stage
     job.error_retryable = retryable
     job.completed_at = datetime.now(UTC)
+    _apply_llm_job_metrics(job, repository)
     return _save(job, repository)
 
 
@@ -298,5 +449,32 @@ def job_to_response(job: Job) -> JobResponse:
             "render_duration_ms": job.render_duration_ms,
             "storage_size_bytes": job.storage_size_bytes,
             "generation_cost_estimate": job.generation_cost_estimate,
+            "llm_cost_eur": job.llm_cost_eur,
         },
     )
+
+
+def _apply_llm_job_metrics(job: Job, repository: Any | None) -> None:
+    store = repository
+    if store is None:
+        try:
+            from app.services.data.memory_store import get_memory_store
+
+            store = get_memory_store()
+        except Exception:
+            return
+    getter = getattr(store, "get_llm_calls_for_job", None)
+    if getter is None:
+        return
+    try:
+        calls = getter(str(job.id))
+    except Exception:
+        return
+    if not calls:
+        return
+    job.number_of_ai_calls = len(calls)
+    job.ai_input_tokens = sum(int(call.get("input_tokens") or 0) for call in calls)
+    job.ai_output_tokens = sum(int(call.get("output_tokens") or 0) for call in calls)
+    cost = sum(float(call.get("estimated_cost_eur") or 0) for call in calls)
+    job.llm_cost_eur = cost
+    job.generation_cost_estimate = cost

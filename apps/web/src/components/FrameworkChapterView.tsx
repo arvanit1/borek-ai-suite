@@ -1,11 +1,30 @@
 "use client";
 
+import { FrameworkNestedValue } from "@/components/FrameworkNestedValue";
 import { SourceRefBadge } from "@/components/SourceRefBadge";
 import {
-  updateChapterBodyField,
-  updateChapterStringBody,
-} from "@/lib/frameworkEdit";
+  isBlockTypeKey,
+  isEditableContentKey,
+  sourceRefsForFactDisplay,
+} from "@/lib/frameworkEvidence";
+import { updateChapterStringBody } from "@/lib/frameworkEdit";
+import { updateChapterBodyValue } from "@/lib/frameworkNestedEdit";
 import type { FrameworkChapter } from "@/lib/frameworkTypes";
+
+function ChapterSourceRefs({ chapter }: { chapter: FrameworkChapter }) {
+  const refs = sourceRefsForFactDisplay(chapter);
+  return (
+    <div className="framework-fact-sources" aria-label="Source references">
+      {refs.length > 0 ? (
+        refs.map((refItem, refIndex) => (
+          <SourceRefBadge key={`${chapter.chapter_id}-ref-${refIndex}`} refItem={refItem} />
+        ))
+      ) : (
+        <p className="framework-fact-sources-empty">No cited source for this chapter.</p>
+      )}
+    </div>
+  );
+}
 
 interface FrameworkChapterViewProps {
   chapter: FrameworkChapter;
@@ -48,41 +67,51 @@ export function FrameworkChapterView({
           bodyBlocks.length === 0 ? (
             <p className="upload-hint">No structured facts in this chapter yet.</p>
           ) : (
-          bodyBlocks.map((block, blockIndex) => (
-            <article key={`${chapter.chapter_id}-${blockIndex}`} className="framework-fact-block">
-              <div className="framework-fact-fields">
-                {Object.entries(block).map(([fieldKey, fieldValue]) => (
-                  <div key={fieldKey} className="form-field">
-                    <label htmlFor={`${chapter.chapter_id}-${blockIndex}-${fieldKey}`}>
-                      {fieldKey}
-                    </label>
-                    <input
-                      id={`${chapter.chapter_id}-${blockIndex}-${fieldKey}`}
-                      value={String(fieldValue ?? "")}
-                      disabled={!editable}
-                      onChange={(event) =>
-                        onChange(
-                          updateChapterBodyField(
-                            chapter,
-                            blockIndex,
-                            fieldKey,
-                            event.target.value,
-                          ),
-                        )
-                      }
-                    />
+            bodyBlocks.map((block, blockIndex) => {
+              const factRefs = sourceRefsForFactDisplay(chapter, block);
+              const blockType = typeof block.block === "string" ? block.block : null;
+              return (
+                <article
+                  key={`${chapter.chapter_id}-${blockIndex}`}
+                  className="framework-fact-block"
+                  data-testid="framework-fact-block"
+                >
+                  {blockType ? <p className="framework-fact-kind">{blockType}</p> : null}
+                  <div className="framework-fact-fields">
+                    {Object.entries(block)
+                      .filter(([fieldKey]) => isEditableContentKey(fieldKey) && !isBlockTypeKey(fieldKey))
+                      .map(([fieldKey, fieldValue]) => (
+                        <FrameworkNestedValue
+                          key={fieldKey}
+                          id={`${chapter.chapter_id}-${blockIndex}-${fieldKey}`}
+                          label={fieldKey}
+                          value={fieldValue}
+                          editable={editable}
+                          onChange={(next) =>
+                            onChange(updateChapterBodyValue(chapter, blockIndex, fieldKey, next))
+                          }
+                        />
+                      ))}
                   </div>
-                ))}
-              </div>
-              {chapter.source_refs.length > 0 ? (
-                <div className="framework-fact-sources" aria-label="Source references for this fact">
-                  {chapter.source_refs.map((refItem, refIndex) => (
-                    <SourceRefBadge key={`${chapter.chapter_id}-${blockIndex}-${refIndex}`} refItem={refItem} />
-                  ))}
-                </div>
-              ) : null}
-            </article>
-          ))
+                  <div
+                    className="framework-fact-sources"
+                    aria-label="Source references for this fact"
+                    data-testid="framework-fact-sources"
+                  >
+                    {factRefs.length > 0 ? (
+                      factRefs.map((refItem, refIndex) => (
+                        <SourceRefBadge
+                          key={`${chapter.chapter_id}-${blockIndex}-${refItem.conversation_id}-${refItem.excerpt_pointer}-${refIndex}`}
+                          refItem={refItem}
+                        />
+                      ))
+                    ) : (
+                      <p className="framework-fact-sources-empty">No cited source for this fact.</p>
+                    )}
+                  </div>
+                </article>
+              );
+            })
           )
         ) : (
           <div className="form-field">
@@ -94,13 +123,7 @@ export function FrameworkChapterView({
               disabled={!editable}
               onChange={(event) => onChange(updateChapterStringBody(chapter, event.target.value))}
             />
-            {chapter.source_refs.length > 0 ? (
-              <div className="framework-fact-sources" aria-label="Source references">
-                {chapter.source_refs.map((refItem, refIndex) => (
-                  <SourceRefBadge key={`${chapter.chapter_id}-ref-${refIndex}`} refItem={refItem} />
-                ))}
-              </div>
-            ) : null}
+            <ChapterSourceRefs chapter={chapter} />
           </div>
         )}
       </div>

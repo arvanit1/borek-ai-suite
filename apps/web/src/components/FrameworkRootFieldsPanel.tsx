@@ -1,5 +1,7 @@
 "use client";
 
+import { FrameworkNestedValue } from "@/components/FrameworkNestedValue";
+import { isEditableContentKey } from "@/lib/frameworkEvidence";
 import {
   updateFrameworkArrayField,
   updateQualityRationale,
@@ -37,21 +39,20 @@ function RecordSection({ title, records, editable, onChange }: RecordSectionProp
       {records.map((record, recordIndex) => (
         <article key={`${title}-${recordIndex}`} className="framework-fact-block">
           <div className="framework-fact-fields">
-            {Object.entries(record).map(([fieldKey, fieldValue]) => (
-              <div key={fieldKey} className="form-field">
-                <label htmlFor={`${title}-${recordIndex}-${fieldKey}`}>{fieldKey}</label>
-                <input
+            {Object.entries(record)
+              .filter(([fieldKey]) => isEditableContentKey(fieldKey))
+              .map(([fieldKey, fieldValue]) => (
+                <FrameworkNestedValue
+                  key={fieldKey}
                   id={`${title}-${recordIndex}-${fieldKey}`}
-                  value={String(fieldValue ?? "")}
-                  disabled={!editable}
-                  onChange={(event) =>
-                    onChange(
-                      updateRecordField(records, recordIndex, fieldKey, event.target.value),
-                    )
+                  label={fieldKey}
+                  value={fieldValue}
+                  editable={editable}
+                  onChange={(next) =>
+                    onChange(updateRecordField(records, recordIndex, fieldKey, next))
                   }
                 />
-              </div>
-            ))}
+              ))}
           </div>
         </article>
       ))}

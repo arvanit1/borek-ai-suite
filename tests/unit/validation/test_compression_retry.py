@@ -447,6 +447,93 @@ def test_at8_noop_compress_invoked_exactly_twice_before_failure(registry: Layout
     assert calls["compress"] == MAX_COMPRESSION_ATTEMPTS
 
 
+def test_at8_no_silent_clipping_on_max_length(registry: LayoutConstraintRegistry) -> None:
+    """A string 1 character over maxLength must not become VALID by clipping."""
+    calls = {"compress": 0}
+
+    def refuse_to_shorten(slide_spec: dict, _violations: list[ConstraintViolation]) -> dict:
+        calls["compress"] += 1
+        return copy.deepcopy(slide_spec)
+
+    over_limit = "T" * 121
+    slide_spec = {
+        "layoutId": "TIMELINE_01",
+        "sourceChapterIds": ["10"],
+        "title": over_limit,
+        "phases": [
+            {"name": "Phase A", "description": "First"},
+            {"name": "Phase B", "description": "Second"},
+        ],
+    }
+    result = validate_and_compress_slide_spec(
+        slide_spec,
+        registry=registry,
+        compress=refuse_to_shorten,
+    )
+    assert result.status == "VALIDATION_FAILED"
+    assert result.slide_spec is None
+    assert result.compression_attempts == MAX_COMPRESSION_ATTEMPTS
+    assert calls["compress"] == MAX_COMPRESSION_ATTEMPTS
+    assert len(over_limit) == 121
+
+
+def test_at8_no_silent_item_count_clipping(registry: LayoutConstraintRegistry) -> None:
+    """An array with maxItems + 1 items must not become VALID by taking first N."""
+    calls = {"compress": 0}
+
+    def refuse_to_drop_items(slide_spec: dict, _violations: list[ConstraintViolation]) -> dict:
+        calls["compress"] += 1
+        return copy.deepcopy(slide_spec)
+
+    slide_spec = {
+        "layoutId": "TIMELINE_01",
+        "sourceChapterIds": ["10"],
+        "title": "Timeline",
+        "phases": [{"name": f"Phase {index}", "description": "ok"} for index in range(9)],
+    }
+    result = validate_and_compress_slide_spec(
+        slide_spec,
+        registry=registry,
+        compress=refuse_to_drop_items,
+    )
+    assert result.status == "VALIDATION_FAILED"
+    assert result.slide_spec is None
+    assert result.compression_attempts == 0
+    assert calls["compress"] == 0
+    assert len(slide_spec["phases"]) == 9
+
+
+def test_at8_ai_compression_is_called_not_clipper(registry: LayoutConstraintRegistry) -> None:
+    """Over-limit content must enter the AI compress callback, not a string slicer."""
+    received: list[str] = []
+
+    def record_and_keep(slide_spec: dict, violations: list[ConstraintViolation]) -> dict:
+        for violation in violations:
+            if violation.code == "max_length":
+                received.append(get_value_at_path(slide_spec, violation.path))
+        return copy.deepcopy(slide_spec)
+
+    over_limit = "A" * 29
+    slide_spec = {
+        "layoutId": "TIMELINE_01",
+        "sourceChapterIds": ["10"],
+        "title": "Timeline",
+        "phases": [
+            {"name": over_limit, "description": "ok"},
+            {"name": "Phase B", "description": "ok"},
+        ],
+    }
+    result = validate_and_compress_slide_spec(
+        slide_spec,
+        registry=registry,
+        compress=record_and_keep,
+    )
+    assert result.status == "VALIDATION_FAILED"
+    assert result.slide_spec is None
+    assert received == [over_limit, over_limit]
+    assert all(len(value) == 29 for value in received)
+
+
 def test_at8_path_helpers_round_trip_nested_fields() -> None:
     payload = {
         "phases": [

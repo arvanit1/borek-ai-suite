@@ -49,6 +49,43 @@ def _now() -> datetime:
     return datetime.now(UTC)
 
 
+def _optional_uuid(value: Any) -> UUID | None:
+    if value is None or value == "":
+        return None
+    return value if isinstance(value, UUID) else UUID(str(value))
+
+
+def _llm_call_row(record: Any) -> dict[str, Any]:
+    payload = (
+        {key: getattr(record, key) for key in getattr(record, "__dataclass_fields__", {})}
+        if getattr(record, "__dataclass_fields__", None)
+        else dict(record)
+    )
+    created = payload.get("created_at") or payload.get("timestamp") or _now()
+    return {
+        "id": _optional_uuid(payload.get("id")) or uuid.uuid4(),
+        "request_id": str(payload.get("request_id") or uuid.uuid4()),
+        "job_id": _optional_uuid(payload.get("job_id")),
+        "opportunity_id": _optional_uuid(payload.get("opportunity_id")),
+        "stage": str(payload.get("stage") or ""),
+        "provider": str(payload.get("provider") or "unknown"),
+        "model": str(payload.get("model") or ""),
+        "prompt_version": str(payload.get("prompt_version") or ""),
+        "input_tokens": int(payload.get("input_tokens") or 0),
+        "output_tokens": int(payload.get("output_tokens") or 0),
+        "total_tokens": int(
+            payload.get("total_tokens")
+            or (int(payload.get("input_tokens") or 0) + int(payload.get("output_tokens") or 0))
+        ),
+        "latency_ms": int(round(float(payload.get("latency_ms") or 0))),
+        "retry_count": int(payload.get("retry_count") or 0),
+        "status": str(payload.get("status") or "success"),
+        "error_category": payload.get("error_category"),
+        "estimated_cost_eur": float(payload.get("estimated_cost_eur") or 0),
+        "created_at": created,
+    }
+
+
 def _load_framework_template(opportunity_id: UUID) -> dict[str, Any]:
     payload = json.loads(_FIXTURE_PATH.read_text(encoding="utf-8"))
     payload = copy.deepcopy(payload)
@@ -79,6 +116,7 @@ class MemoryDataStore:
     slides: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     generation_jobs: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     audit_logs: dict[UUID, dict[str, Any]] = field(default_factory=dict)
+    llm_calls: dict[UUID, dict[str, Any]] = field(default_factory=dict)
 
     def create_generation_job(self, payload: dict[str, Any]) -> dict[str, Any]:
         row = copy.deepcopy(payload)
@@ -101,6 +139,21 @@ class MemoryDataStore:
             raise not_found("JOB_NOT_FOUND", f"No job found with id {job_id}")
         row.update(copy.deepcopy(updates))
         return copy.deepcopy(row)
+
+    def get_active_job_for_opportunity(
+        self,
+        opportunity_id: str | UUID,
+        stage_group: str | None = None,
+    ) -> dict[str, Any] | None:
+        from app.services.job_service import select_reconnect_job
+
+        target = UUID(str(opportunity_id))
+        rows = [
+            copy.deepcopy(row)
+            for row in self.generation_jobs.values()
+            if row.get("opportunity_id") == target
+        ]
+        return select_reconnect_job(rows, stage_group=stage_group)
 
     def create_opportunity(
         self,
@@ -249,6 +302,20 @@ class MemoryDataStore:
         )
         row["processing_status"] = "pending"
         return row
+
+    def delete_transcript(
+        self,
+        *,
+        opportunity_id: UUID,
+        transcript_id: UUID,
+        user_id: UUID,
+    ) -> None:
+        self.get_transcript(
+            opportunity_id=opportunity_id,
+            transcript_id=transcript_id,
+            user_id=user_id,
+        )
+        del self.transcripts[transcript_id]
 
     def create_framework_version(
         self,
@@ -917,6 +984,16 @@ class MemoryDataStore:
         if actor_id is not None:
             rows = [row for row in rows if row["actor_id"] == actor_id]
         return sorted(rows, key=lambda row: row["timestamp"])
+
+    def append_llm_call(self, record: Any) -> dict[str, Any]:
+        row = _llm_call_row(record)
+        self.llm_calls[row["id"]] = row
+        return copy.deepcopy(row)
+
+    def get_llm_calls_for_job(self, job_id: str) -> list[dict[str, Any]]:
+        target = UUID(str(job_id))
+        rows = [row for row in self.llm_calls.values() if row.get("job_id") == target]
+        return [copy.deepcopy(row) for row in sorted(rows, key=lambda item: item["created_at"])]
 
 
 _memory_store = MemoryDataStore()
