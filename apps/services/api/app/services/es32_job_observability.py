@@ -28,6 +28,8 @@ def build_framework_job_observability(
             "source": "at53",
         }
         for entry in get_llm_call_logs()
+        if entry.opportunity_id is not None
+        and str(entry.opportunity_id) == str(opportunity_id)
     ]
     llm_calls = [*es_logs, *es_opportunity_jobs, *at53_logs]
     prompt_versions = sorted(
