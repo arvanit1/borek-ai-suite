@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 
 from app.auth import get_current_user
@@ -23,6 +23,7 @@ from app.schemas.presentations import (
 from app.schemas.jobs import JobEnqueueResponse
 from app.services import deck_center, job_service, presentation_generation
 from app.services.audit import AuditAction, AuditObjectType, record_audit_event
+from app.services.renderer_client import RendererClientError
 
 router = APIRouter(dependencies=[Depends(get_current_user)])
 opportunity_router = APIRouter(dependencies=[Depends(get_current_user)])
@@ -144,14 +145,21 @@ def generate_presentation(
     user: AuthUserDep,
     store: DataStoreDep,
 ) -> PresentationGenerateResponse:
-    presentation, plan, job, is_existing = presentation_generation.enqueue_presentation_generate(
-        store,
-        opportunity_id=opportunity_id,
-        user_id=user.id,
-        framework_version_id=body.framework_version_id,
-        presentation_plan_id=body.presentation_plan_id,
-        name=body.name,
-    )
+    try:
+        presentation, plan, job, is_existing = presentation_generation.enqueue_presentation_generate(
+            store,
+            opportunity_id=opportunity_id,
+            user_id=user.id,
+            framework_version_id=body.framework_version_id,
+            presentation_plan_id=body.presentation_plan_id,
+            name=body.name,
+        )
+    except RendererClientError as exc:
+        status_code = 503 if exc.retryable else 422
+        raise HTTPException(
+            status_code=status_code,
+            detail={"code": exc.code, "message": str(exc)},
+        ) from exc
     record_audit_event(
         store,
         actor_id=user.id,

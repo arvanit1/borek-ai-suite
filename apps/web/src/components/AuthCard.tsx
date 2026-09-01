@@ -20,13 +20,13 @@ interface AuthCardProps {
 
 function resolvePostAuthPath(): string {
   if (typeof window === "undefined") {
-    return "/upload";
+    return "/";
   }
   const next = new URLSearchParams(window.location.search).get("next")?.trim();
   if (next && next.startsWith("/") && !next.startsWith("//")) {
     return next;
   }
-  return "/upload";
+  return "/";
 }
 
 export function AuthCard({ mode: initialMode }: AuthCardProps) {

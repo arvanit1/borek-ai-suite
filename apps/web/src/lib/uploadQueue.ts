@@ -35,6 +35,17 @@ export function createQueueItems(files: Iterable<File>): TranscriptQueueItem[] {
   return Array.from(files, (file) => createQueueItem(file));
 }
 
+export function createRestoredQueueItem(transcriptId: string, fileName: string): TranscriptQueueItem {
+  return {
+    id: `restored-${transcriptId}`,
+    file: new File([], fileName, { type: "text/plain" }),
+    fileName,
+    validation: { ok: true, extension: "" },
+    status: "success",
+    transcriptId,
+  };
+}
+
 export function countByStatus(items: TranscriptQueueItem[]): Record<FileUploadStatus, number> {
   const counts: Record<FileUploadStatus, number> = {
     rejected: 0,

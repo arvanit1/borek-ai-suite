@@ -8,7 +8,7 @@ Canonical migration directory:
 apps/services/api/supabase/migrations/
 ```
 
-The ten §23 tables live in `001`–`010`. RLS policies are `011`. Follow-on wiring files `012`–`014` are additive (`ADD COLUMN IF NOT EXISTS` / storage bucket / `llm_calls`) and must be applied after `011`.
+The ten §23 tables live in `001`–`010`. RLS policies are `011`. Follow-on wiring files `012`–`015` are additive (`ADD COLUMN IF NOT EXISTS` / storage bucket / `llm_calls` / PII flag) and must be applied after `011`.
 
 ## Apply migrations to a clean Supabase project
 
@@ -40,7 +40,7 @@ for f in apps/services/api/supabase/migrations/*.sql; do
 done
 ```
 
-Alternative without `psql`: open Supabase Dashboard → SQL Editor and paste each file in order (`001` … `014`), one execution per file.
+Alternative without `psql`: open Supabase Dashboard → SQL Editor and paste each file in order (`001` … `015`), one execution per file.
 
 ## Verify all 10 tables exist with the correct schema
 

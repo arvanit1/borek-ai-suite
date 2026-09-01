@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { AppPageHeader } from "@/components/AppPageHeader";
 import { useAuth } from "@/components/AuthProvider";
 import { JobFailureAlert } from "@/components/JobFailureAlert";
 import { PipelineStepper } from "@/components/PipelineStepper";
@@ -221,21 +222,10 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
   }
 
   return (
-    <div className="upload-page">
-      <SiteHeader signedInEmail={session?.user.email} />
+    <div className="app-workspace">
+      <SiteHeader signedInEmail={session?.user.email} opportunityId={opportunityId} />
 
-      <div className="upload-hero">
-        <div className="app-shell upload-hero-inner">
-
-          <h1>Presentation plan preview</h1>
-          <p className="upload-lead">
-            Review the planned slide sequence — order, purpose, and layout — before committing to
-            full deck generation.
-          </p>
-        </div>
-      </div>
-
-      <div className="app-shell upload-body">
+      <div className="app-shell app-workspace-body">
         {!loading && isAuthenticated ? <span data-testid="auth-ready" hidden /> : null}
 
         {!loading && !isAuthenticated ? (
@@ -252,17 +242,24 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
           </div>
         ) : null}
 
+        <PipelineStepper
+          currentStep={3}
+          opportunityId={opportunityId}
+          frameworkReady={frameworkConfirmed !== false}
+          frameworkConfirmed={Boolean(frameworkConfirmed)}
+          planReady={Boolean(plan)}
+        />
+        <AppPageHeader
+          kicker="Step 3 of 4"
+          title="Presentation plan preview"
+          lead="Review the planned slide sequence — order, purpose, and layout — before committing to full deck generation."
+        />
+
         <div className="upload-layout">
           <aside className="upload-sidebar">
-            <PipelineStepper
-              currentStep={3}
-              frameworkReady={frameworkConfirmed !== false}
-              frameworkConfirmed={Boolean(frameworkConfirmed)}
-              planReady={Boolean(plan)}
-            />
             <div className="upload-meta-card">
               <h3>Active opportunity</h3>
-              <code className="upload-meta-id">{opportunityId}</code>
+              <p className="upload-meta-empty">Confirm the slide order before generating the deck.</p>
               <Link
                 href={`/framework-review?opportunityId=${opportunityId}`}
                 className="btn btn-secondary btn-block"

@@ -25,6 +25,7 @@ from services.framework.evolution import generate_evolution
 from services.framework.guardrails import convert_unsourced_claims, enforce_guardrails, strip_citations_from_value
 from services.framework.pre_confirm_check import prepare_framework_for_confirm
 from services.framework.process_scope import ProcessComplete, enforce_semantic_process_scope
+from services.framework.review_insights import attach_review_insights
 from services.framework.source_traceability import attach_block_source_refs, convert_unsupported_block_claims
 from services.framework.quality_scores import (
     assemble_quality_scores,
@@ -248,6 +249,7 @@ def generate_customer_framework(
         opportunity_id,
         stages=[STAGE_SYNTHESIS, STAGE_LOCALIZE],
     )
+    attach_review_insights(framework)
     return framework
 
 

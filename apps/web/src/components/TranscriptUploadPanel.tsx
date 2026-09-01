@@ -1,27 +1,183 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
+import { AppPageHeader } from "@/components/AppPageHeader";
 import { useAuth } from "@/components/AuthProvider";
 import { FileUploadQueue } from "@/components/FileUploadQueue";
 import { OpportunityForm } from "@/components/OpportunityForm";
+import { PipelineStepper } from "@/components/PipelineStepper";
 import { SiteHeader } from "@/components/SiteHeader";
 import { UploadStepper } from "@/components/UploadStepper";
-import { createOpportunity, uploadTranscript } from "@/lib/api";
+import {
+  createOpportunity,
+  getOpportunity,
+  listTranscripts,
+  uploadTranscript,
+  type OpportunityResponse,
+} from "@/lib/api";
+import { isMissingOpportunityError } from "@/lib/apiErrors";
+import {
+  clearActiveOpportunity,
+  clearOpportunityDraft,
+  clearPipelineContext,
+  getCachedUploadSession,
+  opportunityLabel,
+  pipelineHref,
+  rememberUploadSession,
+  saveActiveOpportunity,
+} from "@/lib/pipelineContext";
 import { countByStatus } from "@/lib/uploadQueue";
 import type { TranscriptQueueItem } from "@/lib/uploadQueue";
-import { updateQueueItem } from "@/lib/uploadQueue";
+import { createRestoredQueueItem, updateQueueItem } from "@/lib/uploadQueue";
 
-export function TranscriptUploadPanel() {
+interface TranscriptUploadPanelProps {
+  initialOpportunityId?: string | null;
+  startFresh?: boolean;
+}
+
+function storedFromResponse(opportunity: OpportunityResponse) {
+  return {
+    id: opportunity.id,
+    client_name: opportunity.client_name,
+    opportunity_name: opportunity.opportunity_name,
+    department: opportunity.department,
+    language: opportunity.language,
+  };
+}
+
+function mergeQueue(
+  cached: TranscriptQueueItem[],
+  remote: TranscriptQueueItem[],
+): TranscriptQueueItem[] {
+  const seenIds = new Set(
+    cached.map((item) => item.transcriptId).filter((id): id is string => Boolean(id)),
+  );
+  const extras = remote.filter((item) => !item.transcriptId || !seenIds.has(item.transcriptId));
+  return extras.length === 0 ? cached : [...cached, ...extras];
+}
+
+export function TranscriptUploadPanel({
+  initialOpportunityId = null,
+  startFresh = false,
+}: TranscriptUploadPanelProps) {
   const { accessToken, isAuthenticated, loading, session } = useAuth();
-  const [opportunityId, setOpportunityId] = useState<string | null>(null);
-  const [opportunityLabel, setOpportunityLabel] = useState<string | null>(null);
-  const [queueItems, setQueueItems] = useState<TranscriptQueueItem[]>([]);
-  const [uploadSummary, setUploadSummary] = useState<string | null>(null);
+  const cached = startFresh
+    ? { opportunity: null, queue: [], summary: null }
+    : getCachedUploadSession();
+  const [opportunity, setOpportunity] = useState<OpportunityResponse | null>(
+    cached.opportunity && (!initialOpportunityId || cached.opportunity.id === initialOpportunityId)
+      ? {
+          ...cached.opportunity,
+          status: "active",
+        }
+      : null,
+  );
+  const [opportunityId, setOpportunityId] = useState<string | null>(
+    initialOpportunityId || cached.opportunity?.id || null,
+  );
+  const [opportunityLabelText, setOpportunityLabelText] = useState<string | null>(
+    cached.opportunity ? opportunityLabel(cached.opportunity) : null,
+  );
+  const [queueItems, setQueueItems] = useState<TranscriptQueueItem[]>(cached.queue);
+  const [uploadSummary, setUploadSummary] = useState<string | null>(cached.summary);
 
   const canUpload = isAuthenticated && Boolean(opportunityId);
   const statusCounts = useMemo(() => countByStatus(queueItems), [queueItems]);
+
+  useEffect(() => {
+    if (!startFresh) {
+      return;
+    }
+    clearPipelineContext();
+    if (typeof window !== "undefined") {
+      window.history.replaceState(null, "", "/upload");
+    }
+  }, [startFresh]);
+
+  useEffect(() => {
+    rememberUploadSession({
+      opportunity: opportunity ? storedFromResponse(opportunity) : getCachedUploadSession().opportunity,
+      queue: queueItems,
+      summary: uploadSummary,
+    });
+  }, [opportunity, queueItems, uploadSummary]);
+
+  useEffect(() => {
+    if (!accessToken) {
+      return;
+    }
+    if (startFresh) {
+      return;
+    }
+    const token = accessToken;
+    const cachedSession = getCachedUploadSession();
+    const restoreId = initialOpportunityId || cachedSession.opportunity?.id;
+    if (!restoreId) {
+      return;
+    }
+    const opportunityKey = restoreId;
+
+    let cancelled = false;
+
+    async function restore() {
+      try {
+        const loaded = await getOpportunity(token, opportunityKey);
+        if (cancelled) {
+          return;
+        }
+        const stored = storedFromResponse(loaded);
+        setOpportunity(loaded);
+        setOpportunityId(loaded.id);
+        setOpportunityLabelText(opportunityLabel(stored));
+        saveActiveOpportunity(stored);
+        clearOpportunityDraft();
+        if (typeof window !== "undefined") {
+          window.history.replaceState(null, "", pipelineHref("/upload", loaded.id));
+        }
+      } catch (restoreError) {
+        if (!cancelled && isMissingOpportunityError(restoreError)) {
+          clearActiveOpportunity();
+          setOpportunity(null);
+          setOpportunityId(null);
+          setOpportunityLabelText(null);
+          setQueueItems([]);
+          if (typeof window !== "undefined") {
+            window.history.replaceState(null, "", "/upload");
+          }
+        }
+        return;
+      }
+
+      try {
+        const transcripts = await listTranscripts(token, opportunityKey);
+        if (cancelled) {
+          return;
+        }
+        const remoteItems = transcripts.map((item) =>
+          createRestoredQueueItem(item.id, item.file_name),
+        );
+        setQueueItems((current) => {
+          const merged = mergeQueue(current.length > 0 ? current : cachedSession.queue, remoteItems);
+          return merged;
+        });
+        if (transcripts.length > 0) {
+          setUploadSummary((current) =>
+            current ??
+              `${transcripts.length} transcript${transcripts.length === 1 ? "" : "s"} already ingested.`,
+          );
+        }
+      } catch {
+        // Keep the restored opportunity even if the transcript list cannot be loaded.
+      }
+    }
+
+    void restore();
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, initialOpportunityId, startFresh]);
 
   async function handleCreateOpportunity(values: {
     client_name: string;
@@ -32,10 +188,22 @@ export function TranscriptUploadPanel() {
     if (!accessToken) {
       throw new Error("Sign in is required before creating an opportunity.");
     }
-    const opportunity = await createOpportunity(accessToken, values);
-    setOpportunityId(opportunity.id);
-    setOpportunityLabel(`${values.client_name} — ${values.opportunity_name}`);
+    const created = await createOpportunity(accessToken, values);
+    const stored = storedFromResponse(created);
+    setOpportunity(created);
+    setOpportunityId(created.id);
+    setOpportunityLabelText(opportunityLabel(stored));
     setUploadSummary(null);
+    saveActiveOpportunity(stored);
+    clearOpportunityDraft();
+    rememberUploadSession({
+      opportunity: stored,
+      queue: queueItems,
+      summary: null,
+    });
+    if (typeof window !== "undefined") {
+      window.history.replaceState(null, "", pipelineHref("/upload", created.id));
+    }
   }
 
   async function handleUploadBatch(batch: TranscriptQueueItem[]) {
@@ -84,21 +252,18 @@ export function TranscriptUploadPanel() {
   }
 
   return (
-    <div className="upload-page">
-      <SiteHeader signedInEmail={session?.user.email} />
+    <div className="app-workspace">
+      <SiteHeader signedInEmail={session?.user.email} opportunityId={opportunityId} />
 
-      <div className="upload-hero">
-        <div className="app-shell upload-hero-inner">
-          <h1>Transcript ingestion</h1>
-          <p className="upload-lead">
-            Attach client discovery transcripts to an opportunity. Unsupported formats are filtered
-            on your device before anything is sent to the server.
-          </p>
-        </div>
-      </div>
-
-      <div className="app-shell upload-body">
+      <div className="app-shell app-workspace-body">
         {!loading && isAuthenticated ? <span data-testid="auth-ready" hidden /> : null}
+
+        <PipelineStepper currentStep={1} opportunityId={opportunityId ?? undefined} />
+        <AppPageHeader
+          kicker="Step 1 of 4"
+          title="Transcript ingestion"
+          lead="Attach client discovery transcripts to an opportunity. Unsupported formats are filtered on your device before anything is sent to the server."
+        />
 
         <div className="upload-layout">
           <aside className="upload-sidebar">
@@ -111,53 +276,69 @@ export function TranscriptUploadPanel() {
             {opportunityId ? (
               <div className="upload-meta-card">
                 <h3>Active opportunity</h3>
-                {opportunityLabel ? <p className="upload-meta-title">{opportunityLabel}</p> : null}
-                <code className="upload-meta-id">{opportunityId}</code>
+                {opportunityLabelText ? <p className="upload-meta-title">{opportunityLabelText}</p> : null}
                 <Link
-                  href={`/framework-review?opportunityId=${opportunityId}`}
-                  className="btn btn-secondary btn-block"
+                  href={pipelineHref("/framework-review", opportunityId)}
+                  className="btn btn-primary btn-block"
                 >
                   Review framework
                 </Link>
               </div>
-            ) : null}
+            ) : (
+              <div className="upload-meta-card upload-meta-card-muted">
+                <h3>Active opportunity</h3>
+                <p className="upload-meta-empty">Create an opportunity to start this pipeline.</p>
+              </div>
+            )}
           </aside>
 
           <div className="upload-main">
             <section className="upload-panel">
               <header className="upload-panel-header">
                 <div>
-                  <h2>1 · Opportunity details</h2>
+                  <h2>Opportunity details</h2>
                   <p>Every upload is scoped to a sales opportunity record.</p>
                 </div>
               </header>
               <OpportunityForm
                 disabled={!isAuthenticated || loading}
+                existing={
+                  opportunity
+                    ? {
+                        client_name: opportunity.client_name,
+                        opportunity_name: opportunity.opportunity_name,
+                        department: opportunity.department,
+                        language: opportunity.language,
+                      }
+                    : null
+                }
                 onSubmit={handleCreateOpportunity}
               />
             </section>
 
-            <section className="upload-panel">
+            <section
+              className={`upload-panel${
+                statusCounts.success > 0 && statusCounts.pending === 0 ? " upload-panel-settled" : ""
+              }`}
+            >
               <header className="upload-panel-header">
                 <div>
-                  <h2>2 · Transcript files</h2>
+                  <h2>Transcript files</h2>
                   <p>
-                    Select or drop multiple files. Each file is validated and tracked individually.
+                    {uploadSummary
+                      ? uploadSummary
+                      : "Select or drop multiple files. Each file is validated and tracked individually."}
                   </p>
                 </div>
-                {queueItems.length > 0 ? (
+                {queueItems.length > 0 && statusCounts.pending > 0 ? (
                   <div className="upload-stat-strip" aria-label="File queue summary">
-                    <span>{statusCounts.pending} ready</span>
-                    <span>{statusCounts.rejected} rejected</span>
-                    <span>{statusCounts.success} uploaded</span>
+                    {statusCounts.pending > 0 ? <span>{statusCounts.pending} ready</span> : null}
+                    {statusCounts.rejected > 0 ? <span>{statusCounts.rejected} rejected</span> : null}
+                    {statusCounts.success > 0 ? <span>{statusCounts.success} uploaded</span> : null}
                     {statusCounts.error > 0 ? <span>{statusCounts.error} failed</span> : null}
                   </div>
                 ) : null}
               </header>
-
-              {uploadSummary ? (
-                <div className="upload-banner upload-banner-success">{uploadSummary}</div>
-              ) : null}
 
               {!canUpload && isAuthenticated ? (
                 <p className="upload-hint">

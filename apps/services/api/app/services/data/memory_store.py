@@ -163,6 +163,7 @@ class MemoryDataStore:
         opportunity_name: str,
         department: str,
         language: str,
+        pii_redaction_enabled: bool = True,
     ) -> dict[str, Any]:
         opportunity_id = uuid.uuid4()
         now = _now()
@@ -173,6 +174,7 @@ class MemoryDataStore:
             "department": department,
             "language": language,
             "status": "active",
+            "pii_redaction_enabled": bool(pii_redaction_enabled),
             "created_by": user_id,
             "created_at": now,
             "updated_at": now,

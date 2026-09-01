@@ -229,6 +229,13 @@ export interface OpportunityResponse {
   status: string;
 }
 
+export interface ListedOpportunityResponse extends OpportunityResponse {
+  pii_redaction_enabled: boolean;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface TranscriptResponse {
   id: string;
   file_name: string;
@@ -248,6 +255,29 @@ export async function createOpportunity(
     method: "POST",
     body: JSON.stringify(payload),
   });
+}
+
+export async function getOpportunity(
+  accessToken: string,
+  opportunityId: string,
+): Promise<OpportunityResponse> {
+  return apiFetch<OpportunityResponse>(`/opportunities/${opportunityId}`, accessToken);
+}
+
+export async function listOpportunities(
+  accessToken: string,
+): Promise<ListedOpportunityResponse[]> {
+  return apiFetch<ListedOpportunityResponse[]>("/opportunities", accessToken);
+}
+
+export async function listTranscripts(
+  accessToken: string,
+  opportunityId: string,
+): Promise<TranscriptResponse[]> {
+  return apiFetch<TranscriptResponse[]>(
+    `/opportunities/${opportunityId}/transcripts`,
+    accessToken,
+  );
 }
 
 export async function uploadTranscript(

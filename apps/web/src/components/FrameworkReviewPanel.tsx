@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { AppPageHeader } from "@/components/AppPageHeader";
 import { useAuth } from "@/components/AuthProvider";
 import { FrameworkChapterView } from "@/components/FrameworkChapterView";
 import { FrameworkRootFieldsPanel } from "@/components/FrameworkRootFieldsPanel";
@@ -16,6 +17,7 @@ import {
   generateFramework,
   getActiveJob,
   getLatestFramework,
+  listTranscripts,
   regenerateFrameworkChapter,
   retryJob,
   updateFramework as persistFramework,
@@ -51,6 +53,10 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
   const [dirty, setDirty] = useState(false);
   const [regeneratingChapterId, setRegeneratingChapterId] = useState<string | null>(null);
   const [retryJobId, setRetryJobId] = useState<string | null>(null);
+  const [transcriptCount, setTranscriptCount] = useState<number | null>(null);
+  const [activeChapterId, setActiveChapterId] = useState<string | null>(null);
+  const [hoveredChapterId, setHoveredChapterId] = useState<string | null>(null);
+  const chapterNavItemRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
 
   const editable = frameworkVersion
     ? canEditFramework(frameworkVersion.status, frameworkJson?.status)
@@ -169,6 +175,27 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
     };
   }, [accessToken, applyLatestFramework, loading, opportunityId]);
 
+  useEffect(() => {
+    if (!accessToken) {
+      return;
+    }
+    let cancelled = false;
+    void listTranscripts(accessToken, opportunityId)
+      .then((rows) => {
+        if (!cancelled) {
+          setTranscriptCount(rows.length);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setTranscriptCount(0);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, opportunityId]);
+
   const chapterNav = useMemo(() => {
     if (!frameworkJson) {
       return [];
@@ -181,6 +208,60 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
     }));
   }, [frameworkJson]);
 
+  const chapterIdsKey = chapterNav.map((item) => item.chapterId).join("|");
+  const highlightedChapterId = hoveredChapterId ?? activeChapterId;
+
+  useEffect(() => {
+    if (!chapterIdsKey) {
+      setActiveChapterId(null);
+      return;
+    }
+
+    const ids = chapterIdsKey.split("|");
+    const headerOffset = 140;
+
+    function updateActiveChapter() {
+      let current = ids[0];
+      for (const id of ids) {
+        const node = document.getElementById(`framework-chapter-${id}`);
+        if (!node) {
+          continue;
+        }
+        if (node.getBoundingClientRect().top - headerOffset <= 0) {
+          current = id;
+        }
+      }
+      setActiveChapterId((previous) => (previous === current ? previous : current));
+    }
+
+    updateActiveChapter();
+    window.addEventListener("scroll", updateActiveChapter, { passive: true });
+    window.addEventListener("resize", updateActiveChapter);
+    return () => {
+      window.removeEventListener("scroll", updateActiveChapter);
+      window.removeEventListener("resize", updateActiveChapter);
+    };
+  }, [chapterIdsKey]);
+
+  useEffect(() => {
+    if (!highlightedChapterId) {
+      return;
+    }
+    const item = chapterNavItemRefs.current[highlightedChapterId];
+    const sidebar = item?.closest(".framework-sidebar");
+    if (!item || !(sidebar instanceof HTMLElement)) {
+      return;
+    }
+    const sidebarRect = sidebar.getBoundingClientRect();
+    const itemRect = item.getBoundingClientRect();
+    const padding = 8;
+    if (itemRect.top < sidebarRect.top + padding) {
+      sidebar.scrollTop -= sidebarRect.top + padding - itemRect.top;
+    } else if (itemRect.bottom > sidebarRect.bottom - padding) {
+      sidebar.scrollTop += itemRect.bottom - (sidebarRect.bottom - padding);
+    }
+  }, [highlightedChapterId]);
+
   function applyFrameworkDraft(next: FrameworkObject) {
     setFrameworkJson(next);
     setDirty(true);
@@ -188,6 +269,10 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
 
   async function handleGenerate() {
     if (!accessToken) {
+      return;
+    }
+    if ((transcriptCount ?? 0) === 0) {
+      setError("Upload at least one transcript before generating a framework.");
       return;
     }
     setBusy(true);
@@ -302,21 +387,10 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
   }
 
   return (
-    <div className="upload-page">
-      <SiteHeader signedInEmail={session?.user.email} />
+    <div className="app-workspace">
+      <SiteHeader signedInEmail={session?.user.email} opportunityId={opportunityId} />
 
-      <div className="upload-hero">
-        <div className="app-shell upload-hero-inner">
-          <p className="upload-eyebrow">Pipeline · Step 2 of 4</p>
-          <h1>Framework review</h1>
-          <p className="upload-lead">
-            Review all 14 chapters, inspect source references, and edit any field while the
-            framework is draft or in review. Confirmation locks the object.
-          </p>
-        </div>
-      </div>
-
-      <div className="app-shell upload-body">
+      <div className="app-shell app-workspace-body">
         {!loading && isAuthenticated ? <span data-testid="auth-ready" hidden /> : null}
 
         {!loading && !isAuthenticated ? (
@@ -333,17 +407,23 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
           </div>
         ) : null}
 
+        <PipelineStepper
+          currentStep={2}
+          opportunityId={opportunityId}
+          frameworkReady={Boolean(frameworkVersion)}
+          frameworkConfirmed={frameworkConfirmed}
+        />
+        <AppPageHeader
+          kicker="Step 2 of 4"
+          title="Framework review"
+          lead="Review all 14 chapters, inspect source references, and edit any field while the framework is draft or in review. Confirmation locks the object."
+        />
+
         <div className="upload-layout">
           <aside className="upload-sidebar">
-            <PipelineStepper
-              currentStep={2}
-              frameworkReady={Boolean(frameworkVersion)}
-              frameworkConfirmed={frameworkConfirmed}
-            />
-
             <div className="upload-meta-card">
               <h3>Active opportunity</h3>
-              <code className="upload-meta-id">{opportunityId}</code>
+              <p className="upload-meta-empty">Continue when the 14-chapter draft is ready to lock.</p>
               <Link href={`/upload?opportunityId=${opportunityId}`} className="btn btn-secondary btn-block">
                 Back to upload
               </Link>
@@ -393,15 +473,35 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
                   <div className="pipeline-empty-icon" aria-hidden="true">
                     14
                   </div>
-                  <p>No framework version exists yet for this opportunity.</p>
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    disabled={busy}
-                    onClick={() => void handleGenerate()}
-                  >
-                    Generate framework
-                  </button>
+                  {(transcriptCount ?? 0) === 0 ? (
+                    <>
+                      <p>
+                        No transcripts are attached to this opportunity yet. Upload at least one
+                        discovery transcript, then generate the framework.
+                      </p>
+                      <Link
+                        href={`/upload?opportunityId=${opportunityId}`}
+                        className="btn btn-primary"
+                      >
+                        Back to upload
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <p>
+                        {transcriptCount} transcript{transcriptCount === 1 ? "" : "s"} ready.
+                        Generate the 14-chapter draft to review it here.
+                      </p>
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        disabled={busy}
+                        onClick={() => void handleGenerate()}
+                      >
+                        Generate framework
+                      </button>
+                    </>
+                  )}
                 </div>
               </section>
             ) : null}
@@ -503,26 +603,50 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
                   <aside className="framework-sidebar">
                     <h2>Chapters</h2>
                     <ol className="framework-chapter-nav">
-                      {chapterNav.map((item) => (
-                        <li key={item.chapterId}>
-                          <a
-                            href={`#framework-chapter-${item.chapterId}`}
-                            className="framework-chapter-nav-btn"
-                          >
-                            <span>{item.chapterId}</span>
-                            <span>{item.title}</span>
-                            {item.refCount > 0 ? (
-                              <span className="framework-ref-count">{item.refCount} refs</span>
-                            ) : null}
-                          </a>
-                        </li>
-                      ))}
+                      {chapterNav.map((item) => {
+                        const isHighlighted = highlightedChapterId === item.chapterId;
+                        return (
+                          <li key={item.chapterId}>
+                            <a
+                              ref={(node) => {
+                                chapterNavItemRefs.current[item.chapterId] = node;
+                              }}
+                              href={`#framework-chapter-${item.chapterId}`}
+                              className={
+                                isHighlighted
+                                  ? "framework-chapter-nav-btn framework-chapter-nav-btn-active"
+                                  : "framework-chapter-nav-btn"
+                              }
+                              aria-current={isHighlighted ? "true" : undefined}
+                              onClick={() => setActiveChapterId(item.chapterId)}
+                            >
+                              <span>{item.chapterId}</span>
+                              <span>{item.title}</span>
+                              {item.refCount > 0 ? (
+                                <span className="framework-ref-count">{item.refCount} refs</span>
+                              ) : null}
+                            </a>
+                          </li>
+                        );
+                      })}
                     </ol>
                   </aside>
 
-                  <div className="framework-main framework-all-chapters">
+                  <div
+                    className="framework-main framework-all-chapters"
+                    onMouseLeave={() => setHoveredChapterId(null)}
+                  >
                     {frameworkJson.chapters.map((chapter, chapterIndex) => (
-                      <div key={chapter.chapter_id} id={`framework-chapter-${chapter.chapter_id}`}>
+                      <div
+                        key={chapter.chapter_id}
+                        id={`framework-chapter-${chapter.chapter_id}`}
+                        className={
+                          highlightedChapterId === chapter.chapter_id
+                            ? "framework-chapter-anchor framework-chapter-anchor-active"
+                            : "framework-chapter-anchor"
+                        }
+                        onMouseEnter={() => setHoveredChapterId(chapter.chapter_id)}
+                      >
                         <FrameworkChapterView
                           chapter={chapter}
                           editable={editable && !busy}

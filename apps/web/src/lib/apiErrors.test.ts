@@ -4,14 +4,17 @@ import { ApiRequestError } from "./api.js";
 import {
   isMissingActiveJobError,
   isMissingFrameworkError,
+  isMissingOpportunityError,
   isMissingPresentationError,
   isMissingPresentationPlanError,
+  isPresentationNotReadyError,
 } from "./apiErrors.js";
 
 assert.equal(
   isMissingFrameworkError(new ApiRequestError("No framework version exists", 404, "FRAMEWORK_NOT_FOUND")),
   true,
 );
+assert.equal(isMissingOpportunityError(new ApiRequestError("Missing opportunity", 404, "NOT_FOUND")), true);
 assert.equal(isMissingFrameworkError(new ApiRequestError("Server error", 500)), false);
 assert.equal(
   isMissingPresentationPlanError(
@@ -32,5 +35,12 @@ assert.equal(
   true,
 );
 assert.equal(isMissingActiveJobError(new ApiRequestError("Server error", 500)), false);
+assert.equal(
+  isPresentationNotReadyError(
+    new ApiRequestError("Presentation is still generating", 409, "PRESENTATION_NOT_READY"),
+  ),
+  true,
+);
+assert.equal(isPresentationNotReadyError(new ApiRequestError("Missing presentation", 404)), false);
 
 console.log("apiErrors tests passed");

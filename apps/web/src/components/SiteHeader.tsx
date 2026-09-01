@@ -1,32 +1,44 @@
+"use client";
+
 import Link from "next/link";
 
 import { BrandLogo } from "@/components/BrandLogo";
 import { SignOutButton } from "@/components/SignOutButton";
+import { useAuth } from "@/components/AuthProvider";
 
 interface SiteHeaderProps {
   signedInEmail?: string | null;
+  opportunityId?: string | null;
 }
 
 export function SiteHeader({ signedInEmail }: SiteHeaderProps) {
+  const { session } = useAuth();
+  const email = signedInEmail ?? session?.user.email ?? null;
+
   return (
     <header className="site-header">
-      <BrandLogo showProductName />
-      <nav className="site-nav" aria-label="Main">
-        <Link href="/upload">Upload</Link>
-        {signedInEmail ? (
-          <>
-            <span className="site-user">{signedInEmail}</span>
-            <SignOutButton />
-          </>
-        ) : (
-          <>
-            <Link href="/login">Sign in</Link>
-            <Link href="/register" className="site-nav-cta">
-              Register
-            </Link>
-          </>
-        )}
-      </nav>
+      <div className="site-header-inner">
+        <BrandLogo showProductName href="/" />
+        <nav className="site-nav" aria-label="Main navigation">
+          {email ? (
+            <>
+              <Link href="/">Recent</Link>
+              <Link href="/upload?new=1">New presentation</Link>
+              <span className="site-user" title={email}>
+                {email}
+              </span>
+              <SignOutButton />
+            </>
+          ) : (
+            <>
+              <Link href="/login">Sign in</Link>
+              <Link href="/register" className="site-nav-cta">
+                Register
+              </Link>
+            </>
+          )}
+        </nav>
+      </div>
     </header>
   );
 }

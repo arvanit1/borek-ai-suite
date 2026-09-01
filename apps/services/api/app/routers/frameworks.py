@@ -43,14 +43,14 @@ def get_framework_version(
     return _to_response(row)
 
 
-@router.get("/{framework_version_id}/render")
+@router.get("/{framework_version_id}/render", response_model=None)
 def download_framework_render(
     framework_version_id: UUID,
     user: AuthUserDep,
     store: DataStoreDep,
     format: Literal["pdf", "html", "docx"] = Query(default="pdf"),
     lang: str = Query(default="en"),
-) -> Response:
+) -> FileResponse | Response:
     row = store.get_framework_version(
         framework_version_id=framework_version_id,
         user_id=user.id,
@@ -61,7 +61,9 @@ def download_framework_render(
     language = "de" if str(lang).lower().startswith("de") else "en"
 
     if format == "pdf":
-        cached = framework_generation.resolve_framework_render_path(framework_version_id)
+        cached = framework_generation.resolve_framework_render_path(
+            framework_version_id, output_format="pdf"
+        )
         if cached.is_file() and language == "en" and payload.get("status") == "confirmed":
             return FileResponse(
                 cached,
@@ -111,6 +113,19 @@ def get_latest_framework(
 ) -> FrameworkVersionResponse:
     row = store.get_latest_framework(opportunity_id=opportunity_id, user_id=user.id)
     return _to_response(row)
+
+
+@opportunity_router.get("/{opportunity_id}/framework/review")
+def get_framework_review(
+    opportunity_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> dict:
+    return framework_generation.get_framework_review(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user.id,
+    )
 
 
 @opportunity_router.post(
