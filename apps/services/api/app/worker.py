@@ -109,10 +109,19 @@ def run_framework_generation_task(
         )
         stage = JobStage.FRAMEWORK_VALIDATING
         job_service.advance_stage(parsed_job_id, stage, repository=store)
+        loaded_job = job_service.get_job(parsed_job_id, repository=store)
+        if loaded_job is None:
+            raise RuntimeError(f"Job not found: {job_id}")
+        observability = framework_generation.persist_framework_generation_observability(
+            loaded_job,
+            framework_json=framework["framework_json"],
+            opportunity_id=UUID(opportunity_id),
+            framework_version_id=UUID(framework_version_id),
+        )
         job_service.complete_job(
             parsed_job_id,
             repository=store,
-            result_json={"framework_version_id": str(framework["id"])},
+            result_json=observability,
         )
         return {"job_id": job_id, "framework_version_id": str(framework["id"])}
     except Exception as exc:

@@ -249,3 +249,18 @@ def test_confirm_framework_blocks_es13_chapter6_contradiction() -> None:
 
     reloaded = client.get(f"/opportunities/{opportunity_id}/framework", headers=_headers())
     assert reloaded.json()["status"] == "draft"
+
+
+def test_framework_review_returns_summary_and_attention_signals() -> None:
+    client = _client()
+    opportunity_id = _create_opportunity(client)
+    client.post(f"/opportunities/{opportunity_id}/framework/generate", headers=_headers())
+
+    review = client.get(f"/opportunities/{opportunity_id}/framework/review", headers=_headers())
+    assert review.status_code == 200
+    body = review.json()
+    assert body["review_summary"]["headline"]
+    assert isinstance(body["attention_signals"], list)
+    assert body["review_state"]
+    assert body["pii_handling"]["applied_before_llm"] is True
+    assert "prompt_observability" in body

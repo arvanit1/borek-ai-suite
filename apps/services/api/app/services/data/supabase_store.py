@@ -110,6 +110,7 @@ def _normalize_opportunity(row: dict[str, Any]) -> dict[str, Any]:
         "created_by": UUID(str(row["created_by"])),
         "created_at": _parse_timestamp(row["created_at"]),
         "updated_at": _parse_timestamp(row["updated_at"]),
+        "pii_redaction_enabled": bool(row.get("pii_redaction_enabled", True)),
     }
 
 
@@ -286,6 +287,7 @@ class SupabaseDataStore:
         opportunity_name: str,
         department: str,
         language: str,
+        pii_redaction_enabled: bool = True,
     ) -> dict[str, Any]:
         payload = {
             "client_name": client_name,
@@ -293,6 +295,7 @@ class SupabaseDataStore:
             "department": department,
             "language": language,
             "status": "active",
+            "pii_redaction_enabled": bool(pii_redaction_enabled),
             "created_by": str(user_id),
         }
         response = self._request("POST", "opportunities", json_body=payload)

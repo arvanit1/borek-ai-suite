@@ -5,7 +5,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 
 from app.auth import get_current_user
 from app.dependencies import AuthUserDep, DataStoreDep
@@ -41,22 +41,38 @@ def get_framework_version(
     return _to_response(row)
 
 
-@router.get("/{framework_version_id}/render")
+@router.get("/{framework_version_id}/render", response_model=None)
 def download_framework_render(
     framework_version_id: UUID,
     user: AuthUserDep,
     store: DataStoreDep,
     format: str = Query(default="pdf"),
-) -> FileResponse:
-    if format != "pdf":
+) -> FileResponse | Response:
+    if format not in {"pdf", "docx"}:
         from app.services.api_errors import bad_request
 
         raise bad_request(
             "UNSUPPORTED_FRAMEWORK_FORMAT",
-            "Only PDF framework rendering is currently implemented",
+            "Supported framework export formats are pdf and docx",
         )
-    store.get_framework_version(framework_version_id=framework_version_id, user_id=user.id)
-    path = framework_generation.resolve_framework_render_path(framework_version_id)
+    row = store.get_framework_version(framework_version_id=framework_version_id, user_id=user.id)
+    if format == "docx":
+        from services.framework.rendering.customer_docx import render_customer_docx
+        from services.framework.eligibility import RenderBlocked
+
+        try:
+            docx_bytes = render_customer_docx(row["framework_json"])
+        except RenderBlocked as exc:
+            from app.services.api_errors import bad_request
+
+            raise bad_request("FRAMEWORK_RENDER_BLOCKED", exc.user_message) from exc
+        filename = f"{framework_version_id}-customer-report.docx"
+        return Response(
+            content=docx_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    path = framework_generation.resolve_framework_render_path(framework_version_id, output_format="pdf")
     if not path.is_file():
         from app.services.api_errors import not_found
 
@@ -76,6 +92,19 @@ def get_latest_framework(
 ) -> FrameworkVersionResponse:
     row = store.get_latest_framework(opportunity_id=opportunity_id, user_id=user.id)
     return _to_response(row)
+
+
+@opportunity_router.get("/{opportunity_id}/framework/review")
+def get_framework_review(
+    opportunity_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> dict:
+    return framework_generation.get_framework_review(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user.id,
+    )
 
 
 @opportunity_router.post(

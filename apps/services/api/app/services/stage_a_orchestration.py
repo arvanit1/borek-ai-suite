@@ -15,6 +15,7 @@ from app.config import settings
 from app.services.api_errors import bad_request
 from app.services.framework_stub_template import load_framework_stub_template
 from services.framework.pipeline import generate_customer_framework
+from services.framework.review_insights import attach_review_insights, opportunity_pii_redaction_enabled
 from services.knowledge_model.extraction import extract_knowledge_model
 from services.transcript.conversation_ids import TranscriptIdentity
 from services.transcript.speaker_turns import SpeakerTurn
@@ -46,7 +47,11 @@ def generate_framework_from_transcripts(
         payload = load_framework_stub_template(opportunity_id)
         if sources:
             payload["generated_from"] = [str(source["id"]) for source in sources]
-        return payload
+        opportunity = store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        return attach_review_insights(
+            payload,
+            pii_redaction_enabled=opportunity_pii_redaction_enabled(opportunity),
+        )
     if not sources:
         raise bad_request(
             "TRANSCRIPT_REQUIRED",
@@ -54,6 +59,7 @@ def generate_framework_from_transcripts(
         )
 
     opportunity = store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+    redact = opportunity_pii_redaction_enabled(opportunity)
     knowledge_models: list[dict[str, Any]] = []
     for source in sources:
         turns = _speaker_turns(source)
@@ -67,7 +73,7 @@ def generate_framework_from_transcripts(
                 extract_fn(
                     turns,
                     identity,
-                    redact=True,
+                    redact=redact,
                 )
             )
         except Exception as exc:
@@ -96,7 +102,7 @@ def generate_framework_from_transcripts(
     payload["opportunity_id"] = str(opportunity_id)
     payload["status"] = "draft"
     payload["generated_from"] = [str(source["id"]) for source in sources]
-    return payload
+    return attach_review_insights(payload, pii_redaction_enabled=redact)
 
 
 def _speaker_turns(source: dict[str, Any]) -> list[SpeakerTurn]:
