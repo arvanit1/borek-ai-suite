@@ -32,7 +32,41 @@ EXPECTED_TABLES = [
     "slides",
     "generation_jobs",
     "audit_log",
+    "llm_calls",
 ]
+
+EXPECTED_COLUMNS = {
+    "opportunities": ("pii_redaction_enabled",),
+    "generation_jobs": (
+        "llm_cost_eur",
+        "error_retryable",
+        "result_json",
+        "number_of_ai_calls",
+        "ai_input_tokens",
+        "ai_output_tokens",
+    ),
+    "llm_calls": (
+        "request_id",
+        "job_id",
+        "opportunity_id",
+        "prompt_version",
+        "retry_count",
+        "estimated_cost_eur",
+    ),
+}
+
+EXPECTED_FOREIGN_KEYS = {
+    "transcripts": "opportunities",
+    "framework_versions": "opportunities",
+    "presentation_plans": "framework_versions",
+    "presentations": "presentation_plans",
+    "generation_jobs": "opportunities",
+    "llm_calls": "generation_jobs",
+}
+
+EXPECTED_INDEXES = (
+    "transcripts_opportunity_conversation_id_key",
+)
 
 LOCAL_DB_HOSTS = {"localhost", "127.0.0.1", "::1"}
 
@@ -182,7 +216,62 @@ def verify_via_postgres(db_url: str) -> tuple[int, bool]:
                 else:
                     warn("auth.uid() not found")
 
-            print("\n7) Smoke insert/delete")
+            print("\n7) Required columns, foreign keys, and indexes")
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT table_name, column_name
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND table_name = ANY(%s)
+                    """,
+                    (list(EXPECTED_COLUMNS),),
+                )
+                present_columns = {(row[0], row[1]) for row in cur.fetchall()}
+            for table, columns in EXPECTED_COLUMNS.items():
+                for column in columns:
+                    if (table, column) in present_columns:
+                        ok(f"{table}.{column}")
+                    else:
+                        fail(f"{table}.{column} missing")
+                        errors += 1
+
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT
+                      conrelid::regclass::text,
+                      confrelid::regclass::text
+                    FROM pg_constraint
+                    WHERE contype = 'f'
+                      AND connamespace = 'public'::regnamespace
+                    """
+                )
+                fk_pairs = {(row[0], row[1]) for row in cur.fetchall()}
+            for child, parent in EXPECTED_FOREIGN_KEYS.items():
+                if (child, parent) in fk_pairs:
+                    ok(f"{child} -> {parent}")
+                else:
+                    fail(f"{child} missing FK to {parent}")
+                    errors += 1
+
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT indexname FROM pg_indexes
+                    WHERE schemaname = 'public' AND indexname = ANY(%s)
+                    """,
+                    (list(EXPECTED_INDEXES),),
+                )
+                found_indexes = {row[0] for row in cur.fetchall()}
+            for index_name in EXPECTED_INDEXES:
+                if index_name in found_indexes:
+                    ok(index_name)
+                else:
+                    fail(f"{index_name} missing")
+                    errors += 1
+
+            print("\n8) Smoke insert/delete")
             test_id = uuid.uuid4()
             user_id = uuid.UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
             with conn.cursor() as cur:

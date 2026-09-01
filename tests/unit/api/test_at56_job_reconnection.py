@@ -240,6 +240,112 @@ def test_plan_generate_does_not_reuse_running_deck_job() -> None:
     mocked.run.assert_called_once()
 
 
+def test_refresh_during_framework_generation() -> None:
+    """PDF AT-56: refresh during Framework resumes the active job."""
+    client = _client()
+    opportunity_id = _create_opportunity(client)
+    job = _create_job(opportunity_id, "framework_generation")
+
+    response = client.get(
+        f"/opportunities/{opportunity_id}/jobs/active",
+        headers=_headers(),
+        params={"stage_group": "framework"},
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["job_id"] == str(job.id)
+    assert body["job_type"] == "framework_generation"
+    assert body["status"] == "RUNNING"
+
+
+def test_refresh_after_completion_returns_completed_job() -> None:
+    """PDF AT-56: refresh after completion returns the completed result."""
+    client = _client()
+    opportunity_id = _create_opportunity(client)
+    job = _create_job(opportunity_id, "framework_generation", complete=True)
+
+    response = client.get(
+        f"/opportunities/{opportunity_id}/jobs/active",
+        headers=_headers(),
+        params={"stage_group": "framework"},
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["job_id"] == str(job.id)
+    assert body["status"] == "COMPLETED"
+    assert body["current_stage"] == "COMPLETED"
+
+
+def test_refresh_during_slide_generation() -> None:
+    client = _client()
+    opportunity_id = _create_opportunity(client)
+    job = _create_job(opportunity_id, "slide_regenerate")
+
+    response = client.get(
+        f"/opportunities/{opportunity_id}/jobs/active",
+        headers=_headers(),
+        params={"stage_group": "presentation"},
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["job_id"] == str(job.id)
+    assert body["job_type"] == "slide_regenerate"
+    assert body["status"] == "RUNNING"
+
+
+def test_failed_job_returned_when_no_active() -> None:
+    client = _client()
+    opportunity_id = _create_opportunity(client)
+    job = _create_job(opportunity_id, "framework_generation")
+    failed = job_service.fail_job(
+        job.id,
+        "FRAMEWORK_GENERATION_FAILED",
+        "Synthesis failed",
+        JobStage.FRAMEWORK_SYNTHESIZING,
+        True,
+        repository=get_memory_store(),
+    )
+
+    response = client.get(
+        f"/opportunities/{opportunity_id}/jobs/active",
+        headers=_headers(),
+        params={"stage_group": "framework"},
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["job_id"] == str(failed.id)
+    assert body["status"] == "FAILED"
+    assert body["error"] is not None
+    assert body["error"]["code"] == "FRAMEWORK_GENERATION_FAILED"
+
+
+def test_multiple_historical_jobs_resolve_to_latest() -> None:
+    client = _client()
+    opportunity_id = _create_opportunity(client)
+    older = _create_job(opportunity_id, "framework_generation", complete=True)
+    newer = _create_job(opportunity_id, "framework_generation")
+
+    active = client.get(
+        f"/opportunities/{opportunity_id}/jobs/active",
+        headers=_headers(),
+        params={"stage_group": "framework"},
+    )
+    assert active.status_code == 200, active.text
+    assert active.json()["job_id"] == str(newer.id)
+    assert active.json()["status"] == "RUNNING"
+
+    job_service.complete_job(newer.id, repository=get_memory_store())
+    completed = client.get(
+        f"/opportunities/{opportunity_id}/jobs/active",
+        headers=_headers(),
+        params={"stage_group": "framework"},
+    )
+    assert completed.status_code == 200, completed.text
+    assert completed.json()["job_id"] == str(newer.id)
+    assert completed.json()["job_id"] != str(older.id)
+    assert completed.json()["status"] == "COMPLETED"
+
+
 def test_stage_group_filters_correctly() -> None:
     client = _client()
     opportunity_id = _create_opportunity(client)

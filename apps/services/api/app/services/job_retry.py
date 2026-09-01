@@ -4,8 +4,62 @@ from __future__ import annotations
 
 from typing import Any
 
+from collections.abc import Callable
+
 from app.config import settings
 from app.services.job_service import Job, JobNotRetryableError
+
+TRANSIENT_RETRY_BUDGET = 1
+_TRANSIENT_CODES = {
+    "PROVIDER_TIMEOUT",
+    "PROVIDER_UNAVAILABLE",
+    "RENDERER_UNAVAILABLE",
+    "RENDERER_TIMEOUT",
+    "REDIS_UNAVAILABLE",
+    "NETWORK_ERROR",
+}
+_NON_RETRYABLE_CODES = {
+    "VALIDATION_FAILED",
+    "CONTENT_CONSTRAINT_EXCEEDED",
+    "FRAMEWORK_NOT_CONFIRMED",
+    "JOB_NOT_RETRYABLE",
+}
+
+
+def is_transient_failure(exc: BaseException) -> bool:
+    if getattr(exc, "retryable", None) is False:
+        return False
+    code = str(getattr(exc, "code", "") or "")
+    if code in _NON_RETRYABLE_CODES:
+        return False
+    if getattr(exc, "transient", False) is True:
+        return True
+    if code in _TRANSIENT_CODES:
+        return True
+    name = type(exc).__name__.lower()
+    message = str(exc).lower()
+    return any(
+        token in name or token in message
+        for token in ("timeout", "timed out", "temporarily", "connection reset", "network")
+    )
+
+
+def run_with_transient_retry(
+    operation: Callable[[], Any],
+    *,
+    budget: int = TRANSIENT_RETRY_BUDGET,
+) -> Any:
+    """Retry a clearly transient failure within the approved budget, then raise."""
+    last_error: BaseException | None = None
+    for attempt in range(budget + 1):
+        try:
+            return operation()
+        except Exception as exc:
+            last_error = exc
+            if attempt >= budget or not is_transient_failure(exc):
+                raise
+    assert last_error is not None
+    raise last_error
 
 
 def enqueue_payload(job: Job) -> dict[str, Any]:

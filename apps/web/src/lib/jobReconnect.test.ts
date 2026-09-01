@@ -34,6 +34,10 @@ assert.equal(jobMatchesPage("presentation_generation", "plan"), false);
 assert.equal(jobMatchesPage("presentation_generation", "deck"), true);
 assert.equal(jobMatchesPage("slide_regenerate", "deck"), true);
 assert.equal(jobMatchesPage("presentation_planning", "deck"), false);
+assert.deepEqual(
+  inspectActiveJob(job({ job_type: "slide_regenerate", current_stage: "SLIDE_GENERATING" }), "deck"),
+  { action: "monitor", jobId: "job-1" },
+);
 
 assert.equal(isMonitorableJobStatus("QUEUED"), true);
 assert.equal(isMonitorableJobStatus("RUNNING"), true);

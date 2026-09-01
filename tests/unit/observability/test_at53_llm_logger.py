@@ -308,6 +308,61 @@ def test_no_confidential_content_in_llm_record() -> None:
         assert forbidden not in record
 
 
+def test_each_pipeline_stage_persists_to_store() -> None:
+    from app.services.data.memory_store import MemoryDataStore
+    from services.observability.llm_logger import llm_observability_scope
+
+    store = MemoryDataStore()
+    job_id = uuid.uuid4()
+    opportunity_id = uuid.uuid4()
+    stages = (
+        (LlmStage.FRAMEWORK, "claude-sonnet-4", "synthesis_v1"),
+        (LlmStage.PLANNING, "gpt-4.1-mini", "presentation_planner_v1"),
+        (LlmStage.SLIDE_GENERATION, "gpt-4.1-mini", "context_01_v1"),
+        (LlmStage.COMPRESSION, "gpt-4.1-mini", "compression_v1"),
+    )
+    with llm_observability_scope(job_id=job_id, opportunity_id=opportunity_id, store=store):
+        for index, (stage, model, prompt_version) in enumerate(stages):
+            invoke_llm(
+                stage=stage,
+                model=model,
+                prompt_version=prompt_version,
+                retry_count=index,
+                call=lambda: {"ok": True},
+                input_tokens=lambda _: 10 + index,
+                output_tokens=lambda _: 5 + index,
+            )
+
+    rows = store.get_llm_calls_for_job(str(job_id))
+    assert {row["stage"] for row in rows} == {stage.value for stage, _, _ in stages}
+    by_stage = {row["stage"]: row for row in rows}
+    assert by_stage["framework"]["retry_count"] == 0
+    assert by_stage["compression"]["retry_count"] == 3
+    assert by_stage["planning"]["prompt_version"] == "presentation_planner_v1"
+    assert by_stage["slide_generation"]["total_tokens"] == 10 + 5 + 2 + 2
+
+
+def test_retry_count_is_persisted_on_durable_record() -> None:
+    from unittest.mock import MagicMock
+
+    from services.observability.llm_logger import llm_observability_scope
+
+    store = MagicMock()
+    with llm_observability_scope(job_id=uuid.uuid4(), opportunity_id=uuid.uuid4(), store=store):
+        invoke_llm(
+            stage=LlmStage.FRAMEWORK,
+            model="claude-sonnet-4",
+            prompt_version="synthesis_v1",
+            retry_count=2,
+            call=lambda: {"ok": True},
+            input_tokens=lambda _: 11,
+            output_tokens=lambda _: 7,
+        )
+
+    record = store.append_llm_call.call_args.args[0]
+    assert asdict(record)["retry_count"] == 2
+
+
 def test_job_metrics_aggregated_after_completion() -> None:
     from app.schemas.jobs import JobStage
     from app.services import job_service

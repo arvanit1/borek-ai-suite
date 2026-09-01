@@ -27,7 +27,34 @@ export function sourceRefsForFactDisplay(chapter: FrameworkChapter, block?: Reco
   if (block) {
     return sourceRefsForBlock(block);
   }
+  if (Array.isArray(chapter.body)) {
+    return [];
+  }
   return chapter.source_refs;
+}
+
+const PROVENANCE_LABELS: Record<string, string> = {
+  source: "Source fact",
+  source_fact: "Source fact",
+  user_input: "User input",
+  user: "User input",
+  ai_inference: "AI inference",
+  inference: "AI inference",
+  open_question: "Open question",
+  open_questions: "Open question",
+};
+
+export function provenanceKindFromValue(value: unknown): string | null {
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
+  const record = value as Record<string, unknown>;
+  const raw = record.provenance ?? record.origin ?? record.source_kind ?? record.fact_kind;
+  if (typeof raw !== "string" || !raw.trim()) {
+    return null;
+  }
+  const key = raw.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  return PROVENANCE_LABELS[key] ?? raw.trim();
 }
 
 export function countFactSourceRefs(chapter: FrameworkChapter): number {
