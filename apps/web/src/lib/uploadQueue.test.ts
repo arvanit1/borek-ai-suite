@@ -4,6 +4,7 @@ import {
   countByStatus,
   createQueueItem,
   createQueueItems,
+  createRestoredQueueItem,
   getUploadableItems,
   hasUploadableItems,
   updateQueueItem,
@@ -49,5 +50,10 @@ assert.equal(
   updated.filter((item) => item.status === "pending").length,
   1,
 );
+
+const restored = createRestoredQueueItem("tr-1", "call.txt");
+assert.equal(restored.status, "success");
+assert.equal(restored.fileName, "call.txt");
+assert.equal(restored.transcriptId, "tr-1");
 
 console.log("uploadQueue tests passed");

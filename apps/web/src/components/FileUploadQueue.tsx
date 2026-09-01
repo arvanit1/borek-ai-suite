@@ -202,7 +202,11 @@ export function FileUploadQueue({
                     {item.errorMessage ? (
                       <div className="file-detail file-detail-error">{item.errorMessage}</div>
                     ) : (
-                      <div className="file-detail">{formatFileSize(item.file.size)}</div>
+                      <div className="file-detail">
+                        {item.status === "success" && item.file.size === 0
+                          ? "Uploaded"
+                          : formatFileSize(item.file.size)}
+                      </div>
                     )}
                   </td>
                   <td>

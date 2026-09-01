@@ -1,59 +1,38 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import { BrandLogo } from "@/components/BrandLogo";
 import { SignOutButton } from "@/components/SignOutButton";
 import { useAuth } from "@/components/AuthProvider";
+import { loadActiveOpportunity, pipelineHref, saveActiveOpportunityId } from "@/lib/pipelineContext";
 
 interface SiteHeaderProps {
   signedInEmail?: string | null;
   opportunityId?: string | null;
 }
 
-const PIPELINE_LINKS = [
-  { id: "upload", href: "/upload", label: "Upload" },
-  { id: "framework", href: "/framework-review", label: "Framework" },
-  { id: "plan", href: "/plan-preview", label: "Plan" },
-  { id: "deck", href: "/deck-center", label: "Deck" },
-] as const;
-
-function pipelineHref(path: string, opportunityId?: string | null): string {
-  if (path === "/upload" || !opportunityId) {
-    return path;
-  }
-  return `${path}?opportunityId=${encodeURIComponent(opportunityId)}`;
-}
-
-function isActivePath(pathname: string, href: string): boolean {
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
-
 export function SiteHeader({ signedInEmail, opportunityId }: SiteHeaderProps) {
-  const pathname = usePathname();
   const { session } = useAuth();
   const email = signedInEmail ?? session?.user.email ?? null;
+  const [storedOpportunityId, setStoredOpportunityId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (opportunityId) {
+      saveActiveOpportunityId(opportunityId);
+      setStoredOpportunityId(opportunityId);
+      return;
+    }
+    setStoredOpportunityId(loadActiveOpportunity()?.id ?? null);
+  }, [opportunityId]);
+
+  const resolvedOpportunityId = opportunityId ?? storedOpportunityId;
 
   return (
     <header className="site-header">
       <div className="site-header-inner">
-        <BrandLogo showProductName />
-        <nav className="site-pipeline" aria-label="Pipeline">
-          {PIPELINE_LINKS.map((item) => {
-            const active = isActivePath(pathname, item.href);
-            return (
-              <Link
-                key={item.id}
-                href={pipelineHref(item.href, opportunityId)}
-                className={`site-pipeline-link${active ? " site-pipeline-link-active" : ""}`}
-                aria-current={active ? "page" : undefined}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
+        <BrandLogo showProductName href={pipelineHref("/upload", resolvedOpportunityId)} />
         <div className="site-nav">
           {email ? (
             <>
