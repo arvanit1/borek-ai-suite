@@ -119,3 +119,42 @@ def test_at53_framework_job_observability_is_json_serializable() -> None:
     assert at53_logs[0]["request_id"] == str(at53_logs[0]["request_id"])
     assert isinstance(at53_logs[0]["job_id"], str)
     assert isinstance(at53_logs[0]["opportunity_id"], str)
+
+
+def test_es32_merges_durable_store_llm_calls_for_job() -> None:
+    from app.services.data.memory_store import get_memory_store
+
+    reset_llm_call_logs()
+    clear_generation_jobs()
+    store = get_memory_store()
+    job_id = uuid.uuid4()
+    opportunity_id = uuid.uuid4()
+    store.append_llm_call(
+        {
+            "request_id": str(uuid.uuid4()),
+            "job_id": job_id,
+            "opportunity_id": opportunity_id,
+            "stage": STAGE_EXTRACTION,
+            "provider": "anthropic",
+            "model": "claude-sonnet-4-5",
+            "prompt_version": EXTRACTION_PROMPT_VERSION,
+            "input_tokens": 120,
+            "output_tokens": 80,
+            "total_tokens": 200,
+            "latency_ms": 900,
+            "retry_count": 0,
+            "status": "success",
+            "estimated_cost_eur": 0.01,
+        }
+    )
+    payload = build_framework_job_observability(
+        framework_json={"generation_meta": {}},
+        opportunity_id=str(opportunity_id),
+        framework_version_id=str(uuid.uuid4()),
+        job_id=str(job_id),
+        store=store,
+    )
+    assert EXTRACTION_PROMPT_VERSION in payload["prompt_versions"]
+    durable = [item for item in payload["llm_calls"] if item.get("source") == "at53_durable"]
+    assert len(durable) == 1
+    assert durable[0]["prompt_version"] == EXTRACTION_PROMPT_VERSION
