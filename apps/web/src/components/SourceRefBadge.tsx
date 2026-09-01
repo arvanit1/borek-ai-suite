@@ -7,9 +7,14 @@ interface SourceRefBadgeProps {
 
 export function SourceRefBadge({ refItem }: SourceRefBadgeProps) {
   const label = formatSourceRefLabel(refItem);
+  const detail = formatSourceRefDetail(refItem);
   return (
-    <span className="source-ref-badge" title={formatSourceRefDetail(refItem)}>
-      {label}
-    </span>
+    <details className="source-ref-badge">
+      <summary>{label}</summary>
+      <p className="source-ref-detail">
+        <span>Conversation ID: {refItem.conversation_id}</span>
+        <span>{detail}</span>
+      </p>
+    </details>
   );
 }

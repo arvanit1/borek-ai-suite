@@ -5,6 +5,7 @@ import { SourceRefBadge } from "@/components/SourceRefBadge";
 import {
   isBlockTypeKey,
   isEditableContentKey,
+  provenanceKindFromValue,
   sourceRefsForFactDisplay,
 } from "@/lib/frameworkEvidence";
 import { updateChapterStringBody } from "@/lib/frameworkEdit";
@@ -14,7 +15,8 @@ import type { FrameworkChapter } from "@/lib/frameworkTypes";
 function ChapterSourceRefs({ chapter }: { chapter: FrameworkChapter }) {
   const refs = sourceRefsForFactDisplay(chapter);
   return (
-    <div className="framework-fact-sources" aria-label="Source references">
+    <div className="framework-fact-sources" aria-label="Chapter-level source references">
+      <p className="framework-fact-kind">Chapter-level sources — not attached to individual facts</p>
       {refs.length > 0 ? (
         refs.map((refItem, refIndex) => (
           <SourceRefBadge key={`${chapter.chapter_id}-ref-${refIndex}`} refItem={refItem} />
@@ -70,6 +72,7 @@ export function FrameworkChapterView({
             bodyBlocks.map((block, blockIndex) => {
               const factRefs = sourceRefsForFactDisplay(chapter, block);
               const blockType = typeof block.block === "string" ? block.block : null;
+              const provenanceKind = provenanceKindFromValue(block);
               return (
                 <article
                   key={`${chapter.chapter_id}-${blockIndex}`}
@@ -77,6 +80,7 @@ export function FrameworkChapterView({
                   data-testid="framework-fact-block"
                 >
                   {blockType ? <p className="framework-fact-kind">{blockType}</p> : null}
+                  {provenanceKind ? <p className="framework-fact-kind">{provenanceKind}</p> : null}
                   <div className="framework-fact-fields">
                     {Object.entries(block)
                       .filter(([fieldKey]) => isEditableContentKey(fieldKey) && !isBlockTypeKey(fieldKey))

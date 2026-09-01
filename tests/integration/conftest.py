@@ -179,6 +179,34 @@ def confirmed_framework_id(client_user_a, _rls_access_tokens: dict[str, str]) ->
 
 
 @pytest.fixture
+def user_a_presentation_id(
+    client_user_a, confirmed_framework_id, _rls_access_tokens: dict[str, str]
+) -> str:
+    from uuid import UUID
+
+    from app.auth import decode_access_token
+    from app.services.data.supabase_store import SupabaseDataStore
+
+    user = decode_access_token(_rls_access_tokens["a"])
+    store = SupabaseDataStore(_rls_access_tokens["a"])
+    plan = store.create_presentation_plan(
+        framework_version_id=UUID(confirmed_framework_id),
+        user_id=user.id,
+        plan_json={
+            "schema_version": "1.0",
+            "title": "AT-38 Isolation Plan",
+            "slides": [],
+        },
+    )
+    presentation = store.create_presentation(
+        presentation_plan_id=plan["id"],
+        user_id=user.id,
+        name="AT-38 Isolated Presentation",
+    )
+    return str(presentation["id"])
+
+
+@pytest.fixture
 def opportunity_with_transcript(client_user_a) -> tuple[str, str]:
     created = client_user_a.post(
         "/opportunities",

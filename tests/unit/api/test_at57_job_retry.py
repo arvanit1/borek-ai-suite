@@ -200,6 +200,203 @@ def test_retry_non_retryable_returns_400() -> None:
     assert response.json()["error"]["code"] == "JOB_NOT_RETRYABLE"
 
 
+def test_resume_rendering_failure_keeps_same_job_and_checkpoint() -> None:
+    store = get_memory_store()
+    presentation_id = uuid.uuid4()
+    job = job_service.create_job(
+        uuid.uuid4(),
+        "presentation_generation",
+        presentation_id=presentation_id,
+        enqueue={"user_id": str(USER_A), "presentation_id": str(presentation_id)},
+        repository=store,
+    )
+    failed = job_service.fail_job(
+        job.id,
+        "PPTX_RENDER_FAILED",
+        "Renderer timed out",
+        JobStage.PPTX_RENDERING,
+        True,
+        repository=store,
+    )
+    resumed = job_service.resume_job(failed.id, repository=store)
+    assert resumed.id == job.id
+    assert resumed.current_stage == JobStage.PPTX_RENDERING
+    assert resumed.result_json["_enqueue"]["presentation_id"] == str(presentation_id)
+
+
+def test_resume_planning_keeps_existing_plan_id() -> None:
+    store = get_memory_store()
+    plan_id = uuid.uuid4()
+    job = job_service.create_job(
+        uuid.uuid4(),
+        "presentation_planning",
+        enqueue={
+            "user_id": str(USER_A),
+            "framework_version_id": str(uuid.uuid4()),
+            "presentation_plan_id": str(plan_id),
+        },
+        repository=store,
+    )
+    failed = job_service.fail_job(
+        job.id,
+        "PRESENTATION_PLANNING_FAILED",
+        "Planner unavailable",
+        JobStage.PRESENTATION_PLANNING,
+        True,
+        repository=store,
+    )
+    resumed = job_service.resume_job(failed.id, repository=store)
+    assert resumed.result_json["_enqueue"]["presentation_plan_id"] == str(plan_id)
+
+
+def test_retry_endpoint_writes_audit_history() -> None:
+    client = _client()
+    opportunity_id = _create_opportunity(client)
+    failed = _failed_job(opportunity_id)
+
+    with patch("app.routers.jobs.dispatch_resumed_job"):
+        response = client.post(f"/jobs/{failed.id}/retry", headers=_headers())
+    assert response.status_code == 202, response.text
+    entries = [
+        entry
+        for entry in get_memory_store().list_audit_logs(actor_id=USER_A)
+        if entry["action"] == "job.retry"
+    ]
+    assert len(entries) == 1
+    assert str(entries[0]["object_id"]) == opportunity_id
+
+
+def test_transient_failure_retries_once_then_succeeds() -> None:
+    from app.services.job_retry import run_with_transient_retry
+
+    attempts = {"n": 0}
+
+    def operation() -> str:
+        attempts["n"] += 1
+        if attempts["n"] == 1:
+            error = TimeoutError("provider timed out")
+            error.code = "PROVIDER_TIMEOUT"  # type: ignore[attr-defined]
+            raise error
+        return "ok"
+
+    assert run_with_transient_retry(operation) == "ok"
+    assert attempts["n"] == 2
+
+
+def test_validation_failure_is_not_auto_retried() -> None:
+    from app.services.job_retry import is_transient_failure, run_with_transient_retry
+
+    attempts = {"n": 0}
+
+    class ValidationFailed(Exception):
+        code = "CONTENT_CONSTRAINT_EXCEEDED"
+        retryable = False
+
+    def operation() -> None:
+        attempts["n"] += 1
+        raise ValidationFailed("field too long")
+
+    with pytest.raises(ValidationFailed):
+        run_with_transient_retry(operation)
+    assert attempts["n"] == 1
+    assert is_transient_failure(ValidationFailed("field too long")) is False
+
+
+def test_worker_auto_retries_transient_framework_failure() -> None:
+    from app.worker import run_framework_generation_task
+
+    client = _client()
+    opportunity_id = _create_opportunity(client)
+    store = get_memory_store()
+    framework_version_id = uuid.uuid4()
+    job = job_service.create_job(
+        uuid.UUID(opportunity_id),
+        "framework_generation",
+        enqueue={
+            "user_id": str(USER_A),
+            "framework_version_id": str(framework_version_id),
+        },
+        repository=store,
+    )
+    attempts = {"n": 0}
+
+    def fake_execute(*_args, **_kwargs):
+        attempts["n"] += 1
+        if attempts["n"] == 1:
+            error = RuntimeError("provider timed out")
+            error.code = "PROVIDER_TIMEOUT"  # type: ignore[attr-defined]
+            raise error
+        return {"id": framework_version_id, "framework_json": {"title": "Recovered"}}
+
+    with (
+        patch(
+            "app.services.framework_generation.execute_framework_generate",
+            side_effect=fake_execute,
+        ),
+        patch(
+            "app.services.framework_generation.persist_framework_generation_observability",
+            return_value={},
+        ),
+    ):
+        result = run_framework_generation_task.run(
+            str(job.id),
+            opportunity_id,
+            str(USER_A),
+            str(framework_version_id),
+        )
+
+    assert attempts["n"] == 2
+    assert result["framework_version_id"] == str(framework_version_id)
+    current = job_service.get_job(job.id, repository=store)
+    assert current is not None
+    assert current.status == JobStatus.COMPLETED
+
+
+def test_worker_does_not_auto_retry_validation_failure() -> None:
+    from app.worker import run_framework_generation_task
+
+    client = _client()
+    opportunity_id = _create_opportunity(client)
+    store = get_memory_store()
+    framework_version_id = uuid.uuid4()
+    job = job_service.create_job(
+        uuid.UUID(opportunity_id),
+        "framework_generation",
+        enqueue={
+            "user_id": str(USER_A),
+            "framework_version_id": str(framework_version_id),
+        },
+        repository=store,
+    )
+    attempts = {"n": 0}
+
+    class ValidationFailed(Exception):
+        code = "CONTENT_CONSTRAINT_EXCEEDED"
+        retryable = False
+
+    def fake_execute(*_args, **_kwargs):
+        attempts["n"] += 1
+        raise ValidationFailed("oversized field")
+
+    with patch(
+        "app.services.framework_generation.execute_framework_generate",
+        side_effect=fake_execute,
+    ):
+        with pytest.raises(ValidationFailed):
+            run_framework_generation_task.run(
+                str(job.id),
+                opportunity_id,
+                str(USER_A),
+                str(framework_version_id),
+            )
+
+    assert attempts["n"] == 1
+    current = job_service.get_job(job.id, repository=store)
+    assert current is not None
+    assert current.status == JobStatus.FAILED
+    assert current.error_retryable is False
+
+
 def test_wrong_user_cannot_retry_job() -> None:
     client = _client()
     opportunity_id = _create_opportunity(client)

@@ -10,6 +10,17 @@ apps/services/api/supabase/migrations/
 
 The ten §23 tables live in `001`–`010`. RLS policies are `011`. Follow-on wiring files `012`–`015` are additive (`ADD COLUMN IF NOT EXISTS` / storage bucket / `llm_calls` / PII flag) and must be applied after `011`.
 
+Proof commands (AT-37):
+
+```powershell
+py -3 scripts/apply_migrations.py
+py -3 scripts/apply_migrations.py --reapply
+py -3 scripts/verify_db.py
+$env:RUN_SUPABASE_INTEGRATION="1"; py -3 scripts/verify_supabase_complete.py
+```
+
+`scripts/apply_migrations.py` applies every file in `001`–`015` order against `DATABASE_URL` / the session pooler. `--reapply` runs the chain twice to prove idempotency. Re-running the same `*.sql` files is safe: they use `IF NOT EXISTS` / `DROP POLICY IF EXISTS`.
+
 ## Apply migrations to a clean Supabase project
 
 1. Create an empty Supabase project (Dashboard → New project). Do not paste ad-hoc SQL first.
@@ -23,6 +34,12 @@ The ten §23 tables live in `001`–`010`. RLS policies are `011`. Follow-on wir
 3. From the repository root, apply every file in numeric order. This is the exact command:
 
 ```powershell
+py -3 scripts/apply_migrations.py
+```
+
+The script uses the same `DATABASE_URL` / session-pooler resolution as `scripts/verify_db.py`. Equivalent `psql` loop if you prefer:
+
+```powershell
 Get-ChildItem -Path apps/services/api/supabase/migrations -Filter *.sql |
   Sort-Object Name |
   ForEach-Object {
@@ -34,13 +51,15 @@ Get-ChildItem -Path apps/services/api/supabase/migrations -Filter *.sql |
 `psql` uses the same `DATABASE_URL` that `scripts/verify_db.py` resolves (session pooler on Windows). Equivalent bash:
 
 ```bash
+py -3 scripts/apply_migrations.py
+# or:
 for f in apps/services/api/supabase/migrations/*.sql; do
   echo "Applying $f"
   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$f"
 done
 ```
 
-Alternative without `psql`: open Supabase Dashboard → SQL Editor and paste each file in order (`001` … `015`), one execution per file.
+Alternative without the apply script: open Supabase Dashboard → SQL Editor and paste each file in order (`001` … `015`), one execution per file.
 
 ## Verify all 10 tables exist with the correct schema
 
@@ -67,7 +86,7 @@ The script must report `OK` for each of:
 
 When `DATABASE_URL` points at remote Postgres, section 3 lists those tables from `pg_tables`. When only REST credentials are set, it probes `GET /rest/v1/<table>?select=id&limit=0` (HTTP 200/206).
 
-Column-level checks are in the SQL files themselves (`CREATE TABLE IF NOT EXISTS` plus `012`/`013` additive columns). Re-running `verify_db.py` after a clean apply is the live proof that PostgREST can read every table.
+Section 7 asserts follow-on columns (`pii_redaction_enabled`, `llm_cost_eur`, `llm_calls.retry_count`), foreign keys, and the transcript conversation-id index. Re-running `verify_db.py` after a clean apply is the live proof that PostgREST can read every table.
 
 ## Verify RLS is enabled on each table
 
@@ -112,7 +131,13 @@ Every migration is written to be re-runnable:
 - Policies: `DROP POLICY IF EXISTS` then `CREATE POLICY`
 - Later files: `ADD COLUMN IF NOT EXISTS`, `CREATE UNIQUE INDEX IF NOT EXISTS`, `INSERT … ON CONFLICT`
 
-Re-apply with the same `psql` loop (or paste the files again in SQL Editor). A second run must finish with `ON_ERROR_STOP=1` and no errors. Then re-run:
+Re-apply with:
+
+```powershell
+py -3 scripts/apply_migrations.py --reapply
+```
+
+or paste the files again in SQL Editor. A second run must finish with no errors. Then re-run:
 
 ```powershell
 py -3 scripts/verify_db.py

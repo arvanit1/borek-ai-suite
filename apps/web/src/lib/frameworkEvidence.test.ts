@@ -5,6 +5,7 @@ import {
   isBlockTypeKey,
   isConversationRef,
   isEditableContentKey,
+  provenanceKindFromValue,
   sourceRefsForBlock,
   sourceRefsForFactDisplay,
 } from "./frameworkEvidence.js";
@@ -53,8 +54,14 @@ assert.notDeepEqual(
   sourceRefsForFactDisplay(chapter, chapter.body[0] as Record<string, unknown>),
   chapter.source_refs,
 );
-assert.deepEqual(sourceRefsForFactDisplay(chapter), [chapterRef]);
+assert.deepEqual(sourceRefsForFactDisplay(chapter), []);
 assert.equal(countFactSourceRefs(chapter), 2);
+assert.equal(
+  provenanceKindFromValue({ provenance: "ai_inference", text: "Guess" }),
+  "AI inference",
+);
+assert.equal(provenanceKindFromValue({ origin: "user_input" }), "User input");
+assert.equal(provenanceKindFromValue({ text: "plain" }), null);
 
 const stringChapter: FrameworkChapter = {
   chapter_id: "0",

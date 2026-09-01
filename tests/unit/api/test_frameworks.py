@@ -121,6 +121,65 @@ def test_update_framework_persists_edits() -> None:
     assert reloaded.json()["framework_json"]["title"] == "Updated framework title"
 
 
+def test_update_framework_preserves_per_fact_evidence_after_reload() -> None:
+    client = _client()
+    opportunity_id = _create_opportunity(client)
+    client.post(f"/opportunities/{opportunity_id}/framework/generate", headers=_headers())
+
+    latest = client.get(f"/opportunities/{opportunity_id}/framework", headers=_headers())
+    framework_json = latest.json()["framework_json"]
+    fact_a = {
+        "conversation_id": "C-FACT-A",
+        "speaker_role": "operator",
+        "excerpt_pointer": "turn-12",
+    }
+    fact_b = {
+        "conversation_id": "C-FACT-B",
+        "speaker_role": "it",
+        "excerpt_pointer": "turn-34",
+    }
+    chapter = framework_json["chapters"][2]
+    chapter["body"] = [
+        {
+            "block": "prose",
+            "text": "Edited nested fact A",
+            "source_refs": [fact_a],
+            "provenance": "source_fact",
+        },
+        {
+            "block": "table",
+            "columns": ["KPI"],
+            "rows": [["auto-match"]],
+            "source_refs": [fact_b],
+            "provenance": "user_input",
+        },
+    ]
+    chapter["source_refs"] = [
+        {
+            "conversation_id": "C-CHAPTER",
+            "speaker_role": "dept_head",
+            "excerpt_pointer": "turn-1",
+        }
+    ]
+
+    patch = client.patch(
+        f"/opportunities/{opportunity_id}/framework",
+        headers=_headers(),
+        json={"framework_json": framework_json},
+    )
+    assert patch.status_code == 200, patch.text
+
+    reloaded = client.get(f"/opportunities/{opportunity_id}/framework", headers=_headers())
+    assert reloaded.status_code == 200, reloaded.text
+    saved = reloaded.json()["framework_json"]["chapters"][2]
+    assert saved["body"][0]["text"] == "Edited nested fact A"
+    assert saved["body"][0]["source_refs"] == [fact_a]
+    assert saved["body"][1]["source_refs"] == [fact_b]
+    assert saved["body"][0]["source_refs"] != saved["body"][1]["source_refs"]
+    assert saved["source_refs"][0]["conversation_id"] == "C-CHAPTER"
+    assert saved["body"][0]["source_refs"] != saved["source_refs"]
+
+
 def test_review_actions_allow_in_review_and_lock_after_confirm() -> None:
     client = _client()
     opportunity_id = _create_opportunity(client)
