@@ -16,6 +16,7 @@ class AuditAction(StrEnum):
     OPPORTUNITY_UPDATE = "opportunity.update"
     TRANSCRIPT_UPLOAD = "transcript.upload"
     TRANSCRIPT_REGENERATE = "transcript.regenerate"
+    TRANSCRIPT_DELETE = "transcript.delete"
     FRAMEWORK_GENERATE = "framework.generate"
     FRAMEWORK_REGENERATE_CHAPTER = "framework.regenerate_chapter"
     FRAMEWORK_CONFIRM = "framework.confirm"

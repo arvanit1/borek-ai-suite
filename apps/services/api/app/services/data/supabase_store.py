@@ -222,6 +222,28 @@ class SupabaseDataStore:
         rows = response.json()
         return _normalize_generation_job(rows[0]) if rows else None
 
+    def get_active_job_for_opportunity(
+        self,
+        opportunity_id: str | UUID,
+        stage_group: str | None = None,
+    ) -> dict[str, Any] | None:
+        from app.services.job_service import select_reconnect_job
+
+        params: dict[str, str] = {
+            "select": "*",
+            "opportunity_id": f"eq.{opportunity_id}",
+            "order": "created_at.desc",
+        }
+        if stage_group == "framework":
+            params["job_type"] = "ilike.*framework*"
+        elif stage_group == "presentation":
+            params["or"] = "(job_type.ilike.*presentation*,job_type.ilike.*slide*)"
+        response = self._request("GET", "generation_jobs", params=params)
+        if response.status_code != 200:
+            raise bad_request("JOB_LIST_FAILED", response.text)
+        rows = [_normalize_generation_job(row) for row in response.json()]
+        return select_reconnect_job(rows, stage_group=stage_group)
+
     def update_generation_job(
         self,
         job_id: UUID,
@@ -278,6 +300,25 @@ class SupabaseDataStore:
         )
         if response.status_code not in (200, 201):
             raise bad_request("TRANSCRIPT_STORAGE_FAILED", response.text)
+
+    def _delete_transcript_content(self, *, storage_path: str) -> None:
+        if not storage_path:
+            return
+        headers = {
+            "apikey": self._headers["apikey"],
+            "Authorization": self._headers["Authorization"],
+        }
+        response = _request_with_retry(
+            "DELETE",
+            f"{self._base_url}/storage/v1/object/transcripts/{storage_path}",
+            headers=headers,
+        )
+        if response.status_code not in (200, 204, 404):
+            logger.warning(
+                "Transcript storage cleanup failed for %s: HTTP %s",
+                storage_path,
+                response.status_code,
+            )
 
     def create_opportunity(
         self,
@@ -522,6 +563,34 @@ class SupabaseDataStore:
         if response.status_code not in (200, 204) or not response.json():
             raise not_found("TRANSCRIPT_NOT_FOUND", f"Transcript {transcript_id} was not found")
         return _normalize_transcript(response.json()[0])
+
+    def delete_transcript(
+        self,
+        *,
+        opportunity_id: UUID,
+        transcript_id: UUID,
+        user_id: UUID,
+    ) -> None:
+        row = self.get_transcript(
+            opportunity_id=opportunity_id,
+            transcript_id=transcript_id,
+            user_id=user_id,
+        )
+        storage_path = str(row.get("storage_path") or "").strip()
+        response = self._request(
+            "DELETE",
+            "transcripts",
+            params={
+                "id": f"eq.{transcript_id}",
+                "opportunity_id": f"eq.{opportunity_id}",
+            },
+        )
+        if response.status_code == 204:
+            self._delete_transcript_content(storage_path=storage_path)
+            return
+        if response.status_code != 200 or not response.json():
+            raise not_found("TRANSCRIPT_NOT_FOUND", f"Transcript {transcript_id} was not found")
+        self._delete_transcript_content(storage_path=storage_path)
 
     def create_framework_version(
         self,
@@ -1254,6 +1323,48 @@ class SupabaseDataStore:
             for index in range(slide_count)
         ]
         return version
+
+    def append_llm_call(self, record: Any) -> dict[str, Any]:
+        from app.services.data.memory_store import _llm_call_row
+
+        row = _llm_call_row(record)
+        payload: dict[str, Any] = {
+            "request_id": row["request_id"],
+            "stage": row["stage"],
+            "provider": row["provider"],
+            "model": row["model"],
+            "prompt_version": row["prompt_version"],
+            "input_tokens": row["input_tokens"],
+            "output_tokens": row["output_tokens"],
+            "total_tokens": row["total_tokens"],
+            "latency_ms": row["latency_ms"],
+            "retry_count": row["retry_count"],
+            "status": row["status"],
+            "error_category": row["error_category"],
+            "estimated_cost_eur": row["estimated_cost_eur"],
+        }
+        if row["job_id"] is not None:
+            payload["job_id"] = str(row["job_id"])
+        if row["opportunity_id"] is not None:
+            payload["opportunity_id"] = str(row["opportunity_id"])
+        response = self._request("POST", "llm_calls", json_body=payload)
+        if response.status_code not in (200, 201):
+            raise bad_request("LLM_CALL_LOG_FAILED", response.text)
+        return response.json()[0]
+
+    def get_llm_calls_for_job(self, job_id: str) -> list[dict[str, Any]]:
+        response = self._request(
+            "GET",
+            "llm_calls",
+            params={
+                "select": "*",
+                "job_id": f"eq.{job_id}",
+                "order": "created_at.asc",
+            },
+        )
+        if response.status_code != 200:
+            raise bad_request("LLM_CALL_LIST_FAILED", response.text)
+        return list(response.json())
 
     def append_audit_log(
         self,

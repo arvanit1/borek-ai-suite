@@ -52,8 +52,8 @@ class PresentationPlanGenerateResponse(JobEnqueueResponse):
 
 
 class PresentationGenerateResponse(JobEnqueueResponse):
-    presentation_id: UUID
-    presentation_plan_id: UUID
+    presentation_id: UUID | None = None
+    presentation_plan_id: UUID | None = None
 
 
 class ChangeSlideLayoutRequest(BaseModel):

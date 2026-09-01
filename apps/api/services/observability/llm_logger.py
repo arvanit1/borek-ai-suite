@@ -2,15 +2,32 @@
 
 from __future__ import annotations
 
+import logging
 import time
 import uuid
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timezone
 from enum import StrEnum
-from typing import Any, Callable, Generic, TypeVar
+from typing import Any, Callable, Iterator, TypeVar
 from uuid import uuid4
 
 T = TypeVar("T")
+logger = logging.getLogger(__name__)
+
+_llm_job_id: ContextVar[uuid.UUID | None] = ContextVar("at53_llm_job_id", default=None)
+_llm_opportunity_id: ContextVar[uuid.UUID | None] = ContextVar("at53_llm_opportunity_id", default=None)
+_llm_store: ContextVar[Any | None] = ContextVar("at53_llm_store", default=None)
+
+# Approximate EUR per 1M tokens. Metadata only — not billing.
+_EUR_PER_1M: dict[str, tuple[float, float]] = {
+    "claude": (2.80, 14.00),
+    "gpt-4.1-mini": (0.37, 1.48),
+    "gpt-4.1": (1.84, 7.36),
+    "gpt-4o-mini": (0.14, 0.55),
+    "gpt-4o": (2.30, 9.20),
+}
 
 FORBIDDEN_LOG_FIELD_NAMES = frozenset(
     {
@@ -57,6 +74,12 @@ class LlmCallRecord:
     latency_ms: float
     retry_count: int
     timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
+    job_id: uuid.UUID | None = None
+    opportunity_id: uuid.UUID | None = None
+    provider: str = "unknown"
+    status: str = "success"
+    error_category: str | None = None
+    estimated_cost_eur: float = 0.0
 
 
 class LlmCallLogStore:
@@ -89,11 +112,85 @@ def clear_generation_jobs() -> None:
     _GENERATION_JOBS.clear()
 
 
+def _optional_uuid(value: Any) -> uuid.UUID | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, uuid.UUID):
+        return value
+    try:
+        return uuid.UUID(str(value))
+    except (TypeError, ValueError, AttributeError):
+        return None
+
+
+def infer_provider(model: str) -> str:
+    name = (model or "").lower()
+    if "claude" in name or "anthropic" in name:
+        return "anthropic"
+    if any(token in name for token in ("gpt", "o1", "o3", "o4", "openai")):
+        return "openai"
+    return "unknown"
+
+
+def estimate_cost_eur(*, model: str, input_tokens: int, output_tokens: int) -> float:
+    name = (model or "").lower()
+    rates = _EUR_PER_1M["claude"] if "claude" in name else None
+    if rates is None:
+        for key, value in _EUR_PER_1M.items():
+            if key in name:
+                rates = value
+                break
+    if rates is None:
+        rates = (1.00, 4.00)
+    input_rate, output_rate = rates
+    return round(
+        (max(input_tokens, 0) * input_rate + max(output_tokens, 0) * output_rate) / 1_000_000,
+        6,
+    )
+
+
+@contextmanager
+def llm_observability_scope(
+    *,
+    job_id: uuid.UUID | str | None = None,
+    opportunity_id: uuid.UUID | str | None = None,
+    store: Any | None = None,
+) -> Iterator[None]:
+    """Bind job/opportunity/store for all invoke_llm calls in this worker task."""
+    tokens: list[tuple[ContextVar[Any], Any]] = []
+    if job_id is not None:
+        tokens.append((_llm_job_id, _llm_job_id.set(_optional_uuid(job_id))))
+    if opportunity_id is not None:
+        tokens.append((_llm_opportunity_id, _llm_opportunity_id.set(_optional_uuid(opportunity_id))))
+    if store is not None:
+        tokens.append((_llm_store, _llm_store.set(store)))
+    try:
+        yield
+    finally:
+        for variable, token in reversed(tokens):
+            variable.reset(token)
+
+
 def _reject_confidential_fields(extra_fields: dict[str, object]) -> None:
     forbidden = FORBIDDEN_LOG_FIELD_NAMES.intersection(extra_fields)
     if forbidden:
         joined = ", ".join(sorted(forbidden))
         raise ValueError(f"LLM observability logs must not include confidential fields: {joined}")
+
+
+def _persist_llm_call(entry: LlmCallRecord) -> None:
+    store = _llm_store.get()
+    if store is None:
+        return
+    try:
+        store.append_llm_call(entry)
+    except Exception:
+        logger.warning(
+            "Durable LLM call persist failed for request %s job %s",
+            entry.request_id,
+            entry.job_id,
+            exc_info=True,
+        )
 
 
 def log_llm_call(
@@ -107,6 +204,12 @@ def log_llm_call(
     latency_ms: float,
     retry_count: int,
     timestamp: datetime | None = None,
+    job_id: uuid.UUID | str | None = None,
+    opportunity_id: uuid.UUID | str | None = None,
+    provider: str | None = None,
+    status: str = "success",
+    error_category: str | None = None,
+    estimated_cost_eur: float | None = None,
     **extra_fields: object,
 ) -> LlmCallRecord:
     """Persist one LLM call metadata record. Confidential payload fields are rejected."""
@@ -117,6 +220,19 @@ def log_llm_call(
         raise ValueError("retry_count must be non-negative")
     if latency_ms < 0:
         raise ValueError("latency_ms must be non-negative")
+
+    resolved_job_id = _optional_uuid(job_id) or _llm_job_id.get()
+    resolved_opportunity_id = _optional_uuid(opportunity_id) or _llm_opportunity_id.get()
+    resolved_provider = provider or infer_provider(model)
+    resolved_cost = (
+        estimated_cost_eur
+        if estimated_cost_eur is not None
+        else estimate_cost_eur(
+            model=model,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+        )
+    )
 
     entry = LlmCallRecord(
         request_id=request_id,
@@ -129,8 +245,16 @@ def log_llm_call(
         latency_ms=latency_ms,
         retry_count=retry_count,
         timestamp=timestamp or datetime.now(UTC),
+        job_id=resolved_job_id,
+        opportunity_id=resolved_opportunity_id,
+        provider=resolved_provider,
+        status=status,
+        error_category=error_category,
+        estimated_cost_eur=resolved_cost,
     )
-    return _llm_call_log_store.append(entry)
+    stored = _llm_call_log_store.append(entry)
+    _persist_llm_call(stored)
+    return stored
 
 
 def log_generation_job(
@@ -195,11 +319,32 @@ def invoke_llm(
     call: Callable[[], T],
     input_tokens: Callable[[T], int] | None = None,
     output_tokens: Callable[[T], int] | None = None,
+    job_id: uuid.UUID | str | None = None,
+    opportunity_id: uuid.UUID | str | None = None,
+    provider: str | None = None,
 ) -> T:
     """Execute an LLM-backed call and log request metadata without prompt/response bodies."""
     request_id = uuid.uuid4()
     started = time.perf_counter()
-    result = call()
+    try:
+        result = call()
+    except Exception as exc:
+        log_llm_call(
+            request_id=request_id,
+            stage=stage,
+            model=model,
+            prompt_version=prompt_version,
+            input_tokens=0,
+            output_tokens=0,
+            latency_ms=(time.perf_counter() - started) * 1000.0,
+            retry_count=retry_count,
+            job_id=job_id,
+            opportunity_id=opportunity_id,
+            provider=provider,
+            status="failed",
+            error_category=type(exc).__name__,
+        )
+        raise
     latency_ms = (time.perf_counter() - started) * 1000.0
 
     resolved_input_tokens = input_tokens(result) if input_tokens else 0
@@ -214,6 +359,10 @@ def invoke_llm(
         output_tokens=resolved_output_tokens,
         latency_ms=latency_ms,
         retry_count=retry_count,
+        job_id=job_id,
+        opportunity_id=opportunity_id,
+        provider=provider,
+        status="success",
     )
     return result
 
@@ -248,9 +397,24 @@ def run_logged_llm_call(
             framework_id=framework_id,
             error=str(exc),
         )
+        log_llm_call(
+            request_id=uuid.uuid4(),
+            stage=stage,
+            model=model or "unknown",
+            prompt_version=prompt_version,
+            input_tokens=0,
+            output_tokens=0,
+            latency_ms=float(latency_ms),
+            retry_count=max(attempt - 1, 0),
+            opportunity_id=opportunity_id,
+            status="failed",
+            error_category=type(exc).__name__,
+        )
         raise
     usage = usage_out[0] if usage_out else None
     latency_ms = int((time.perf_counter() - started) * 1000)
+    input_tokens = _token_count(usage, "input_tokens") or 0
+    output_tokens = _token_count(usage, "output_tokens") or 0
     log_generation_job(
         stage=stage,
         prompt_version=prompt_version,
@@ -258,11 +422,23 @@ def run_logged_llm_call(
         status="success",
         attempt=attempt,
         latency_ms=latency_ms,
-        input_tokens=_token_count(usage, "input_tokens"),
-        output_tokens=_token_count(usage, "output_tokens"),
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
         opportunity_id=opportunity_id,
         conversation_id=conversation_id,
         framework_id=framework_id,
+    )
+    log_llm_call(
+        request_id=uuid.uuid4(),
+        stage=stage,
+        model=model or "unknown",
+        prompt_version=prompt_version,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        latency_ms=float(latency_ms),
+        retry_count=max(attempt - 1, 0),
+        opportunity_id=opportunity_id,
+        status="success",
     )
     return payload
 

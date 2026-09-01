@@ -11,9 +11,8 @@ leaves such as title or sectionLabel. This layer only:
   set the model was allowed to read — not a guessed single chapter.
 - drops optional leaves when attribution would pick one of several chapters
 - syncs root sourceChapterIds to the provenance union
-- keeps only the first N items when BT-15/JJ/MS max_items is exceeded
-  (OpenAI non-strict mode does not enforce maxItems; AT-8 still will not
-  delete extras, so the live generator must emit a legal count)
+- does not clip overflow: extra array items and overlong strings stay as
+  emitted so AT-8 can compress semantically or return VALIDATION_FAILED
 - retries the model a bounded number of times with the rejection reason
 
 Group B/C generators are unchanged: required multi-chapter gaps stay fail-closed.
@@ -26,7 +25,6 @@ import re
 from typing import Any, Callable
 
 from llm.client import ungrounded_content_retry_instruction
-from llm.json_schema_bundle import layout_constraint_config
 from services.slides.content_generation.group_a.common import (
     ProhibitedCommercialContentError,
     UngroundedContentError,
@@ -145,7 +143,6 @@ def repair_live_slide_spec(slide_spec: dict[str, Any], request: Any) -> dict[str
     spec = copy.deepcopy(slide_spec)
     spec["layoutId"] = getattr(request, "layout_id", spec.get("layoutId"))
     spec.setdefault("schema_version", "1.0")
-    _enforce_registered_item_limits(spec, request)
 
     chapter_ids = _request_chapter_ids(request)
     required_roots = _required_roots(request)
@@ -452,21 +449,6 @@ def _with_rejection(request: Any, error: str) -> Any:
         target_schema=request.target_schema,
         instructions=f"{request.instructions}{extra}",
     )
-
-
-def _enforce_registered_item_limits(slide_spec: dict[str, Any], request: Any) -> None:
-    layout_id = str(getattr(request, "layout_id", slide_spec.get("layoutId") or ""))
-    config = layout_constraint_config(layout_id)
-    properties = (config or {}).get("properties")
-    if not isinstance(properties, dict):
-        return
-    for name, rules in properties.items():
-        if not isinstance(rules, dict):
-            continue
-        max_items = rules.get("max_items")
-        value = slide_spec.get(name)
-        if isinstance(max_items, int) and isinstance(value, list) and len(value) > max_items:
-            slide_spec[name] = value[:max_items]
 
 
 def _request_chapter_ids(request: Any) -> tuple[str, ...]:

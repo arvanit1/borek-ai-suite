@@ -2,10 +2,12 @@ import assert from "node:assert/strict";
 
 import { ApiRequestError } from "./api.js";
 import {
+  isMissingActiveJobError,
   isMissingFrameworkError,
   isMissingOpportunityError,
   isMissingPresentationError,
   isMissingPresentationPlanError,
+  isPresentationNotReadyError,
 } from "./apiErrors.js";
 
 assert.equal(
@@ -26,5 +28,19 @@ assert.equal(
   ),
   true,
 );
+assert.equal(
+  isMissingActiveJobError(
+    new ApiRequestError("No job found for this opportunity", 404, "ACTIVE_JOB_NOT_FOUND"),
+  ),
+  true,
+);
+assert.equal(isMissingActiveJobError(new ApiRequestError("Server error", 500)), false);
+assert.equal(
+  isPresentationNotReadyError(
+    new ApiRequestError("Presentation is still generating", 409, "PRESENTATION_NOT_READY"),
+  ),
+  true,
+);
+assert.equal(isPresentationNotReadyError(new ApiRequestError("Missing presentation", 404)), false);
 
 console.log("apiErrors tests passed");

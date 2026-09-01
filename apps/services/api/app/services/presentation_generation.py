@@ -12,6 +12,8 @@ import uuid
 from typing import Any
 from uuid import UUID
 
+from fastapi import HTTPException
+
 from app.config import settings
 from app.schemas.presentations import LAYOUT_REGISTRY, VALID_LAYOUT_IDS
 from app.services import job_service
@@ -151,6 +153,11 @@ def enqueue_presentation_plan_generate(
     job = job_service.create_job(
         opportunity_id=opportunity_id,
         job_type="presentation_planning",
+        enqueue={
+            "framework_version_id": str(framework["id"]),
+            "user_id": str(user_id),
+            "presentation_plan_id": str(plan_id),
+        },
         repository=store,
     )
     from app.worker import run_presentation_planning_task
@@ -186,6 +193,31 @@ def execute_presentation_planning(
     )
 
 
+def _existing_presentation_payload(
+    store: DataStore,
+    *,
+    user_id: UUID,
+    job: job_service.Job,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    presentation: dict[str, Any] = {"id": job.presentation_id}
+    plan: dict[str, Any] = {"id": None}
+    if job.presentation_id is None:
+        return presentation, plan
+    try:
+        presentation = store.get_presentation(
+            presentation_id=job.presentation_id,
+            user_id=user_id,
+        )
+        plan = store.get_presentation_plan(
+            presentation_plan_id=presentation["presentation_plan_id"],
+            user_id=user_id,
+        )
+    except HTTPException:
+        presentation = {"id": job.presentation_id}
+        plan = {"id": None}
+    return presentation, plan
+
+
 def enqueue_presentation_generate(
     store: DataStore,
     *,
@@ -195,6 +227,20 @@ def enqueue_presentation_generate(
     presentation_plan_id: UUID | None,
     name: str | None,
 ):
+    store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+    existing = job_service.reuse_active_generation_job(
+        store,
+        opportunity_id,
+        stage_group="presentation",
+    )
+    if existing is not None:
+        presentation, plan = _existing_presentation_payload(
+            store,
+            user_id=user_id,
+            job=existing,
+        )
+        return presentation, plan, existing, True
+
     framework = _require_confirmed_framework(
         store,
         opportunity_id=opportunity_id,
@@ -219,6 +265,10 @@ def enqueue_presentation_generate(
         opportunity_id=opportunity_id,
         job_type="presentation_generation",
         presentation_id=presentation["id"],
+        enqueue={
+            "user_id": str(user_id),
+            "presentation_id": str(presentation["id"]),
+        },
         repository=store,
     )
     from app.worker import run_presentation_generation_task
@@ -229,7 +279,7 @@ def enqueue_presentation_generate(
         str(presentation["id"]),
         str(user_id),
     )
-    return presentation, plan, job
+    return presentation, plan, job, False
 
 
 def execute_presentation_generation(
@@ -297,6 +347,11 @@ def enqueue_slide_regenerate(
         opportunity_id=opportunity_id,
         job_type="slide_regenerate",
         presentation_id=presentation_id,
+        enqueue={
+            "user_id": str(user_id),
+            "presentation_id": str(presentation_id),
+            "slide_id": str(slide_id),
+        },
         repository=store,
     )
     from app.worker import run_slide_regenerate_task
@@ -360,6 +415,12 @@ def enqueue_slide_change_layout(
         opportunity_id=opportunity_id,
         job_type="slide_change_layout",
         presentation_id=presentation_id,
+        enqueue={
+            "user_id": str(user_id),
+            "presentation_id": str(presentation_id),
+            "slide_id": str(slide_id),
+            "layout_id": layout_id,
+        },
         repository=store,
     )
     from app.worker import run_slide_change_layout_task

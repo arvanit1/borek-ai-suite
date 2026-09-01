@@ -67,3 +67,13 @@ class JobResponse(BaseModel):
 class JobEnqueueResponse(BaseModel):
     job_id: str
     status: str = Field(default="queued")
+    is_existing_job: bool = False
+
+
+class ActiveJobResponse(BaseModel):
+    job_id: str
+    job_type: str
+    status: JobStatus
+    current_stage: JobStage
+    started_at: datetime | None = None
+    error: JobErrorDetail | None = None

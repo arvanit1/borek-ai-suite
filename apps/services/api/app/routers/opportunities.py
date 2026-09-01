@@ -1,18 +1,22 @@
-"""Opportunity routes (AT-40 / v2 section 22.1)."""
+"""Opportunity routes (AT-40 / AT-56 / v2 section 22.1)."""
 
 from __future__ import annotations
 
+from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
 from app.auth import get_current_user
 from app.dependencies import AuthUserDep, DataStoreDep
+from app.schemas.jobs import ActiveJobResponse
 from app.schemas.opportunities import (
     OpportunityCreateRequest,
     OpportunityResponse,
     OpportunityUpdateRequest,
 )
+from app.services import job_service
+from app.services.api_errors import not_found
 from app.services.audit import AuditAction, AuditObjectType, record_audit_event
 
 router = APIRouter(dependencies=[Depends(get_current_user)])
@@ -50,6 +54,37 @@ def create_opportunity(
 def list_opportunities(user: AuthUserDep, store: DataStoreDep) -> list[OpportunityResponse]:
     rows = store.list_opportunities(user_id=user.id)
     return [_to_response(row) for row in rows]
+
+
+@router.get("/{opportunity_id}/jobs/active", response_model=ActiveJobResponse)
+def get_active_job(
+    opportunity_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+    stage_group: Literal["framework", "presentation"] | None = Query(default=None),
+) -> ActiveJobResponse:
+    store.get_opportunity(opportunity_id=opportunity_id, user_id=user.id)
+    row = store.get_active_job_for_opportunity(opportunity_id, stage_group)
+    if row is None:
+        raise not_found(
+            "ACTIVE_JOB_NOT_FOUND",
+            f"No job found for opportunity {opportunity_id}",
+        )
+    job = job_service.get_job(row["id"], repository=store)
+    if job is None:
+        raise not_found(
+            "ACTIVE_JOB_NOT_FOUND",
+            f"No job found for opportunity {opportunity_id}",
+        )
+    payload = job_service.job_to_response(job)
+    return ActiveJobResponse(
+        job_id=payload.job_id,
+        job_type=payload.job_type,
+        status=payload.status,
+        current_stage=payload.current_stage,
+        started_at=payload.started_at,
+        error=payload.error,
+    )
 
 
 @router.get("/{opportunity_id}", response_model=OpportunityResponse)

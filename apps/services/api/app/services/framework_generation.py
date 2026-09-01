@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
+from fastapi import HTTPException
+
 from app.config import settings
 from app.services import job_service
 from app.services.api_errors import bad_request, not_found
@@ -30,10 +32,31 @@ from services.framework.review_insights import (
 
 def enqueue_framework_generate(store: DataStore, *, opportunity_id: UUID, user_id: UUID):
     store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+    existing = job_service.reuse_active_generation_job(
+        store,
+        opportunity_id,
+        stage_group="framework",
+    )
+    if existing is not None:
+        framework_version_id = None
+        try:
+            latest = store.get_latest_framework(
+                opportunity_id=opportunity_id,
+                user_id=user_id,
+            )
+            framework_version_id = latest["id"]
+        except HTTPException:
+            framework_version_id = None
+        return {"id": framework_version_id, "existing": True}, existing
+
     framework_version_id = uuid.uuid4()
     job = job_service.create_job(
         opportunity_id=opportunity_id,
         job_type="framework_generation",
+        enqueue={
+            "user_id": str(user_id),
+            "framework_version_id": str(framework_version_id),
+        },
         repository=store,
     )
     from app.worker import run_framework_generation_task
@@ -48,7 +71,7 @@ def enqueue_framework_generate(store: DataStore, *, opportunity_id: UUID, user_i
         run_framework_generation_task.run(*args)
     else:
         run_framework_generation_task.delay(*args)
-    return {"id": framework_version_id}, job
+    return {"id": framework_version_id, "existing": False}, job
 
 
 def execute_framework_generate(
@@ -94,6 +117,10 @@ def enqueue_regenerate_chapter(
     job = job_service.create_job(
         opportunity_id=opportunity_id,
         job_type="framework_regenerate_chapter",
+        enqueue={
+            "framework_version_id": str(framework_version["id"]),
+            "chapter_id": chapter_id,
+        },
         repository=store,
     )
     from app.worker import run_framework_regenerate_chapter_task
@@ -252,6 +279,10 @@ def enqueue_framework_render(
     job = job_service.create_job(
         opportunity_id=opportunity_id,
         job_type="framework_render",
+        enqueue={
+            "framework_version_id": str(framework_version["id"]),
+            "user_id": str(user_id),
+        },
         repository=store,
     )
     from app.worker import run_framework_render_task

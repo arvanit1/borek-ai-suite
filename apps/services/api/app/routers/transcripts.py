@@ -125,3 +125,24 @@ def regenerate_transcript(
         object_id=transcript_id,
     )
     return _to_response(row)
+
+
+@router.delete("/{opportunity_id}/transcripts/{transcript_id}", status_code=204)
+def delete_transcript(
+    opportunity_id: UUID,
+    transcript_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> None:
+    store.delete_transcript(
+        opportunity_id=opportunity_id,
+        transcript_id=transcript_id,
+        user_id=user.id,
+    )
+    record_audit_event(
+        store,
+        actor_id=user.id,
+        action=AuditAction.TRANSCRIPT_DELETE,
+        object_type=AuditObjectType.TRANSCRIPT,
+        object_id=transcript_id,
+    )

@@ -9,9 +9,11 @@
     "start": "next start --port 3000",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test:at46": "tsx src/lib/transcriptFormats.test.ts && tsx src/lib/uploadQueue.test.ts && tsx src/lib/authSignUp.test.ts && tsx src/lib/pipelineContext.test.ts",
-    "test:at47": "tsx src/lib/frameworkEdit.test.ts && tsx src/lib/frameworkFieldEdit.test.ts && tsx src/lib/apiErrors.test.ts",
+    "test:at47": "tsx src/lib/frameworkEdit.test.ts && tsx src/lib/frameworkFieldEdit.test.ts && tsx src/lib/frameworkEvidence.test.ts && tsx src/lib/frameworkNestedEdit.test.ts && tsx src/lib/apiErrors.test.ts",
     "test:at48": "tsx src/lib/planPreview.test.ts",
     "test:at49": "tsx src/lib/deckCenter.test.ts",
+    "test:at56": "tsx src/lib/jobReconnect.test.ts && tsx src/lib/apiErrors.test.ts",
+    "test:at57": "tsx src/lib/jobReconnect.test.ts",
     "test:ms24": "tsx src/lib/recentPresentations.test.ts"
   },
   "dependencies": {

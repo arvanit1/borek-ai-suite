@@ -537,7 +537,7 @@ def test_unknown_compression_path_uses_shared_safe_rewrite_rules() -> None:
     assert "never use an ellipsis" in instructions
 
 
-def test_compression_fits_overlong_model_output_without_mid_word_cut() -> None:
+def test_compression_does_not_silently_clip_overlong_model_output() -> None:
     overlong = "invoice matching is still entirely manual today " * 6
     assert len(overlong) > 160
     executor, _responses = _executor({"problem.description": overlong})
@@ -555,8 +555,8 @@ def test_compression_fits_overlong_model_output_without_mid_word_cut() -> None:
     result = compress({"problem.description": "X" * 192}, violations)
 
     fitted = result["problem.description"]
-    assert len(fitted) <= 160
-    assert fitted.endswith("today") or fitted.endswith("manual") or " " in fitted
+    assert fitted == overlong
+    assert len(fitted) > 160
 
 
 @pytest.mark.parametrize(

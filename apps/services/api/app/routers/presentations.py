@@ -21,7 +21,7 @@ from app.schemas.presentations import (
     SlideResponse,
 )
 from app.schemas.jobs import JobEnqueueResponse
-from app.services import deck_center, presentation_generation
+from app.services import deck_center, job_service, presentation_generation
 from app.services.audit import AuditAction, AuditObjectType, record_audit_event
 from app.services.renderer_client import RendererClientError
 
@@ -146,7 +146,7 @@ def generate_presentation(
     store: DataStoreDep,
 ) -> PresentationGenerateResponse:
     try:
-        presentation, plan, job = presentation_generation.enqueue_presentation_generate(
+        presentation, plan, job, is_existing = presentation_generation.enqueue_presentation_generate(
             store,
             opportunity_id=opportunity_id,
             user_id=user.id,
@@ -165,13 +165,14 @@ def generate_presentation(
         actor_id=user.id,
         action=AuditAction.PRESENTATION_GENERATE,
         object_type=AuditObjectType.PRESENTATION,
-        object_id=presentation["id"],
+        object_id=presentation.get("id") or opportunity_id,
     )
     return PresentationGenerateResponse(
         job_id=str(job.id),
-        status="queued",
-        presentation_id=presentation["id"],
-        presentation_plan_id=plan["id"],
+        status=job_service.enqueue_status_for_job(job, existing=is_existing),
+        is_existing_job=is_existing,
+        presentation_id=presentation.get("id"),
+        presentation_plan_id=plan.get("id"),
     )
 
 

@@ -204,12 +204,9 @@ class LlmClient:
                     if isinstance(value, str)
                 }
             return {
-                path: _fit_max_length(
-                    _spell_introduced_number_tokens(
-                        offending_values[path],
-                        _restore_source_number_forms(offending_values[path], value),
-                    ),
-                    limits.get(path),
+                path: _spell_introduced_number_tokens(
+                    offending_values[path],
+                    _restore_source_number_forms(offending_values[path], value),
                 )
                 for path, value in fitted.items()
             }
@@ -341,16 +338,6 @@ def _restore_source_number_forms(original: str, rewritten: str) -> str:
         return raw
 
     return _NUMBER_TOKEN.sub(replace, rewritten)
-
-
-def _fit_max_length(value: str, limit: int | None) -> str:
-    """Honor AT-8's 'no mid-word cut' if the model still ignores maxLength."""
-    if limit is None or len(value) <= limit:
-        return value
-    clipped = value[:limit].rstrip()
-    if " " in clipped:
-        clipped = clipped.rsplit(" ", 1)[0].rstrip()
-    return clipped or value[:limit]
 
 
 def load_prompt_version(path: str) -> str:

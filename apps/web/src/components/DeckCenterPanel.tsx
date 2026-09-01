@@ -5,20 +5,29 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { AppPageHeader } from "@/components/AppPageHeader";
 import { useAuth } from "@/components/AuthProvider";
+import { JobFailureAlert } from "@/components/JobFailureAlert";
 import { PipelineStepper } from "@/components/PipelineStepper";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SlidePreviewCard } from "@/components/SlidePreviewCard";
 import {
+  ApiRequestError,
   downloadPresentationFile,
   generatePresentation,
+  getActiveJob,
   getDeckCenter,
   getLatestPresentation,
+  retryJob,
   waitForJob,
 } from "@/lib/api";
 import {
   isMissingPresentationError,
   isPresentationNotReadyError,
 } from "@/lib/apiErrors";
+import {
+  generationProgressMessage,
+  inspectActiveJob,
+  stageGroupForPage,
+} from "@/lib/jobReconnect";
 import { buildDownloadFilename, mapDeckSlides } from "@/lib/deckCenter";
 import type { DeckCenterResponse, PresentationResponse } from "@/lib/deckTypes";
 
@@ -33,6 +42,7 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const [retryJobId, setRetryJobId] = useState<string | null>(null);
 
   const slideTiles = useMemo(() => (deck ? mapDeckSlides(deck) : []), [deck]);
 
@@ -47,12 +57,10 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
     [accessToken],
   );
 
-  const loadPresentation = useCallback(async () => {
+  const applyLatestPresentation = useCallback(async () => {
     if (!accessToken) {
       return;
     }
-    setBusy(true);
-    setError(null);
     try {
       const latest = await getLatestPresentation(accessToken, opportunityId);
       setPresentation(latest);
@@ -64,20 +72,100 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
         !isMissingPresentationError(loadError) &&
         !isPresentationNotReadyError(loadError)
       ) {
-        const message =
-          loadError instanceof Error ? loadError.message : "Could not load presentation.";
-        setError(message);
+        throw loadError;
       }
-    } finally {
-      setBusy(false);
     }
   }, [accessToken, loadDeck, opportunityId]);
 
-  useEffect(() => {
-    if (!loading && accessToken) {
-      void loadPresentation();
+  const loadPresentation = useCallback(async () => {
+    if (!accessToken) {
+      return;
     }
-  }, [accessToken, loading, loadPresentation]);
+    setBusy(true);
+    setError(null);
+    try {
+      await applyLatestPresentation();
+    } catch (loadError) {
+      const message =
+        loadError instanceof Error ? loadError.message : "Could not load presentation.";
+      setError(message);
+    } finally {
+      setBusy(false);
+    }
+  }, [accessToken, applyLatestPresentation]);
+
+  useEffect(() => {
+    if (loading || !accessToken) {
+      return;
+    }
+    const token = accessToken;
+    let cancelled = false;
+    async function bootstrap() {
+      setBusy(true);
+      setError(null);
+      setInfo(null);
+      setRetryJobId(null);
+      try {
+        const job = await getActiveJob(
+          token,
+          opportunityId,
+          stageGroupForPage("deck"),
+        );
+        if (cancelled) {
+          return;
+        }
+        const decision = inspectActiveJob(job, "deck");
+        if (decision.action === "monitor") {
+          setInfo(generationProgressMessage("deck", true));
+          try {
+            await waitForJob(token, decision.jobId);
+          } catch (monitorError) {
+            if (!cancelled) {
+              setError(
+                monitorError instanceof Error ? monitorError.message : "Generation job failed.",
+              );
+              if (monitorError instanceof ApiRequestError && monitorError.retryable && monitorError.jobId) {
+                setRetryJobId(monitorError.jobId);
+              }
+            }
+          }
+        } else if (decision.action === "failed") {
+          setError(decision.message);
+          if (decision.retryable) {
+            setRetryJobId(decision.jobId);
+          }
+        }
+        if (cancelled) {
+          return;
+        }
+        try {
+          await applyLatestPresentation();
+        } catch (loadError) {
+          if (!cancelled && decision.action !== "failed") {
+            const message =
+              loadError instanceof Error ? loadError.message : "Could not load presentation.";
+            setError(message);
+          }
+        }
+      } catch (bootstrapError) {
+        if (!cancelled) {
+          setError(
+            bootstrapError instanceof Error
+              ? bootstrapError.message
+              : "Could not reconnect to the generation job.",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setBusy(false);
+        }
+      }
+    }
+    void bootstrap();
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, applyLatestPresentation, loading, opportunityId]);
 
   async function handleGenerateDeck() {
     if (!accessToken) {
@@ -86,21 +174,40 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
     setBusy(true);
     setError(null);
     setInfo(null);
+    setRetryJobId(null);
     try {
       const generated = await generatePresentation(accessToken, opportunityId);
-      setInfo("Presentation rendering is running…");
+      setInfo(generationProgressMessage("deck", Boolean(generated.is_existing_job)));
       await waitForJob(accessToken, generated.job_id);
-      setPresentation({
-        id: generated.presentation_id,
-        presentation_plan_id: generated.presentation_plan_id,
-        name: "Presentation",
-        status: "draft",
-        created_at: new Date().toISOString(),
-      });
-      await loadDeck(generated.presentation_id);
+      await applyLatestPresentation();
       setInfo("Deck generated. Slide previews and downloads are ready below.");
     } catch (generateError) {
       setError(generateError instanceof Error ? generateError.message : "Deck generation failed.");
+      if (generateError instanceof ApiRequestError && generateError.retryable && generateError.jobId) {
+        setRetryJobId(generateError.jobId);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleRetry() {
+    if (!accessToken || !retryJobId) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    setInfo("Retrying generation from the last failed stage…");
+    try {
+      const queued = await retryJob(accessToken, retryJobId);
+      setRetryJobId(null);
+      await waitForJob(accessToken, queued.job_id);
+      await applyLatestPresentation();
+    } catch (retryError) {
+      setError(retryError instanceof Error ? retryError.message : "Retry failed.");
+      if (retryError instanceof ApiRequestError && retryError.retryable && retryError.jobId) {
+        setRetryJobId(retryError.jobId);
+      }
     } finally {
       setBusy(false);
     }
@@ -177,12 +284,21 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
           </aside>
 
           <div className="upload-main">
-            {error ? <div className="alert alert-error">{error}</div> : null}
+            {error ? (
+              <JobFailureAlert
+                message={error}
+                retryable={Boolean(retryJobId)}
+                retrying={busy}
+                onRetry={() => void handleRetry()}
+              />
+            ) : null}
             {info ? <div className="upload-banner upload-banner-success">{info}</div> : null}
 
             {busy && !deck ? (
               <section className="upload-panel pipeline-panel-loading">
-                <p className="upload-hint">Loading deck…</p>
+                <p className="upload-hint" data-testid="pipeline-job-progress">
+                  {info ?? "Loading deck…"}
+                </p>
               </section>
             ) : null}
 

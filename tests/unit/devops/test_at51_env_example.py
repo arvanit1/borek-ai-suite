@@ -48,6 +48,10 @@ CANONICAL_ENV_VARS = frozenset(
         "PORT",
         # scripts / integration tests
         "RUN_SUPABASE_INTEGRATION",
+        "RLS_TEST_USER_A_EMAIL",
+        "RLS_TEST_USER_A_PASSWORD",
+        "RLS_TEST_USER_B_EMAIL",
+        "RLS_TEST_USER_B_PASSWORD",
         "E2E_TEST_EMAIL",
         "E2E_TEST_PASSWORD",
     }

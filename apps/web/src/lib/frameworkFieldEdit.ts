@@ -4,7 +4,7 @@ export function updateRecordField(
   records: Record<string, unknown>[],
   recordIndex: number,
   fieldKey: string,
-  value: string,
+  value: unknown,
 ): Record<string, unknown>[] {
   return records.map((record, index) =>
     index === recordIndex ? { ...record, [fieldKey]: value } : record,

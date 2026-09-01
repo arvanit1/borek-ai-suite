@@ -189,6 +189,12 @@ def test_state_changing_endpoints_emit_required_audit_actions() -> None:
     )
     assert change_layout.status_code == 202
 
+    delete_transcript = client.delete(
+        f"/opportunities/{opportunity_id}/transcripts/{transcript_id}",
+        headers=_headers(),
+    )
+    assert delete_transcript.status_code == 204
+
     recorded = set(_audit_actions())
     assert CANONICAL_AUDIT_ACTIONS.issubset(recorded)
 
@@ -214,10 +220,12 @@ def test_state_changing_routers_import_and_call_record_audit_event() -> None:
         (ROUTERS_DIR / filename).read_text(encoding="utf-8")
         for filename in STATE_CHANGING_ROUTER_FILES
     )
-    handler_count = len(re.findall(r"@(?:router|opportunity_router|plan_router)\.(post|patch)\(", combined))
+    handler_count = len(
+        re.findall(r"@(?:router|opportunity_router|plan_router)\.(post|patch|delete)\(", combined)
+    )
     audit_call_count = combined.count("record_audit_event(")
     assert audit_call_count == handler_count, (
-        "every POST/PATCH handler in state-changing routers must emit an audit entry"
+        "every POST/PATCH/DELETE handler in state-changing routers must emit an audit entry"
     )
 
 
