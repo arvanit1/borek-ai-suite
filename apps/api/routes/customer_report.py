@@ -13,7 +13,9 @@ from services.framework.eligibility import RenderBlocked
 from services.framework.pipeline import generate_customer_framework
 from services.framework.pre_confirm_check import confirm_customer_report
 from services.framework.regenerate_chapter import ChapterRegenError, regenerate_chapter
+from services.framework.rendering.customer_docx import render_customer_docx
 from services.framework.rendering.customer_pdf import render_customer_pdf, write_customer_pdf
+from services.framework.review_insights import attach_review_insights, build_review_payload
 from services.framework.store import (
     get_framework,
     knowledge_for,
@@ -198,7 +200,20 @@ def readiness(framework_id: str) -> dict[str, Any]:
         "assessments": framework.get("assessments"),
         "render": framework.get("render"),
         "open_items": framework.get("open_items"),
+        "review_summary": framework.get("review_summary"),
+        "attention": framework.get("attention"),
+        "attention_signals": framework.get("attention_signals"),
+        "review_state": (framework.get("attention") or {}).get("review_state"),
     }
+
+
+@router.get("/frameworks/{framework_id}/review")
+def framework_review(framework_id: str) -> dict[str, Any]:
+    """ES-36/37 — compact review summary, attention signals, and prompt observability."""
+    framework = _require(framework_id)
+    if not framework.get("review_summary"):
+        attach_review_insights(framework)
+    return build_review_payload(framework)
 
 
 @router.get("/frameworks/{framework_id}/gaps")
@@ -246,6 +261,22 @@ def download_pdf(framework_id: str, lang: str = Query(default="en")) -> Response
     )
 
 
+@router.get("/frameworks/{framework_id}/docx")
+def download_docx(framework_id: str, lang: str = Query(default="en")) -> Response:
+    """ES-38 — Word export for confirmed customer framework reports."""
+    framework = _require(framework_id)
+    try:
+        docx_bytes = render_customer_docx(framework, lang=lang)
+    except RenderBlocked as exc:
+        raise HTTPException(status_code=409, detail=exc.user_message) from exc
+    filename = f"{framework_id}-customer-report.docx"
+    return Response(
+        content=docx_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 def _require(framework_id: str) -> dict[str, Any]:
     framework = get_framework(framework_id)
     if not framework:
@@ -275,5 +306,9 @@ def _public_framework(framework: dict[str, Any]) -> dict[str, Any]:
         "chapters": (framework.get("customer_view") or framework).get("chapters"),
         "generation_meta": framework.get("generation_meta"),
         "generation_log": (framework.get("generation_meta") or {}).get("llm_job_log") or [],
+        "review_summary": framework.get("review_summary"),
+        "attention": framework.get("attention"),
+        "attention_signals": framework.get("attention_signals"),
+        "review_state": (framework.get("attention") or {}).get("review_state"),
         "version": framework.get("version"),
     }

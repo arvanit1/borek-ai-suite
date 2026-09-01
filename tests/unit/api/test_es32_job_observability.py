@@ -1,0 +1,83 @@
+"""ES-32 — durable prompt-version records on production framework jobs."""
+
+from __future__ import annotations
+
+import uuid
+
+from app.services.es32_job_observability import build_framework_job_observability
+from app.services.job_service import create_job
+from services.knowledge_model.extraction import PROMPT_VERSION as EXTRACTION_PROMPT_VERSION
+from services.observability.llm_logger import STAGE_EXTRACTION, clear_generation_jobs, log_generation_job
+
+
+def test_es32_build_framework_job_observability_includes_prompt_versions() -> None:
+    clear_generation_jobs()
+    opportunity_id = str(uuid.uuid4())
+    log_generation_job(
+        stage=STAGE_EXTRACTION,
+        prompt_version=EXTRACTION_PROMPT_VERSION,
+        model="claude-sonnet-4-5",
+        status="success",
+        attempt=1,
+        opportunity_id=opportunity_id,
+        input_tokens=100,
+        output_tokens=200,
+    )
+    framework_json = {
+        "generation_meta": {
+            "llm_job_log": [
+                {
+                    "stage": "framework_synthesis",
+                    "prompt_version": "framework-synthesis:v1",
+                    "model": "claude-sonnet-4-5",
+                    "input_tokens": 300,
+                    "output_tokens": 400,
+                }
+            ]
+        }
+    }
+    payload = build_framework_job_observability(
+        framework_json=framework_json,
+        opportunity_id=opportunity_id,
+        framework_version_id=str(uuid.uuid4()),
+    )
+    assert EXTRACTION_PROMPT_VERSION in payload["prompt_versions"]
+    assert "framework-synthesis:v1" in payload["prompt_versions"]
+    assert payload["number_of_ai_calls"] >= 2
+    assert payload["ai_input_tokens"] >= 400
+
+
+def test_es32_job_complete_result_exposes_llm_calls() -> None:
+    from app.services import framework_generation, job_service
+    from app.services.data.memory_store import get_memory_store
+
+    store = get_memory_store()
+    user_id = uuid.uuid4()
+    opportunity = store.create_opportunity(
+        user_id=user_id,
+        client_name="Acme",
+        opportunity_name="Obs",
+        department="Finance",
+        language="en",
+    )
+    job = job_service.create_job(opportunity["id"], "framework_generation", repository=store)
+    framework_json = {
+        "generation_meta": {
+            "llm_job_log": [
+                {
+                    "stage": "framework_synthesis",
+                    "prompt_version": "framework-synthesis:v1",
+                    "input_tokens": 10,
+                    "output_tokens": 20,
+                }
+            ]
+        }
+    }
+    framework_generation.persist_framework_generation_observability(
+        job,
+        framework_json=framework_json,
+        opportunity_id=opportunity["id"],
+        framework_version_id=uuid.uuid4(),
+    )
+    assert job.result_json["prompt_versions"] == ["framework-synthesis:v1"]
+    assert job.number_of_ai_calls == 1

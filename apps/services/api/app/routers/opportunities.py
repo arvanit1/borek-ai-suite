@@ -34,6 +34,7 @@ def create_opportunity(
         opportunity_name=body.opportunity_name,
         department=body.department,
         language=body.language,
+        pii_redaction_enabled=body.pii_redaction_enabled,
     )
     record_audit_event(
         store,
