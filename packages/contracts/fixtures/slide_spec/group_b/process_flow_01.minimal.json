@@ -3,6 +3,12 @@
   "layoutId": "PROCESS_FLOW_01",
   "title": "To-be process",
   "sourceChapterIds": ["2", "4"],
+  "fieldProvenance": [
+    { "path": "title", "sourceChapterIds": ["2", "4"] },
+    { "path": "phases[0].number", "sourceChapterIds": ["2"] },
+    { "path": "phases[0].name", "sourceChapterIds": ["2"] },
+    { "path": "phases[0].description", "sourceChapterIds": ["2"] }
+  ],
   "phases": [
     { "number": 1, "name": "Receive invoice", "description": "Mailbox intake, read-only" }
   ]

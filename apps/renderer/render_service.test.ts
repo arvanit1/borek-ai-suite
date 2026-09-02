@@ -13,6 +13,15 @@ function fixture(path: string): SlideSpecBase {
 
 const cover = fixture("cover_01.realistic.json");
 const context = fixture("context_01.realistic.json");
+const executiveSummary = JSON.parse(
+  readFileSync(
+    new URL(
+      "../../packages/contracts/fixtures/slide_spec/summary/executive_summary_01.realistic.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+) as SlideSpecBase;
 const plan = {
   schema_version: "1.0",
   title: "Renderer contract test",
@@ -41,13 +50,17 @@ await assert.rejects(
       {
         schema_version: "1.0",
         slideId: "slide_02",
-        layoutId: "EXECUTIVE_SUMMARY_01",
+        layoutId: "UNKNOWN_LAYOUT_99" as SlideSpecBase["layoutId"],
         title: "Summary",
         sourceChapterIds: ["1"],
       } as SlideSpecBase,
     ]),
-  /has no implemented renderer/,
+  /No render function registered|has no implemented renderer/,
 );
+
+const summaryDeck = await buildDeckBuffer([executiveSummary]);
+assert.ok(summaryDeck.length > 10_000);
+assert.equal(summaryDeck.subarray(0, 2).toString(), "PK");
 
 const deck = await buildDeckBuffer([cover, context]);
 assert.ok(deck.length > 10_000);

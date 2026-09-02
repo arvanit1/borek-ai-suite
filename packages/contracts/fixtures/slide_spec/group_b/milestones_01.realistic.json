@@ -6,6 +6,23 @@
   "title": "Delivery checkpoints",
   "subtitle": "Standalone list when the dual-band timeline is not used",
   "sourceChapterIds": ["10"],
+  "fieldProvenance": [
+    { "path": "sectionLabel", "sourceChapterIds": ["10"] },
+    { "path": "title", "sourceChapterIds": ["10"] },
+    { "path": "subtitle", "sourceChapterIds": ["10"] },
+    { "path": "milestones[0].name", "sourceChapterIds": ["10"] },
+    { "path": "milestones[0].description", "sourceChapterIds": ["10"] },
+    { "path": "milestones[0].date", "sourceChapterIds": ["10"] },
+    { "path": "milestones[1].name", "sourceChapterIds": ["10"] },
+    { "path": "milestones[1].description", "sourceChapterIds": ["10"] },
+    { "path": "milestones[1].date", "sourceChapterIds": ["10"] },
+    { "path": "milestones[2].name", "sourceChapterIds": ["10"] },
+    { "path": "milestones[2].description", "sourceChapterIds": ["10"] },
+    { "path": "milestones[2].date", "sourceChapterIds": ["10"] },
+    { "path": "milestones[3].name", "sourceChapterIds": ["10"] },
+    { "path": "milestones[3].description", "sourceChapterIds": ["10"] },
+    { "path": "milestones[3].date", "sourceChapterIds": ["10"] }
+  ],
   "milestones": [
     {
       "name": "ERP access confirmed",

@@ -145,7 +145,7 @@ def test_unpatched_slide_providers_resolve_from_execution_mode(
         _UNPATCHED_LIVE_COMPRESSION()
 
 
-def test_confirmed_plan_strips_unimplemented_layouts_and_renumbers() -> None:
+def test_confirmed_plan_keeps_executive_summary() -> None:
     dirty = copy.deepcopy(GROUP_A_PLAN)
     dirty["slides"].insert(
         1,
@@ -162,13 +162,14 @@ def test_confirmed_plan_strips_unimplemented_layouts_and_renumbers() -> None:
 
     result = stage_b.plan_json_from_confirmed_framework(_framework(), planner=planner)
 
-    assert all(slide["layoutId"] != "EXECUTIVE_SUMMARY_01" for slide in result["slides"])
+    assert [slide["layoutId"] for slide in result["slides"]] == [
+        "COVER_01",
+        "EXECUTIVE_SUMMARY_01",
+        *[slide["layoutId"] for slide in GROUP_A_PLAN["slides"][1:]],
+    ]
     assert [slide["order"] for slide in result["slides"]] == list(
         range(1, len(result["slides"]) + 1)
     )
-    assert [slide["layoutId"] for slide in result["slides"]] == [
-        slide["layoutId"] for slide in GROUP_A_PLAN["slides"]
-    ]
 
 
 def test_confirmed_framework_reaches_injected_bt1_planner_exactly_once() -> None:
@@ -310,7 +311,7 @@ def test_valid_without_slide_spec_stops_without_fixture_fallback(
 
 @pytest.mark.parametrize(
     "layout_id",
-    ["EXECUTIVE_SUMMARY_01"],
+    ["NOT_IMPLEMENTED_01"],
 )
 def test_unowned_layouts_fail_clearly(layout_id: str) -> None:
     with pytest.raises(stage_b.UnsupportedSlideGeneratorError, match=layout_id):
@@ -327,14 +328,47 @@ def test_unowned_layouts_fail_clearly(layout_id: str) -> None:
         )
 
 
+def test_executive_summary_generates_from_owner_map() -> None:
+    fixture_path = (
+        ROOT
+        / "packages"
+        / "contracts"
+        / "fixtures"
+        / "slide_spec"
+        / "summary"
+        / "executive_summary_01.realistic.json"
+    )
+
+    def structured(request: Any) -> dict[str, Any]:
+        if request.layout_id == "EXECUTIVE_SUMMARY_01":
+            return json.loads(fixture_path.read_text(encoding="utf-8"))
+        return _structured_fixture(request)
+
+    result = stage_b.build_slide_spec_for_planned_slide(
+        planned={
+            "order": 2,
+            "purpose": "summary",
+            "layoutId": "EXECUTIVE_SUMMARY_01",
+            "frameworkReferences": ["chapter_1"],
+        },
+        framework_json=_framework(),
+        structured_generate=structured,
+        compress_fields=_identity_compression,
+    )
+    assert result["layoutId"] == "EXECUTIVE_SUMMARY_01"
+    assert result["slideId"] == "slide_02"
+    assert result["headline"]
+
+
 def test_owner_maps_match_generatable_layout_ids() -> None:
     owned = (
         frozenset(stage_b._GROUP_A_LAYOUTS)
+        | frozenset(stage_b._SUMMARY_LAYOUTS)
         | frozenset(stage_b._GROUP_B_LAYOUTS)
         | frozenset(stage_b._GROUP_C_LAYOUTS)
     )
     assert owned == stage_b.GENERATABLE_LAYOUT_IDS
-    assert "EXECUTIVE_SUMMARY_01" not in owned
+    assert "EXECUTIVE_SUMMARY_01" in owned
 
 
 def test_live_generate_refuses_saved_plan_with_unimplemented_layout(
@@ -347,8 +381,8 @@ def test_live_generate_refuses_saved_plan_with_unimplemented_layout(
         copy.deepcopy(dirty["slides"][0]),
         {
             "order": 2,
-            "purpose": "summary",
-            "layoutId": "EXECUTIVE_SUMMARY_01",
+            "purpose": "unknown",
+            "layoutId": "NOT_IMPLEMENTED_01",
             "frameworkReferences": ["chapter_1"],
         },
     ]
@@ -393,7 +427,7 @@ def test_live_render_refuses_plan_spec_count_mismatch(
                 "plan_json": {
                     "slides": [
                         {"layoutId": "COVER_01"},
-                        {"layoutId": "EXECUTIVE_SUMMARY_01"},
+                        {"layoutId": "CONTEXT_01"},
                     ]
                 }
             },
@@ -438,8 +472,8 @@ def test_saved_plan_skips_unimplemented_layout_and_generates_the_rest() -> None:
         copy.deepcopy(cover_plan["slides"][0]),
         {
             "order": 2,
-            "purpose": "summary",
-            "layoutId": "EXECUTIVE_SUMMARY_01",
+            "purpose": "unknown",
+            "layoutId": "NOT_IMPLEMENTED_01",
             "frameworkReferences": ["chapter_1"],
         },
     ]
@@ -464,7 +498,7 @@ def test_saved_plan_skips_unimplemented_layout_and_generates_the_rest() -> None:
 
     assert version["status"] == "ready"
     assert [slide["layout_id"] for slide in slides] == ["COVER_01"]
-    assert all(slide["layout_id"] != "EXECUTIVE_SUMMARY_01" for slide in slides)
+    assert all(slide["layout_id"] != "NOT_IMPLEMENTED_01" for slide in slides)
 
 
 def test_plan_of_only_unimplemented_layouts_still_fails() -> None:
@@ -474,8 +508,8 @@ def test_plan_of_only_unimplemented_layouts_still_fails() -> None:
                 "slides": [
                     {
                         "order": 1,
-                        "purpose": "summary",
-                        "layoutId": "EXECUTIVE_SUMMARY_01",
+                        "purpose": "unknown",
+                        "layoutId": "NOT_IMPLEMENTED_01",
                         "frameworkReferences": ["chapter_1"],
                     }
                 ]

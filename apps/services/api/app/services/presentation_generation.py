@@ -1,9 +1,9 @@
 """Presentation planning/generation orchestration (AT-42 / AT-43).
 
-HTTP handlers only enqueue jobs. Workers invoke the owner planner and Group A/B/C
-generators, then render validated artifacts. Unimplemented layouts such as
-EXECUTIVE_SUMMARY_01 are stripped from the persisted approved plan so AT-10 can
-compare that plan to generated SlideSpecs without a silent count lie.
+HTTP handlers only enqueue jobs. Workers invoke the owner planner and layout
+generators, then render validated artifacts. Unknown layout ids are stripped
+from the persisted approved plan so AT-10 can compare that plan to generated
+SlideSpecs without a silent count lie.
 """
 
 from __future__ import annotations

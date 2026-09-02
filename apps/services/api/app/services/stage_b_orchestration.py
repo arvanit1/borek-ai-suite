@@ -50,6 +50,9 @@ from services.slides.content_generation.group_c.open_questions_01 import (
 from services.slides.content_generation.group_c.success_metrics_01 import (
     generate_success_metrics_01,
 )
+from services.slides.content_generation.summary.executive_summary_01 import (
+    generate_executive_summary_01,
+)
 from services.slides.group_a_compression import GroupACompressFieldsFn
 
 
@@ -82,6 +85,9 @@ _GROUP_A_LAYOUTS: dict[str, Any] = {
     "SCOPE_01": generate_scope_01,
     "REQUIREMENTS_MATRIX_01": generate_requirements_matrix_01,
 }
+_SUMMARY_LAYOUTS: dict[str, Any] = {
+    "EXECUTIVE_SUMMARY_01": generate_executive_summary_01,
+}
 _GROUP_B_LAYOUTS: dict[str, Any] = {
     "PROCESS_FLOW_01": generate_process_flow_01,
     "TIMELINE_01": generate_timeline_01,
@@ -96,8 +102,11 @@ _GROUP_C_LAYOUTS: dict[str, Any] = {
     "NEXT_STEPS_01": generate_next_steps_01,
 }
 
-if frozenset(_GROUP_A_LAYOUTS) | frozenset(_GROUP_B_LAYOUTS) | frozenset(
-    _GROUP_C_LAYOUTS
+if (
+    frozenset(_GROUP_A_LAYOUTS)
+    | frozenset(_SUMMARY_LAYOUTS)
+    | frozenset(_GROUP_B_LAYOUTS)
+    | frozenset(_GROUP_C_LAYOUTS)
 ) != GENERATABLE_LAYOUT_IDS:
     raise RuntimeError(
         "Stage B owner maps drifted from GENERATABLE_LAYOUT_IDS"
@@ -113,9 +122,8 @@ def planned_slides_with_generators(
 ) -> list[dict[str, Any]]:
     """Return planned slides that can actually be generated.
 
-    Unimplemented registry entries (currently EXECUTIVE_SUMMARY_01) are skipped
-    so a saved plan cannot fail the whole deck. Calling the generator for those
-    layouts still fail-closes.
+    Unknown or unimplemented layout ids are skipped so a corrupted saved plan
+    cannot fail the whole deck. Calling a missing generator still fail-closes.
     """
     kept, skipped = filter_generatable_planned_slides(plan_json)
     for layout_id in skipped:
@@ -182,12 +190,13 @@ def build_slide_spec_for_planned_slide(
 ) -> dict[str, Any]:
     """Route one planned slide to its owner generator and return a validated SlideSpec.
 
-    Unowned layouts such as EXECUTIVE_SUMMARY_01 fail here if invoked directly.
+    Layouts without an owner generator fail here if invoked directly.
     """
     order = int(planned["order"])
     layout_id = str(planned["layoutId"])
     generate_fn = (
         _GROUP_A_LAYOUTS.get(layout_id)
+        or _SUMMARY_LAYOUTS.get(layout_id)
         or _GROUP_B_LAYOUTS.get(layout_id)
         or _GROUP_C_LAYOUTS.get(layout_id)
     )

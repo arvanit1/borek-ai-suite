@@ -53,6 +53,8 @@
     "test:jj21": "tsx layouts/group_b/renderTimeline01.edge.test.ts",
     "test:jj22": "tsx ../../tests/golden_deck/group_b/run_regression.test.ts",
     "golden:jj22": "tsx ../../tests/golden_deck/group_b/build_reference.ts",
+    "test:jj23": "tsx layouts/summary/renderExecutiveSummary01.test.ts && tsx ../../tests/golden_deck/summary/run_regression.test.ts",
+    "golden:jj23": "tsx ../../tests/golden_deck/summary/build_reference.ts",
     "test:ms16": "tsx layouts/group_c/renderArchitecture01.test.ts",
     "test:ms17": "tsx layouts/group_c/renderCompliance01.test.ts",
     "test:ms18": "tsx layouts/group_c/renderSuccessMetrics01.test.ts",

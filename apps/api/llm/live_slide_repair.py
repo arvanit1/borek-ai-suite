@@ -1,8 +1,8 @@
 """Repair live SlideSpec JSON so BT-14/AT-8 can accept a valid object.
 
-OpenAI returns content. Group A then enforces complete fieldProvenance, no
-commercial values, and numeric grounding. The model often omits provenance for
-leaves such as title or sectionLabel. This layer only:
+OpenAI returns content. Layouts that declare fieldProvenance then enforce
+complete coverage, no commercial values, and numeric grounding. The model often
+omits provenance for leaves such as title or sectionLabel. This layer only:
 
 - drops stale provenance
 - attributes missing leaves when the layout has exactly one allowed chapter
@@ -15,7 +15,7 @@ leaves such as title or sectionLabel. This layer only:
   emitted so AT-8 can compress semantically or return VALIDATION_FAILED
 - retries the model a bounded number of times with the rejection reason
 
-Group B/C generators are unchanged: required multi-chapter gaps stay fail-closed.
+Required multi-chapter gaps stay fail-closed except Group A required leaves.
 """
 
 from __future__ import annotations
@@ -479,7 +479,7 @@ def _should_keep_field_provenance(request: Any) -> bool:
 
 
 def _strip_undeclared_properties(slide_spec: dict[str, Any], request: Any) -> None:
-    """Group B schemas omit fieldProvenance; extra keys fail additionalProperties."""
+    """Drop keys the target schema does not declare so additionalProperties stays valid."""
     properties = _schema_properties(request)
     if not properties:
         return

@@ -7,7 +7,7 @@ import { registerMasterCover } from "./design_system/masters/MASTER_COVER.js";
 import { dispatchSlide } from "./layouts/dispatcher.js";
 import type { SlideSpecBase } from "./src/contracts.js";
 
-export const UNIMPLEMENTED_LAYOUT_IDS = new Set(["EXECUTIVE_SUMMARY_01"]);
+export const UNIMPLEMENTED_LAYOUT_IDS = new Set<string>();
 
 export type DeckChromeOptions = {
   opportunityTitle?: string;

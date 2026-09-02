@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0",
+  "layoutId": "EXECUTIVE_SUMMARY_01",
+  "title": "Executive summary",
+  "sourceChapterIds": ["1"],
+  "fieldProvenance": [
+    { "path": "title", "sourceChapterIds": ["1"] },
+    { "path": "headline", "sourceChapterIds": ["1"] },
+    { "path": "highlights[0].title", "sourceChapterIds": ["1"] },
+    { "path": "highlights[0].description", "sourceChapterIds": ["1"] },
+    { "path": "highlights[1].title", "sourceChapterIds": ["1"] },
+    { "path": "highlights[1].description", "sourceChapterIds": ["1"] },
+    { "path": "highlights[2].title", "sourceChapterIds": ["1"] },
+    { "path": "highlights[2].description", "sourceChapterIds": ["1"] }
+  ],
+  "headline": "Replace manual invoice matching with a controlled process that keeps exceptions with people.",
+  "highlights": [
+    { "title": "Problem", "description": "AP staff compare invoices, orders and receipts line by line." },
+    { "title": "Approach", "description": "A deterministic match handles clean invoices and explains exceptions." },
+    { "title": "Control", "description": "Humans stay in the loop for exceptions and approvals." }
+  ]
+}

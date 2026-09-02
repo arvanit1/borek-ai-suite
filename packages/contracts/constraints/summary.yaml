@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "ticket": "JJ-23",
+  "limit_classification": "CALIBRATED",
+  "calibration_basis": {
+    "EXECUTIVE_SUMMARY_01": "Lead headline plus 3-4 takeaway cards. Headline stays one sentence; card copy matches CONTEXT_01 density without crowding MASTER_CONTENT."
+  },
+  "layouts": {
+    "EXECUTIVE_SUMMARY_01": {
+      "properties": {
+        "sectionLabel": { "type": "string", "max_length": 32 },
+        "title": { "required": true, "type": "string", "max_length": 72 },
+        "subtitle": { "type": "string", "max_length": 100 },
+        "headline": { "required": true, "type": "string", "max_length": 180 },
+        "highlights": {
+          "required": true,
+          "type": "array",
+          "min_items": 3,
+          "max_items": 4,
+          "items": {
+            "type": "object",
+            "properties": {
+              "title": { "required": true, "type": "string", "max_length": 32 },
+              "description": { "required": true, "type": "string", "max_length": 140 }
+            }
+          }
+        }
+      }
+    }
+  }
+}

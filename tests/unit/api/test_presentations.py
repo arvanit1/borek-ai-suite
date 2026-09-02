@@ -94,7 +94,6 @@ def test_generate_presentation_plan_enqueues_job_and_persists_plan() -> None:
     assert latest.json()["id"] == body["presentation_plan_id"]
     slides = latest.json()["plan_json"]["slides"]
     assert slides
-    assert all(slide["layoutId"] != "EXECUTIVE_SUMMARY_01" for slide in slides)
     assert [slide["order"] for slide in slides] == list(range(1, len(slides) + 1))
 
     by_id = client.get(
@@ -141,8 +140,8 @@ def test_generate_presentation_rejects_unimplemented_layout_when_live(
                 },
                 {
                     "order": 2,
-                    "purpose": "summary",
-                    "layoutId": "EXECUTIVE_SUMMARY_01",
+                    "purpose": "unknown",
+                    "layoutId": "NOT_IMPLEMENTED_01",
                     "frameworkReferences": ["chapter_1"],
                 },
             ],

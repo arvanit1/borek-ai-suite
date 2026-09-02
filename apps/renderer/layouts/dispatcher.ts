@@ -22,7 +22,8 @@ import { renderCompliance01 } from "./group_c/renderCompliance01.js";
 import { renderNextSteps01 } from "./group_c/renderNextSteps01.js";
 import { renderOpenQuestions01 } from "./group_c/renderOpenQuestions01.js";
 import { renderSuccessMetrics01 } from "./group_c/renderSuccessMetrics01.js";
-import { renderExecutiveSummary01Stub, type LayoutRenderFn } from "./stubs.js";
+import { renderExecutiveSummary01 } from "./summary/renderExecutiveSummary01.js";
+import type { LayoutRenderFn } from "./stubs.js";
 
 export type RenderFn = LayoutRenderFn;
 
@@ -52,7 +53,7 @@ export class UnsupportedLayoutError extends Error {
  */
 export const LAYOUT_REGISTRY: Record<LayoutId, RenderFn> = {
   COVER_01: registerValidatedRenderer(renderCover01),
-  EXECUTIVE_SUMMARY_01: renderExecutiveSummary01Stub,
+  EXECUTIVE_SUMMARY_01: registerValidatedRenderer(renderExecutiveSummary01),
   CONTEXT_01: registerValidatedRenderer(renderContext01),
   PROBLEM_SOLUTION_01: registerValidatedRenderer(renderProblemSolution01),
   SCOPE_01: registerValidatedRenderer(renderScope01),

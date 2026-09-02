@@ -46,6 +46,11 @@ AT4_SCHEMA_OUTPUTS = [
         "RequirementsMatrix01SlideSpec",
     ),
     (
+        "slide_spec/summary/executive_summary_01.schema.json",
+        "slide_spec_summary_executive_summary_01.py",
+        "ExecutiveSummary01SlideSpec",
+    ),
+    (
         "slide_spec/group_b/process_flow_01.schema.json",
         "slide_spec_group_b_process_flow_01.py",
         "ProcessFlow01SlideSpec",
@@ -105,6 +110,14 @@ GROUP_A_MODELS = [
         "requirements_matrix_01",
         "slide_spec_group_a_requirements_matrix_01",
         "RequirementsMatrix01SlideSpec",
+    ),
+]
+
+SUMMARY_MODELS = [
+    (
+        "executive_summary_01",
+        "slide_spec_summary_executive_summary_01",
+        "ExecutiveSummary01SlideSpec",
     ),
 ]
 
@@ -244,6 +257,19 @@ def test_group_a_fixture_validates_with_generated_pydantic_model(
     module = importlib.import_module(f"generated.python.contracts.{module_name}")
     model = getattr(module, model_name)
     fixture_path = FIXTURES_DIR / "slide_spec" / "group_a" / f"{fixture_name}.{variant}.json"
+    payload = json.loads(fixture_path.read_text(encoding="utf-8"))
+    generated = model.model_validate(payload)
+    assert generated.layoutId == payload["layoutId"]
+
+
+@pytest.mark.parametrize("fixture_name,module_name,model_name", SUMMARY_MODELS)
+@pytest.mark.parametrize("variant", ["minimal", "realistic"])
+def test_summary_fixture_validates_with_generated_pydantic_model(
+    fixture_name: str, module_name: str, model_name: str, variant: str
+) -> None:
+    module = importlib.import_module(f"generated.python.contracts.{module_name}")
+    model = getattr(module, model_name)
+    fixture_path = FIXTURES_DIR / "slide_spec" / "summary" / f"{fixture_name}.{variant}.json"
     payload = json.loads(fixture_path.read_text(encoding="utf-8"))
     generated = model.model_validate(payload)
     assert generated.layoutId == payload["layoutId"]

@@ -232,6 +232,53 @@ def test_group_b_schema_without_field_provenance_strips_the_key() -> None:
     assert repaired["sourceChapterIds"] == ["2", "4"]
 
 
+def test_group_b_schema_with_field_provenance_keeps_and_completes_it() -> None:
+    request = StructuredGenerationRequest(
+        layout_id="TIMELINE_01",
+        chapters=({"chapter_id": "10", "title": "Plan", "body": "ten weeks for implementation"},),
+        target_schema={
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "schema_version": {"type": "string"},
+                "layoutId": {"type": "string"},
+                "title": {"type": "string"},
+                "sourceChapterIds": {"type": "array"},
+                "phases": {"type": "array"},
+                "milestones": {"type": "array"},
+                "fieldProvenance": {"type": "array"},
+            },
+            "required": ["schema_version", "layoutId", "title", "sourceChapterIds", "phases", "milestones"],
+        },
+        instructions="Generate TIMELINE_01.",
+    )
+    spec = {
+        "schema_version": "1.0",
+        "layoutId": "TIMELINE_01",
+        "title": "Implementation roadmap",
+        "sourceChapterIds": ["10"],
+        "phases": [{"id": "p1", "name": "Build", "description": "Confirm access"}],
+        "milestones": [{"id": "m1", "name": "Access confirmed", "phaseId": "p1"}],
+        "fieldProvenance": [
+            {"path": "title", "sourceChapterIds": ["10"]},
+            {"path": "phases[0].id", "sourceChapterIds": ["10"]},
+            {"path": "phases[0].name", "sourceChapterIds": ["10"]},
+            {"path": "phases[0].description", "sourceChapterIds": ["10"]},
+        ],
+        "unexpected": True,
+    }
+
+    repaired = repair_live_slide_spec(spec, request)
+
+    assert "unexpected" not in repaired
+    paths = {entry["path"] for entry in repaired["fieldProvenance"]}
+    assert "title" in paths
+    assert "milestones[0].id" in paths
+    assert "milestones[0].name" in paths
+    assert "milestones[0].phaseId" in paths
+    assert repaired["sourceChapterIds"] == ["10"]
+
+
 def test_non_group_a_does_not_invent_required_multi_chapter_provenance() -> None:
     request = StructuredGenerationRequest(
         layout_id="ARCHITECTURE_01",
@@ -344,6 +391,16 @@ def test_bt14_timeline_rejects_ungrounded_10() -> None:
         "milestones": [
             {"id": "m1", "name": "Access confirmed", "phaseId": "p1", "date": "Start"},
         ],
+        "fieldProvenance": [
+            {"path": "title", "sourceChapterIds": ["10"]},
+            {"path": "phases[0].id", "sourceChapterIds": ["10"]},
+            {"path": "phases[0].name", "sourceChapterIds": ["10"]},
+            {"path": "phases[0].description", "sourceChapterIds": ["10"]},
+            {"path": "milestones[0].id", "sourceChapterIds": ["10"]},
+            {"path": "milestones[0].name", "sourceChapterIds": ["10"]},
+            {"path": "milestones[0].phaseId", "sourceChapterIds": ["10"]},
+            {"path": "milestones[0].date", "sourceChapterIds": ["10"]},
+        ],
     }
 
     def generate(_request: StructuredGenerationRequest) -> dict[str, Any]:
@@ -413,6 +470,7 @@ def test_sanitizer_runs_for_all_layouts() -> None:
                 "sourceChapterIds": {"type": "array"},
                 "phases": {"type": "array"},
                 "milestones": {"type": "array"},
+                "fieldProvenance": {"type": "array"},
             },
             "required": ["schema_version", "layoutId", "title", "sourceChapterIds", "phases", "milestones"],
         },
@@ -425,9 +483,19 @@ def test_sanitizer_runs_for_all_layouts() -> None:
         "sourceChapterIds": ["10"],
         "phases": [{"id": "p1", "name": "Build", "description": "10 weeks for implementation"}],
         "milestones": [{"id": "m1", "name": "Access confirmed", "phaseId": "p1", "date": "Start"}],
+        "fieldProvenance": [
+            {"path": "title", "sourceChapterIds": ["10"]},
+            {"path": "phases[0].id", "sourceChapterIds": ["10"]},
+            {"path": "phases[0].name", "sourceChapterIds": ["10"]},
+            {"path": "phases[0].description", "sourceChapterIds": ["10"]},
+            {"path": "milestones[0].id", "sourceChapterIds": ["10"]},
+            {"path": "milestones[0].name", "sourceChapterIds": ["10"]},
+            {"path": "milestones[0].phaseId", "sourceChapterIds": ["10"]},
+            {"path": "milestones[0].date", "sourceChapterIds": ["10"]},
+        ],
     }
     timeline = wrap_live_structured_generator(lambda _request: timeline_spec)(timeline_request)
-    assert "fieldProvenance" not in timeline
+    assert any(entry["path"] == "phases[0].description" for entry in timeline["fieldProvenance"])
     assert "10 weeks" not in timeline["phases"][0]["description"]
     assert "ten weeks" in timeline["phases"][0]["description"]
 

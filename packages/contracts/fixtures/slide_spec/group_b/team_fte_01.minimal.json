@@ -3,6 +3,14 @@
   "layoutId": "TEAM_FTE_01",
   "title": "Team composition",
   "sourceChapterIds": ["10"],
+  "fieldProvenance": [
+    { "path": "title", "sourceChapterIds": ["10"] },
+    { "path": "roles[0].role", "sourceChapterIds": ["10"] },
+    { "path": "roles[0].fte", "sourceChapterIds": ["10"] },
+    { "path": "roles[0].responsibility", "sourceChapterIds": ["10"] },
+    { "path": "summary[0].label", "sourceChapterIds": ["10"] },
+    { "path": "summary[0].value", "sourceChapterIds": ["10"] }
+  ],
   "roles": [
     { "role": "Process owner", "fte": "0.3", "responsibility": "Exception decisions" }
   ],

@@ -3,6 +3,11 @@
   "layoutId": "MILESTONES_01",
   "title": "Key milestones",
   "sourceChapterIds": ["10"],
+  "fieldProvenance": [
+    { "path": "title", "sourceChapterIds": ["10"] },
+    { "path": "milestones[0].name", "sourceChapterIds": ["10"] },
+    { "path": "milestones[0].description", "sourceChapterIds": ["10"] }
+  ],
   "milestones": [
     { "name": "ERP access confirmed", "description": "Read-only PO and goods-receipt data" }
   ]

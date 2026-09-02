@@ -314,11 +314,17 @@ export const GROUP_B_GOLDEN_FILES = [
   "team_fte_01.png",
 ] as const;
 
-/** Resolve comparison file names for a reference directory (AT-55 or JJ-22 Group B). */
+export const SUMMARY_GOLDEN_FILES = ["executive_summary_01.png"] as const;
+
+/** Resolve comparison file names for a reference directory (AT-55, JJ-22, or JJ-23). */
 export function listGoldenDeckFiles(referenceDir: string): string[] {
   const groupB = GROUP_B_GOLDEN_FILES.filter((fileName) => existsSync(join(referenceDir, fileName)));
   if (groupB.length === GROUP_B_GOLDEN_FILES.length) {
     return [...groupB];
+  }
+  const summary = SUMMARY_GOLDEN_FILES.filter((fileName) => existsSync(join(referenceDir, fileName)));
+  if (summary.length === SUMMARY_GOLDEN_FILES.length) {
+    return [...summary];
   }
   return listReferenceSlideFiles(referenceDir);
 }

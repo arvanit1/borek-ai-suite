@@ -16,6 +16,11 @@ CONFIG = GroupBGenerationConfig(
     layout_id="TEAM_FTE_01",
     schema_filename="team_fte_01.schema.json",
     allowed_chapter_ids=("10",),
+    provenance_path_guidance=(
+        "title; subtitle and sectionLabel when populated; every "
+        "roles[i].role, roles[i].fte, and roles[i].responsibility; every "
+        "summary[i].label and summary[i].value"
+    ),
     instructions=(
         "Create TEAM_FTE_01 role cards and summary stats only from chapter 10 team "
         "composition content. FTE values must stay non-negative. Do not invent roles, "

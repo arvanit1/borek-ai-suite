@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import json
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
@@ -17,6 +18,7 @@ from services.slides.content_generation.group_b.common import (
     GroupBBusinessValidationError,
     ProhibitedCommercialContentError,
     SlideSpecValidationError,
+    SourceChapterValidationError,
     StructuredGenerationFailure,
     StructuredGenerationRequest,
     UngroundedContentError,
@@ -27,7 +29,6 @@ from services.slides.content_generation.group_b.process_flow_01 import (
 )
 from services.slides.content_generation.group_b.team_fte_01 import generate_team_fte_01
 from services.slides.content_generation.group_b.timeline_01 import generate_timeline_01
-from services.slides.source_chapter_enforcement import SourceChapterValidationError
 
 ROOT = Path(__file__).resolve().parents[3]
 FRAMEWORK_FIXTURE_PATH = ROOT / "tests" / "fixtures" / "framework_object.confirmed.group_b.json"
@@ -44,6 +45,7 @@ class Case:
     layout_id: str
     allowed_chapter_ids: tuple[str, ...]
     required_layout_field: str
+    missing_nested_path: str
 
 
 CASES = {
@@ -53,6 +55,7 @@ CASES = {
         "PROCESS_FLOW_01",
         ("2", "4"),
         "phases",
+        "phases[0].description",
     ),
     "timeline": Case(
         generate_timeline_01,
@@ -60,6 +63,7 @@ CASES = {
         "TIMELINE_01",
         ("10",),
         "phases",
+        "phases[0].description",
     ),
     "milestones": Case(
         generate_milestones_01,
@@ -67,6 +71,7 @@ CASES = {
         "MILESTONES_01",
         ("10",),
         "milestones",
+        "milestones[0].description",
     ),
     "team_fte": Case(
         generate_team_fte_01,
@@ -74,6 +79,7 @@ CASES = {
         "TEAM_FTE_01",
         ("10",),
         "roles",
+        "roles[0].responsibility",
     ),
 }
 
@@ -122,6 +128,69 @@ def _run(
     )
 
 
+def _overflow_for_structural_limits(case: Case) -> dict[str, Any]:
+    invalid = _slide(case)
+    extras = ("alpha", "bravo", "charlie", "delta", "echo")
+    if case.layout_id == "PROCESS_FLOW_01":
+        start = len(invalid["phases"])
+        invalid["phases"] = invalid["phases"] + [
+            {"number": 9, "name": "Extra", "description": "Too many phases"}
+            for _ in range(4)
+        ]
+        invalid["fieldProvenance"].extend(
+            {
+                "path": f"phases[{index}].{field_name}",
+                "sourceChapterIds": [case.allowed_chapter_ids[0]],
+            }
+            for index in range(start, start + 4)
+            for field_name in ("number", "name", "description")
+        )
+    elif case.layout_id == "TIMELINE_01":
+        start = len(invalid["phases"])
+        invalid["phases"] = invalid["phases"] + [
+            {"id": f"px{index}", "name": "Extra", "description": "Too many phases"}
+            for index in range(5)
+        ]
+        invalid["fieldProvenance"].extend(
+            {
+                "path": f"phases[{index}].{field_name}",
+                "sourceChapterIds": ["10"],
+            }
+            for index in range(start, start + 5)
+            for field_name in ("id", "name", "description")
+        )
+    elif case.layout_id == "MILESTONES_01":
+        start = len(invalid["milestones"])
+        invalid["milestones"] = invalid["milestones"] + [
+            {"name": f"Extra checkpoint {label}", "description": "Too many milestones"}
+            for label in extras
+        ]
+        invalid["fieldProvenance"].extend(
+            {
+                "path": f"milestones[{index}].{field_name}",
+                "sourceChapterIds": ["10"],
+            }
+            for index in range(start, start + len(extras))
+            for field_name in ("name", "description")
+        )
+    else:
+        start = len(invalid["roles"])
+        extra_roles = extras[:3]
+        invalid["roles"] = invalid["roles"] + [
+            {"role": f"Extra {label}", "fte": "0.3", "responsibility": "Overflow"}
+            for label in extra_roles
+        ]
+        invalid["fieldProvenance"].extend(
+            {
+                "path": f"roles[{index}].{field_name}",
+                "sourceChapterIds": ["10"],
+            }
+            for index in range(start, start + len(extra_roles))
+            for field_name in ("role", "fte", "responsibility")
+        )
+    return invalid
+
+
 def test_confirmed_group_b_framework_fixture_matches_canonical_at1_schema() -> None:
     jsonschema.Draft202012Validator(_load_json(FRAMEWORK_SCHEMA_PATH)).validate(_framework())
 
@@ -137,6 +206,7 @@ def test_valid_generated_group_b_slide_spec_is_accepted(case: Case) -> None:
     assert result.slide_spec is not None
     assert result.slide_spec["layoutId"] == case.layout_id
     assert set(result.slide_spec["sourceChapterIds"]).issubset(case.allowed_chapter_ids)
+    assert result.slide_spec["fieldProvenance"]
 
 
 @pytest.mark.parametrize("status", ["draft", "in_review"])
@@ -166,6 +236,9 @@ def test_generator_receives_only_permitted_framework_chapters(case: Case) -> Non
     assert request.instructions
     assert tuple(chapter["chapter_id"] for chapter in request.chapters) == case.allowed_chapter_ids
     assert all(set(chapter) == {"chapter_id", "title", "body"} for chapter in request.chapters)
+    assert "fieldProvenance" in request.target_schema["properties"]
+    assert "exactly one provenance entry" in request.instructions
+    assert "do not copy the full root list onto every field" in request.instructions
     request_text = json.dumps(request.chapters)
     assert "transcript-group-b-001" not in request_text
     assert "source_refs" not in request_text
@@ -179,6 +252,46 @@ def test_invalid_schema_output_is_rejected(case: Case) -> None:
 
     with pytest.raises(SlideSpecValidationError):
         _run(case, _framework(), CapturingGenerator(output=invalid))
+
+
+@pytest.mark.parametrize("case", CASES.values(), ids=CASES.keys())
+def test_jj9_generated_group_b_output_requires_field_provenance(case: Case) -> None:
+    invalid = _slide(case)
+    del invalid["fieldProvenance"]
+
+    with pytest.raises(SourceChapterValidationError, match="fieldProvenance"):
+        _run(case, _framework(), CapturingGenerator(output=invalid))
+
+
+@pytest.mark.parametrize("case", CASES.values(), ids=CASES.keys())
+def test_jj9_generated_output_rejects_missing_nested_field_attribution(case: Case) -> None:
+    invalid = _slide(case)
+    invalid["fieldProvenance"] = [
+        entry
+        for entry in invalid["fieldProvenance"]
+        if entry["path"] != case.missing_nested_path
+    ]
+
+    with pytest.raises(SourceChapterValidationError, match=re.escape(case.missing_nested_path)):
+        _run(case, _framework(), CapturingGenerator(output=invalid))
+
+
+def test_jj9_unknown_provenance_path_is_rejected() -> None:
+    invalid = _slide(CASES["timeline"])
+    invalid["fieldProvenance"].append(
+        {"path": "phases[99].name", "sourceChapterIds": ["10"]}
+    )
+
+    with pytest.raises(SourceChapterValidationError, match="does not resolve"):
+        _run(CASES["timeline"], _framework(), CapturingGenerator(output=invalid))
+
+
+def test_jj9_unknown_field_chapter_id_is_rejected() -> None:
+    invalid = _slide(CASES["milestones"])
+    invalid["fieldProvenance"][0]["sourceChapterIds"] = ["13"]
+
+    with pytest.raises(SourceChapterValidationError, match="non-existent Framework chapter"):
+        _run(CASES["milestones"], _framework(), CapturingGenerator(output=invalid))
 
 
 @pytest.mark.parametrize("case", CASES.values(), ids=CASES.keys())
@@ -203,6 +316,8 @@ def test_jj9_unused_allowed_chapter_is_not_forced_into_source_chapter_ids() -> N
     case = CASES["process_flow"]
     slide_spec = _slide(case)
     slide_spec["sourceChapterIds"] = ["2"]
+    for entry in slide_spec["fieldProvenance"]:
+        entry["sourceChapterIds"] = ["2"]
 
     result = _run(case, _framework(), CapturingGenerator(output=slide_spec))
 
@@ -231,27 +346,7 @@ def test_duplicate_source_chapter_ids_are_rejected() -> None:
 
 @pytest.mark.parametrize("case", CASES.values(), ids=CASES.keys())
 def test_jj10_structural_limits_are_applied_after_generation(case: Case) -> None:
-    invalid = _slide(case)
-    if case.layout_id == "PROCESS_FLOW_01":
-        invalid["phases"] = invalid["phases"] + [
-            {"number": 9, "name": "Extra", "description": "Too many phases"}
-            for _ in range(4)
-        ]
-    elif case.layout_id == "TIMELINE_01":
-        invalid["phases"] = invalid["phases"] + [
-            {"id": f"px{index}", "name": "Extra", "description": "Too many phases"}
-            for index in range(5)
-        ]
-    elif case.layout_id == "MILESTONES_01":
-        invalid["milestones"] = invalid["milestones"] + [
-            {"name": f"Extra checkpoint {label}", "description": "Too many milestones"}
-            for label in ("alpha", "bravo", "charlie", "delta", "echo")
-        ]
-    else:
-        invalid["roles"] = invalid["roles"] + [
-            {"role": f"Extra {label}", "fte": "0.3", "responsibility": "Overflow"}
-            for label in ("alpha", "bravo", "charlie")
-        ]
+    invalid = _overflow_for_structural_limits(case)
 
     result = _run(case, _framework(), CapturingGenerator(output=invalid))
 
