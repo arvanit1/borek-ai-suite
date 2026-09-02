@@ -222,7 +222,6 @@ class SupabaseDataStore:
         rows = response.json()
         return _normalize_generation_job(rows[0]) if rows else None
 
-<<<<<<< Updated upstream
     def get_active_job_for_opportunity(
         self,
         opportunity_id: str | UUID,
@@ -248,7 +247,7 @@ class SupabaseDataStore:
             raise bad_request("JOB_LIST_FAILED", response.text)
         rows = [_normalize_generation_job(row) for row in response.json()]
         return select_reconnect_job(rows, stage_group=stage_group)
-=======
+
     def get_latest_generation_job_for_opportunity(
         self,
         opportunity_id: UUID,
@@ -267,7 +266,6 @@ class SupabaseDataStore:
             raise bad_request("JOB_READ_FAILED", response.text)
         rows = response.json()
         return _normalize_generation_job(rows[0]) if rows else None
->>>>>>> Stashed changes
 
     def update_generation_job(
         self,

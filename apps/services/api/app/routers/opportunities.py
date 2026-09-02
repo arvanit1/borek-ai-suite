@@ -9,19 +9,14 @@ from fastapi import APIRouter, Depends, Query
 
 from app.auth import get_current_user
 from app.dependencies import AuthUserDep, DataStoreDep
-from app.schemas.jobs import ActiveJobResponse
+from app.schemas.jobs import ActiveJobResponse, JobResponse
 from app.schemas.opportunities import (
     OpportunityCreateRequest,
     OpportunityResponse,
     OpportunityUpdateRequest,
 )
-<<<<<<< Updated upstream
 from app.services import job_service
 from app.services.api_errors import not_found
-=======
-from app.schemas.jobs import JobResponse
-from app.services import job_service
->>>>>>> Stashed changes
 from app.services.audit import AuditAction, AuditObjectType, record_audit_event
 
 router = APIRouter(dependencies=[Depends(get_current_user)])
