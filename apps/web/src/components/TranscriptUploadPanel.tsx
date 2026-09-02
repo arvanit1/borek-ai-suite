@@ -290,7 +290,7 @@ export function TranscriptUploadPanel({
                 {opportunityLabelText ? <p className="upload-meta-title">{opportunityLabelText}</p> : null}
                 <Link
                   href={pipelineHref("/framework-review", opportunityId)}
-                  className="btn btn-primary btn-block"
+                  className="btn btn-secondary btn-block"
                 >
                   Review framework
                 </Link>

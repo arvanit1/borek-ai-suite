@@ -17,6 +17,7 @@ function createHarness() {
   let jobPolling = false;
   const events: string[] = [];
   const snapshots: JobProgressSnapshot[] = [];
+  const jobFailures: unknown[] = [];
 
   const handlers: PipelineParallelLoadHandlers = {
     onContentLoaded: () => {
@@ -49,7 +50,8 @@ function createHarness() {
       jobPolling = false;
       events.push("job_polling_finished");
     },
-    onJobFailed: () => {
+    onJobFailed: (error) => {
+      jobFailures.push(error);
       events.push("job_failed");
     },
   };
@@ -60,6 +62,7 @@ function createHarness() {
     jobIndicatorVisible: () => jobPolling,
     events,
     snapshots,
+    jobFailures,
   };
 }
 
@@ -183,9 +186,61 @@ async function testDeckRefreshAfterJobCompletes(): Promise<void> {
   cancel();
 }
 
+async function testFailedJobPreservesValidationMetadata(): Promise<void> {
+  const harness = createHarness();
+  startPipelineParallelLoad("deck", harness.handlers, {
+    loadContent: async () => {},
+    isMissingError: () => false,
+    getActiveJob: async () => ({
+      job_id: "failed-job",
+      job_type: "presentation_generation",
+      status: "FAILED",
+      current_stage: "SLIDE_VALIDATING",
+      started_at: "2026-09-01T12:00:00Z",
+      error: {
+        code: "VALIDATION_FAILED",
+        message: "Technical validation detail",
+        stage: "SLIDE_VALIDATING",
+        retryable: false,
+      },
+    }),
+    getJob: async () => {
+      throw new Error("not called");
+    },
+  });
+
+  await delay(10);
+  assert.deepEqual(harness.jobFailures[0], {
+    code: "VALIDATION_FAILED",
+    message: "Technical validation detail",
+    stage: "SLIDE_VALIDATING",
+    retryable: false,
+    jobId: "failed-job",
+  });
+}
+
+async function testLookupConnectionFailureIsReported(): Promise<void> {
+  const harness = createHarness();
+  startPipelineParallelLoad("framework", harness.handlers, {
+    loadContent: async () => {},
+    isMissingError: () => false,
+    getActiveJob: async () => {
+      throw new TypeError("Failed to fetch");
+    },
+    getJob: async () => {
+      throw new Error("not called");
+    },
+  });
+
+  await delay(10);
+  assert.ok(harness.jobFailures[0] instanceof TypeError);
+}
+
 async function runTests(): Promise<void> {
   await testPlanLoadsIndependentlyOfJobPolling();
   await testDeckRefreshAfterJobCompletes();
+  await testFailedJobPreservesValidationMetadata();
+  await testLookupConnectionFailureIsReported();
   assert.equal(PIPELINE_JOB_POLL_MS, 2_500);
   console.log("pipelineParallelLoad tests passed");
 }

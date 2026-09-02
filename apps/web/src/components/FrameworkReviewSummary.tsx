@@ -124,7 +124,6 @@ export function FrameworkReviewSummary({
   const openQuestions = openItemLines(summary.open_questions);
   const evidenceWarnings = (summary.evidence_warnings ?? []).map(evidenceWarningText);
   const blockingMessages = [
-    ...blockers.map((signal) => signal.message),
     ...(summary.blocking_items ?? []).map((item) => item.message),
     summary.confirm_block_reason,
   ].filter((message, index, all): message is string => Boolean(message) && all.indexOf(message) === index);
@@ -144,11 +143,13 @@ export function FrameworkReviewSummary({
               until they are cleared.
             </p>
           </div>
-          <ul>
-            {blockingMessages.map((message) => (
-              <li key={message}>{message}</li>
-            ))}
-          </ul>
+          {blockingMessages.length > 0 ? (
+            <ul>
+              {blockingMessages.map((message) => (
+                <li key={message}>{message}</li>
+              ))}
+            </ul>
+          ) : null}
           <SignalList signals={blockers} onJumpToChapter={onJumpToChapter} />
         </div>
       ) : (
@@ -216,14 +217,7 @@ export function FrameworkReviewSummary({
         />
       </div>
 
-      {confirmed ? (
-        <div className="upload-banner upload-banner-info">
-          <div>
-            <strong>Approved</strong>
-            <p>This customer story is locked. The presentation can now be built from this version.</p>
-          </div>
-        </div>
-      ) : (
+      {!confirmed ? (
         <div className="framework-approve-panel" data-testid="framework-approve-panel">
           <label className="framework-human-confirm">
             <input
@@ -265,7 +259,7 @@ export function FrameworkReviewSummary({
             </button>
           </div>
         </div>
-      )}
+      ) : null}
     </section>
   );
 }

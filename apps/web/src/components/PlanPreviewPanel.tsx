@@ -191,17 +191,8 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
           setJobSnapshot(null);
           setNotice(null);
         },
-        onJobFailed: (message, failedJobId) => {
-          setNotice(
-            recoveryNoticeFromError(
-              {
-                message,
-                jobId: failedJobId ?? undefined,
-                retryable: Boolean(failedJobId),
-              },
-              "plan",
-            ),
-          );
+        onJobFailed: (error, failedJobId) => {
+          setNotice(recoveryNoticeFromError(error, "plan"));
           setRetryJobId(failedJobId);
         },
       },
@@ -511,13 +502,6 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
                 </tbody>
               </table>
             </div>
-
-            <details className="framework-details-disclosure">
-              <summary>Details</summary>
-              <p className="upload-hint">
-                {slideRows.map((row) => `Slide ${row.order}: ${row.layoutId}`).join(" · ")}
-              </p>
-            </details>
 
             <p className="upload-hint plan-next-step">
               <strong>Plan complete.</strong> Continue to the presentation to preview slides and

@@ -19,7 +19,7 @@ export interface FrameworkReviewLoadHandlers {
   onJobPollingStart: (message: string, stage: string | null, jobId: string) => void;
   onJobStageUpdate: (stage: string) => void;
   onJobPollingFinished: () => void;
-  onJobFailed: (message: string, retryJobId: string | null) => void;
+  onJobFailed: PipelineParallelLoadHandlers["onJobFailed"];
   onJobSnapshot?: PipelineParallelLoadHandlers["onJobSnapshot"];
 }
 

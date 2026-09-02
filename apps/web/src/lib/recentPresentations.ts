@@ -23,6 +23,7 @@ export interface RecentWorkSnapshot {
   deck?: {
     pptx_download_url: string;
   };
+  resourceLoadFailed?: boolean;
   activityAt?: string;
   job?: {
     job_type: string;
@@ -38,6 +39,7 @@ export interface RecentJobCandidate {
   status: "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED";
   current_stage: string;
   started_at?: string | null;
+  completed_at?: string | null;
 }
 
 export interface RecentWorkItem {
@@ -75,7 +77,9 @@ export function selectRecentWorkJob(
   const active = relevant.filter((job) => job.status === "QUEUED" || job.status === "RUNNING");
   const pool = active.length > 0 ? active : relevant;
   return pool.sort(
-    (left, right) => Date.parse(right.started_at ?? "") - Date.parse(left.started_at ?? ""),
+    (left, right) =>
+      Date.parse(right.completed_at ?? right.started_at ?? "") -
+      Date.parse(left.completed_at ?? left.started_at ?? ""),
   )[0];
 }
 
@@ -95,6 +99,19 @@ function lifecycleFor(snapshot: RecentWorkSnapshot): RecentLifecycle {
   }
   if (snapshot.deck) {
     return "ready";
+  }
+  if (snapshot.resourceLoadFailed) {
+    return "needs_attention";
+  }
+  if (job?.status === "COMPLETED") {
+    const jobType = job.job_type.toLowerCase();
+    if (jobType.includes("presentation_generation") || jobType.includes("slide")) {
+      return "ready";
+    }
+    if (jobType.includes("plan") && job.auto_continue) {
+      return "building_presentation";
+    }
+    return "needs_review";
   }
   if (snapshot.presentationId) {
     return "building_presentation";
@@ -123,6 +140,18 @@ function actionHrefFor(snapshot: RecentWorkSnapshot, lifecycle: RecentLifecycle)
       );
     }
     return opportunityHref("/deck-center", id);
+  }
+  if (job?.status === "COMPLETED") {
+    const jobType = job.job_type.toLowerCase();
+    if (jobType.includes("presentation_generation") || jobType.includes("slide")) {
+      return opportunityHref("/deck-center", id);
+    }
+    if (jobType.includes("framework")) {
+      return opportunityHref("/framework-review", id);
+    }
+    if (jobType.includes("plan")) {
+      return opportunityHref(job.auto_continue ? "/framework-review" : "/plan-preview", id);
+    }
   }
   if (lifecycle === "ready" || snapshot.presentationId) {
     return opportunityHref("/deck-center", id);

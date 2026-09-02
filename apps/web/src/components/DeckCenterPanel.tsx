@@ -232,17 +232,8 @@ export function DeckCenterPanel({
           setJobSnapshot(null);
           setNotice(null);
         },
-        onJobFailed: (message, failedJobId) => {
-          setNotice(
-            recoveryNoticeFromError(
-              {
-                message,
-                jobId: failedJobId ?? undefined,
-                retryable: Boolean(failedJobId),
-              },
-              "deck",
-            ),
-          );
+        onJobFailed: (error, failedJobId) => {
+          setNotice(recoveryNoticeFromError(error, "deck"));
           setRetryJobId(failedJobId);
         },
       },
@@ -709,35 +700,27 @@ export function DeckCenterPanel({
                   )}
 
                   <details className="framework-details-disclosure">
-                    <summary>Details</summary>
+                    <summary>Details for diagnostics</summary>
                     <dl className="presentation-diagnostics">
                       <div>
-                        <dt>Presentation ID</dt>
-                        <dd>{presentation.id}</dd>
-                      </div>
-                      <div>
-                        <dt>Plan ID</dt>
-                        <dd>{presentation.presentation_plan_id}</dd>
-                      </div>
-                      <div>
-                        <dt>Status</dt>
+                        <dt>Generation status</dt>
                         <dd>{deck.status}</dd>
                       </div>
                       <div>
-                        <dt>Slide layouts</dt>
-                        <dd>
-                          {slideTiles.length > 0
-                            ? slideTiles
-                                .map(
-                                  (slide) =>
-                                    `Slide ${slide.slideIndex + 1}: ${slide.layoutId}`,
-                                )
-                                .join(" · ")
-                            : "None"}
-                        </dd>
+                        <dt>Slides</dt>
+                        <dd>{slideTiles.length}</dd>
+                      </div>
+                      <div>
+                        <dt>PowerPoint</dt>
+                        <dd>{pptxAvailable ? "Available" : "Not available"}</dd>
+                      </div>
+                      <div>
+                        <dt>PDF</dt>
+                        <dd>{pdfAvailable ? "Available" : "Not available"}</dd>
                       </div>
                     </dl>
                   </details>
+
                 </section>
 
                 <section className="upload-panel">

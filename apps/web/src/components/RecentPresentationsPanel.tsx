@@ -8,12 +8,13 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { useAuth } from "@/components/AuthProvider";
 import {
   downloadPresentationFile,
-  getDeckCenter,
-  getLatestFramework,
   getActiveJob,
+  getDeckCenter,
+  getJob,
+  getLatestFramework,
+  getLatestOpportunityJob,
   getLatestPresentation,
   getLatestPresentationPlan,
-  getJob,
   listOpportunities,
   listTranscripts,
   type ListedOpportunityResponse,
@@ -34,17 +35,18 @@ import {
   type RecentWorkSnapshot,
 } from "@/lib/recentPresentations";
 
-async function optionalResource<T>(
+async function loadResource<T>(
   request: Promise<T>,
-  isMissing: (error: unknown) => boolean,
-): Promise<T | null> {
+  fallback: T,
+  isMissing?: (error: unknown) => boolean,
+): Promise<{ value: T; failed: boolean }> {
   try {
-    return await request;
+    return { value: await request, failed: false };
   } catch (error) {
-    if (isMissing(error)) {
-      return null;
+    if (isMissing?.(error)) {
+      return { value: fallback, failed: false };
     }
-    throw error;
+    return { value: fallback, failed: true };
   }
 }
 
@@ -52,80 +54,94 @@ async function loadSnapshot(
   accessToken: string,
   opportunity: ListedOpportunityResponse,
 ): Promise<RecentWorkSnapshot> {
-  try {
-    const [
-      transcripts,
-      framework,
-      plan,
-      presentation,
-      activeFrameworkJob,
-      activePresentationJob,
-    ] = await Promise.all([
-      listTranscripts(accessToken, opportunity.id),
-      optionalResource(
-        getLatestFramework(accessToken, opportunity.id),
-        isMissingFrameworkError,
-      ),
-      optionalResource(
-        getLatestPresentationPlan(accessToken, opportunity.id),
-        isMissingPresentationPlanError,
-      ),
-      optionalResource(
-        getLatestPresentation(accessToken, opportunity.id),
-        isMissingPresentationError,
-      ),
-      getActiveJob(accessToken, opportunity.id, "framework"),
-      getActiveJob(accessToken, opportunity.id, "presentation"),
-    ]);
-    const activeJob = selectRecentWorkJob([activeFrameworkJob, activePresentationJob]);
-    let autoContinue: boolean | undefined;
-    if (activeJob?.job_type === "presentation_planning") {
-      const planningJob = await getJob(accessToken, activeJob.job_id);
-      const enqueue = planningJob.result._enqueue;
-      autoContinue = Boolean(
-        enqueue &&
-          typeof enqueue === "object" &&
-          (enqueue as Record<string, unknown>).auto_continue === true,
-      );
-    }
-
-    const deck = presentation
-      ? await optionalResource(
-          getDeckCenter(accessToken, presentation.id),
-          isPresentationNotReadyError,
-        )
-      : null;
-
-    return {
-      opportunity,
-      transcriptCount: transcripts.length,
-      frameworkStatus: framework?.status,
-      hasPlan: Boolean(plan),
-      presentationId: presentation?.id,
-      presentationName: deck?.presentation_name ?? presentation?.name,
-      deck: deck ? { pptx_download_url: deck.pptx_download_url } : undefined,
-      activityAt: latestActivityAt(
-        opportunity.updated_at,
-        opportunity.created_at,
-        ...transcripts.map((transcript) => transcript.created_at),
-        framework?.created_at,
-        framework?.framework_json.updated_at,
-        plan?.created_at,
-        presentation?.created_at,
-        activeJob?.started_at,
-      ),
-      job: activeJob
-        ? {
-            job_type: activeJob.job_type,
-            status: activeJob.status,
-            current_stage: activeJob.current_stage,
-            auto_continue: autoContinue,
-          }
-        : undefined,
-    };
-  } catch (error) {
-    throw error;
+  const [transcriptsResult, frameworkResult, planResult, presentationResult, latestJobResult,
+    frameworkJobResult, presentationJobResult] = await Promise.all([
+    loadResource(listTranscripts(accessToken, opportunity.id), []),
+    loadResource(getLatestFramework(accessToken, opportunity.id), null, isMissingFrameworkError),
+    loadResource(
+      getLatestPresentationPlan(accessToken, opportunity.id),
+      null,
+      isMissingPresentationPlanError,
+    ),
+    loadResource(
+      getLatestPresentation(accessToken, opportunity.id),
+      null,
+      isMissingPresentationError,
+    ),
+    loadResource(getLatestOpportunityJob(accessToken, opportunity.id), null),
+    loadResource(getActiveJob(accessToken, opportunity.id, "framework"), null),
+    loadResource(getActiveJob(accessToken, opportunity.id, "presentation"), null),
+  ]);
+  const transcripts = transcriptsResult.value;
+  const framework = frameworkResult.value;
+  const plan = planResult.value;
+  const presentation = presentationResult.value;
+  const latestJob = latestJobResult.value;
+  const workflowJob = selectRecentWorkJob([
+    frameworkJobResult.value,
+    presentationJobResult.value,
+    latestJob,
+  ]);
+  let resourceLoadFailed = [
+    transcriptsResult,
+    frameworkResult,
+    planResult,
+    presentationResult,
+    latestJobResult,
+    frameworkJobResult,
+    presentationJobResult,
+  ].some((result) => result.failed);
+  let jobDetails = workflowJob?.job_id === latestJob?.job_id ? latestJob : null;
+  if (workflowJob?.job_type === "presentation_planning" && !jobDetails) {
+    const jobResult = await loadResource(getJob(accessToken, workflowJob.job_id), null);
+    jobDetails = jobResult.value;
+    resourceLoadFailed ||= jobResult.failed;
   }
+  const enqueue = jobDetails?.result._enqueue;
+  const autoContinue = Boolean(
+    enqueue &&
+      typeof enqueue === "object" &&
+      (enqueue as Record<string, unknown>).auto_continue === true,
+  );
+  const deckResult = presentation
+    ? await loadResource(
+        getDeckCenter(accessToken, presentation.id),
+        null,
+        isPresentationNotReadyError,
+      )
+    : { value: null, failed: false };
+  const deck = deckResult.value;
+  resourceLoadFailed ||= deckResult.failed;
+
+  return {
+    opportunity,
+    transcriptCount: transcripts.length,
+    frameworkStatus: framework?.status,
+    hasPlan: Boolean(plan),
+    presentationId: presentation?.id,
+    presentationName: deck?.presentation_name ?? presentation?.name,
+    deck: deck ? { pptx_download_url: deck.pptx_download_url } : undefined,
+    resourceLoadFailed,
+    activityAt: latestActivityAt(
+      opportunity.updated_at,
+      opportunity.created_at,
+      ...transcripts.map((transcript) => transcript.created_at),
+      framework?.created_at,
+      framework?.framework_json.updated_at,
+      plan?.created_at,
+      presentation?.created_at,
+      latestJob?.completed_at,
+      workflowJob?.started_at,
+    ),
+    job: workflowJob
+      ? {
+          job_type: workflowJob.job_type,
+          status: workflowJob.status,
+          current_stage: workflowJob.current_stage,
+          auto_continue: autoContinue,
+        }
+      : undefined,
+  };
 }
 
 export function RecentPresentationsPanel() {
@@ -152,12 +168,18 @@ export function RecentPresentationsPanel() {
     setError(null);
     try {
       const opportunities = await listOpportunities(accessToken);
-      const snapshots = await Promise.all(
+      const snapshotResults = await Promise.allSettled(
         opportunities.map((opportunity) => loadSnapshot(accessToken, opportunity)),
       );
       if (requestId === loadRequestId.current) {
+        const snapshots = snapshotResults.flatMap((result) =>
+          result.status === "fulfilled" ? [result.value] : [],
+        );
         setItems(buildRecentWorkItems(snapshots, currentUserId));
         setItemsAuthScope(authScope);
+        if (snapshotResults.some((result) => result.status === "rejected")) {
+          setError("Some recent presentations could not be loaded. Please try again.");
+        }
       }
     } catch {
       if (requestId === loadRequestId.current) {
@@ -254,7 +276,7 @@ export function RecentPresentationsPanel() {
                   </span>
                 </div>
                 <div className="recent-card-actions">
-                  <Link href={item.actionHref} className="btn btn-primary">
+                  <Link href={item.actionHref} className="btn btn-secondary">
                     {item.actionLabel}
                   </Link>
                   {item.downloadPath ? (

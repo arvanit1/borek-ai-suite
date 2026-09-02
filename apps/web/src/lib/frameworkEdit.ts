@@ -29,6 +29,7 @@ const SPEAKER_ROLE_LABELS: Record<string, string> = {
 
 const CONVERSATION_ID_RE = /^C(\d+)$/i;
 const TURN_POINTER_RE = /^turn[:\-\s]?(\d+)$/i;
+const UUID_RE = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 
 function titleCaseWords(value: string): string {
   return value
@@ -54,6 +55,9 @@ function formatSpeakerRoleLabel(role: string): string {
 }
 
 function formatConversationLabel(conversationId: string): string {
+  if (UUID_RE.test(conversationId.trim())) {
+    return "source conversation";
+  }
   const match = CONVERSATION_ID_RE.exec(conversationId.trim());
   if (match) {
     return `conversation ${match[1]}`;
@@ -62,6 +66,9 @@ function formatConversationLabel(conversationId: string): string {
 }
 
 function formatTurnLabel(excerptPointer: string): string {
+  if (UUID_RE.test(excerptPointer.trim())) {
+    return "source excerpt";
+  }
   const match = TURN_POINTER_RE.exec(excerptPointer.trim());
   if (match) {
     return `turn ${match[1]}`;
