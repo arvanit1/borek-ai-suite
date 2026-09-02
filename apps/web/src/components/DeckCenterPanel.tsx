@@ -17,6 +17,7 @@ import {
   generatePresentation,
   getActiveJob,
   getDeckCenter,
+  getJob,
   getLatestPresentation,
   getOpportunity,
   regeneratePresentationSlide,
@@ -35,6 +36,7 @@ import {
   inspectActiveJob,
   stageGroupForPage,
 } from "@/lib/jobReconnect";
+import { startPipelineParallelLoad } from "@/lib/pipelineParallelLoad";
 import { opportunityLabel, pipelineHref } from "@/lib/pipelineContext";
 import {
   ARTIFACTS_PARTIAL_LABEL,
@@ -64,6 +66,9 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
   const [deck, setDeck] = useState<DeckCenterResponse | null>(null);
   const [opportunityName, setOpportunityName] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [contentLoading, setContentLoading] = useState(true);
+  const [jobPolling, setJobPolling] = useState(false);
+  const [jobStage, setJobStage] = useState<string | null>(null);
   const [notice, setNotice] = useState<RecoveryNotice | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [retryJobId, setRetryJobId] = useState<string | null>(null);
@@ -160,68 +165,73 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
     }
     const token = accessToken;
     let cancelled = false;
-    async function bootstrap() {
-      setBusy(true);
-      setNotice(null);
-      setInfo(null);
-      setRetryJobId(null);
-      try {
-        const job = await getActiveJob(
-          token,
-          opportunityId,
-          stageGroupForPage("deck"),
-        );
-        if (cancelled) {
-          return;
-        }
-        const decision = inspectActiveJob(job, "deck");
-        if (decision.action === "monitor") {
-          setInfo(generationProgressMessage("deck", true));
-          setNotice(runningRecoveryNotice("deck", decision.jobId));
-          try {
-            await waitForJob(token, decision.jobId, FRAMEWORK_JOB_TIMEOUT_MS);
-            if (!cancelled) {
-              setNotice(null);
-            }
-          } catch (monitorError) {
-            if (!cancelled) {
-              setInfo(null);
-              setNotice(recoveryNoticeFromError(monitorError, "deck"));
-              if (monitorError instanceof ApiRequestError && monitorError.retryable && monitorError.jobId) {
-                setRetryJobId(monitorError.jobId);
-              }
-            }
-          }
-        } else if (decision.action === "failed") {
+
+    setContentLoading(true);
+    setJobPolling(false);
+    setJobStage(null);
+    setNotice(null);
+    setInfo(null);
+    setRetryJobId(null);
+
+    const cancel = startPipelineParallelLoad(
+      "deck",
+      {
+        onContentLoaded: () => {},
+        onContentMissing: () => {
+          setPresentation(null);
+          setDeck(null);
+        },
+        onContentLoadFinished: () => {
+          setContentLoading(false);
+        },
+        onContentLoadError: (message) => {
+          setNotice(recoveryNoticeFromError(new Error(message), "deck"));
+        },
+        onJobPollingStart: (message, stage, jobId) => {
+          setJobPolling(true);
+          setInfo(message);
+          setJobStage(stage);
+          setNotice(runningRecoveryNotice("deck", jobId));
+        },
+        onJobStageUpdate: (stage) => {
+          setJobStage(stage);
+        },
+        onJobPollingFinished: () => {
+          setJobPolling(false);
           setInfo(null);
-          setNotice(jobFailureRecoveryNotice(decision.error, "deck", decision.jobId));
-          if (decision.retryable) {
-            setRetryJobId(decision.jobId);
+          setJobStage(null);
+          setNotice(null);
+        },
+        onJobFailed: (message, failedJobId) => {
+          setNotice(
+            recoveryNoticeFromError(
+              {
+                message,
+                jobId: failedJobId ?? undefined,
+                retryable: Boolean(failedJobId),
+              },
+              "deck",
+            ),
+          );
+          setRetryJobId(failedJobId);
+        },
+      },
+      {
+        loadContent: async () => {
+          if (cancelled) {
+            return;
           }
-        }
-        if (cancelled) {
-          return;
-        }
-        try {
           await applyLatestPresentation();
-        } catch (loadError) {
-          if (!cancelled && decision.action !== "failed") {
-            setNotice(recoveryNoticeFromError(loadError, "deck"));
-          }
-        }
-      } catch (bootstrapError) {
-        if (!cancelled) {
-          setNotice(recoveryNoticeFromError(bootstrapError, "deck"));
-        }
-      } finally {
-        if (!cancelled) {
-          setBusy(false);
-        }
-      }
-    }
-    void bootstrap();
+        },
+        isMissingError: isMissingPresentationError,
+        getActiveJob: () => getActiveJob(token, opportunityId, stageGroupForPage("deck")),
+        getJob: (jobId) => getJob(token, jobId),
+      },
+    );
+
     return () => {
       cancelled = true;
+      cancel();
     };
   }, [accessToken, applyLatestPresentation, loading, opportunityId]);
 
@@ -501,20 +511,31 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
                 onAction={handleRecoveryAction}
               />
             ) : null}
-            {info && !notice ? <div className="upload-banner upload-banner-success">{info}</div> : null}
+            {info && !notice && !jobPolling ? (
+              <div className="upload-banner upload-banner-success">{info}</div>
+            ) : null}
             {partialArtifacts && ready ? (
               <div className="upload-banner upload-banner-info">{ARTIFACTS_PARTIAL_LABEL}</div>
             ) : null}
 
-            {busy && !deck && !notice ? (
+            {contentLoading && !presentation && !deck ? (
               <section className="upload-panel pipeline-panel-loading">
-                <p className="upload-hint" data-testid="pipeline-job-progress">
-                  {info ?? "Building your presentation…"}
+                <p className="upload-hint" data-testid="deck-loading">
+                  Loading presentation…
                 </p>
               </section>
             ) : null}
 
-            {!busy && !presentation && isAuthenticated && !notice ? (
+            {jobPolling ? (
+              <section className="upload-panel pipeline-panel-loading">
+                <p className="upload-hint" data-testid="pipeline-job-progress">
+                  {info ?? "Presentation rendering is running…"}
+                  {jobStage ? ` · ${jobStage.replaceAll("_", " ").toLowerCase()}` : ""}
+                </p>
+              </section>
+            ) : null}
+
+            {!contentLoading && !presentation && isAuthenticated && !notice ? (
               <section className="upload-panel pipeline-empty-panel">
                 <header className="upload-panel-header">
                   <div>
@@ -539,7 +560,7 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
               </section>
             ) : null}
 
-            {presentation && !deck && isAuthenticated && !busy && !notice ? (
+            {presentation && !deck && isAuthenticated && !contentLoading && !busy && !notice ? (
               <section className="upload-panel pipeline-empty-panel">
                 <header className="upload-panel-header">
                   <div>

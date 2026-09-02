@@ -183,12 +183,13 @@ export async function getLatestOpportunityJob(
   );
 }
 
+/** Maximum client-side wait for long-running generation jobs (12 minutes). */
 export const FRAMEWORK_JOB_TIMEOUT_MS = 720_000;
 
 export async function waitForJob(
   accessToken: string,
   jobId: string,
-  timeoutMs = 240_000,
+  timeoutMs = FRAMEWORK_JOB_TIMEOUT_MS,
 ): Promise<JobResponse> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {

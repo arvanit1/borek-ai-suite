@@ -200,7 +200,7 @@ def run_framework_generation_task(
             getattr(exc, "code", "FRAMEWORK_GENERATION_FAILED"),
             str(exc),
             stage,
-            bool(getattr(exc, "retryable", True)),
+            _is_retryable_error(exc),
             repository=store,
         )
         raise
@@ -305,7 +305,7 @@ def run_framework_regenerate_chapter_task(
             getattr(exc, "code", "FRAMEWORK_REGENERATE_FAILED"),
             str(exc),
             stage,
-            bool(getattr(exc, "retryable", True)),
+            _is_retryable_error(exc),
             repository=store,
         )
         raise
