@@ -39,6 +39,6 @@ assert.equal(rows.length, 3);
 assert.deepEqual(rows[0], { order: 1, purpose: "cover", layoutId: "COVER_01" });
 assert.deepEqual(rows[2], { order: 3, purpose: "scope", layoutId: "SCOPE_01" });
 
-assert.equal(formatLayoutLabel("PROCESS_FLOW_01"), "PROCESS FLOW 01");
+assert.equal(formatLayoutLabel("PROCESS_FLOW_01"), "Process flow");
 
 console.log("planPreview tests passed");

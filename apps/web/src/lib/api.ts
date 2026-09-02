@@ -3,6 +3,7 @@ const DEFAULT_API_URL = "http://localhost:8000";
 import { formatJobFailureMessage } from "./jobErrors";
 import { getSupabaseBrowserClient } from "./supabase";
 import type { FrameworkObject, FrameworkVersionResponse } from "./frameworkTypes";
+import type { FrameworkReviewPayload } from "./frameworkReview";
 import type {
   PresentationPlanGenerateResponse,
   PresentationPlanResponse,
@@ -337,6 +338,16 @@ export async function getLatestFramework(
   );
 }
 
+export async function getFrameworkReview(
+  accessToken: string,
+  opportunityId: string,
+): Promise<FrameworkReviewPayload> {
+  return apiFetch<FrameworkReviewPayload>(
+    `/opportunities/${opportunityId}/framework/review`,
+    accessToken,
+  );
+}
+
 export async function generateFramework(
   accessToken: string,
   opportunityId: string,
@@ -489,4 +500,32 @@ export async function downloadFrameworkRender(
   renderPath: string,
 ): Promise<Blob> {
   return apiFetchBlob(renderPath, accessToken);
+}
+
+export async function regeneratePresentationSlide(
+  accessToken: string,
+  presentationId: string,
+  slideId: string,
+): Promise<JobEnqueueResponse> {
+  return apiFetch<JobEnqueueResponse>(
+    `/presentations/${presentationId}/slides/${slideId}/regenerate`,
+    accessToken,
+    { method: "POST" },
+  );
+}
+
+export async function changePresentationSlideLayout(
+  accessToken: string,
+  presentationId: string,
+  slideId: string,
+  layoutId: string,
+): Promise<JobEnqueueResponse> {
+  return apiFetch<JobEnqueueResponse>(
+    `/presentations/${presentationId}/slides/${slideId}/change-layout`,
+    accessToken,
+    {
+      method: "POST",
+      body: JSON.stringify({ layout_id: layoutId }),
+    },
+  );
 }

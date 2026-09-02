@@ -1,5 +1,6 @@
 "use client";
 
+import { customerFieldLabel } from "@/lib/frameworkLabels";
 import { replaceArrayItem, replaceRecordField } from "@/lib/frameworkNestedEdit";
 
 interface FrameworkNestedValueProps {
@@ -73,11 +74,13 @@ function NestedControl({
         <div className="framework-nested-list">
           {value.map((item, itemIndex) => (
             <article key={`${id}-record-${itemIndex}`} className="framework-nested-record">
-              {Object.entries(item as Record<string, unknown>).map(([fieldKey, fieldValue]) => (
+              {Object.entries(item as Record<string, unknown>)
+                .filter(([fieldKey]) => fieldKey !== "source_refs")
+                .map(([fieldKey, fieldValue]) => (
                 <FrameworkNestedValue
                   key={`${id}-${itemIndex}-${fieldKey}`}
                   id={`${id}-${itemIndex}-${fieldKey}`}
-                  label={fieldKey}
+                  label={customerFieldLabel(fieldKey)}
                   value={fieldValue}
                   editable={editable}
                   onChange={(next) => {
@@ -116,16 +119,18 @@ function NestedControl({
     const record = value as Record<string, unknown>;
     return (
       <div className="framework-nested-list">
-        {Object.entries(record).map(([fieldKey, fieldValue]) => (
-          <FrameworkNestedValue
-            key={`${id}-${fieldKey}`}
-            id={`${id}-${fieldKey}`}
-            label={fieldKey}
-            value={fieldValue}
-            editable={editable}
-            onChange={(next) => onChange(replaceRecordField(record, fieldKey, next))}
-          />
-        ))}
+        {Object.entries(record)
+          .filter(([fieldKey]) => fieldKey !== "source_refs")
+          .map(([fieldKey, fieldValue]) => (
+            <FrameworkNestedValue
+              key={`${id}-${fieldKey}`}
+              id={`${id}-${fieldKey}`}
+              label={customerFieldLabel(fieldKey)}
+              value={fieldValue}
+              editable={editable}
+              onChange={(next) => onChange(replaceRecordField(record, fieldKey, next))}
+            />
+          ))}
       </div>
     );
   }
