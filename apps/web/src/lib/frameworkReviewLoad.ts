@@ -20,6 +20,7 @@ export interface FrameworkReviewLoadHandlers {
   onJobStageUpdate: (stage: string) => void;
   onJobPollingFinished: () => void;
   onJobFailed: (message: string, retryJobId: string | null) => void;
+  onJobSnapshot?: PipelineParallelLoadHandlers["onJobSnapshot"];
 }
 
 export interface FrameworkReviewLoadDeps {
@@ -50,6 +51,7 @@ export function startFrameworkReviewParallelLoad(
     onJobStageUpdate: handlers.onJobStageUpdate,
     onJobPollingFinished: handlers.onJobPollingFinished,
     onJobFailed: handlers.onJobFailed,
+    onJobSnapshot: handlers.onJobSnapshot,
   };
 
   return startPipelineParallelLoad(

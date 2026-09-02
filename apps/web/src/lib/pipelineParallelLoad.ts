@@ -1,6 +1,11 @@
 import type { ActiveJobResponse, JobResponse } from "./api";
 import { formatJobFailureMessage } from "./jobErrors";
 import {
+  snapshotFromActiveJob,
+  snapshotFromJob,
+  type JobProgressSnapshot,
+} from "./jobProgress";
+import {
   generationProgressMessage,
   inspectActiveJob,
   type ReconnectPage,
@@ -17,6 +22,8 @@ export interface PipelineParallelLoadHandlers {
   onJobStageUpdate: (stage: string) => void;
   onJobPollingFinished: () => void;
   onJobFailed: (message: string, retryJobId: string | null) => void;
+  /** Real job state for live progress; optional so existing callers are unaffected. */
+  onJobSnapshot?: (snapshot: JobProgressSnapshot) => void;
 }
 
 export interface PipelineParallelLoadDeps {
@@ -34,13 +41,13 @@ function sleep(ms: number): Promise<void> {
 export async function monitorJobUntilTerminal(
   jobId: string,
   deps: Pick<PipelineParallelLoadDeps, "getJob" | "pollIntervalMs">,
-  onStageUpdate: (stage: string) => void,
+  onStageUpdate: (stage: string, job: JobResponse) => void,
   cancelled: () => boolean,
 ): Promise<JobResponse> {
   const intervalMs = deps.pollIntervalMs ?? PIPELINE_JOB_POLL_MS;
   while (!cancelled()) {
     const job = await deps.getJob(jobId);
-    onStageUpdate(job.current_stage);
+    onStageUpdate(job.current_stage, job);
     if (job.status === "COMPLETED") {
       return job;
     }
@@ -99,13 +106,17 @@ export function startPipelineParallelLoad(
           job?.current_stage ?? null,
           decision.jobId,
         );
+        if (job) {
+          handlers.onJobSnapshot?.(snapshotFromActiveJob(job));
+        }
         try {
           await monitorJobUntilTerminal(
             decision.jobId,
             deps,
-            (stage) => {
+            (stage, polled) => {
               if (!isCancelled()) {
                 handlers.onJobStageUpdate(stage);
+                handlers.onJobSnapshot?.(snapshotFromJob(polled));
               }
             },
             isCancelled,
@@ -125,6 +136,7 @@ export function startPipelineParallelLoad(
           }
           handlers.onJobPollingFinished();
           if (isFailedJobResponse(monitorError)) {
+            handlers.onJobSnapshot?.(snapshotFromJob(monitorError));
             const message = formatJobFailureMessage(monitorError.error);
             const retryable = Boolean(monitorError.error?.retryable);
             handlers.onJobFailed(message, retryable ? monitorError.job_id : null);
@@ -138,6 +150,9 @@ export function startPipelineParallelLoad(
       }
 
       if (decision.action === "failed") {
+        if (job) {
+          handlers.onJobSnapshot?.(snapshotFromActiveJob(job));
+        }
         handlers.onJobFailed(
           decision.message,
           decision.retryable ? decision.jobId : null,

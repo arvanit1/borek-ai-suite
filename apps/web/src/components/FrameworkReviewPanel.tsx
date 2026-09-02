@@ -9,6 +9,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { FrameworkChapterView } from "@/components/FrameworkChapterView";
 import { FrameworkReviewSummary } from "@/components/FrameworkReviewSummary";
 import { FrameworkRootFieldsPanel } from "@/components/FrameworkRootFieldsPanel";
+import { LiveGenerationProgress } from "@/components/LiveGenerationProgress";
 import { PipelineStepper } from "@/components/PipelineStepper";
 import { RecoveryBanner } from "@/components/RecoveryBanner";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -32,12 +33,19 @@ import {
   updateFramework as persistFramework,
   waitForJob,
 } from "@/lib/api";
+import type { JobResponse } from "@/lib/api";
 import { startFrameworkReviewParallelLoad } from "@/lib/frameworkReviewLoad";
 import {
   buildFrameworkDownloadFilename,
   buildFrameworkRenderPath,
 } from "@/lib/frameworkExport";
 import { isMissingFrameworkError } from "@/lib/apiErrors";
+import {
+  buildJobProgressView,
+  jobStageLabel,
+  snapshotFromJob,
+  type JobProgressSnapshot,
+} from "@/lib/jobProgress";
 import {
   generationProgressMessage,
   inspectActiveJob,
@@ -95,6 +103,13 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
   const [frameworkLoading, setFrameworkLoading] = useState(true);
   const [jobPolling, setJobPolling] = useState(false);
   const [jobStage, setJobStage] = useState<string | null>(null);
+  const [frameworkJobSnapshot, setFrameworkJobSnapshot] = useState<JobProgressSnapshot | null>(
+    null,
+  );
+  const [pipelineJobSnapshot, setPipelineJobSnapshot] = useState<JobProgressSnapshot | null>(null);
+  const [pipelineHandoff, setPipelineHandoff] = useState(false);
+  const [pipelineActive, setPipelineActive] = useState(false);
+  const [plannedSlideCount, setPlannedSlideCount] = useState<number | null>(null);
   const [notice, setNotice] = useState<RecoveryNotice | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
@@ -134,7 +149,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
     (token: string): PresentationPipelineApi => ({
       getActivePresentationJob: () => getActiveJob(token, opportunityId, "presentation"),
       getJob: (jobId) => getJob(token, jobId),
-      waitForJob: (jobId) => waitForJob(token, jobId),
+      waitForJob: (jobId, onJobUpdate) => waitForJob(token, jobId, { onProgress: onJobUpdate }),
       generatePresentationPlan: (frameworkVersionId, autoContinue) =>
         generatePresentationPlan(token, opportunityId, frameworkVersionId, autoContinue),
       getLatestPresentationPlan: () => getLatestPresentationPlan(token, opportunityId),
@@ -147,30 +162,46 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
 
   const reportPresentationProgress = useCallback((progress: PresentationPipelineProgress) => {
     setRecoveryTarget("presentation-pipeline");
-    setNotice(
-      runningRecoveryNotice(
-        progress.phase === "planning" ? "plan" : "deck",
-        progress.jobId,
-      ),
-    );
-    if (progress.phase === "planning") {
-      setInfo(
-        progress.state === "completed"
-          ? "Presentation plan completed. Starting presentation generation…"
-          : progress.reused
-            ? "Resuming presentation planning…"
-            : "Presentation planning is running…",
-      );
+    // The live progress panel owns in-flight messaging; banners are for recovery only.
+    setNotice(null);
+    setInfo(null);
+    if (progress.state === "running") {
+      setPipelineJobSnapshot(progress.job);
+      setPipelineHandoff(false);
       return;
     }
-    setInfo(
-      progress.state === "completed"
-        ? "Presentation is ready. Opening the deck…"
-        : progress.reused
-          ? "Resuming presentation generation…"
-          : "Presentation generation is running…",
-    );
+    if (progress.state === "handoff") {
+      setPipelineHandoff(true);
+      return;
+    }
+    if (progress.state === "completed" && progress.phase === "planning") {
+      setPlannedSlideCount(progress.plannedSlideCount);
+    }
   }, []);
+
+  const trackFrameworkJob = useCallback((job: JobResponse) => {
+    setFrameworkJobSnapshot(snapshotFromJob(job));
+  }, []);
+
+  const frameworkProgressView = useMemo(
+    () => buildJobProgressView({ snapshot: frameworkJobSnapshot }),
+    [frameworkJobSnapshot],
+  );
+
+  const pipelineProgressView = useMemo(
+    () =>
+      buildJobProgressView({
+        snapshot: pipelineJobSnapshot,
+        handoff: pipelineHandoff,
+        plannedSlideCount,
+      }),
+    [pipelineHandoff, pipelineJobSnapshot, plannedSlideCount],
+  );
+
+  const liveProgressView = pipelineProgressView ?? frameworkProgressView;
+  const liveProgressVisible = Boolean(
+    liveProgressView && (pipelineActive || jobPolling || liveProgressView.failed),
+  );
 
   const openPresentationResult = useCallback(
     (result: PresentationPipelineResult) => {
@@ -279,6 +310,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       presentationPipelineRunningRef.current = true;
       setRecoveryTarget("presentation-pipeline");
       setBusy(true);
+      setPipelineActive(true);
       try {
         const recovery = await recoverPresentationPipeline({
           frameworkVersionId: framework.id,
@@ -293,6 +325,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
         reportPresentationFailure(error);
       } finally {
         presentationPipelineRunningRef.current = false;
+        setPipelineActive(false);
         setBusy(false);
       }
     },
@@ -313,6 +346,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
     setFrameworkLoading(true);
     setJobPolling(false);
     setJobStage(null);
+    setFrameworkJobSnapshot(null);
     setNotice(null);
     setInfo(null);
     setRetryJobId(null);
@@ -345,10 +379,12 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
         onJobStageUpdate: (stage) => {
           setJobStage(stage);
         },
+        onJobSnapshot: setFrameworkJobSnapshot,
         onJobPollingFinished: () => {
           setJobPolling(false);
           setInfo(null);
           setJobStage(null);
+          setFrameworkJobSnapshot(null);
           setNotice(null);
         },
         onJobFailed: (message, failedJobId) => {
@@ -502,7 +538,12 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       const generated = await generateFramework(accessToken, opportunityId);
       setInfo(generationProgressMessage("framework", Boolean(generated.is_existing_job)));
       setNotice(runningRecoveryNotice("framework", generated.job_id));
-      await waitForJob(accessToken, generated.job_id, FRAMEWORK_JOB_TIMEOUT_MS);
+      setJobPolling(true);
+      await waitForJob(accessToken, generated.job_id, {
+        timeoutMs: FRAMEWORK_JOB_TIMEOUT_MS,
+        onProgress: trackFrameworkJob,
+      });
+      setFrameworkJobSnapshot(null);
       setNotice(null);
       await loadFramework();
     } catch (generateError) {
@@ -513,6 +554,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       }
     } finally {
       setBusy(false);
+      setJobPolling(false);
     }
   }
 
@@ -527,7 +569,12 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
     try {
       const queued = await retryJob(accessToken, retryJobId);
       setRetryJobId(null);
-      await waitForJob(accessToken, queued.job_id, FRAMEWORK_JOB_TIMEOUT_MS);
+      setJobPolling(true);
+      await waitForJob(accessToken, queued.job_id, {
+        timeoutMs: FRAMEWORK_JOB_TIMEOUT_MS,
+        onProgress: trackFrameworkJob,
+      });
+      setFrameworkJobSnapshot(null);
       setNotice(null);
       await loadFramework();
     } catch (retryError) {
@@ -538,6 +585,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       }
     } finally {
       setBusy(false);
+      setJobPolling(false);
     }
   }
 
@@ -562,7 +610,12 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       }
       if (decision.action === "monitor") {
         setNotice(runningRecoveryNotice("framework", decision.jobId));
-        await waitForJob(accessToken, decision.jobId, FRAMEWORK_JOB_TIMEOUT_MS);
+        setJobPolling(true);
+        await waitForJob(accessToken, decision.jobId, {
+          timeoutMs: FRAMEWORK_JOB_TIMEOUT_MS,
+          onProgress: trackFrameworkJob,
+        });
+        setFrameworkJobSnapshot(null);
       }
       await applyLatestFramework();
       setNotice(null);
@@ -577,6 +630,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       }
     } finally {
       setBusy(false);
+      setJobPolling(false);
     }
   }
 
@@ -625,7 +679,12 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       if (decision.action === "monitor") {
         setRecoveryTarget("job");
         setNotice(runningRecoveryNotice("framework", decision.jobId));
-        await waitForJob(accessToken, decision.jobId, FRAMEWORK_JOB_TIMEOUT_MS);
+        setJobPolling(true);
+        await waitForJob(accessToken, decision.jobId, {
+          timeoutMs: FRAMEWORK_JOB_TIMEOUT_MS,
+          onProgress: trackFrameworkJob,
+        });
+        setFrameworkJobSnapshot(null);
       }
       await applyLatestFramework();
       setNotice({
@@ -643,6 +702,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       setNotice(recoveryNoticeFromError(reconnectError, "framework"));
     } finally {
       setBusy(false);
+      setJobPolling(false);
     }
   }
 
@@ -762,7 +822,12 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       const queued = await regenerateFrameworkChapter(accessToken, opportunityId, chapterId);
       setRecoveryTarget("job");
       setInfo(`Updating chapter ${chapterId}…`);
-      await waitForJob(accessToken, queued.job_id, FRAMEWORK_JOB_TIMEOUT_MS);
+      setJobPolling(true);
+      await waitForJob(accessToken, queued.job_id, {
+        timeoutMs: FRAMEWORK_JOB_TIMEOUT_MS,
+        onProgress: trackFrameworkJob,
+      });
+      setFrameworkJobSnapshot(null);
       await loadFramework();
       setInfo(`Chapter ${chapterId} was updated. Other chapters were left unchanged.`);
     } catch (regenerateError) {
@@ -770,6 +835,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
     } finally {
       setRegeneratingChapterId(null);
       setBusy(false);
+      setJobPolling(false);
     }
   }
 
@@ -795,6 +861,9 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
     setNotice(null);
     setInfo(null);
     presentationPipelineRunningRef.current = true;
+    setPipelineActive(true);
+    setPipelineJobSnapshot(null);
+    setPipelineHandoff(false);
     try {
       let currentFramework = frameworkVersion;
       if (dirty && frameworkJson) {
@@ -842,6 +911,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       reportPresentationFailure(pipelineError);
     } finally {
       presentationPipelineRunningRef.current = false;
+      setPipelineActive(false);
       setBusy(false);
     }
   }
@@ -932,7 +1002,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
                 onAction={handleRecoveryAction}
               />
             ) : null}
-            {info && !notice && !jobPolling ? (
+            {info && !notice && !jobPolling && !liveProgressVisible ? (
               <div className="upload-banner upload-banner-success">{info}</div>
             ) : null}
 
@@ -944,11 +1014,19 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
               </section>
             ) : null}
 
-            {jobPolling ? (
+            {liveProgressVisible && liveProgressView ? (
+              <LiveGenerationProgress view={liveProgressView} />
+            ) : pipelineActive ? (
+              <section className="upload-panel pipeline-panel-loading">
+                <p className="upload-hint" data-testid="pipeline-job-progress">
+                  Starting the presentation pipeline…
+                </p>
+              </section>
+            ) : jobPolling ? (
               <section className="upload-panel pipeline-panel-loading">
                 <p className="upload-hint" data-testid="pipeline-job-progress">
                   {info ?? "Framework generation is running…"}
-                  {jobStage ? ` · ${jobStage.replaceAll("_", " ").toLowerCase()}` : ""}
+                  {jobStage ? ` · ${jobStageLabel(jobStage)}` : ""}
                 </p>
               </section>
             ) : null}

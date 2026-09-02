@@ -18,7 +18,8 @@
     "test:at57": "tsx src/lib/jobReconnect.test.ts",
     "test:ms24": "tsx src/lib/recentPresentations.test.ts",
     "test:ms25": "tsx src/lib/recoveryUx.test.ts && tsx src/components/RecoveryBanner.test.tsx",
-    "test:bt25": "tsx src/lib/presentationPipeline.test.ts"
+    "test:bt25": "tsx src/lib/presentationPipeline.test.ts",
+    "test:bt26": "tsx src/lib/jobProgress.test.ts && tsx src/components/LiveGenerationProgress.test.tsx"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.8",

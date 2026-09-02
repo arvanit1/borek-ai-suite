@@ -1,5 +1,10 @@
 import type { ActiveJobResponse, JobResponse } from "./api";
 import type { PresentationResponse } from "./deckTypes";
+import {
+  snapshotFromActiveJob,
+  snapshotFromJob,
+  type JobProgressSnapshot,
+} from "./jobProgress";
 import type {
   PresentationPlanGenerateResponse,
   PresentationPlanResponse,
@@ -14,6 +19,7 @@ export type PresentationPipelineProgress =
       state: "completed";
       jobId: string;
       presentationPlanId: string;
+      plannedSlideCount: number;
     }
   | { phase: "generation"; state: "waiting"; jobId: string; reused: boolean }
   | {
@@ -22,7 +28,14 @@ export type PresentationPipelineProgress =
       jobId: string;
       presentationId: string;
       presentationVersionId: string;
-    };
+    }
+  | {
+      phase: "planning" | "generation";
+      state: "running";
+      jobId: string;
+      job: JobProgressSnapshot;
+    }
+  | { phase: "generation"; state: "handoff"; jobId: string };
 
 export interface PresentationPipelineResult {
   frameworkVersionId: string;
@@ -45,7 +58,7 @@ interface ConfirmedFramework {
 export interface PresentationPipelineApi {
   getActivePresentationJob(): Promise<ActiveJobResponse | null>;
   getJob(jobId: string): Promise<JobResponse>;
-  waitForJob(jobId: string): Promise<JobResponse>;
+  waitForJob(jobId: string, onJobUpdate?: (job: JobResponse) => void): Promise<JobResponse>;
   generatePresentationPlan(
     frameworkVersionId: string,
     autoContinue: boolean,
@@ -147,6 +160,15 @@ function resultId(job: JobResponse, key: string): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
+function jobObserver(
+  phase: "planning" | "generation",
+  onProgress?: PresentationPipelineOptions["onProgress"],
+): (job: JobResponse) => void {
+  return (job) => {
+    onProgress?.({ phase, state: "running", jobId: job.job_id, job: snapshotFromJob(job) });
+  };
+}
+
 async function completedJob(
   api: PresentationPipelineApi,
   active: ActiveJobResponse,
@@ -156,9 +178,18 @@ async function completedJob(
   try {
     if (active.status === "QUEUED" || active.status === "RUNNING") {
       onProgress?.({ phase, state: "waiting", jobId: active.job_id, reused: true });
-      return await api.waitForJob(active.job_id);
+      // Surface the recovered stage immediately so a refresh does not restart the display.
+      onProgress?.({
+        phase,
+        state: "running",
+        jobId: active.job_id,
+        job: snapshotFromActiveJob(active),
+      });
+      return await api.waitForJob(active.job_id, jobObserver(phase, onProgress));
     }
-    return await api.getJob(active.job_id);
+    const settled = await api.getJob(active.job_id);
+    jobObserver(phase, onProgress)(settled);
+    return settled;
   } catch (error) {
     throw errorFor(phase, error, active.job_id);
   }
@@ -206,6 +237,7 @@ async function resolvePlan(
     state: "completed",
     jobId: job.job_id,
     presentationPlanId: plan.id,
+    plannedSlideCount: plan.plan_json.slides.length,
   });
   return plan;
 }
@@ -293,6 +325,7 @@ async function waitForBackendGeneration(
   planningJobId: string,
   plan: PresentationPlanResponse,
 ): Promise<PresentationPipelineResult> {
+  options.onProgress?.({ phase: "generation", state: "handoff", jobId: planningJobId });
   for (let attempt = 0; attempt < HANDOFF_ATTEMPTS; attempt += 1) {
     let active: ActiveJobResponse | null;
     try {
@@ -347,7 +380,10 @@ async function generateNewPipeline(
   });
   let completed: JobResponse;
   try {
-    completed = await options.api.waitForJob(generated.job_id);
+    completed = await options.api.waitForJob(
+      generated.job_id,
+      jobObserver("planning", options.onProgress),
+    );
   } catch (error) {
     throw errorFor("planning", error, generated.job_id);
   }
