@@ -21,7 +21,11 @@ from services.slides.content_generation.group_a.common import (
     UngroundedContentError,
 )
 from services.slides.content_generation.group_a.context_01 import generate_context_01
-from services.slides.content_generation.group_a.cover_01 import generate_cover_01
+from services.slides.content_generation.group_a.cover_01 import (
+    MAX_STAT_BADGES,
+    generate_cover_01,
+    trim_overflow_stat_badges,
+)
 from services.slides.content_generation.group_a.problem_solution_01 import (
     generate_problem_solution_01,
 )
@@ -29,6 +33,7 @@ from services.slides.content_generation.group_a.requirements_matrix_01 import (
     generate_requirements_matrix_01,
 )
 from services.slides.content_generation.group_a.scope_01 import generate_scope_01
+from services.validation.source_chapter_enforcement import validate_field_provenance
 
 ROOT = Path(__file__).resolve().parents[3]
 FRAMEWORK_FIXTURE_PATH = ROOT / "tests" / "fixtures" / "framework_object.confirmed.group_a.json"
@@ -309,6 +314,13 @@ def test_bt15_structural_limits_are_applied_after_generation(case: Case) -> None
         invalid["title"] = "T" * 73
 
     result = _run(case, _framework(), CapturingGenerator(output=invalid))
+
+    if case.layout_id == "COVER_01":
+        assert result.status == "VALID"
+        assert result.slide_spec is not None
+        assert len(result.slide_spec["statBadges"]) == 3
+        assert result.compression_attempts == 0
+        return
 
     assert result.status == "VALIDATION_FAILED"
     expected_attempts = (
@@ -797,3 +809,134 @@ def test_sanitizer_spells_ungrounded_250() -> None:
     )
     assert "250" not in result
     assert "two hundred fifty" in result
+
+
+def _overflow_cover(extra_count: int) -> dict[str, Any]:
+    cover = _slide(CASES["cover"])
+    extras = [
+        {"value": "80%", "label": "Automation rate"},
+        {"value": "12 weeks", "label": "Delivery duration"},
+        {"value": "4", "label": "Team size"},
+    ]
+    for index in range(extra_count):
+        badge = extras[index % len(extras)]
+        cover["statBadges"].append({"value": badge["value"], "label": f"{badge['label']} extra {index}"})
+        offset = 3 + index
+        cover["fieldProvenance"].extend(
+            [
+                {"path": f"statBadges[{offset}].value", "sourceChapterIds": ["1"]},
+                {"path": f"statBadges[{offset}].label", "sourceChapterIds": ["1"]},
+            ]
+        )
+    return cover
+
+
+def test_cover_prompt_states_maximum_three_stat_badges() -> None:
+    generator = CapturingGenerator(output=_slide(CASES["cover"]))
+
+    _run(CASES["cover"], _framework(), generator)
+
+    instructions = generator.requests[0].instructions
+    assert "at most 3 statBadges" in instructions
+    assert "strongest grounded quantitative facts" in instructions
+    assert "Do not invent metrics" in instructions
+
+
+def test_cover_one_stat_badge_is_unchanged() -> None:
+    cover = _slide(CASES["cover"])
+    cover["statBadges"] = cover["statBadges"][:1]
+    cover["fieldProvenance"] = [
+        entry
+        for entry in cover["fieldProvenance"]
+        if not str(entry["path"]).startswith("statBadges[") or entry["path"].startswith("statBadges[0]")
+    ]
+
+    result = _run(CASES["cover"], _framework(), CapturingGenerator(output=cover))
+
+    assert result.status == "VALID"
+    assert result.slide_spec is not None
+    assert result.slide_spec["statBadges"] == cover["statBadges"]
+    assert result.slide_spec["fieldProvenance"] == cover["fieldProvenance"]
+
+
+def test_cover_three_stat_badges_are_unchanged() -> None:
+    cover = _slide(CASES["cover"])
+
+    result = _run(CASES["cover"], _framework(), CapturingGenerator(output=cover))
+
+    assert result.status == "VALID"
+    assert result.slide_spec is not None
+    assert result.slide_spec["statBadges"] == cover["statBadges"]
+    assert len(result.slide_spec["statBadges"]) == MAX_STAT_BADGES
+
+
+@pytest.mark.parametrize("extra_count", [1, 2])
+def test_cover_generation_repairs_overflow_stat_badges(extra_count: int) -> None:
+    overflow = _overflow_cover(extra_count)
+    original_badges = copy.deepcopy(overflow["statBadges"])
+    assert len(original_badges) == 3 + extra_count
+
+    result = _run(CASES["cover"], _framework(), CapturingGenerator(output=overflow))
+
+    assert result.status == "VALID"
+    assert result.slide_spec is not None
+    assert result.slide_spec["statBadges"] == original_badges[:MAX_STAT_BADGES]
+    paths = {entry["path"] for entry in result.slide_spec["fieldProvenance"]}
+    assert "statBadges[2].value" in paths
+    assert "statBadges[2].label" in paths
+    assert "statBadges[3].value" not in paths
+    assert "statBadges[3].label" not in paths
+    if extra_count > 1:
+        assert "statBadges[4].value" not in paths
+    assert result.slide_spec["sourceChapterIds"] == ["1"]
+    validate_field_provenance(
+        result.slide_spec,
+        real_chapter_ids=["1"],
+        allowed_chapter_ids=["1"],
+    )
+
+
+def test_cover_zero_stat_badges_still_fail_bt15_min_items() -> None:
+    cover = _slide(CASES["cover"])
+    cover["statBadges"] = []
+    cover["fieldProvenance"] = [
+        entry
+        for entry in cover["fieldProvenance"]
+        if not str(entry["path"]).startswith("statBadges[")
+    ]
+
+    result = _run(CASES["cover"], _framework(), CapturingGenerator(output=cover))
+
+    assert result.status == "VALIDATION_FAILED"
+    assert result.slide_spec is None
+
+
+def test_cover_trim_drops_stale_provenance_and_resyncs_root() -> None:
+    overflow = _overflow_cover(2)
+    overflow["fieldProvenance"].append(
+        {"path": "statBadges[4].value", "sourceChapterIds": ["1"]}
+    )
+    overflow["sourceChapterIds"] = ["1"]
+
+    repaired = trim_overflow_stat_badges(overflow)
+
+    assert len(repaired["statBadges"]) == MAX_STAT_BADGES
+    paths = [entry["path"] for entry in repaired["fieldProvenance"]]
+    assert all(not path.startswith("statBadges[3]") for path in paths)
+    assert all(not path.startswith("statBadges[4]") for path in paths)
+    assert repaired["sourceChapterIds"] == ["1"]
+
+
+def test_other_group_a_layouts_do_not_trim_overflow_arrays() -> None:
+    case = CASES["scope"]
+    invalid = _slide(case)
+    invalid["included"] = ["Included item" for _ in range(8)]
+    invalid["fieldProvenance"].extend(
+        {"path": f"included[{index}]", "sourceChapterIds": ["3"]}
+        for index in range(5, 8)
+    )
+
+    result = _run(case, _framework(), CapturingGenerator(output=invalid))
+
+    assert result.status == "VALIDATION_FAILED"
+    assert result.slide_spec is None
