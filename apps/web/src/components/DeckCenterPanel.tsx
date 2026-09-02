@@ -60,6 +60,7 @@ import {
   jobFailureRecoveryNotice,
   recoveryActionHref,
   recoveryNoticeFromError,
+  recoverySurfacePrecedence,
   retryingRecoveryNotice,
   runningRecoveryNotice,
 } from "@/lib/recoveryUx";
@@ -302,6 +303,7 @@ export function DeckCenterPanel({
     if (!accessToken || !retryJobId) {
       return;
     }
+    setJobSnapshot(null);
     setRecoveryTarget("job");
     setBusy(true);
     setNotice(retryingRecoveryNotice("deck", retryJobId));
@@ -497,6 +499,9 @@ export function DeckCenterPanel({
     generatedAt ? `Generated ${generatedAt}` : null,
   ].filter(Boolean);
 
+  const progressSurfaceVisible = Boolean(jobPolling || progressView?.failed);
+  const surfacePrecedence = recoverySurfacePrecedence(notice, progressSurfaceVisible);
+
   return (
     <div className="app-workspace">
       <SiteHeader signedInEmail={session?.user.email} opportunityId={opportunityId} />
@@ -553,7 +558,7 @@ export function DeckCenterPanel({
           </aside>
 
           <div className="upload-main">
-            {notice ? (
+            {notice && surfacePrecedence.showRecovery ? (
               <RecoveryBanner
                 notice={
                   recoveryActionHref(notice, opportunityId)
@@ -570,10 +575,10 @@ export function DeckCenterPanel({
                 onAction={handleRecoveryAction}
               />
             ) : null}
-            {info && !notice && !jobPolling ? (
+            {info && surfacePrecedence.showSecondary ? (
               <div className="upload-banner upload-banner-success">{info}</div>
             ) : null}
-            {partialArtifacts && ready ? (
+            {partialArtifacts && ready && surfacePrecedence.showSecondary ? (
               <div className="upload-banner upload-banner-info">{ARTIFACTS_PARTIAL_LABEL}</div>
             ) : null}
 
@@ -585,15 +590,17 @@ export function DeckCenterPanel({
               </section>
             ) : null}
 
-            {progressView && (jobPolling || progressView.failed) ? (
-              <LiveGenerationProgress view={progressView} />
-            ) : jobPolling ? (
-              <section className="upload-panel pipeline-panel-loading">
-                <p className="upload-hint" data-testid="pipeline-job-progress">
-                  {info ?? "Presentation rendering is running…"}
-                  {jobStage ? ` · ${jobStageLabel(jobStage)}` : ""}
-                </p>
-              </section>
+            {surfacePrecedence.showProgress ? (
+              progressView && (jobPolling || progressView.failed) ? (
+                <LiveGenerationProgress view={progressView} />
+              ) : jobPolling ? (
+                <section className="upload-panel pipeline-panel-loading">
+                  <p className="upload-hint" data-testid="pipeline-job-progress">
+                    {info ?? "Presentation rendering is running…"}
+                    {jobStage ? ` · ${jobStageLabel(jobStage)}` : ""}
+                  </p>
+                </section>
+              ) : null
             ) : null}
 
             {!contentLoading && !presentation && isAuthenticated && !notice ? (

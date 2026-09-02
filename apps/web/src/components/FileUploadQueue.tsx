@@ -6,6 +6,7 @@ import {
   ABC_SYSTEMS_Q2_SAMPLE_FILENAME,
   ABC_SYSTEMS_Q2_SAMPLE_TRANSCRIPT,
 } from "@/lib/abcSystemsQ2Transcript";
+import { uploadErrorMessage } from "@/lib/apiErrors";
 import { ALLOWED_TRANSCRIPT_EXTENSIONS } from "@/lib/transcriptFormats";
 import {
   createQueueItems,
@@ -98,9 +99,7 @@ export function FileUploadQueue({
     try {
       await onUpload(uploadable);
     } catch (uploadError) {
-      const message =
-        uploadError instanceof Error ? uploadError.message : "Upload failed.";
-      setError(message);
+      setError(uploadErrorMessage(uploadError));
     } finally {
       setBusy(false);
     }

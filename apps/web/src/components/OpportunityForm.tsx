@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import type { OpportunityCreatePayload } from "@/lib/api";
+import { opportunityErrorMessage } from "@/lib/apiErrors";
 import {
   clearOpportunityDraft,
   loadOpportunityDraft,
@@ -74,9 +75,7 @@ export function OpportunityForm({
       setCreatedLabel(`${values.client_name} — ${values.opportunity_name}`);
       clearOpportunityDraft();
     } catch (submitError) {
-      const message =
-        submitError instanceof Error ? submitError.message : "Could not create opportunity.";
-      setError(message);
+      setError(opportunityErrorMessage(submitError));
     } finally {
       setBusy(false);
     }
