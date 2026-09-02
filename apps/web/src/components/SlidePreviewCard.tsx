@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 
 import { fetchSlidePreviewBlob } from "@/lib/api";
 import { alternativeLayouts, formatLayoutLabel, PREVIEW_UNAVAILABLE_LABEL } from "@/lib/presentationReady";
@@ -130,11 +130,6 @@ export function SlidePreviewCard({
             ) : null}
           </div>
         ) : null}
-        <details className="deck-slide-details">
-          <summary>Details</summary>
-          <p>Layout ID: {layoutId}</p>
-          <p>Slide ID: {slideId}</p>
-        </details>
       </footer>
     </article>
   );

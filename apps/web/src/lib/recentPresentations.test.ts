@@ -49,6 +49,12 @@ assert.equal(mixed[1]?.actionHref, "/deck-center?opportunityId=building");
 assert.equal(mixed[2]?.actionHref, "/framework-review?opportunityId=review");
 assert.equal(mixed[3]?.actionHref, "/framework-review?opportunityId=analysis");
 
+const partiallyLoaded = buildRecentWorkItems([
+  snapshot("partial", "2026-08-29T10:00:00Z", { resourceLoadFailed: true }),
+])[0]!;
+assert.equal(partiallyLoaded.statusLabel, "Needs attention");
+assert.equal(partiallyLoaded.actionHref, "/upload?opportunityId=partial");
+
 const ready = buildRecentWorkItems([
   snapshot("ready", "2026-09-01T10:00:00Z", {
     presentationId: "presentation-ready",
@@ -150,6 +156,71 @@ assert.equal(
   "/framework-review?opportunityId=failed-auto-planning",
 );
 
+const completedAutomaticPlanning = buildRecentWorkItems([
+  snapshot("completed-auto-planning", "2026-09-01T11:58:00Z", {
+    frameworkStatus: "confirmed",
+    hasPlan: true,
+    job: {
+      job_type: "presentation_planning",
+      status: "COMPLETED",
+      current_stage: "COMPLETED",
+      auto_continue: true,
+    },
+  }),
+])[0]!;
+assert.equal(completedAutomaticPlanning.statusLabel, "Building presentation");
+assert.equal(
+  completedAutomaticPlanning.actionHref,
+  "/framework-review?opportunityId=completed-auto-planning",
+);
+
+const completedManualPlanning = buildRecentWorkItems([
+  snapshot("completed-manual-planning", "2026-09-01T11:58:30Z", {
+    job: {
+      job_type: "presentation_planning",
+      status: "COMPLETED",
+      current_stage: "COMPLETED",
+      auto_continue: false,
+    },
+  }),
+])[0]!;
+assert.equal(completedManualPlanning.statusLabel, "Needs review");
+assert.equal(
+  completedManualPlanning.actionHref,
+  "/plan-preview?opportunityId=completed-manual-planning",
+);
+
+const completedPresentation = buildRecentWorkItems([
+  snapshot("completed-presentation", "2026-09-01T11:59:00Z", {
+    job: {
+      job_type: "presentation_generation",
+      status: "COMPLETED",
+      current_stage: "COMPLETED",
+    },
+  }),
+])[0]!;
+assert.equal(completedPresentation.statusLabel, "Ready");
+assert.equal(
+  completedPresentation.actionHref,
+  "/deck-center?opportunityId=completed-presentation",
+);
+
+const completedWithoutArtifacts = buildRecentWorkItems([
+  snapshot("completed-without-artifacts", "2026-09-01T12:00:00Z", {
+    resourceLoadFailed: true,
+    job: {
+      job_type: "presentation_generation",
+      status: "COMPLETED",
+      current_stage: "COMPLETED",
+    },
+  }),
+])[0]!;
+assert.equal(completedWithoutArtifacts.statusLabel, "Needs attention");
+assert.equal(
+  completedWithoutArtifacts.actionHref,
+  "/deck-center?opportunityId=completed-without-artifacts",
+);
+
 assert.equal(
   selectRecentWorkJob([
     {
@@ -168,6 +239,28 @@ assert.equal(
     },
   ])?.job_type,
   "presentation_generation",
+);
+
+assert.equal(
+  selectRecentWorkJob([
+    {
+      job_id: "later-started-framework",
+      job_type: "framework_generation",
+      status: "COMPLETED",
+      current_stage: "COMPLETED",
+      started_at: "2026-09-01T12:00:00Z",
+      completed_at: "2026-09-01T12:05:00Z",
+    },
+    {
+      job_id: "later-completed-presentation",
+      job_type: "presentation_generation",
+      status: "FAILED",
+      current_stage: "FAILED",
+      started_at: "2026-09-01T11:00:00Z",
+      completed_at: "2026-09-01T12:10:00Z",
+    },
+  ])?.job_id,
+  "later-completed-presentation",
 );
 
 const foreign = snapshot("cached-foreign", "2026-09-01T14:00:00Z");

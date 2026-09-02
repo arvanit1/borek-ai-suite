@@ -132,6 +132,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
   const [transcriptCount, setTranscriptCount] = useState<number | null>(null);
   const [activeChapterId, setActiveChapterId] = useState<string | null>(null);
   const [hoveredChapterId, setHoveredChapterId] = useState<string | null>(null);
+  const [chapterNavOpen, setChapterNavOpen] = useState(false);
   const [downloadingFormat, setDownloadingFormat] = useState<"docx" | "pdf" | null>(null);
   const chapterNavItemRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
   const presentationPipelineRunningRef = useRef(false);
@@ -388,17 +389,8 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
           setFrameworkJobSnapshot(null);
           setNotice(null);
         },
-        onJobFailed: (message, failedJobId) => {
-          setNotice(
-            recoveryNoticeFromError(
-              {
-                message,
-                jobId: failedJobId ?? undefined,
-                retryable: Boolean(failedJobId),
-              },
-              "framework",
-            ),
-          );
+        onJobFailed: (error, failedJobId) => {
+          setNotice(recoveryNoticeFromError(error, "framework"));
           setRetryJobId(failedJobId);
         },
       },
@@ -1101,24 +1093,6 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
                         </span>
                       </p>
                     </div>
-                    <div className="framework-toolbar-actions">
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        disabled={busy || downloadingFormat !== null}
-                        onClick={() => void handleDownloadFramework("docx")}
-                      >
-                        {downloadingFormat === "docx" ? "Downloading…" : "Download Word"}
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        disabled={busy || downloadingFormat !== null}
-                        onClick={() => void handleDownloadFramework("pdf")}
-                      >
-                        {downloadingFormat === "pdf" ? "Downloading…" : "Download PDF"}
-                      </button>
-                    </div>
                   </header>
 
                   <div className="framework-meta-grid">
@@ -1261,9 +1235,8 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
                     <div>
                       <strong>Framework confirmed</strong>
                       <p>
-                        This version is locked. Fields, source references, and chapter regenerate
-                        stay read-only so Stage B can only use the confirmed object. Presentation
-                        building can continue here without opening Plan Preview first.
+                        This customer story is approved and locked. You can now build the
+                        presentation from this version.
                       </p>
                     </div>
                     <div className="upload-banner-actions">
@@ -1281,8 +1254,22 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
 
                 <div className="framework-layout" id="framework-chapters">
                   <aside className="framework-sidebar">
-                    <h2>All 14 chapters</h2>
-                    <ol className="framework-chapter-nav">
+                    <div className="framework-sidebar-heading">
+                      <h2>All 14 chapters</h2>
+                      <button
+                        type="button"
+                        className="btn btn-secondary framework-chapter-toggle"
+                        aria-expanded={chapterNavOpen}
+                        aria-controls="framework-chapter-navigation"
+                        onClick={() => setChapterNavOpen((open) => !open)}
+                      >
+                        {chapterNavOpen ? "Hide chapters" : "Choose chapter"}
+                      </button>
+                    </div>
+                    <ol
+                      id="framework-chapter-navigation"
+                      className={`framework-chapter-nav${chapterNavOpen ? " framework-chapter-nav-open" : ""}`}
+                    >
                       {chapterNav.map((item) => {
                         const isHighlighted = highlightedChapterId === item.chapterId;
                         return (
@@ -1298,7 +1285,10 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
                                   : "framework-chapter-nav-btn"
                               }
                               aria-current={isHighlighted ? "true" : undefined}
-                              onClick={() => setActiveChapterId(item.chapterId)}
+                              onClick={() => {
+                                setActiveChapterId(item.chapterId);
+                                setChapterNavOpen(false);
+                              }}
                             >
                               <span>Chapter {item.chapterId}</span>
                               <span>{item.title}</span>

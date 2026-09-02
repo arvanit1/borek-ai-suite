@@ -1,5 +1,4 @@
 import type { ActiveJobResponse, JobResponse } from "./api";
-import { formatJobFailureMessage } from "./jobErrors";
 import {
   snapshotFromActiveJob,
   snapshotFromJob,
@@ -21,7 +20,7 @@ export interface PipelineParallelLoadHandlers {
   onJobPollingStart: (message: string, stage: string | null, jobId: string) => void;
   onJobStageUpdate: (stage: string) => void;
   onJobPollingFinished: () => void;
-  onJobFailed: (message: string, retryJobId: string | null) => void;
+  onJobFailed: (error: unknown, retryJobId: string | null) => void;
   /** Real job state for live progress; optional so existing callers are unaffected. */
   onJobSnapshot?: (snapshot: JobProgressSnapshot) => void;
 }
@@ -137,13 +136,16 @@ export function startPipelineParallelLoad(
           handlers.onJobPollingFinished();
           if (isFailedJobResponse(monitorError)) {
             handlers.onJobSnapshot?.(snapshotFromJob(monitorError));
-            const message = formatJobFailureMessage(monitorError.error);
             const retryable = Boolean(monitorError.error?.retryable);
-            handlers.onJobFailed(message, retryable ? monitorError.job_id : null);
-          } else if (monitorError instanceof Error) {
-            handlers.onJobFailed(monitorError.message, null);
+            handlers.onJobFailed(
+              {
+                ...monitorError.error,
+                jobId: monitorError.job_id,
+              },
+              retryable ? monitorError.job_id : null,
+            );
           } else {
-            handlers.onJobFailed("Generation job failed.", null);
+            handlers.onJobFailed(monitorError, null);
           }
         }
         return;
@@ -154,12 +156,17 @@ export function startPipelineParallelLoad(
           handlers.onJobSnapshot?.(snapshotFromActiveJob(job));
         }
         handlers.onJobFailed(
-          decision.message,
+          {
+            ...decision.error,
+            jobId: decision.jobId,
+          },
           decision.retryable ? decision.jobId : null,
         );
       }
-    } catch {
-      // Active-job lookup failure is non-fatal; saved content still renders.
+    } catch (error) {
+      if (!isCancelled()) {
+        handlers.onJobFailed(error, null);
+      }
     }
   })();
 

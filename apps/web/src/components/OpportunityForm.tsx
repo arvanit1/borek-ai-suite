@@ -146,9 +146,13 @@ export function OpportunityForm({
       </div>
 
       <div className="opportunity-form-actions">
-        <button type="submit" className="btn btn-primary" disabled={disabled || busy || locked}>
-          {busy ? "Creating…" : locked ? "Opportunity created" : "Create opportunity"}
-        </button>
+        {locked ? (
+          <p className="opportunity-created-status" role="status">Opportunity created</p>
+        ) : (
+          <button type="submit" className="btn btn-primary" disabled={disabled || busy}>
+            {busy ? "Creating…" : "Create opportunity"}
+          </button>
+        )}
       </div>
     </form>
   );

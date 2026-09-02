@@ -22,8 +22,11 @@ export function SiteHeader({ signedInEmail }: SiteHeaderProps) {
         <nav className="site-nav" aria-label="Main navigation">
           {email ? (
             <>
-              <Link href="/">Recent</Link>
-              <Link href="/upload?new=1">New presentation</Link>
+              <Link href="/" className="site-nav-recent">Recent</Link>
+              <Link href="/upload?new=1" className="site-nav-new">
+                <span className="site-nav-new-full">New presentation</span>
+                <span className="site-nav-new-short">New</span>
+              </Link>
               <span className="site-user" title={email}>
                 {email}
               </span>
