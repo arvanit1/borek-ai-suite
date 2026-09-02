@@ -6,7 +6,13 @@ export type JobStageGroup = "framework" | "presentation";
 
 export type ReconnectDecision =
   | { action: "monitor"; jobId: string }
-  | { action: "failed"; jobId: string; message: string; retryable: boolean }
+  | {
+      action: "failed";
+      jobId: string;
+      message: string;
+      retryable: boolean;
+      error: ActiveJobResponse["error"];
+    }
   | { action: "load_results" };
 
 const RUNNING_MESSAGES: Record<ReconnectPage, string> = {
@@ -60,6 +66,7 @@ export function inspectActiveJob(
       jobId: job.job_id,
       message: jobFailureMessage(job),
       retryable: Boolean(job.error?.retryable),
+      error: job.error,
     };
   }
   return { action: "load_results" };

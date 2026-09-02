@@ -5,8 +5,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { AppPageHeader } from "@/components/AppPageHeader";
 import { useAuth } from "@/components/AuthProvider";
-import { JobFailureAlert } from "@/components/JobFailureAlert";
 import { PipelineStepper } from "@/components/PipelineStepper";
+import { RecoveryBanner } from "@/components/RecoveryBanner";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SlidePreviewCard } from "@/components/SlidePreviewCard";
 import {
@@ -30,6 +30,14 @@ import {
 } from "@/lib/jobReconnect";
 import { buildDownloadFilename, mapDeckSlides } from "@/lib/deckCenter";
 import type { DeckCenterResponse, PresentationResponse } from "@/lib/deckTypes";
+import {
+  jobFailureRecoveryNotice,
+  recoveryActionHref,
+  recoveryNoticeFromError,
+  retryingRecoveryNotice,
+  runningRecoveryNotice,
+} from "@/lib/recoveryUx";
+import type { RecoveryNotice } from "@/lib/recoveryUx";
 
 interface DeckCenterPanelProps {
   opportunityId: string;
@@ -40,9 +48,12 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
   const [presentation, setPresentation] = useState<PresentationResponse | null>(null);
   const [deck, setDeck] = useState<DeckCenterResponse | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<RecoveryNotice | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [retryJobId, setRetryJobId] = useState<string | null>(null);
+  const [recoveryTarget, setRecoveryTarget] = useState<"job" | "download-pptx" | "download-pdf">(
+    "job",
+  );
 
   const slideTiles = useMemo(() => (deck ? mapDeckSlides(deck) : []), [deck]);
 
@@ -82,13 +93,11 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
       return;
     }
     setBusy(true);
-    setError(null);
+    setNotice(null);
     try {
       await applyLatestPresentation();
     } catch (loadError) {
-      const message =
-        loadError instanceof Error ? loadError.message : "Could not load presentation.";
-      setError(message);
+      setNotice(recoveryNoticeFromError(loadError, "deck"));
     } finally {
       setBusy(false);
     }
@@ -102,7 +111,7 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
     let cancelled = false;
     async function bootstrap() {
       setBusy(true);
-      setError(null);
+      setNotice(null);
       setInfo(null);
       setRetryJobId(null);
       try {
@@ -117,14 +126,16 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
         const decision = inspectActiveJob(job, "deck");
         if (decision.action === "monitor") {
           setInfo(generationProgressMessage("deck", true));
+          setNotice(runningRecoveryNotice("deck", decision.jobId));
           try {
             await waitForJob(token, decision.jobId);
+            if (!cancelled) {
+              setNotice(null);
+            }
           } catch (monitorError) {
             if (!cancelled) {
               setInfo(null);
-              setError(
-                monitorError instanceof Error ? monitorError.message : "Generation job failed.",
-              );
+              setNotice(recoveryNoticeFromError(monitorError, "deck"));
               if (monitorError instanceof ApiRequestError && monitorError.retryable && monitorError.jobId) {
                 setRetryJobId(monitorError.jobId);
               }
@@ -132,7 +143,7 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
           }
         } else if (decision.action === "failed") {
           setInfo(null);
-          setError(decision.message);
+          setNotice(jobFailureRecoveryNotice(decision.error, "deck", decision.jobId));
           if (decision.retryable) {
             setRetryJobId(decision.jobId);
           }
@@ -144,18 +155,12 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
           await applyLatestPresentation();
         } catch (loadError) {
           if (!cancelled && decision.action !== "failed") {
-            const message =
-              loadError instanceof Error ? loadError.message : "Could not load presentation.";
-            setError(message);
+            setNotice(recoveryNoticeFromError(loadError, "deck"));
           }
         }
       } catch (bootstrapError) {
         if (!cancelled) {
-          setError(
-            bootstrapError instanceof Error
-              ? bootstrapError.message
-              : "Could not reconnect to the generation job.",
-          );
+          setNotice(recoveryNoticeFromError(bootstrapError, "deck"));
         }
       } finally {
         if (!cancelled) {
@@ -173,19 +178,22 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
     if (!accessToken) {
       return;
     }
+    setRecoveryTarget("job");
     setBusy(true);
-    setError(null);
+    setNotice(null);
     setInfo(null);
     setRetryJobId(null);
     try {
       const generated = await generatePresentation(accessToken, opportunityId);
       setInfo(generationProgressMessage("deck", Boolean(generated.is_existing_job)));
+      setNotice(runningRecoveryNotice("deck", generated.job_id));
       await waitForJob(accessToken, generated.job_id);
+      setNotice(null);
       await applyLatestPresentation();
       setInfo("Deck generated. Slide previews and downloads are ready below.");
     } catch (generateError) {
       setInfo(null);
-      setError(generateError instanceof Error ? generateError.message : "Deck generation failed.");
+      setNotice(recoveryNoticeFromError(generateError, "deck"));
       if (generateError instanceof ApiRequestError && generateError.retryable && generateError.jobId) {
         setRetryJobId(generateError.jobId);
       }
@@ -198,17 +206,19 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
     if (!accessToken || !retryJobId) {
       return;
     }
+    setRecoveryTarget("job");
     setBusy(true);
-    setError(null);
+    setNotice(retryingRecoveryNotice("deck", retryJobId));
     setInfo("Retrying generation from the last failed stage…");
     try {
       const queued = await retryJob(accessToken, retryJobId);
       setRetryJobId(null);
       await waitForJob(accessToken, queued.job_id);
+      setNotice(null);
       await applyLatestPresentation();
     } catch (retryError) {
       setInfo(null);
-      setError(retryError instanceof Error ? retryError.message : "Retry failed.");
+      setNotice(recoveryNoticeFromError(retryError, "deck"));
       if (retryError instanceof ApiRequestError && retryError.retryable && retryError.jobId) {
         setRetryJobId(retryError.jobId);
       }
@@ -217,12 +227,69 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
     }
   }
 
+  async function handleReconnect() {
+    if (!accessToken) {
+      return;
+    }
+    setBusy(true);
+    setInfo(null);
+    setNotice(runningRecoveryNotice("deck"));
+    try {
+      const job = await getActiveJob(accessToken, opportunityId, stageGroupForPage("deck"));
+      const decision = inspectActiveJob(job, "deck");
+      if (decision.action === "failed") {
+        setRetryJobId(decision.retryable ? decision.jobId : null);
+        setNotice(jobFailureRecoveryNotice(decision.error, "deck", decision.jobId));
+        return;
+      }
+      if (decision.action === "monitor") {
+        setNotice(runningRecoveryNotice("deck", decision.jobId));
+        await waitForJob(accessToken, decision.jobId);
+      }
+      await applyLatestPresentation();
+      setNotice(null);
+    } catch (reconnectError) {
+      setNotice(recoveryNoticeFromError(reconnectError, "deck"));
+      if (
+        reconnectError instanceof ApiRequestError &&
+        reconnectError.retryable &&
+        reconnectError.jobId
+      ) {
+        setRetryJobId(reconnectError.jobId);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function handleRecoveryAction() {
+    if (notice?.action?.kind === "RETRY") {
+      void handleRetry();
+      return;
+    }
+    if (
+      notice?.action?.kind === "RECONNECT" ||
+      notice?.action?.kind === "KEEP_CHECKING"
+    ) {
+      if (recoveryTarget === "download-pptx") {
+        void handleDownload("pptx");
+        return;
+      }
+      if (recoveryTarget === "download-pdf") {
+        void handleDownload("pdf");
+        return;
+      }
+      void handleReconnect();
+    }
+  }
+
   async function handleDownload(kind: "pptx" | "pdf") {
     if (!accessToken || !deck) {
       return;
     }
+    setRecoveryTarget(kind === "pptx" ? "download-pptx" : "download-pdf");
     setBusy(true);
-    setError(null);
+    setNotice(null);
     try {
       const path = kind === "pptx" ? deck.pptx_download_url : deck.pdf_download_url;
       const blob = await downloadPresentationFile(accessToken, path);
@@ -233,7 +300,11 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
       anchor.click();
       URL.revokeObjectURL(url);
     } catch (downloadError) {
-      setError(downloadError instanceof Error ? downloadError.message : "Download failed.");
+      setNotice(
+        recoveryNoticeFromError(downloadError, "deck", {
+          connectionMessage: "The download was interrupted. Reconnect to try it again.",
+        }),
+      );
     } finally {
       setBusy(false);
     }
@@ -288,17 +359,26 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
           </aside>
 
           <div className="upload-main">
-            {error ? (
-              <JobFailureAlert
-                message={error}
-                retryable={Boolean(retryJobId)}
-                retrying={busy}
-                onRetry={() => void handleRetry()}
+            {notice ? (
+              <RecoveryBanner
+                notice={
+                  recoveryActionHref(notice, opportunityId)
+                    ? {
+                        ...notice,
+                        action: {
+                          ...notice.action!,
+                          href: recoveryActionHref(notice, opportunityId),
+                        },
+                      }
+                    : notice
+                }
+                busy={busy}
+                onAction={handleRecoveryAction}
               />
             ) : null}
-            {info ? <div className="upload-banner upload-banner-success">{info}</div> : null}
+            {info && !notice ? <div className="upload-banner upload-banner-success">{info}</div> : null}
 
-            {busy && !deck ? (
+            {busy && !deck && !notice ? (
               <section className="upload-panel pipeline-panel-loading">
                 <p className="upload-hint" data-testid="pipeline-job-progress">
                   {info ?? "Loading deck…"}
@@ -306,7 +386,7 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
               </section>
             ) : null}
 
-            {!busy && !deck && isAuthenticated ? (
+            {!busy && !deck && isAuthenticated && !notice ? (
               <section className="upload-panel pipeline-empty-panel">
                 <header className="upload-panel-header">
                   <div>
