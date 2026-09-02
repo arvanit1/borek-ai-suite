@@ -397,6 +397,33 @@ def test_worker_does_not_auto_retry_validation_failure() -> None:
     assert current.error_retryable is False
 
 
+def test_validation_failure_marked_non_retryable() -> None:
+    from app.services.stage_b_orchestration import GroupASlideGenerationError
+    from app.worker import _is_retryable_error
+
+    exc = GroupASlideGenerationError(
+        "COVER_01 generation failed validation: statBadges item count 4 exceeds maximum 3",
+    )
+    assert _is_retryable_error(exc) is False
+
+
+def test_provider_timeout_marked_retryable() -> None:
+    from app.worker import _is_retryable_error
+
+    exc = TimeoutError("provider timed out")
+    exc.code = "PROVIDER_TIMEOUT"  # type: ignore[attr-defined]
+    assert _is_retryable_error(exc) is True
+
+
+def test_explicit_retryable_false_respected() -> None:
+    from app.worker import _is_retryable_error
+
+    class NonRetryableError(Exception):
+        retryable = False
+
+    assert _is_retryable_error(NonRetryableError("validation rejected")) is False
+
+
 def test_wrong_user_cannot_retry_job() -> None:
     client = _client()
     opportunity_id = _create_opportunity(client)

@@ -9,7 +9,7 @@
     "start": "next start --port 3000",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test:at46": "tsx src/lib/transcriptFormats.test.ts && tsx src/lib/uploadQueue.test.ts && tsx src/lib/authSignUp.test.ts && tsx src/lib/pipelineContext.test.ts",
-    "test:at47": "tsx src/lib/frameworkEdit.test.ts && tsx src/lib/frameworkFieldEdit.test.ts && tsx src/lib/frameworkEvidence.test.ts && tsx src/lib/frameworkNestedEdit.test.ts && tsx src/lib/apiErrors.test.ts",
+    "test:at47": "tsx src/lib/frameworkEdit.test.ts && tsx src/lib/frameworkFieldEdit.test.ts && tsx src/lib/frameworkEvidence.test.ts && tsx src/lib/frameworkNestedEdit.test.ts && tsx src/lib/apiErrors.test.ts && tsx src/lib/frameworkReviewLoad.test.ts",
     "test:jj24": "tsx src/lib/frameworkReview.test.ts",
     "test:at48": "tsx src/lib/planPreview.test.ts",
     "test:at49": "tsx src/lib/deckCenter.test.ts",

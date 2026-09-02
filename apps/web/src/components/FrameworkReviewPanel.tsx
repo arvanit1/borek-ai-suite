@@ -21,6 +21,7 @@ import {
   generatePresentationPlan,
   getActiveJob,
   getFrameworkReview,
+  getJob,
   getLatestFramework,
   listTranscripts,
   regenerateFrameworkChapter,
@@ -28,6 +29,7 @@ import {
   updateFramework as persistFramework,
   waitForJob,
 } from "@/lib/api";
+import { startFrameworkReviewParallelLoad } from "@/lib/frameworkReviewLoad";
 import {
   buildFrameworkDownloadFilename,
   buildFrameworkRenderPath,
@@ -76,6 +78,9 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
   const [frameworkJson, setFrameworkJson] = useState<FrameworkObject | null>(null);
   const [review, setReview] = useState<FrameworkReviewPayload | null>(null);
   const [busy, setBusy] = useState(false);
+  const [frameworkLoading, setFrameworkLoading] = useState(true);
+  const [jobPolling, setJobPolling] = useState(false);
+  const [jobStage, setJobStage] = useState<string | null>(null);
   const [notice, setNotice] = useState<RecoveryNotice | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
@@ -172,71 +177,70 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       return;
     }
     const token = accessToken;
-    let cancelled = false;
-    async function bootstrap() {
-      setBusy(true);
-      setNotice(null);
-      setInfo(null);
-      setRetryJobId(null);
-      try {
-        const job = await getActiveJob(
-          token,
-          opportunityId,
-          stageGroupForPage("framework"),
-        );
-        if (cancelled) {
-          return;
-        }
-        const decision = inspectActiveJob(job, "framework");
-        if (decision.action === "monitor") {
-          setInfo(generationProgressMessage("framework", true));
-          setNotice(runningRecoveryNotice("framework", decision.jobId));
-          try {
-            await waitForJob(token, decision.jobId, FRAMEWORK_JOB_TIMEOUT_MS);
-            if (!cancelled) {
-              setNotice(null);
-            }
-          } catch (monitorError) {
-            if (!cancelled) {
-              setInfo(null);
-              setNotice(recoveryNoticeFromError(monitorError, "framework"));
-              if (monitorError instanceof ApiRequestError && monitorError.retryable && monitorError.jobId) {
-                setRetryJobId(monitorError.jobId);
-              }
-            }
-          }
-        } else if (decision.action === "failed") {
+    setFrameworkLoading(true);
+    setJobPolling(false);
+    setJobStage(null);
+    setNotice(null);
+    setInfo(null);
+    setRetryJobId(null);
+
+    const cancel = startFrameworkReviewParallelLoad(
+      {
+        onFrameworkLoaded: (latest) => {
+          setFrameworkVersion(latest);
+          setFrameworkJson(latest.framework_json);
+          setDirty(false);
+          void applyReview(latest);
+        },
+        onFrameworkMissing: () => {
+          setFrameworkVersion(null);
+          setFrameworkJson(null);
+          setReview(null);
+        },
+        onFrameworkLoadFinished: () => {
+          setFrameworkLoading(false);
+        },
+        onFrameworkLoadError: (message) => {
+          setNotice(recoveryNoticeFromError(new Error(message), "framework"));
+        },
+        onJobPollingStart: (message, stage, jobId) => {
+          setJobPolling(true);
+          setInfo(message);
+          setJobStage(stage);
+          setNotice(runningRecoveryNotice("framework", jobId));
+        },
+        onJobStageUpdate: (stage) => {
+          setJobStage(stage);
+        },
+        onJobPollingFinished: () => {
+          setJobPolling(false);
           setInfo(null);
-          setNotice(jobFailureRecoveryNotice(decision.error, "framework", decision.jobId));
-          if (decision.retryable) {
-            setRetryJobId(decision.jobId);
-          }
-        }
-        if (cancelled) {
-          return;
-        }
-        try {
-          await applyLatestFramework();
-        } catch (loadError) {
-          if (!cancelled && decision.action !== "failed") {
-            setNotice(recoveryNoticeFromError(loadError, "framework"));
-          }
-        }
-      } catch (bootstrapError) {
-        if (!cancelled) {
-          setNotice(recoveryNoticeFromError(bootstrapError, "framework"));
-        }
-      } finally {
-        if (!cancelled) {
-          setBusy(false);
-        }
-      }
-    }
-    void bootstrap();
-    return () => {
-      cancelled = true;
-    };
-  }, [accessToken, applyLatestFramework, loading, opportunityId]);
+          setJobStage(null);
+          setNotice(null);
+        },
+        onJobFailed: (message, failedJobId) => {
+          setNotice(
+            recoveryNoticeFromError(
+              {
+                message,
+                jobId: failedJobId ?? undefined,
+                retryable: Boolean(failedJobId),
+              },
+              "framework",
+            ),
+          );
+          setRetryJobId(failedJobId);
+        },
+      },
+      {
+        loadFramework: () => getLatestFramework(token, opportunityId),
+        getActiveJob: () => getActiveJob(token, opportunityId, stageGroupForPage("framework")),
+        getJob: (jobId) => getJob(token, jobId),
+      },
+    );
+
+    return cancel;
+  }, [accessToken, applyReview, loading, opportunityId]);
 
   useEffect(() => {
     if (!accessToken) {
@@ -760,17 +764,28 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
                 onAction={handleRecoveryAction}
               />
             ) : null}
-            {info && !notice ? <div className="upload-banner upload-banner-success">{info}</div> : null}
+            {info && !notice && !jobPolling ? (
+              <div className="upload-banner upload-banner-success">{info}</div>
+            ) : null}
 
-            {busy && !frameworkVersion && !notice ? (
+            {frameworkLoading && !frameworkVersion ? (
               <section className="upload-panel pipeline-panel-loading">
-                <p className="upload-hint" data-testid="pipeline-job-progress">
-                  {info ?? "Loading customer story…"}
+                <p className="upload-hint" data-testid="framework-loading">
+                  Loading customer story…
                 </p>
               </section>
             ) : null}
 
-            {!busy && !frameworkVersion && isAuthenticated && !notice ? (
+            {jobPolling ? (
+              <section className="upload-panel pipeline-panel-loading">
+                <p className="upload-hint" data-testid="pipeline-job-progress">
+                  {info ?? "Framework generation is running…"}
+                  {jobStage ? ` · ${jobStage.replaceAll("_", " ").toLowerCase()}` : ""}
+                </p>
+              </section>
+            ) : null}
+
+            {!frameworkLoading && !frameworkVersion && isAuthenticated && !notice ? (
               <section className="upload-panel pipeline-empty-panel">
                 <header className="upload-panel-header">
                   <div>
