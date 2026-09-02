@@ -2,6 +2,7 @@
 
 import { FrameworkNestedValue } from "@/components/FrameworkNestedValue";
 import { isEditableContentKey } from "@/lib/frameworkEvidence";
+import { customerFieldLabel } from "@/lib/frameworkLabels";
 import {
   updateFrameworkArrayField,
   updateQualityRationale,
@@ -45,7 +46,7 @@ function RecordSection({ title, records, editable, onChange }: RecordSectionProp
                 <FrameworkNestedValue
                   key={fieldKey}
                   id={`${title}-${recordIndex}-${fieldKey}`}
-                  label={fieldKey}
+                  label={customerFieldLabel(fieldKey)}
                   value={fieldValue}
                   editable={editable}
                   onChange={(next) =>
@@ -78,7 +79,7 @@ export function FrameworkRootFieldsPanel({
             ] as const
           ).map((field) => (
             <div key={field} className="form-field">
-              <label htmlFor={`quality-${field}`}>{field.replace(/_/g, " ")}</label>
+              <label htmlFor={`quality-${field}`}>{customerFieldLabel(field)}</label>
               <input
                 id={`quality-${field}`}
                 type="number"
@@ -96,7 +97,7 @@ export function FrameworkRootFieldsPanel({
         <div className="framework-fact-fields">
           {Object.entries(framework.quality_scores.rationale).map(([fieldKey, fieldValue]) => (
             <div key={fieldKey} className="form-field">
-              <label htmlFor={`rationale-${fieldKey}`}>{fieldKey.replace(/_/g, " ")}</label>
+              <label htmlFor={`rationale-${fieldKey}`}>{customerFieldLabel(fieldKey)}</label>
               <input
                 id={`rationale-${fieldKey}`}
                 value={fieldValue}
@@ -117,7 +118,7 @@ export function FrameworkRootFieldsPanel({
       </section>
 
       <RecordSection
-        title="KPIs"
+        title="Success measures"
         records={framework.kpis}
         editable={editable}
         onChange={(records) => onChange(updateFrameworkArrayField(framework, "kpis", records))}
@@ -159,7 +160,7 @@ export function FrameworkRootFieldsPanel({
         }
       />
       <RecordSection
-        title="Open items"
+        title="Assumptions and open items"
         records={framework.open_items}
         editable={editable}
         onChange={(records) =>

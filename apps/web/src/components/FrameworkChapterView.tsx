@@ -9,22 +9,48 @@ import {
   sourceRefsForFactDisplay,
 } from "@/lib/frameworkEvidence";
 import { updateChapterStringBody } from "@/lib/frameworkEdit";
+import { customerBlockLabel, customerFieldLabel } from "@/lib/frameworkLabels";
 import { updateChapterBodyValue } from "@/lib/frameworkNestedEdit";
 import type { FrameworkChapter } from "@/lib/frameworkTypes";
+
+function EvidenceDisclosure({
+  refs,
+  emptyLabel,
+  ariaLabel,
+}: {
+  refs: ReturnType<typeof sourceRefsForFactDisplay>;
+  emptyLabel: string;
+  ariaLabel: string;
+}) {
+  const count = refs.length;
+  return (
+    <details className="framework-evidence-disclosure">
+      <summary>
+        {count > 0
+          ? `Cited sources (${count})`
+          : "Cited sources"}
+      </summary>
+      <div className="framework-fact-sources" aria-label={ariaLabel}>
+        {count > 0 ? (
+          refs.map((refItem, refIndex) => (
+            <SourceRefBadge key={`${refItem.conversation_id}-${refItem.excerpt_pointer}-${refIndex}`} refItem={refItem} />
+          ))
+        ) : (
+          <p className="framework-fact-sources-empty">{emptyLabel}</p>
+        )}
+      </div>
+    </details>
+  );
+}
 
 function ChapterSourceRefs({ chapter }: { chapter: FrameworkChapter }) {
   const refs = sourceRefsForFactDisplay(chapter);
   return (
-    <div className="framework-fact-sources" aria-label="Chapter-level source references">
-      <p className="framework-fact-kind">Chapter-level sources — not attached to individual facts</p>
-      {refs.length > 0 ? (
-        refs.map((refItem, refIndex) => (
-          <SourceRefBadge key={`${chapter.chapter_id}-ref-${refIndex}`} refItem={refItem} />
-        ))
-      ) : (
-        <p className="framework-fact-sources-empty">No cited source for this chapter.</p>
-      )}
-    </div>
+    <EvidenceDisclosure
+      refs={refs}
+      emptyLabel="No cited source for this chapter."
+      ariaLabel="Chapter-level cited sources"
+    />
   );
 }
 
@@ -79,7 +105,9 @@ export function FrameworkChapterView({
                   className="framework-fact-block"
                   data-testid="framework-fact-block"
                 >
-                  {blockType ? <p className="framework-fact-kind">{blockType}</p> : null}
+                  {blockType ? (
+                    <p className="framework-fact-kind">{customerBlockLabel(blockType)}</p>
+                  ) : null}
                   {provenanceKind ? <p className="framework-fact-kind">{provenanceKind}</p> : null}
                   <div className="framework-fact-fields">
                     {Object.entries(block)
@@ -88,7 +116,7 @@ export function FrameworkChapterView({
                         <FrameworkNestedValue
                           key={fieldKey}
                           id={`${chapter.chapter_id}-${blockIndex}-${fieldKey}`}
-                          label={fieldKey}
+                          label={customerFieldLabel(fieldKey)}
                           value={fieldValue}
                           editable={editable}
                           onChange={(next) =>
@@ -97,21 +125,12 @@ export function FrameworkChapterView({
                         />
                       ))}
                   </div>
-                  <div
-                    className="framework-fact-sources"
-                    aria-label="Source references for this fact"
-                    data-testid="framework-fact-sources"
-                  >
-                    {factRefs.length > 0 ? (
-                      factRefs.map((refItem, refIndex) => (
-                        <SourceRefBadge
-                          key={`${chapter.chapter_id}-${blockIndex}-${refItem.conversation_id}-${refItem.excerpt_pointer}-${refIndex}`}
-                          refItem={refItem}
-                        />
-                      ))
-                    ) : (
-                      <p className="framework-fact-sources-empty">No cited source for this fact.</p>
-                    )}
+                  <div data-testid="framework-fact-sources">
+                    <EvidenceDisclosure
+                      refs={factRefs}
+                      emptyLabel="No cited source for this fact."
+                      ariaLabel="Cited sources for this fact"
+                    />
                   </div>
                 </article>
               );
@@ -119,7 +138,7 @@ export function FrameworkChapterView({
           )
         ) : (
           <div className="form-field">
-            <label htmlFor={`${chapter.chapter_id}-body`}>Body</label>
+            <label htmlFor={`${chapter.chapter_id}-body`}>Content</label>
             <textarea
               id={`${chapter.chapter_id}-body`}
               rows={8}

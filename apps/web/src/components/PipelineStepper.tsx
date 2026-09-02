@@ -8,6 +8,7 @@ interface PipelineStepperProps {
   frameworkReady?: boolean;
   frameworkConfirmed?: boolean;
   planReady?: boolean;
+  presentationReady?: boolean;
 }
 
 function stepHref(stepId: number, opportunityId?: string): string {
@@ -28,6 +29,7 @@ export function PipelineStepper({
   frameworkReady = false,
   frameworkConfirmed = false,
   planReady = false,
+  presentationReady = false,
 }: PipelineStepperProps) {
   const steps = [
     {
@@ -41,10 +43,10 @@ export function PipelineStepper({
       id: 2,
       title: "Framework",
       detail: frameworkConfirmed
-        ? "Confirmed"
+        ? "Approved"
         : frameworkReady
-          ? "Draft ready for review"
-          : "Generate and review 14 chapters",
+          ? "Ready for review"
+          : "Generate and review the customer story",
       complete: frameworkConfirmed,
       active: currentStep === 2,
     },
@@ -57,9 +59,9 @@ export function PipelineStepper({
     },
     {
       id: 4,
-      title: "Deck",
-      detail: "Preview slides and download",
-      complete: false,
+      title: "Presentation",
+      detail: presentationReady ? "Your presentation is ready" : "Preview and download",
+      complete: presentationReady,
       active: currentStep === 4,
     },
   ] as const;

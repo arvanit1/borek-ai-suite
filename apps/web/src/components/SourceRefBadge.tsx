@@ -12,7 +12,6 @@ export function SourceRefBadge({ refItem }: SourceRefBadgeProps) {
     <details className="source-ref-badge">
       <summary>{label}</summary>
       <p className="source-ref-detail">
-        <span>Conversation ID: {refItem.conversation_id}</span>
         <span>{detail}</span>
       </p>
     </details>

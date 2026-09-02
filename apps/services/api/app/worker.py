@@ -20,6 +20,40 @@ celery_app.conf.task_always_eager = settings.API_DATA_BACKEND == "memory"
 celery_app.conf.task_eager_propagates = False
 
 
+def _is_retryable_error(exc: Exception) -> bool:
+    """Validation failures are not retryable by the user; provider/network errors are."""
+    if hasattr(exc, "retryable"):
+        return bool(exc.retryable)
+
+    non_retryable = {
+        "VALIDATION_FAILED",
+        "SLIDE_VALIDATION_FAILED",
+        "SCHEMA_VALIDATION_ERROR",
+        "CONTENT_CONSTRAINT_EXCEEDED",
+        "PRESENTATION_PLAN_VALIDATION_FAILED",
+        "UNGROUNDED_CONTENT_ERROR",
+    }
+    error_code = (
+        getattr(exc, "code", "")
+        or getattr(exc, "error_code", "")
+        or type(exc).__name__
+    )
+
+    if any(
+        keyword in type(exc).__name__
+        for keyword in (
+            "Validation",
+            "Constraint",
+            "Ungrounded",
+            "Schema",
+            "SlideGenerationError",
+        )
+    ):
+        return False
+
+    return error_code not in non_retryable
+
+
 @celery_app.on_after_configure.connect
 def _log_worker_runtime_profile(**_kwargs) -> None:
     from app.runtime_profile import log_runtime_profile
@@ -172,7 +206,7 @@ def run_framework_generation_task(
             getattr(exc, "code", "FRAMEWORK_GENERATION_FAILED"),
             str(exc),
             stage,
-            bool(getattr(exc, "retryable", True)),
+            _is_retryable_error(exc),
             repository=store,
         )
         raise
@@ -277,7 +311,7 @@ def run_framework_regenerate_chapter_task(
             getattr(exc, "code", "FRAMEWORK_REGENERATE_FAILED"),
             str(exc),
             stage,
-            bool(getattr(exc, "retryable", True)),
+            _is_retryable_error(exc),
             repository=store,
         )
         raise
@@ -348,7 +382,7 @@ def run_presentation_generation_task(
             getattr(exc, "code", "PRESENTATION_GENERATION_FAILED"),
             str(exc),
             stage,
-            bool(getattr(exc, "retryable", True)),
+            _is_retryable_error(exc),
             repository=store,
         )
         raise
@@ -432,7 +466,7 @@ def _run_slide_task(
             getattr(exc, "code", "SLIDE_GENERATION_FAILED"),
             str(exc),
             stage,
-            bool(getattr(exc, "retryable", True)),
+            _is_retryable_error(exc),
             repository=store,
         )
         raise

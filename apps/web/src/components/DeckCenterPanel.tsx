@@ -11,26 +11,43 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { SlidePreviewCard } from "@/components/SlidePreviewCard";
 import {
   ApiRequestError,
+  changePresentationSlideLayout,
   downloadPresentationFile,
+  FRAMEWORK_JOB_TIMEOUT_MS,
   generatePresentation,
   getActiveJob,
   getDeckCenter,
+  getJob,
   getLatestPresentation,
+  getOpportunity,
   getPresentation,
+  regeneratePresentationSlide,
   retryJob,
   waitForJob,
 } from "@/lib/api";
 import {
+  isDeckFileMissingError,
   isMissingPresentationError,
   isPresentationNotReadyError,
 } from "@/lib/apiErrors";
+import { buildDownloadFilename, mapDeckSlides } from "@/lib/deckCenter";
+import type { DeckCenterResponse, PresentationResponse } from "@/lib/deckTypes";
 import {
   generationProgressMessage,
   inspectActiveJob,
   stageGroupForPage,
 } from "@/lib/jobReconnect";
-import { buildDownloadFilename, mapDeckSlides } from "@/lib/deckCenter";
-import type { DeckCenterResponse, PresentationResponse } from "@/lib/deckTypes";
+import { startPipelineParallelLoad } from "@/lib/pipelineParallelLoad";
+import { opportunityLabel, pipelineHref } from "@/lib/pipelineContext";
+import {
+  ARTIFACTS_PARTIAL_LABEL,
+  DOWNLOAD_PDF_LABEL,
+  DOWNLOAD_POWERPOINT_LABEL,
+  formatGeneratedAt,
+  presentationReadyTitle,
+  slideCountLabel,
+  versionLabel,
+} from "@/lib/presentationReady";
 import {
   jobFailureRecoveryNotice,
   recoveryActionHref,
@@ -53,23 +70,53 @@ export function DeckCenterPanel({
   const { accessToken, isAuthenticated, loading, session } = useAuth();
   const [presentation, setPresentation] = useState<PresentationResponse | null>(null);
   const [deck, setDeck] = useState<DeckCenterResponse | null>(null);
+  const [opportunityName, setOpportunityName] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [contentLoading, setContentLoading] = useState(true);
+  const [jobPolling, setJobPolling] = useState(false);
+  const [jobStage, setJobStage] = useState<string | null>(null);
   const [notice, setNotice] = useState<RecoveryNotice | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [retryJobId, setRetryJobId] = useState<string | null>(null);
+  const [featuredSlideId, setFeaturedSlideId] = useState<string | null>(null);
+  const [pptxAvailable, setPptxAvailable] = useState(true);
+  const [pdfAvailable, setPdfAvailable] = useState(true);
+  const [partialArtifacts, setPartialArtifacts] = useState(false);
   const [recoveryTarget, setRecoveryTarget] = useState<"job" | "download-pptx" | "download-pdf">(
     "job",
   );
 
   const slideTiles = useMemo(() => (deck ? mapDeckSlides(deck) : []), [deck]);
+  const featuredSlide =
+    slideTiles.find((slide) => slide.slideId === featuredSlideId) ?? slideTiles[0] ?? null;
+  const ready = Boolean(deck && presentation);
+  const generatedAt = formatGeneratedAt(presentation?.created_at);
+  const version = versionLabel(deck?.version_number);
 
   const loadDeck = useCallback(
     async (presentationId: string) => {
       if (!accessToken) {
         return;
       }
-      const center = await getDeckCenter(accessToken, presentationId);
-      setDeck(center);
+      try {
+        const center = await getDeckCenter(accessToken, presentationId);
+        setDeck(center);
+        setPartialArtifacts(center.slides.length === 0);
+        setPptxAvailable(Boolean(center.pptx_download_url));
+        setPdfAvailable(Boolean(center.pdf_download_url));
+        const firstWithPreview = center.slides
+          .slice()
+          .sort((left, right) => left.slide_index - right.slide_index)
+          .find((slide) => slide.preview_url);
+        setFeaturedSlideId(firstWithPreview?.slide_id ?? center.slides[0]?.slide_id ?? null);
+      } catch (loadError) {
+        setDeck(null);
+        if (isPresentationNotReadyError(loadError)) {
+          setPartialArtifacts(true);
+          return;
+        }
+        throw loadError;
+      }
     },
     [accessToken],
   );
@@ -93,23 +140,32 @@ export function DeckCenterPanel({
       ) {
         throw loadError;
       }
+      if (isPresentationNotReadyError(loadError)) {
+        setPartialArtifacts(true);
+      }
     }
   }, [accessToken, loadDeck, opportunityId, requestedPresentationId]);
 
-  const loadPresentation = useCallback(async () => {
+  useEffect(() => {
     if (!accessToken) {
       return;
     }
-    setBusy(true);
-    setNotice(null);
-    try {
-      await applyLatestPresentation();
-    } catch (loadError) {
-      setNotice(recoveryNoticeFromError(loadError, "deck"));
-    } finally {
-      setBusy(false);
-    }
-  }, [accessToken, applyLatestPresentation]);
+    let cancelled = false;
+    void getOpportunity(accessToken, opportunityId)
+      .then((opportunity) => {
+        if (!cancelled) {
+          setOpportunityName(opportunityLabel(opportunity));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setOpportunityName(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, opportunityId]);
 
   useEffect(() => {
     if (loading || !accessToken) {
@@ -117,68 +173,73 @@ export function DeckCenterPanel({
     }
     const token = accessToken;
     let cancelled = false;
-    async function bootstrap() {
-      setBusy(true);
-      setNotice(null);
-      setInfo(null);
-      setRetryJobId(null);
-      try {
-        const job = await getActiveJob(
-          token,
-          opportunityId,
-          stageGroupForPage("deck"),
-        );
-        if (cancelled) {
-          return;
-        }
-        const decision = inspectActiveJob(job, "deck");
-        if (decision.action === "monitor") {
-          setInfo(generationProgressMessage("deck", true));
-          setNotice(runningRecoveryNotice("deck", decision.jobId));
-          try {
-            await waitForJob(token, decision.jobId);
-            if (!cancelled) {
-              setNotice(null);
-            }
-          } catch (monitorError) {
-            if (!cancelled) {
-              setInfo(null);
-              setNotice(recoveryNoticeFromError(monitorError, "deck"));
-              if (monitorError instanceof ApiRequestError && monitorError.retryable && monitorError.jobId) {
-                setRetryJobId(monitorError.jobId);
-              }
-            }
-          }
-        } else if (decision.action === "failed") {
+
+    setContentLoading(true);
+    setJobPolling(false);
+    setJobStage(null);
+    setNotice(null);
+    setInfo(null);
+    setRetryJobId(null);
+
+    const cancel = startPipelineParallelLoad(
+      "deck",
+      {
+        onContentLoaded: () => {},
+        onContentMissing: () => {
+          setPresentation(null);
+          setDeck(null);
+        },
+        onContentLoadFinished: () => {
+          setContentLoading(false);
+        },
+        onContentLoadError: (message) => {
+          setNotice(recoveryNoticeFromError(new Error(message), "deck"));
+        },
+        onJobPollingStart: (message, stage, jobId) => {
+          setJobPolling(true);
+          setInfo(message);
+          setJobStage(stage);
+          setNotice(runningRecoveryNotice("deck", jobId));
+        },
+        onJobStageUpdate: (stage) => {
+          setJobStage(stage);
+        },
+        onJobPollingFinished: () => {
+          setJobPolling(false);
           setInfo(null);
-          setNotice(jobFailureRecoveryNotice(decision.error, "deck", decision.jobId));
-          if (decision.retryable) {
-            setRetryJobId(decision.jobId);
+          setJobStage(null);
+          setNotice(null);
+        },
+        onJobFailed: (message, failedJobId) => {
+          setNotice(
+            recoveryNoticeFromError(
+              {
+                message,
+                jobId: failedJobId ?? undefined,
+                retryable: Boolean(failedJobId),
+              },
+              "deck",
+            ),
+          );
+          setRetryJobId(failedJobId);
+        },
+      },
+      {
+        loadContent: async () => {
+          if (cancelled) {
+            return;
           }
-        }
-        if (cancelled) {
-          return;
-        }
-        try {
           await applyLatestPresentation();
-        } catch (loadError) {
-          if (!cancelled && decision.action !== "failed") {
-            setNotice(recoveryNoticeFromError(loadError, "deck"));
-          }
-        }
-      } catch (bootstrapError) {
-        if (!cancelled) {
-          setNotice(recoveryNoticeFromError(bootstrapError, "deck"));
-        }
-      } finally {
-        if (!cancelled) {
-          setBusy(false);
-        }
-      }
-    }
-    void bootstrap();
+        },
+        isMissingError: isMissingPresentationError,
+        getActiveJob: () => getActiveJob(token, opportunityId, stageGroupForPage("deck")),
+        getJob: (jobId) => getJob(token, jobId),
+      },
+    );
+
     return () => {
       cancelled = true;
+      cancel();
     };
   }, [accessToken, applyLatestPresentation, loading, opportunityId]);
 
@@ -195,10 +256,10 @@ export function DeckCenterPanel({
       const generated = await generatePresentation(accessToken, opportunityId);
       setInfo(generationProgressMessage("deck", Boolean(generated.is_existing_job)));
       setNotice(runningRecoveryNotice("deck", generated.job_id));
-      await waitForJob(accessToken, generated.job_id);
+      await waitForJob(accessToken, generated.job_id, FRAMEWORK_JOB_TIMEOUT_MS);
       setNotice(null);
       await applyLatestPresentation();
-      setInfo("Deck generated. Slide previews and downloads are ready below.");
+      setInfo(null);
     } catch (generateError) {
       setInfo(null);
       setNotice(recoveryNoticeFromError(generateError, "deck"));
@@ -221,9 +282,10 @@ export function DeckCenterPanel({
     try {
       const queued = await retryJob(accessToken, retryJobId);
       setRetryJobId(null);
-      await waitForJob(accessToken, queued.job_id);
+      await waitForJob(accessToken, queued.job_id, FRAMEWORK_JOB_TIMEOUT_MS);
       setNotice(null);
       await applyLatestPresentation();
+      setInfo(null);
     } catch (retryError) {
       setInfo(null);
       setNotice(recoveryNoticeFromError(retryError, "deck"));
@@ -252,7 +314,7 @@ export function DeckCenterPanel({
       }
       if (decision.action === "monitor") {
         setNotice(runningRecoveryNotice("deck", decision.jobId));
-        await waitForJob(accessToken, decision.jobId);
+        await waitForJob(accessToken, decision.jobId, FRAMEWORK_JOB_TIMEOUT_MS);
       }
       await applyLatestPresentation();
       setNotice(null);
@@ -308,6 +370,14 @@ export function DeckCenterPanel({
       anchor.click();
       URL.revokeObjectURL(url);
     } catch (downloadError) {
+      if (isDeckFileMissingError(downloadError)) {
+        if (kind === "pptx") {
+          setPptxAvailable(false);
+        } else {
+          setPdfAvailable(false);
+        }
+        setPartialArtifacts(true);
+      }
       setNotice(
         recoveryNoticeFromError(downloadError, "deck", {
           connectionMessage: "The download was interrupted. Reconnect to try it again.",
@@ -317,6 +387,64 @@ export function DeckCenterPanel({
       setBusy(false);
     }
   }
+
+  async function handleRegenerateSlide(slideId: string) {
+    if (!accessToken || !presentation) {
+      return;
+    }
+    setRecoveryTarget("job");
+    setBusy(true);
+    setNotice(null);
+    try {
+      const queued = await regeneratePresentationSlide(accessToken, presentation.id, slideId);
+      setInfo("Updating this slide…");
+      setNotice(runningRecoveryNotice("deck", queued.job_id));
+      await waitForJob(accessToken, queued.job_id, FRAMEWORK_JOB_TIMEOUT_MS);
+      await loadDeck(presentation.id);
+      setNotice(null);
+      setInfo(null);
+    } catch (regenerateError) {
+      setInfo(null);
+      setNotice(recoveryNoticeFromError(regenerateError, "deck"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleChangeLayout(slideId: string, layoutId: string) {
+    if (!accessToken || !presentation) {
+      return;
+    }
+    setRecoveryTarget("job");
+    setBusy(true);
+    setNotice(null);
+    try {
+      const queued = await changePresentationSlideLayout(
+        accessToken,
+        presentation.id,
+        slideId,
+        layoutId,
+      );
+      setInfo("Updating this slide layout…");
+      setNotice(runningRecoveryNotice("deck", queued.job_id));
+      await waitForJob(accessToken, queued.job_id, FRAMEWORK_JOB_TIMEOUT_MS);
+      await loadDeck(presentation.id);
+      setNotice(null);
+      setInfo(null);
+    } catch (layoutError) {
+      setInfo(null);
+      setNotice(recoveryNoticeFromError(layoutError, "deck"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const metaParts = [
+    opportunityName,
+    deck ? slideCountLabel(slideTiles.length) : null,
+    version,
+    generatedAt ? `Generated ${generatedAt}` : null,
+  ].filter(Boolean);
 
   return (
     <div className="app-workspace">
@@ -329,7 +457,7 @@ export function DeckCenterPanel({
           <div className="upload-banner upload-banner-info">
             <div>
               <strong>Authentication required</strong>
-              <p>Sign in to preview slides and download the presentation deck.</p>
+              <p>Sign in to preview and download this presentation.</p>
             </div>
             <div className="upload-banner-actions">
               <Link href="/login" className="btn btn-primary">
@@ -345,20 +473,27 @@ export function DeckCenterPanel({
           frameworkReady
           frameworkConfirmed
           planReady
+          presentationReady={ready}
         />
         <AppPageHeader
           kicker="Step 4 of 4"
-          title="Deck center"
-          lead="Preview rendered slide images and download the generated deck before sharing with clients."
+          title={presentationReadyTitle(ready)}
+          lead={
+            ready
+              ? "Preview the slides, then download the PowerPoint. A PDF copy is also available."
+              : "When generation finishes, the preview and downloads appear here automatically."
+          }
         />
 
         <div className="upload-layout">
           <aside className="upload-sidebar">
             <div className="upload-meta-card">
               <h3>Active opportunity</h3>
-              <p className="upload-meta-empty">Download the deck when slide previews look correct.</p>
+              <p className="upload-meta-empty">
+                {opportunityName ?? "Download PowerPoint when the preview looks right."}
+              </p>
               <Link
-                href={`/plan-preview?opportunityId=${opportunityId}`}
+                href={pipelineHref("/plan-preview", opportunityId)}
                 className="btn btn-secondary btn-block"
               >
                 Back to plan
@@ -384,36 +519,77 @@ export function DeckCenterPanel({
                 onAction={handleRecoveryAction}
               />
             ) : null}
-            {info && !notice ? <div className="upload-banner upload-banner-success">{info}</div> : null}
+            {info && !notice && !jobPolling ? (
+              <div className="upload-banner upload-banner-success">{info}</div>
+            ) : null}
+            {partialArtifacts && ready ? (
+              <div className="upload-banner upload-banner-info">{ARTIFACTS_PARTIAL_LABEL}</div>
+            ) : null}
 
-            {busy && !deck && !notice ? (
+            {contentLoading && !presentation && !deck ? (
               <section className="upload-panel pipeline-panel-loading">
-                <p className="upload-hint" data-testid="pipeline-job-progress">
-                  {info ?? "Loading deck…"}
+                <p className="upload-hint" data-testid="deck-loading">
+                  Loading presentation…
                 </p>
               </section>
             ) : null}
 
-            {!busy && !deck && isAuthenticated && !notice ? (
+            {jobPolling ? (
+              <section className="upload-panel pipeline-panel-loading">
+                <p className="upload-hint" data-testid="pipeline-job-progress">
+                  {info ?? "Presentation rendering is running…"}
+                  {jobStage ? ` · ${jobStage.replaceAll("_", " ").toLowerCase()}` : ""}
+                </p>
+              </section>
+            ) : null}
+
+            {!contentLoading && !presentation && isAuthenticated && !notice ? (
               <section className="upload-panel pipeline-empty-panel">
                 <header className="upload-panel-header">
                   <div>
-                    <h2>Generate the presentation deck</h2>
+                    <h2>Build the presentation</h2>
                     <p>
-                      After the slide plan is approved, generate the full deck to render per-slide
-                      PNG previews and enable `.pptx` / `.pdf` downloads.
+                      After the slide plan is ready, build the presentation. The preview loads
+                      automatically when generation completes.
                     </p>
                   </div>
                 </header>
                 <div className="pipeline-empty-body">
-                  <p>No presentation deck exists yet for this opportunity.</p>
+                  <p>No presentation exists yet for this opportunity.</p>
                   <button
                     type="button"
                     className="btn btn-primary"
                     disabled={busy}
                     onClick={() => void handleGenerateDeck()}
                   >
-                    Generate deck
+                    Build presentation
+                  </button>
+                </div>
+              </section>
+            ) : null}
+
+            {presentation && !deck && isAuthenticated && !contentLoading && !busy && !notice ? (
+              <section className="upload-panel pipeline-empty-panel">
+                <header className="upload-panel-header">
+                  <div>
+                    <h2>Preview isn’t ready yet</h2>
+                    <p>
+                      The presentation exists, but some files are still missing. You can wait for
+                      generation to finish or try building again.
+                    </p>
+                  </div>
+                </header>
+                <div className="pipeline-empty-body">
+                  {metaParts.length > 0 ? (
+                    <p className="upload-hint">{metaParts.join(" · ")}</p>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    disabled={busy}
+                    onClick={() => void handleGenerateDeck()}
+                  >
+                    Build presentation
                   </button>
                 </div>
               </section>
@@ -421,54 +597,117 @@ export function DeckCenterPanel({
 
             {deck && presentation && accessToken ? (
               <>
-                <section className="upload-panel">
+                <section className="upload-panel presentation-ready-panel" data-testid="presentation-ready">
                   <header className="upload-panel-header">
                     <div>
                       <h2>{deck.presentation_name}</h2>
-                      <p className="upload-hint">
-                        Version {deck.version_number} · {slideTiles.length} slide
-                        {slideTiles.length === 1 ? "" : "s"}
-                      </p>
+                      <p className="upload-hint">{metaParts.join(" · ")}</p>
                     </div>
                     <div className="framework-toolbar-actions">
                       <button
                         type="button"
-                        className="btn btn-secondary"
-                        disabled={busy}
+                        className="btn btn-primary"
+                        data-testid="download-powerpoint"
+                        disabled={busy || !pptxAvailable}
                         onClick={() => void handleDownload("pptx")}
                       >
-                        Download .pptx
+                        {DOWNLOAD_POWERPOINT_LABEL}
                       </button>
                       <button
                         type="button"
-                        className="btn btn-primary"
-                        disabled={busy}
+                        className="btn btn-secondary"
+                        data-testid="download-pdf"
+                        disabled={busy || !pdfAvailable}
                         onClick={() => void handleDownload("pdf")}
                       >
-                        Download .pdf
+                        {DOWNLOAD_PDF_LABEL}
                       </button>
                     </div>
                   </header>
+                  {!pptxAvailable ? (
+                    <p className="upload-hint">PowerPoint isn’t available yet.</p>
+                  ) : null}
+                  {!pdfAvailable ? <p className="upload-hint">PDF isn’t available yet.</p> : null}
+
+                  {featuredSlide ? (
+                    <div className="presentation-hero" data-testid="presentation-hero-preview">
+                      <SlidePreviewCard
+                        accessToken={accessToken}
+                        slideId={featuredSlide.slideId}
+                        slideIndex={featuredSlide.slideIndex}
+                        layoutId={featuredSlide.layoutId}
+                        previewPath={featuredSlide.previewUrl}
+                        featured
+                        busy={busy}
+                        canEdit
+                        onRegenerate={(slideId) => void handleRegenerateSlide(slideId)}
+                        onChangeLayout={(slideId, layoutId) => void handleChangeLayout(slideId, layoutId)}
+                      />
+                    </div>
+                  ) : (
+                    <p className="upload-hint">Slide previews aren’t available yet.</p>
+                  )}
+
+                  <details className="framework-details-disclosure">
+                    <summary>Details</summary>
+                    <dl className="presentation-diagnostics">
+                      <div>
+                        <dt>Presentation ID</dt>
+                        <dd>{presentation.id}</dd>
+                      </div>
+                      <div>
+                        <dt>Plan ID</dt>
+                        <dd>{presentation.presentation_plan_id}</dd>
+                      </div>
+                      <div>
+                        <dt>Status</dt>
+                        <dd>{deck.status}</dd>
+                      </div>
+                      <div>
+                        <dt>Slide layouts</dt>
+                        <dd>
+                          {slideTiles.length > 0
+                            ? slideTiles
+                                .map(
+                                  (slide) =>
+                                    `Slide ${slide.slideIndex + 1}: ${slide.layoutId}`,
+                                )
+                                .join(" · ")
+                            : "None"}
+                        </dd>
+                      </div>
+                    </dl>
+                  </details>
                 </section>
 
                 <section className="upload-panel">
                   <header className="upload-panel-header">
                     <div>
-                      <h2>Slide previews</h2>
-                      <p>Rendered preview image for each planned slide.</p>
+                      <h2>Slide review</h2>
+                      <p>Open a slide to preview it. You can regenerate a slide or change its layout when another layout in the same family is available.</p>
                     </div>
                   </header>
-                  <div className="deck-slide-grid" data-testid="deck-slide-grid">
-                    {slideTiles.map((slide) => (
-                      <SlidePreviewCard
-                        key={`${slide.slideIndex}-${slide.layoutId}`}
-                        accessToken={accessToken}
-                        slideIndex={slide.slideIndex}
-                        layoutId={slide.layoutId}
-                        previewPath={slide.previewUrl}
-                      />
-                    ))}
-                  </div>
+                  {slideTiles.length > 0 ? (
+                    <div className="deck-slide-grid" data-testid="deck-slide-grid">
+                      {slideTiles.map((slide) => (
+                        <SlidePreviewCard
+                          key={slide.slideId}
+                          accessToken={accessToken}
+                          slideId={slide.slideId}
+                          slideIndex={slide.slideIndex}
+                          layoutId={slide.layoutId}
+                          previewPath={slide.previewUrl}
+                          busy={busy}
+                          canEdit
+                          onSelect={() => setFeaturedSlideId(slide.slideId)}
+                          onRegenerate={(slideId) => void handleRegenerateSlide(slideId)}
+                          onChangeLayout={(slideId, layoutId) => void handleChangeLayout(slideId, layoutId)}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="upload-hint">No slide previews were returned for this presentation.</p>
+                  )}
                 </section>
               </>
             ) : null}

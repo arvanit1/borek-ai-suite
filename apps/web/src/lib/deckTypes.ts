@@ -32,7 +32,8 @@ export interface PresentationGenerateResponse {
 }
 
 export interface SlidePreviewTile {
+  slideId: string;
   slideIndex: number;
   layoutId: string;
-  previewUrl: string;
+  previewUrl: string | null;
 }
