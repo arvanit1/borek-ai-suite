@@ -5,8 +5,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { AppPageHeader } from "@/components/AppPageHeader";
 import { useAuth } from "@/components/AuthProvider";
-import { JobFailureAlert } from "@/components/JobFailureAlert";
 import { PipelineStepper } from "@/components/PipelineStepper";
+import { RecoveryBanner } from "@/components/RecoveryBanner";
 import { SiteHeader } from "@/components/SiteHeader";
 import {
   ApiRequestError,
@@ -17,7 +17,7 @@ import {
   retryJob,
   waitForJob,
 } from "@/lib/api";
-import { isMissingPresentationPlanError } from "@/lib/apiErrors";
+import { isMissingFrameworkError, isMissingPresentationPlanError } from "@/lib/apiErrors";
 import {
   generationProgressMessage,
   inspectActiveJob,
@@ -25,6 +25,15 @@ import {
 } from "@/lib/jobReconnect";
 import { extractSlidePreviewRows, formatLayoutLabel } from "@/lib/planPreview";
 import type { PresentationPlanResponse } from "@/lib/planTypes";
+import {
+  inputRequiredRecoveryNotice,
+  jobFailureRecoveryNotice,
+  recoveryActionHref,
+  recoveryNoticeFromError,
+  retryingRecoveryNotice,
+  runningRecoveryNotice,
+} from "@/lib/recoveryUx";
+import type { RecoveryNotice } from "@/lib/recoveryUx";
 
 interface PlanPreviewPanelProps {
   opportunityId: string;
@@ -36,7 +45,7 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
   const [frameworkVersionId, setFrameworkVersionId] = useState<string | null>(null);
   const [plan, setPlan] = useState<PresentationPlanResponse | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<RecoveryNotice | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [retryJobId, setRetryJobId] = useState<string | null>(null);
 
@@ -49,15 +58,16 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
 
   const loadFrameworkStatus = useCallback(async () => {
     if (!accessToken) {
-      return;
+      return null;
     }
     try {
       const latest = await getLatestFramework(accessToken, opportunityId);
-      setFrameworkConfirmed(latest.status === "confirmed");
-      setFrameworkVersionId(latest.id);
-    } catch {
-      setFrameworkConfirmed(false);
-      setFrameworkVersionId(null);
+      return { confirmed: latest.status === "confirmed", frameworkVersionId: latest.id };
+    } catch (statusError) {
+      if (!isMissingFrameworkError(statusError)) {
+        throw statusError;
+      }
+      return { confirmed: false, frameworkVersionId: null };
     }
   }, [accessToken, opportunityId]);
 
@@ -81,13 +91,11 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
       return;
     }
     setBusy(true);
-    setError(null);
+    setNotice(null);
     try {
       await applyLatestPlan();
     } catch (loadError) {
-      const message =
-        loadError instanceof Error ? loadError.message : "Could not load presentation plan.";
-      setError(message);
+      setNotice(recoveryNoticeFromError(loadError, "plan"));
     } finally {
       setBusy(false);
     }
@@ -101,10 +109,16 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
     let cancelled = false;
     async function bootstrap() {
       setBusy(true);
-      setError(null);
+      setNotice(null);
       setInfo(null);
       setRetryJobId(null);
       try {
+        const frameworkStatus = await loadFrameworkStatus();
+        if (cancelled) {
+          return;
+        }
+        setFrameworkConfirmed(frameworkStatus?.confirmed ?? false);
+        setFrameworkVersionId(frameworkStatus?.frameworkVersionId ?? null);
         const job = await getActiveJob(
           token,
           opportunityId,
@@ -116,14 +130,16 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
         const decision = inspectActiveJob(job, "plan");
         if (decision.action === "monitor") {
           setInfo(generationProgressMessage("plan", true));
+          setNotice(runningRecoveryNotice("plan", decision.jobId));
           try {
             await waitForJob(token, decision.jobId);
+            if (!cancelled) {
+              setNotice(null);
+            }
           } catch (monitorError) {
             if (!cancelled) {
               setInfo(null);
-              setError(
-                monitorError instanceof Error ? monitorError.message : "Generation job failed.",
-              );
+              setNotice(recoveryNoticeFromError(monitorError, "plan"));
               if (monitorError instanceof ApiRequestError && monitorError.retryable && monitorError.jobId) {
                 setRetryJobId(monitorError.jobId);
               }
@@ -131,7 +147,7 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
           }
         } else if (decision.action === "failed") {
           setInfo(null);
-          setError(decision.message);
+          setNotice(jobFailureRecoveryNotice(decision.error, "plan", decision.jobId));
           if (decision.retryable) {
             setRetryJobId(decision.jobId);
           }
@@ -143,21 +159,13 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
           await applyLatestPlan();
         } catch (loadError) {
           if (!cancelled && decision.action !== "failed") {
-            const message =
-              loadError instanceof Error
-                ? loadError.message
-                : "Could not load presentation plan.";
-            setError(message);
+            setNotice(recoveryNoticeFromError(loadError, "plan"));
           }
         }
       } catch (bootstrapError) {
         if (!cancelled) {
           setInfo(null);
-          setError(
-            bootstrapError instanceof Error
-              ? bootstrapError.message
-              : "Could not reconnect to the generation job.",
-          );
+          setNotice(recoveryNoticeFromError(bootstrapError, "plan"));
         }
       } finally {
         if (!cancelled) {
@@ -165,7 +173,6 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
         }
       }
     }
-    void loadFrameworkStatus();
     void bootstrap();
     return () => {
       cancelled = true;
@@ -177,7 +184,7 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
       return;
     }
     setBusy(true);
-    setError(null);
+    setNotice(null);
     setInfo(null);
     setRetryJobId(null);
     try {
@@ -187,14 +194,14 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
         frameworkVersionId ?? undefined,
       );
       setInfo(generationProgressMessage("plan", Boolean(generated.is_existing_job)));
+      setNotice(runningRecoveryNotice("plan", generated.job_id));
       await waitForJob(accessToken, generated.job_id);
+      setNotice(null);
       await loadPlan();
       setInfo("Presentation plan ready. Review order, purpose, and layout below.");
     } catch (generateError) {
       setInfo(null);
-      setError(
-        generateError instanceof Error ? generateError.message : "Plan generation failed.",
-      );
+      setNotice(recoveryNoticeFromError(generateError, "plan"));
       if (generateError instanceof ApiRequestError && generateError.retryable && generateError.jobId) {
         setRetryJobId(generateError.jobId);
       }
@@ -208,21 +215,76 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
       return;
     }
     setBusy(true);
-    setError(null);
+    setNotice(retryingRecoveryNotice("plan", retryJobId));
     setInfo("Retrying generation from the last failed stage...");
     try {
       const queued = await retryJob(accessToken, retryJobId);
       setRetryJobId(null);
       await waitForJob(accessToken, queued.job_id);
+      setNotice(null);
       await loadPlan();
     } catch (retryError) {
       setInfo(null);
-      setError(retryError instanceof Error ? retryError.message : "Retry failed.");
+      setNotice(recoveryNoticeFromError(retryError, "plan"));
       if (retryError instanceof ApiRequestError && retryError.retryable && retryError.jobId) {
         setRetryJobId(retryError.jobId);
       }
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function handleReconnect() {
+    if (!accessToken) {
+      return;
+    }
+    setBusy(true);
+    setInfo(null);
+    setNotice(runningRecoveryNotice("plan"));
+    try {
+      const frameworkStatus = await loadFrameworkStatus();
+      setFrameworkConfirmed(frameworkStatus?.confirmed ?? false);
+      setFrameworkVersionId(frameworkStatus?.frameworkVersionId ?? null);
+      const job = await getActiveJob(accessToken, opportunityId, stageGroupForPage("plan"));
+      const decision = inspectActiveJob(job, "plan");
+      if (decision.action === "failed") {
+        setRetryJobId(decision.retryable ? decision.jobId : null);
+        setNotice(jobFailureRecoveryNotice(decision.error, "plan", decision.jobId));
+        return;
+      }
+      if (decision.action === "monitor") {
+        setNotice(runningRecoveryNotice("plan", decision.jobId));
+        await waitForJob(accessToken, decision.jobId);
+      }
+      await applyLatestPlan();
+      setNotice(null);
+    } catch (reconnectError) {
+      setNotice(recoveryNoticeFromError(reconnectError, "plan"));
+      if (
+        reconnectError instanceof ApiRequestError &&
+        reconnectError.retryable &&
+        reconnectError.jobId
+      ) {
+        setRetryJobId(reconnectError.jobId);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const activeNotice =
+    notice ?? (frameworkConfirmed === false ? inputRequiredRecoveryNotice("plan") : null);
+
+  function handleRecoveryAction() {
+    if (activeNotice?.action?.kind === "RETRY") {
+      void handleRetry();
+      return;
+    }
+    if (
+      activeNotice?.action?.kind === "RECONNECT" ||
+      activeNotice?.action?.kind === "KEEP_CHECKING"
+    ) {
+      void handleReconnect();
     }
   }
 
@@ -283,37 +345,26 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
           </aside>
 
           <div className="upload-main">
-        {frameworkConfirmed === false ? (
-          <div className="upload-banner upload-banner-info">
-            <div>
-              <strong>Confirmed framework required</strong>
-              <p>
-                Presentation planning starts only after the framework is confirmed. Review and
-                confirm the framework first.
-              </p>
-            </div>
-            <div className="upload-banner-actions">
-              <Link
-                href={`/framework-review?opportunityId=${opportunityId}`}
-                className="btn btn-primary"
-              >
-                Review framework
-              </Link>
-            </div>
-          </div>
-        ) : null}
-
-        {error ? (
-          <JobFailureAlert
-            message={error}
-            retryable={Boolean(retryJobId)}
-            retrying={busy}
-            onRetry={() => void handleRetry()}
+        {activeNotice ? (
+          <RecoveryBanner
+            notice={
+              recoveryActionHref(activeNotice, opportunityId)
+                ? {
+                    ...activeNotice,
+                    action: {
+                      ...activeNotice.action!,
+                      href: recoveryActionHref(activeNotice, opportunityId),
+                    },
+                  }
+                : activeNotice
+            }
+            busy={busy}
+            onAction={handleRecoveryAction}
           />
         ) : null}
-        {info ? <div className="upload-banner upload-banner-success">{info}</div> : null}
+        {info && !activeNotice ? <div className="upload-banner upload-banner-success">{info}</div> : null}
 
-        {busy && !plan ? (
+        {busy && !plan && !activeNotice ? (
           <section className="upload-panel pipeline-panel-loading">
             <p className="upload-hint" data-testid="pipeline-job-progress">
               {info ?? "Loading presentation plan..."}
@@ -361,7 +412,7 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
               continue to the deck center to generate slide previews and download the presentation.
             </p>
           </section>
-        ) : frameworkConfirmed && !busy && isAuthenticated ? (
+        ) : frameworkConfirmed && !busy && isAuthenticated && !activeNotice ? (
           <section className="upload-panel pipeline-empty-panel">
             <header className="upload-panel-header">
               <div>
