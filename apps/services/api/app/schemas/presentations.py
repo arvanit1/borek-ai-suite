@@ -24,6 +24,7 @@ VALID_LAYOUT_IDS = frozenset(LAYOUT_REGISTRY.keys())
 
 class GeneratePresentationPlanRequest(BaseModel):
     framework_version_id: UUID | None = None
+    auto_continue: bool = False
 
 
 class GeneratePresentationRequest(BaseModel):

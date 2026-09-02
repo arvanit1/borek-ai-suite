@@ -424,6 +424,15 @@ def test_explicit_retryable_false_respected() -> None:
     assert _is_retryable_error(NonRetryableError("validation rejected")) is False
 
 
+def test_framework_validation_error_marked_non_retryable() -> None:
+    from app.worker import _is_retryable_error
+
+    class SchemaValidationError(Exception):
+        pass
+
+    assert _is_retryable_error(SchemaValidationError("invalid chapter")) is False
+
+
 def test_wrong_user_cannot_retry_job() -> None:
     client = _client()
     opportunity_id = _create_opportunity(client)

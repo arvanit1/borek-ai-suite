@@ -76,6 +76,8 @@ export interface JobResponse {
   completed_at: string | null;
   result: Record<string, unknown>;
   error: JobErrorDetail | null;
+  /** Telemetry (tokens, cost, durations) — never rendered as generation progress. */
+  metrics?: Record<string, unknown>;
 }
 
 export interface ActiveJobResponse {
@@ -183,16 +185,29 @@ export async function getLatestOpportunityJob(
   );
 }
 
+/** Maximum client-side wait for long-running generation jobs (12 minutes). */
 export const FRAMEWORK_JOB_TIMEOUT_MS = 720_000;
+
+export const JOB_POLL_INTERVAL_MS = 500;
+
+export interface WaitForJobOptions {
+  timeoutMs?: number;
+  pollIntervalMs?: number;
+  /** Called with every polled job, including intermediate stage updates. */
+  onProgress?: (job: JobResponse) => void;
+}
 
 export async function waitForJob(
   accessToken: string,
   jobId: string,
-  timeoutMs = 240_000,
+  options: number | WaitForJobOptions = {},
 ): Promise<JobResponse> {
+  const { timeoutMs = FRAMEWORK_JOB_TIMEOUT_MS, pollIntervalMs = JOB_POLL_INTERVAL_MS, onProgress } =
+    typeof options === "number" ? { timeoutMs: options } : options;
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const job = await getJob(accessToken, jobId);
+    onProgress?.(job);
     if (job.status === "COMPLETED") {
       return job;
     }
@@ -208,8 +223,9 @@ export async function waitForJob(
         },
       );
     }
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
   }
+  // A client-side timeout says nothing about the backend job, which keeps running.
   throw new ApiRequestError("Generation job timed out", 408, "JOB_TIMEOUT", { jobId });
 }
 
@@ -428,15 +444,17 @@ export async function generatePresentationPlan(
   accessToken: string,
   opportunityId: string,
   frameworkVersionId?: string,
+  autoContinue = false,
 ): Promise<PresentationPlanGenerateResponse> {
   return apiFetch<PresentationPlanGenerateResponse>(
     `/opportunities/${opportunityId}/presentation-plan/generate`,
     accessToken,
     {
       method: "POST",
-      body: JSON.stringify(
-        frameworkVersionId ? { framework_version_id: frameworkVersionId } : {},
-      ),
+      body: JSON.stringify({
+        ...(frameworkVersionId ? { framework_version_id: frameworkVersionId } : {}),
+        ...(autoContinue ? { auto_continue: true } : {}),
+      }),
     },
   );
 }
@@ -453,6 +471,26 @@ export async function getLatestPresentation(
 ): Promise<PresentationResponse> {
   return apiFetch<PresentationResponse>(
     `/opportunities/${opportunityId}/presentation`,
+    accessToken,
+  );
+}
+
+export async function getPresentationPlan(
+  accessToken: string,
+  presentationPlanId: string,
+): Promise<PresentationPlanResponse> {
+  return apiFetch<PresentationPlanResponse>(
+    `/presentation-plans/${presentationPlanId}`,
+    accessToken,
+  );
+}
+
+export async function getPresentation(
+  accessToken: string,
+  presentationId: string,
+): Promise<PresentationResponse> {
+  return apiFetch<PresentationResponse>(
+    `/presentations/${presentationId}`,
     accessToken,
   );
 }

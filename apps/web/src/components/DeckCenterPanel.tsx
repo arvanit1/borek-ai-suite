@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { AppPageHeader } from "@/components/AppPageHeader";
 import { useAuth } from "@/components/AuthProvider";
+import { LiveGenerationProgress } from "@/components/LiveGenerationProgress";
 import { PipelineStepper } from "@/components/PipelineStepper";
 import { RecoveryBanner } from "@/components/RecoveryBanner";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -17,12 +18,15 @@ import {
   generatePresentation,
   getActiveJob,
   getDeckCenter,
+  getJob,
   getLatestPresentation,
   getOpportunity,
+  getPresentation,
   regeneratePresentationSlide,
   retryJob,
   waitForJob,
 } from "@/lib/api";
+import type { JobResponse } from "@/lib/api";
 import {
   isDeckFileMissingError,
   isMissingPresentationError,
@@ -31,10 +35,17 @@ import {
 import { buildDownloadFilename, mapDeckSlides } from "@/lib/deckCenter";
 import type { DeckCenterResponse, PresentationResponse } from "@/lib/deckTypes";
 import {
+  buildJobProgressView,
+  jobStageLabel,
+  snapshotFromJob,
+  type JobProgressSnapshot,
+} from "@/lib/jobProgress";
+import {
   generationProgressMessage,
   inspectActiveJob,
   stageGroupForPage,
 } from "@/lib/jobReconnect";
+import { startPipelineParallelLoad } from "@/lib/pipelineParallelLoad";
 import { opportunityLabel, pipelineHref } from "@/lib/pipelineContext";
 import {
   ARTIFACTS_PARTIAL_LABEL,
@@ -56,14 +67,23 @@ import type { RecoveryNotice } from "@/lib/recoveryUx";
 
 interface DeckCenterPanelProps {
   opportunityId: string;
+  presentationId?: string;
+  presentationVersionId?: string;
 }
 
-export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
+export function DeckCenterPanel({
+  opportunityId,
+  presentationId: requestedPresentationId,
+}: DeckCenterPanelProps) {
   const { accessToken, isAuthenticated, loading, session } = useAuth();
   const [presentation, setPresentation] = useState<PresentationResponse | null>(null);
   const [deck, setDeck] = useState<DeckCenterResponse | null>(null);
   const [opportunityName, setOpportunityName] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [contentLoading, setContentLoading] = useState(true);
+  const [jobPolling, setJobPolling] = useState(false);
+  const [jobStage, setJobStage] = useState<string | null>(null);
+  const [jobSnapshot, setJobSnapshot] = useState<JobProgressSnapshot | null>(null);
   const [notice, setNotice] = useState<RecoveryNotice | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [retryJobId, setRetryJobId] = useState<string | null>(null);
@@ -73,6 +93,15 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
   const [partialArtifacts, setPartialArtifacts] = useState(false);
   const [recoveryTarget, setRecoveryTarget] = useState<"job" | "download-pptx" | "download-pdf">(
     "job",
+  );
+
+  const trackJob = useCallback((job: JobResponse) => {
+    setJobSnapshot(snapshotFromJob(job));
+  }, []);
+
+  const progressView = useMemo(
+    () => buildJobProgressView({ snapshot: jobSnapshot }),
+    [jobSnapshot],
   );
 
   const slideTiles = useMemo(() => (deck ? mapDeckSlides(deck) : []), [deck]);
@@ -115,7 +144,9 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
       return;
     }
     try {
-      const latest = await getLatestPresentation(accessToken, opportunityId);
+      const latest = requestedPresentationId
+        ? await getPresentation(accessToken, requestedPresentationId)
+        : await getLatestPresentation(accessToken, opportunityId);
       setPresentation(latest);
       await loadDeck(latest.id);
     } catch (loadError) {
@@ -131,7 +162,7 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
         setPartialArtifacts(true);
       }
     }
-  }, [accessToken, loadDeck, opportunityId]);
+  }, [accessToken, loadDeck, opportunityId, requestedPresentationId]);
 
   useEffect(() => {
     if (!accessToken) {
@@ -160,68 +191,76 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
     }
     const token = accessToken;
     let cancelled = false;
-    async function bootstrap() {
-      setBusy(true);
-      setNotice(null);
-      setInfo(null);
-      setRetryJobId(null);
-      try {
-        const job = await getActiveJob(
-          token,
-          opportunityId,
-          stageGroupForPage("deck"),
-        );
-        if (cancelled) {
-          return;
-        }
-        const decision = inspectActiveJob(job, "deck");
-        if (decision.action === "monitor") {
-          setInfo(generationProgressMessage("deck", true));
-          setNotice(runningRecoveryNotice("deck", decision.jobId));
-          try {
-            await waitForJob(token, decision.jobId, FRAMEWORK_JOB_TIMEOUT_MS);
-            if (!cancelled) {
-              setNotice(null);
-            }
-          } catch (monitorError) {
-            if (!cancelled) {
-              setInfo(null);
-              setNotice(recoveryNoticeFromError(monitorError, "deck"));
-              if (monitorError instanceof ApiRequestError && monitorError.retryable && monitorError.jobId) {
-                setRetryJobId(monitorError.jobId);
-              }
-            }
-          }
-        } else if (decision.action === "failed") {
+
+    setContentLoading(true);
+    setJobPolling(false);
+    setJobStage(null);
+    setJobSnapshot(null);
+    setNotice(null);
+    setInfo(null);
+    setRetryJobId(null);
+
+    const cancel = startPipelineParallelLoad(
+      "deck",
+      {
+        onContentLoaded: () => {},
+        onContentMissing: () => {
+          setPresentation(null);
+          setDeck(null);
+        },
+        onContentLoadFinished: () => {
+          setContentLoading(false);
+        },
+        onContentLoadError: (message) => {
+          setNotice(recoveryNoticeFromError(new Error(message), "deck"));
+        },
+        onJobPollingStart: (message, stage, jobId) => {
+          setJobPolling(true);
+          setInfo(message);
+          setJobStage(stage);
+          setNotice(runningRecoveryNotice("deck", jobId));
+        },
+        onJobStageUpdate: (stage) => {
+          setJobStage(stage);
+        },
+        onJobSnapshot: setJobSnapshot,
+        onJobPollingFinished: () => {
+          setJobPolling(false);
           setInfo(null);
-          setNotice(jobFailureRecoveryNotice(decision.error, "deck", decision.jobId));
-          if (decision.retryable) {
-            setRetryJobId(decision.jobId);
+          setJobStage(null);
+          setJobSnapshot(null);
+          setNotice(null);
+        },
+        onJobFailed: (message, failedJobId) => {
+          setNotice(
+            recoveryNoticeFromError(
+              {
+                message,
+                jobId: failedJobId ?? undefined,
+                retryable: Boolean(failedJobId),
+              },
+              "deck",
+            ),
+          );
+          setRetryJobId(failedJobId);
+        },
+      },
+      {
+        loadContent: async () => {
+          if (cancelled) {
+            return;
           }
-        }
-        if (cancelled) {
-          return;
-        }
-        try {
           await applyLatestPresentation();
-        } catch (loadError) {
-          if (!cancelled && decision.action !== "failed") {
-            setNotice(recoveryNoticeFromError(loadError, "deck"));
-          }
-        }
-      } catch (bootstrapError) {
-        if (!cancelled) {
-          setNotice(recoveryNoticeFromError(bootstrapError, "deck"));
-        }
-      } finally {
-        if (!cancelled) {
-          setBusy(false);
-        }
-      }
-    }
-    void bootstrap();
+        },
+        isMissingError: isMissingPresentationError,
+        getActiveJob: () => getActiveJob(token, opportunityId, stageGroupForPage("deck")),
+        getJob: (jobId) => getJob(token, jobId),
+      },
+    );
+
     return () => {
       cancelled = true;
+      cancel();
     };
   }, [accessToken, applyLatestPresentation, loading, opportunityId]);
 
@@ -238,7 +277,12 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
       const generated = await generatePresentation(accessToken, opportunityId);
       setInfo(generationProgressMessage("deck", Boolean(generated.is_existing_job)));
       setNotice(runningRecoveryNotice("deck", generated.job_id));
-      await waitForJob(accessToken, generated.job_id, FRAMEWORK_JOB_TIMEOUT_MS);
+      setJobPolling(true);
+      await waitForJob(accessToken, generated.job_id, {
+        timeoutMs: FRAMEWORK_JOB_TIMEOUT_MS,
+        onProgress: trackJob,
+      });
+      setJobSnapshot(null);
       setNotice(null);
       await applyLatestPresentation();
       setInfo(null);
@@ -250,6 +294,7 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
       }
     } finally {
       setBusy(false);
+      setJobPolling(false);
     }
   }
 
@@ -264,7 +309,12 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
     try {
       const queued = await retryJob(accessToken, retryJobId);
       setRetryJobId(null);
-      await waitForJob(accessToken, queued.job_id, FRAMEWORK_JOB_TIMEOUT_MS);
+      setJobPolling(true);
+      await waitForJob(accessToken, queued.job_id, {
+        timeoutMs: FRAMEWORK_JOB_TIMEOUT_MS,
+        onProgress: trackJob,
+      });
+      setJobSnapshot(null);
       setNotice(null);
       await applyLatestPresentation();
       setInfo(null);
@@ -276,6 +326,7 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
       }
     } finally {
       setBusy(false);
+      setJobPolling(false);
     }
   }
 
@@ -296,7 +347,12 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
       }
       if (decision.action === "monitor") {
         setNotice(runningRecoveryNotice("deck", decision.jobId));
-        await waitForJob(accessToken, decision.jobId, FRAMEWORK_JOB_TIMEOUT_MS);
+        setJobPolling(true);
+        await waitForJob(accessToken, decision.jobId, {
+          timeoutMs: FRAMEWORK_JOB_TIMEOUT_MS,
+          onProgress: trackJob,
+        });
+        setJobSnapshot(null);
       }
       await applyLatestPresentation();
       setNotice(null);
@@ -311,6 +367,7 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
       }
     } finally {
       setBusy(false);
+      setJobPolling(false);
     }
   }
 
@@ -381,7 +438,12 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
       const queued = await regeneratePresentationSlide(accessToken, presentation.id, slideId);
       setInfo("Updating this slide…");
       setNotice(runningRecoveryNotice("deck", queued.job_id));
-      await waitForJob(accessToken, queued.job_id, FRAMEWORK_JOB_TIMEOUT_MS);
+      setJobPolling(true);
+      await waitForJob(accessToken, queued.job_id, {
+        timeoutMs: FRAMEWORK_JOB_TIMEOUT_MS,
+        onProgress: trackJob,
+      });
+      setJobSnapshot(null);
       await loadDeck(presentation.id);
       setNotice(null);
       setInfo(null);
@@ -390,6 +452,7 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
       setNotice(recoveryNoticeFromError(regenerateError, "deck"));
     } finally {
       setBusy(false);
+      setJobPolling(false);
     }
   }
 
@@ -409,7 +472,12 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
       );
       setInfo("Updating this slide layout…");
       setNotice(runningRecoveryNotice("deck", queued.job_id));
-      await waitForJob(accessToken, queued.job_id, FRAMEWORK_JOB_TIMEOUT_MS);
+      setJobPolling(true);
+      await waitForJob(accessToken, queued.job_id, {
+        timeoutMs: FRAMEWORK_JOB_TIMEOUT_MS,
+        onProgress: trackJob,
+      });
+      setJobSnapshot(null);
       await loadDeck(presentation.id);
       setNotice(null);
       setInfo(null);
@@ -418,6 +486,7 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
       setNotice(recoveryNoticeFromError(layoutError, "deck"));
     } finally {
       setBusy(false);
+      setJobPolling(false);
     }
   }
 
@@ -501,20 +570,33 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
                 onAction={handleRecoveryAction}
               />
             ) : null}
-            {info && !notice ? <div className="upload-banner upload-banner-success">{info}</div> : null}
+            {info && !notice && !jobPolling ? (
+              <div className="upload-banner upload-banner-success">{info}</div>
+            ) : null}
             {partialArtifacts && ready ? (
               <div className="upload-banner upload-banner-info">{ARTIFACTS_PARTIAL_LABEL}</div>
             ) : null}
 
-            {busy && !deck && !notice ? (
+            {contentLoading && !presentation && !deck ? (
               <section className="upload-panel pipeline-panel-loading">
-                <p className="upload-hint" data-testid="pipeline-job-progress">
-                  {info ?? "Building your presentation…"}
+                <p className="upload-hint" data-testid="deck-loading">
+                  Loading presentation…
                 </p>
               </section>
             ) : null}
 
-            {!busy && !presentation && isAuthenticated && !notice ? (
+            {progressView && (jobPolling || progressView.failed) ? (
+              <LiveGenerationProgress view={progressView} />
+            ) : jobPolling ? (
+              <section className="upload-panel pipeline-panel-loading">
+                <p className="upload-hint" data-testid="pipeline-job-progress">
+                  {info ?? "Presentation rendering is running…"}
+                  {jobStage ? ` · ${jobStageLabel(jobStage)}` : ""}
+                </p>
+              </section>
+            ) : null}
+
+            {!contentLoading && !presentation && isAuthenticated && !notice ? (
               <section className="upload-panel pipeline-empty-panel">
                 <header className="upload-panel-header">
                   <div>
@@ -539,7 +621,7 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
               </section>
             ) : null}
 
-            {presentation && !deck && isAuthenticated && !busy && !notice ? (
+            {presentation && !deck && isAuthenticated && !contentLoading && !busy && !notice ? (
               <section className="upload-panel pipeline-empty-panel">
                 <header className="upload-panel-header">
                   <div>

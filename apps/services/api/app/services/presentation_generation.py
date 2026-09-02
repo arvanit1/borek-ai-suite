@@ -15,6 +15,7 @@ from uuid import UUID
 from fastapi import HTTPException
 
 from app.config import settings
+from app.schemas.jobs import JobStatus
 from app.schemas.presentations import LAYOUT_REGISTRY, VALID_LAYOUT_IDS
 from app.services import job_service
 from app.services.api_errors import bad_request, not_found
@@ -146,12 +147,29 @@ def _existing_plan_payload(job: job_service.Job) -> dict[str, Any]:
     return {"id": None}
 
 
+def _enable_auto_continue_on_reused_job(
+    store: DataStore,
+    job: job_service.Job,
+) -> job_service.Job:
+    updated = job_service.update_job_auto_continue(
+        job.id,
+        True,
+        repository=store,
+    )
+    if updated.status == JobStatus.COMPLETED:
+        from app.services.presentation_pipeline import continue_after_planning
+
+        continue_after_planning(store, planning_job_id=updated.id)
+    return updated
+
+
 def enqueue_presentation_plan_generate(
     store: DataStore,
     *,
     opportunity_id: UUID,
     user_id: UUID,
     framework_version_id: UUID | None,
+    auto_continue: bool = False,
 ):
     framework = _require_confirmed_framework(
         store,
@@ -166,12 +184,15 @@ def enqueue_presentation_plan_generate(
         job_type="presentation_planning",
     )
     if existing is not None:
+        if auto_continue:
+            existing = _enable_auto_continue_on_reused_job(store, existing)
         return _existing_plan_payload(existing), existing, True
 
     plan_id = uuid.uuid4()
     job = job_service.create_job(
         opportunity_id=opportunity_id,
         job_type="presentation_planning",
+        auto_continue=auto_continue,
         enqueue={
             "framework_version_id": str(framework["id"]),
             "user_id": str(user_id),

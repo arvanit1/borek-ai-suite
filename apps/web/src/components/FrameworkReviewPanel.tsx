@@ -9,6 +9,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { FrameworkChapterView } from "@/components/FrameworkChapterView";
 import { FrameworkReviewSummary } from "@/components/FrameworkReviewSummary";
 import { FrameworkRootFieldsPanel } from "@/components/FrameworkRootFieldsPanel";
+import { LiveGenerationProgress } from "@/components/LiveGenerationProgress";
 import { PipelineStepper } from "@/components/PipelineStepper";
 import { RecoveryBanner } from "@/components/RecoveryBanner";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -23,18 +24,28 @@ import {
   getFrameworkReview,
   getJob,
   getLatestFramework,
+  getLatestPresentationPlan,
+  getPresentation,
+  getPresentationPlan,
   listTranscripts,
   regenerateFrameworkChapter,
   retryJob,
   updateFramework as persistFramework,
   waitForJob,
 } from "@/lib/api";
+import type { JobResponse } from "@/lib/api";
 import { startFrameworkReviewParallelLoad } from "@/lib/frameworkReviewLoad";
 import {
   buildFrameworkDownloadFilename,
   buildFrameworkRenderPath,
 } from "@/lib/frameworkExport";
 import { isMissingFrameworkError } from "@/lib/apiErrors";
+import {
+  buildJobProgressView,
+  jobStageLabel,
+  snapshotFromJob,
+  type JobProgressSnapshot,
+} from "@/lib/jobProgress";
 import {
   generationProgressMessage,
   inspectActiveJob,
@@ -57,6 +68,17 @@ import {
 } from "@/lib/frameworkReview";
 import { pipelineHref } from "@/lib/pipelineContext";
 import type { FrameworkObject, FrameworkVersionResponse } from "@/lib/frameworkTypes";
+import {
+  PresentationPipelineError,
+  approveAndBuildPresentation,
+  deckResultHref,
+  recoverPresentationPipeline,
+} from "@/lib/presentationPipeline";
+import type {
+  PresentationPipelineApi,
+  PresentationPipelineProgress,
+  PresentationPipelineResult,
+} from "@/lib/presentationPipeline";
 import {
   inputRequiredRecoveryNotice,
   jobFailureRecoveryNotice,
@@ -81,6 +103,13 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
   const [frameworkLoading, setFrameworkLoading] = useState(true);
   const [jobPolling, setJobPolling] = useState(false);
   const [jobStage, setJobStage] = useState<string | null>(null);
+  const [frameworkJobSnapshot, setFrameworkJobSnapshot] = useState<JobProgressSnapshot | null>(
+    null,
+  );
+  const [pipelineJobSnapshot, setPipelineJobSnapshot] = useState<JobProgressSnapshot | null>(null);
+  const [pipelineHandoff, setPipelineHandoff] = useState(false);
+  const [pipelineActive, setPipelineActive] = useState(false);
+  const [plannedSlideCount, setPlannedSlideCount] = useState<number | null>(null);
   const [notice, setNotice] = useState<RecoveryNotice | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
@@ -96,6 +125,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
     | "regenerate-enqueue"
     | "confirm-save"
     | "confirm"
+    | "presentation-pipeline"
   >("job");
   const [recoveryChapterId, setRecoveryChapterId] = useState<string | null>(null);
   const [transcriptCount, setTranscriptCount] = useState<number | null>(null);
@@ -103,6 +133,8 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
   const [hoveredChapterId, setHoveredChapterId] = useState<string | null>(null);
   const [downloadingFormat, setDownloadingFormat] = useState<"docx" | "pdf" | null>(null);
   const chapterNavItemRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
+  const presentationPipelineRunningRef = useRef(false);
+  const presentationRecoveryAttemptedRef = useRef<string | null>(null);
 
   const editable = frameworkVersion
     ? canEditFramework(frameworkVersion.status, frameworkJson?.status)
@@ -112,6 +144,102 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       (isFrameworkConfirmed(frameworkVersion.status) ||
         (frameworkJson != null && isFrameworkConfirmed(frameworkJson.status))),
   );
+
+  const presentationPipelineApi = useCallback(
+    (token: string): PresentationPipelineApi => ({
+      getActivePresentationJob: () => getActiveJob(token, opportunityId, "presentation"),
+      getJob: (jobId) => getJob(token, jobId),
+      waitForJob: (jobId, onJobUpdate) => waitForJob(token, jobId, { onProgress: onJobUpdate }),
+      generatePresentationPlan: (frameworkVersionId, autoContinue) =>
+        generatePresentationPlan(token, opportunityId, frameworkVersionId, autoContinue),
+      getLatestPresentationPlan: () => getLatestPresentationPlan(token, opportunityId),
+      getPresentationPlan: (presentationPlanId) =>
+        getPresentationPlan(token, presentationPlanId),
+      getPresentation: (presentationId) => getPresentation(token, presentationId),
+    }),
+    [opportunityId],
+  );
+
+  const reportPresentationProgress = useCallback((progress: PresentationPipelineProgress) => {
+    setRecoveryTarget("presentation-pipeline");
+    // The live progress panel owns in-flight messaging; banners are for recovery only.
+    setNotice(null);
+    setInfo(null);
+    if (progress.state === "running") {
+      setPipelineJobSnapshot(progress.job);
+      setPipelineHandoff(false);
+      return;
+    }
+    if (progress.state === "handoff") {
+      setPipelineHandoff(true);
+      return;
+    }
+    if (progress.state === "completed" && progress.phase === "planning") {
+      setPlannedSlideCount(progress.plannedSlideCount);
+    }
+  }, []);
+
+  const trackFrameworkJob = useCallback((job: JobResponse) => {
+    setFrameworkJobSnapshot(snapshotFromJob(job));
+  }, []);
+
+  const frameworkProgressView = useMemo(
+    () => buildJobProgressView({ snapshot: frameworkJobSnapshot }),
+    [frameworkJobSnapshot],
+  );
+
+  const pipelineProgressView = useMemo(
+    () =>
+      buildJobProgressView({
+        snapshot: pipelineJobSnapshot,
+        handoff: pipelineHandoff,
+        plannedSlideCount,
+      }),
+    [pipelineHandoff, pipelineJobSnapshot, plannedSlideCount],
+  );
+
+  const liveProgressView = pipelineProgressView ?? frameworkProgressView;
+  const liveProgressVisible = Boolean(
+    liveProgressView && (pipelineActive || jobPolling || liveProgressView.failed),
+  );
+
+  const openPresentationResult = useCallback(
+    (result: PresentationPipelineResult) => {
+      router.push(deckResultHref(opportunityId, result));
+    },
+    [opportunityId, router],
+  );
+
+  const reportPresentationFailure = useCallback((error: unknown) => {
+    const pipelineError =
+      error instanceof PresentationPipelineError
+        ? error
+        : new PresentationPipelineError("generation", "Presentation generation failed");
+    const context = pipelineError.phase === "generation" ? "deck" : "plan";
+    const recovered = recoveryNoticeFromError(pipelineError, context);
+    setInfo(null);
+    setRetryJobId(null);
+    setRecoveryTarget("presentation-pipeline");
+    const reconnectAction =
+      recovered.action?.kind === "RECONNECT" || recovered.action?.kind === "KEEP_CHECKING"
+        ? recovered.action
+        : null;
+    setNotice({
+      ...recovered,
+      action: reconnectAction ??
+        (pipelineError.phase === "generation"
+          ? {
+              kind: "REVIEW",
+              label: "View presentation structure",
+              target: "plan",
+            }
+          : {
+              kind: "REVIEW",
+              label: "Review confirmed framework",
+              target: "framework",
+            }),
+    });
+  }, []);
 
   const applyReview = useCallback(
     async (source?: unknown) => {
@@ -136,9 +264,9 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
     [accessToken, opportunityId],
   );
 
-  const applyLatestFramework = useCallback(async () => {
+  const applyLatestFramework = useCallback(async (): Promise<FrameworkVersionResponse | null> => {
     if (!accessToken) {
-      return;
+      return null;
     }
     try {
       const latest = await getLatestFramework(accessToken, opportunityId);
@@ -147,6 +275,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       setDirty(false);
       setHumanConfirmed(false);
       await applyReview(latest);
+      return latest;
     } catch (loadError) {
       setFrameworkVersion(null);
       setFrameworkJson(null);
@@ -154,6 +283,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       if (!isMissingFrameworkError(loadError)) {
         throw loadError;
       }
+      return null;
     }
   }, [accessToken, applyReview, opportunityId]);
 
@@ -172,6 +302,42 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
     }
   }, [accessToken, applyLatestFramework]);
 
+  const recoverConfirmedPresentation = useCallback(
+    async (framework: FrameworkVersionResponse) => {
+      if (!accessToken || presentationPipelineRunningRef.current) {
+        return;
+      }
+      presentationPipelineRunningRef.current = true;
+      setRecoveryTarget("presentation-pipeline");
+      setBusy(true);
+      setPipelineActive(true);
+      try {
+        const recovery = await recoverPresentationPipeline({
+          frameworkVersionId: framework.id,
+          api: presentationPipelineApi(accessToken),
+          onProgress: reportPresentationProgress,
+        });
+        if (recovery.state === "completed") {
+          setNotice(null);
+          openPresentationResult(recovery.result);
+        }
+      } catch (error) {
+        reportPresentationFailure(error);
+      } finally {
+        presentationPipelineRunningRef.current = false;
+        setPipelineActive(false);
+        setBusy(false);
+      }
+    },
+    [
+      accessToken,
+      openPresentationResult,
+      presentationPipelineApi,
+      reportPresentationFailure,
+      reportPresentationProgress,
+    ],
+  );
+
   useEffect(() => {
     if (loading || !accessToken) {
       return;
@@ -180,6 +346,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
     setFrameworkLoading(true);
     setJobPolling(false);
     setJobStage(null);
+    setFrameworkJobSnapshot(null);
     setNotice(null);
     setInfo(null);
     setRetryJobId(null);
@@ -212,10 +379,12 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
         onJobStageUpdate: (stage) => {
           setJobStage(stage);
         },
+        onJobSnapshot: setFrameworkJobSnapshot,
         onJobPollingFinished: () => {
           setJobPolling(false);
           setInfo(null);
           setJobStage(null);
+          setFrameworkJobSnapshot(null);
           setNotice(null);
         },
         onJobFailed: (message, failedJobId) => {
@@ -241,6 +410,18 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
 
     return cancel;
   }, [accessToken, applyReview, loading, opportunityId]);
+
+  useEffect(() => {
+    if (
+      !frameworkVersion ||
+      !frameworkConfirmed ||
+      presentationRecoveryAttemptedRef.current === frameworkVersion.id
+    ) {
+      return;
+    }
+    presentationRecoveryAttemptedRef.current = frameworkVersion.id;
+    void recoverConfirmedPresentation(frameworkVersion);
+  }, [frameworkConfirmed, frameworkVersion, recoverConfirmedPresentation]);
 
   useEffect(() => {
     if (!accessToken) {
@@ -357,7 +538,12 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       const generated = await generateFramework(accessToken, opportunityId);
       setInfo(generationProgressMessage("framework", Boolean(generated.is_existing_job)));
       setNotice(runningRecoveryNotice("framework", generated.job_id));
-      await waitForJob(accessToken, generated.job_id, FRAMEWORK_JOB_TIMEOUT_MS);
+      setJobPolling(true);
+      await waitForJob(accessToken, generated.job_id, {
+        timeoutMs: FRAMEWORK_JOB_TIMEOUT_MS,
+        onProgress: trackFrameworkJob,
+      });
+      setFrameworkJobSnapshot(null);
       setNotice(null);
       await loadFramework();
     } catch (generateError) {
@@ -368,6 +554,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       }
     } finally {
       setBusy(false);
+      setJobPolling(false);
     }
   }
 
@@ -382,7 +569,12 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
     try {
       const queued = await retryJob(accessToken, retryJobId);
       setRetryJobId(null);
-      await waitForJob(accessToken, queued.job_id, FRAMEWORK_JOB_TIMEOUT_MS);
+      setJobPolling(true);
+      await waitForJob(accessToken, queued.job_id, {
+        timeoutMs: FRAMEWORK_JOB_TIMEOUT_MS,
+        onProgress: trackFrameworkJob,
+      });
+      setFrameworkJobSnapshot(null);
       setNotice(null);
       await loadFramework();
     } catch (retryError) {
@@ -393,6 +585,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       }
     } finally {
       setBusy(false);
+      setJobPolling(false);
     }
   }
 
@@ -417,7 +610,12 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       }
       if (decision.action === "monitor") {
         setNotice(runningRecoveryNotice("framework", decision.jobId));
-        await waitForJob(accessToken, decision.jobId, FRAMEWORK_JOB_TIMEOUT_MS);
+        setJobPolling(true);
+        await waitForJob(accessToken, decision.jobId, {
+          timeoutMs: FRAMEWORK_JOB_TIMEOUT_MS,
+          onProgress: trackFrameworkJob,
+        });
+        setFrameworkJobSnapshot(null);
       }
       await applyLatestFramework();
       setNotice(null);
@@ -432,6 +630,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       }
     } finally {
       setBusy(false);
+      setJobPolling(false);
     }
   }
 
@@ -480,7 +679,12 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       if (decision.action === "monitor") {
         setRecoveryTarget("job");
         setNotice(runningRecoveryNotice("framework", decision.jobId));
-        await waitForJob(accessToken, decision.jobId, FRAMEWORK_JOB_TIMEOUT_MS);
+        setJobPolling(true);
+        await waitForJob(accessToken, decision.jobId, {
+          timeoutMs: FRAMEWORK_JOB_TIMEOUT_MS,
+          onProgress: trackFrameworkJob,
+        });
+        setFrameworkJobSnapshot(null);
       }
       await applyLatestFramework();
       setNotice({
@@ -498,6 +702,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       setNotice(recoveryNoticeFromError(reconnectError, "framework"));
     } finally {
       setBusy(false);
+      setJobPolling(false);
     }
   }
 
@@ -528,6 +733,10 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       }
       if (recoveryTarget === "confirm") {
         void handleConfirmReconnect();
+        return;
+      }
+      if (recoveryTarget === "presentation-pipeline" && frameworkVersion) {
+        void recoverConfirmedPresentation(frameworkVersion);
         return;
       }
       if (recoveryTarget === "regenerate-save" && recoveryChapterId) {
@@ -613,7 +822,12 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       const queued = await regenerateFrameworkChapter(accessToken, opportunityId, chapterId);
       setRecoveryTarget("job");
       setInfo(`Updating chapter ${chapterId}…`);
-      await waitForJob(accessToken, queued.job_id, FRAMEWORK_JOB_TIMEOUT_MS);
+      setJobPolling(true);
+      await waitForJob(accessToken, queued.job_id, {
+        timeoutMs: FRAMEWORK_JOB_TIMEOUT_MS,
+        onProgress: trackFrameworkJob,
+      });
+      setFrameworkJobSnapshot(null);
       await loadFramework();
       setInfo(`Chapter ${chapterId} was updated. Other chapters were left unchanged.`);
     } catch (regenerateError) {
@@ -621,35 +835,43 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
     } finally {
       setRegeneratingChapterId(null);
       setBusy(false);
+      setJobPolling(false);
     }
   }
 
-  async function handleApprove() {
-    if (!accessToken) {
+  async function handleApproveAndBuild(alreadyConfirmed: boolean) {
+    if (!accessToken || !frameworkVersion || presentationPipelineRunningRef.current) {
       return;
     }
-    const blocked = review ? isApprovalBlocked(review) : false;
-    if (
-      !canApproveAndBuild({
-        editable,
-        confirmed: frameworkConfirmed,
-        humanConfirmed,
-        blocked,
-      })
-    ) {
-      return;
+    if (!alreadyConfirmed) {
+      const blocked = review ? isApprovalBlocked(review) : false;
+      if (
+        !canApproveAndBuild({
+          editable,
+          confirmed: frameworkConfirmed,
+          humanConfirmed,
+          blocked,
+        })
+      ) {
+        return;
+      }
     }
     setRecoveryTarget("confirm-save");
     setBusy(true);
     setNotice(null);
     setInfo(null);
+    presentationPipelineRunningRef.current = true;
+    setPipelineActive(true);
+    setPipelineJobSnapshot(null);
+    setPipelineHandoff(false);
     try {
+      let currentFramework = frameworkVersion;
       if (dirty && frameworkJson) {
-        const saved = await persistFramework(accessToken, opportunityId, frameworkJson);
-        setFrameworkVersion(saved);
-        setFrameworkJson(saved.framework_json);
+        currentFramework = await persistFramework(accessToken, opportunityId, frameworkJson);
+        setFrameworkVersion(currentFramework);
+        setFrameworkJson(currentFramework.framework_json);
         setDirty(false);
-        const nextReview = await applyReview(saved);
+        const nextReview = await applyReview(currentFramework);
         if (nextReview && isApprovalBlocked(nextReview)) {
           setNotice({
             category: "VALIDATION_NEEDS_REVIEW",
@@ -662,28 +884,44 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
         }
       }
       setRecoveryTarget("confirm");
-      const confirmed = await confirmFramework(accessToken, opportunityId);
-      setFrameworkVersion(confirmed);
-      setFrameworkJson(confirmed.framework_json);
-      setDirty(false);
-      setHumanConfirmed(false);
-      await applyReview(confirmed);
-      setInfo("Approved. Building the presentation plan…");
-      try {
-        await generatePresentationPlan(accessToken, opportunityId, confirmed.id);
-      } catch {
-        // Plan generation can continue from the next step if enqueue fails.
-      }
-      router.push(pipelineHref("/plan-preview", opportunityId));
-    } catch (confirmError) {
-      setNotice(
-        recoveryNoticeFromError(confirmError, "framework", {
-          connectionMessage: "The framework was not confirmed. Reconnect to try again.",
-        }),
-      );
+      const result = await approveAndBuildPresentation({
+        alreadyConfirmed,
+        frameworkVersionId: alreadyConfirmed ? currentFramework.id : undefined,
+        confirmFramework: async () => {
+          const confirmed = await confirmFramework(
+            accessToken,
+            opportunityId,
+            currentFramework.id,
+          );
+          setFrameworkVersion(confirmed);
+          setFrameworkJson(confirmed.framework_json);
+          setDirty(false);
+          setHumanConfirmed(false);
+          presentationRecoveryAttemptedRef.current = confirmed.id;
+          await applyReview(confirmed);
+          return { id: confirmed.id, status: confirmed.status };
+        },
+        api: presentationPipelineApi(accessToken),
+        onProgress: reportPresentationProgress,
+      });
+      setNotice(null);
+      setInfo("Presentation is ready. Opening the deck…");
+      openPresentationResult(result);
+    } catch (pipelineError) {
+      reportPresentationFailure(pipelineError);
     } finally {
+      presentationPipelineRunningRef.current = false;
+      setPipelineActive(false);
       setBusy(false);
     }
+  }
+
+  async function handleApprove() {
+    await handleApproveAndBuild(false);
+  }
+
+  async function handleBuildConfirmedFramework() {
+    await handleApproveAndBuild(true);
   }
 
   return (
@@ -725,7 +963,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
               <h3>Active opportunity</h3>
               <p className="upload-meta-empty">
                 {frameworkConfirmed
-                  ? "This customer story is approved. Continue to the presentation."
+                  ? "This customer story is approved. Build the presentation here, or optionally inspect the slide structure."
                   : "Approve only after you have reviewed the summary and any warnings."}
               </p>
               <Link href={pipelineHref("/upload", opportunityId)} className="btn btn-secondary btn-block">
@@ -734,9 +972,9 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
               {frameworkConfirmed ? (
                 <Link
                   href={pipelineHref("/plan-preview", opportunityId)}
-                  className="btn btn-primary btn-block"
+                  className="btn btn-secondary btn-block"
                 >
-                  Continue to presentation
+                  View presentation structure
                 </Link>
               ) : (
                 <a href="#framework-chapters" className="btn btn-secondary btn-block">
@@ -764,7 +1002,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
                 onAction={handleRecoveryAction}
               />
             ) : null}
-            {info && !notice && !jobPolling ? (
+            {info && !notice && !jobPolling && !liveProgressVisible ? (
               <div className="upload-banner upload-banner-success">{info}</div>
             ) : null}
 
@@ -776,11 +1014,19 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
               </section>
             ) : null}
 
-            {jobPolling ? (
+            {liveProgressVisible && liveProgressView ? (
+              <LiveGenerationProgress view={liveProgressView} />
+            ) : pipelineActive ? (
+              <section className="upload-panel pipeline-panel-loading">
+                <p className="upload-hint" data-testid="pipeline-job-progress">
+                  Starting the presentation pipeline…
+                </p>
+              </section>
+            ) : jobPolling ? (
               <section className="upload-panel pipeline-panel-loading">
                 <p className="upload-hint" data-testid="pipeline-job-progress">
                   {info ?? "Framework generation is running…"}
-                  {jobStage ? ` · ${jobStage.replaceAll("_", " ").toLowerCase()}` : ""}
+                  {jobStage ? ` · ${jobStageLabel(jobStage)}` : ""}
                 </p>
               </section>
             ) : null}
@@ -1008,8 +1254,19 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
                       <strong>Framework confirmed</strong>
                       <p>
                         This version is locked. Fields, source references, and chapter regenerate
-                        stay read-only so Stage B can only use the confirmed object.
+                        stay read-only so Stage B can only use the confirmed object. Presentation
+                        building can continue here without opening Plan Preview first.
                       </p>
+                    </div>
+                    <div className="upload-banner-actions">
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        disabled={busy || downloadingFormat !== null}
+                        onClick={() => void handleBuildConfirmedFramework()}
+                      >
+                        Build presentation
+                      </button>
                     </div>
                   </div>
                 ) : null}

@@ -127,7 +127,7 @@ def run_presentation_planning_task(
                 )
                 return {"job_id": job_id, "presentation_plan_id": str(plan["id"])}
 
-        return run_with_transient_retry(_run)
+        result = run_with_transient_retry(_run)
     except Exception as exc:
         from app.services.planning_job_errors import format_presentation_planning_failure
 
@@ -141,6 +141,12 @@ def run_presentation_planning_task(
             repository=store,
         )
         raise
+    from app.services.presentation_pipeline import continue_after_planning
+
+    # Re-read durable auto_continue after COMPLETED so a concurrent upgrade cannot
+    # land between the worker's stale snapshot and continuation.
+    continue_after_planning(store, planning_job_id=parsed_job_id)
+    return result
 
 
 @celery_app.task(name="tasks.run_framework_generation")
@@ -200,7 +206,7 @@ def run_framework_generation_task(
             getattr(exc, "code", "FRAMEWORK_GENERATION_FAILED"),
             str(exc),
             stage,
-            bool(getattr(exc, "retryable", True)),
+            _is_retryable_error(exc),
             repository=store,
         )
         raise
@@ -305,7 +311,7 @@ def run_framework_regenerate_chapter_task(
             getattr(exc, "code", "FRAMEWORK_REGENERATE_FAILED"),
             str(exc),
             stage,
-            bool(getattr(exc, "retryable", True)),
+            _is_retryable_error(exc),
             repository=store,
         )
         raise

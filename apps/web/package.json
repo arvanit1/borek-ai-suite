@@ -14,10 +14,12 @@
     "test:at48": "tsx src/lib/planPreview.test.ts",
     "test:at49": "tsx src/lib/deckCenter.test.ts",
     "test:jj25": "tsx src/lib/presentationReady.test.ts && tsx src/lib/deckCenter.test.ts",
-    "test:at56": "tsx src/lib/jobReconnect.test.ts && tsx src/lib/jobErrors.test.ts && tsx src/lib/apiErrors.test.ts",
+    "test:at56": "tsx src/lib/jobReconnect.test.ts && tsx src/lib/jobErrors.test.ts && tsx src/lib/apiErrors.test.ts && tsx src/lib/pipelineParallelLoad.test.ts",
     "test:at57": "tsx src/lib/jobReconnect.test.ts",
     "test:ms24": "tsx src/lib/recentPresentations.test.ts",
-    "test:ms25": "tsx src/lib/recoveryUx.test.ts && tsx src/components/RecoveryBanner.test.tsx"
+    "test:ms25": "tsx src/lib/recoveryUx.test.ts && tsx src/components/RecoveryBanner.test.tsx",
+    "test:bt25": "tsx src/lib/presentationPipeline.test.ts",
+    "test:bt26": "tsx src/lib/jobProgress.test.ts && tsx src/components/LiveGenerationProgress.test.tsx"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.8",
