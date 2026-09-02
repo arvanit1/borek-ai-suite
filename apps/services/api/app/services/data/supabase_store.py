@@ -96,6 +96,21 @@ def _request_with_retry(
     ) from last_error
 
 
+def _json_safe_value(value: Any) -> Any:
+    """Recursively coerce UUID/datetime values for PostgREST JSON bodies (AT-37)."""
+    if isinstance(value, UUID):
+        return str(value)
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, dict):
+        return {str(key): _json_safe_value(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_json_safe_value(item) for item in value]
+    if isinstance(value, tuple):
+        return [_json_safe_value(item) for item in value]
+    return value
+
+
 def _parse_timestamp(value: str | datetime) -> datetime:
     if isinstance(value, datetime):
         return value
@@ -202,10 +217,7 @@ class SupabaseDataStore:
         }
 
     def create_generation_job(self, payload: dict[str, Any]) -> dict[str, Any]:
-        body = copy.deepcopy(payload)
-        for key, value in list(body.items()):
-            if isinstance(value, (UUID, datetime)):
-                body[key] = value.isoformat() if isinstance(value, datetime) else str(value)
+        body = _json_safe_value(copy.deepcopy(payload))
         response = self._request("POST", "generation_jobs", json_body=body)
         if response.status_code not in (200, 201):
             raise bad_request("JOB_CREATE_FAILED", response.text)
@@ -272,10 +284,7 @@ class SupabaseDataStore:
         job_id: UUID,
         updates: dict[str, Any],
     ) -> dict[str, Any]:
-        body = copy.deepcopy(updates)
-        for key, value in list(body.items()):
-            if isinstance(value, (UUID, datetime)):
-                body[key] = value.isoformat() if isinstance(value, datetime) else str(value)
+        body = _json_safe_value(copy.deepcopy(updates))
         response = self._request(
             "PATCH",
             "generation_jobs",

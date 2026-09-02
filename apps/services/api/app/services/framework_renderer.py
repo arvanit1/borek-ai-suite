@@ -22,13 +22,23 @@ _LABELS = {
         "confirmed": "Confirmed",
         "in_review": "In review — not confirmed",
         "quality": "Quality and readiness",
+        "overview": "Executive overview",
+        "warnings": "Contradictions and warnings",
         "open_items": "Assumptions and open items",
         "no_open_items": "No open items recorded.",
+        "no_warnings": "No contradictions or evidence warnings recorded.",
         "version": "Version",
         "status": "Status",
         "department": "Department",
+        "client": "Client",
         "opportunity": "Opportunity",
+        "opportunity_id": "Opportunity ID",
+        "prepared_by": "Prepared by",
+        "borek": "Borek",
+        "created": "Created",
+        "updated": "Updated",
         "language": "Language",
+        "sources": "Sources",
         "ai_used": "AI is used for",
         "ai_not_used": "AI is not used for",
         "item": "Item",
@@ -48,13 +58,23 @@ _LABELS = {
         "confirmed": "Bestätigt",
         "in_review": "In Prüfung — nicht bestätigt",
         "quality": "Qualität und Bereitschaft",
+        "overview": "Kurzüberblick",
+        "warnings": "Widersprüche und Warnungen",
         "open_items": "Annahmen und offene Punkte",
         "no_open_items": "Keine offenen Punkte erfasst.",
+        "no_warnings": "Keine Widersprüche oder Evidenzwarnungen erfasst.",
         "version": "Version",
         "status": "Status",
         "department": "Abteilung",
+        "client": "Kunde",
         "opportunity": "Opportunity",
+        "opportunity_id": "Opportunity-ID",
+        "prepared_by": "Erstellt von",
+        "borek": "Borek",
+        "created": "Erstellt",
+        "updated": "Aktualisiert",
         "language": "Sprache",
+        "sources": "Quellen",
         "ai_used": "KI wird verwendet für",
         "ai_not_used": "KI wird nicht verwendet für",
         "item": "Punkt",
@@ -135,12 +155,18 @@ def render_framework_html(framework: Any, language: str = "en") -> str:
     banner = _status_banner(payload, labels)
     banner_class = " draft" if _is_unconfirmed(payload) else ""
     parts.append(f"<p class='muted{banner_class}'>{html.escape(banner)}</p>")
+    parts.append(_html_cover_meta(payload, labels, language))
+    parts.append(_html_overview(payload, labels))
     parts.append(_html_quality(payload, labels))
+    parts.append(_html_warnings(payload, labels))
     for chapter in chapters:
         title = _text(chapter.get("title"))
         cid = _text(chapter.get("chapter_id"))
         parts.append(f"<h2>{html.escape(f'{cid} {title}'.strip())}</h2>")
-        parts.extend(_html_body(chapter.get("body")))
+        parts.extend(_html_body(chapter.get("body"), include_source_refs=True))
+        refs = _format_source_refs(chapter.get("source_refs") or [])
+        if refs:
+            parts.append(f"<p class='muted'>{html.escape(refs)}</p>")
     parts.append(f"<h2>{html.escape(labels['open_items'])}</h2>")
     parts.append(_html_open_items(payload, labels))
     parts.append("</body></html>")
@@ -151,7 +177,7 @@ def render_framework_docx(
     framework: Any,
     language: str = "en",
     *,
-    include_source_refs: bool = False,
+    include_source_refs: bool = True,
 ) -> bytes:
     """Render a FrameworkObject to a professional Word document with all 14 chapters."""
     payload = _as_mapping(framework)
@@ -159,7 +185,9 @@ def render_framework_docx(
     doc = Document()
     _style_document(doc)
     _add_cover_page(doc, payload, labels, language)
+    _add_executive_overview(doc, payload, labels)
     _add_quality_summary(doc, payload, labels)
+    _add_warnings(doc, payload, labels)
     chapters = _ordered_chapters(payload)
     for index, chapter in enumerate(chapters):
         _add_chapter(doc, chapter, include_source_refs=include_source_refs)
@@ -204,13 +232,70 @@ def _add_cover_page(
         banner.runs[0].font.color.rgb = _NAVY
 
     meta = [
-        (labels["opportunity"], _text(framework.get("opportunity_id"))),
+        (labels["prepared_by"], labels["borek"]),
+        (labels["client"], _text(framework.get("client_name"))),
+        (labels["opportunity"], _text(framework.get("opportunity_name") or framework.get("title"))),
+        (labels["opportunity_id"], _text(framework.get("opportunity_id"))),
         (labels["department"], _text(framework.get("department"))),
         (labels["status"], _status_banner(framework, labels)),
         (labels["version"], str(framework.get("version") or 1)),
+        (labels["created"], _text(framework.get("created_at"))),
+        (labels["updated"], _text(framework.get("updated_at"))),
         (labels["language"], language.upper()),
     ]
-    _add_table(doc, [labels["item"], labels["detail"]], meta)
+    _add_table(doc, [labels["item"], labels["detail"]], [row for row in meta if row[1]])
+
+
+def _review_summary(framework: dict[str, Any]) -> dict[str, Any]:
+    existing = framework.get("review_summary")
+    if isinstance(existing, dict) and existing:
+        return existing
+    try:
+        from services.framework.review_insights import build_review_summary
+
+        return build_review_summary(framework)
+    except Exception:
+        return {}
+
+
+def _add_executive_overview(doc: Document, framework: dict[str, Any], labels: dict[str, str]) -> None:
+    summary = _review_summary(framework)
+    overview = _text(summary.get("executive_summary"))
+    if not overview:
+        return
+    doc.add_heading(labels["overview"], level=1)
+    doc.add_paragraph(overview)
+    for key, heading in (
+        ("key_pain_points", "Key pain points"),
+        ("key_requirements", "Key requirements"),
+        ("target_outcomes", "Target outcomes"),
+    ):
+        items = [item for item in (summary.get(key) or []) if _text(item)]
+        if not items:
+            continue
+        doc.add_paragraph(heading).runs[0].bold = True
+        for item in items[:6]:
+            doc.add_paragraph(_text(item), style="List Bullet")
+
+
+def _add_warnings(doc: Document, framework: dict[str, Any], labels: dict[str, str]) -> None:
+    summary = _review_summary(framework)
+    rows: list[tuple[str, str]] = []
+    for item in summary.get("contradictions") or []:
+        rows.append(("Contradiction", _text(item)))
+    for item in summary.get("evidence_warnings") or []:
+        rows.append(("Evidence", _text(item)))
+    for item in summary.get("blocking_items") or []:
+        rows.append(("Blocking", _text(item)))
+    attention = framework.get("attention") or {}
+    for signal in attention.get("signals") or []:
+        if isinstance(signal, dict):
+            rows.append((_text(signal.get("code") or "Attention"), _text(signal.get("message") or signal.get("reason"))))
+    doc.add_heading(labels["warnings"], level=1)
+    if not rows:
+        doc.add_paragraph(labels["no_warnings"])
+        return
+    _add_table(doc, [labels["type"], labels["detail"]], rows)
 
 
 def _add_quality_summary(doc: Document, framework: dict[str, Any], labels: dict[str, str]) -> None:
@@ -235,7 +320,7 @@ def _add_chapter(doc: Document, chapter: dict[str, Any], *, include_source_refs:
     cid = _text(chapter.get("chapter_id"))
     title = _text(chapter.get("title"))
     doc.add_heading(f"{cid} {title}".strip(), level=1)
-    _add_body(doc, chapter.get("body"))
+    _add_body(doc, chapter.get("body"), include_source_refs=include_source_refs)
     if include_source_refs:
         refs = chapter.get("source_refs") or []
         if refs:
@@ -245,7 +330,7 @@ def _add_chapter(doc: Document, chapter: dict[str, Any], *, include_source_refs:
                 note.runs[0].font.size = Pt(8)
 
 
-def _add_body(doc: Document, body: Any) -> None:
+def _add_body(doc: Document, body: Any, *, include_source_refs: bool = True) -> None:
     if isinstance(body, str):
         if body.strip():
             doc.add_paragraph(_text(body))
@@ -257,6 +342,13 @@ def _add_body(doc: Document, body: Any) -> None:
             doc.add_paragraph(_text(block))
         elif isinstance(block, dict):
             _add_block(doc, block)
+            if include_source_refs:
+                refs = _format_source_refs(block.get("source_refs") or [])
+                if refs:
+                    note = doc.add_paragraph(refs)
+                    if note.runs:
+                        note.runs[0].italic = True
+                        note.runs[0].font.size = Pt(8)
 
 
 def _add_block(doc: Document, block: dict[str, Any]) -> None:
@@ -438,6 +530,54 @@ def _humanize(key: str) -> str:
     return key.replace("_", " ").strip().title()
 
 
+def _html_cover_meta(framework: dict[str, Any], labels: dict[str, str], language: str) -> str:
+    rows = [
+        (labels["prepared_by"], labels["borek"]),
+        (labels["client"], _text(framework.get("client_name"))),
+        (labels["opportunity"], _text(framework.get("opportunity_name") or framework.get("title"))),
+        (labels["department"], _text(framework.get("department"))),
+        (labels["version"], str(framework.get("version") or 1)),
+        (labels["created"], _text(framework.get("created_at"))),
+        (labels["language"], language.upper()),
+    ]
+    cells = "".join(
+        f"<tr><th>{html.escape(label)}</th><td>{html.escape(value)}</td></tr>"
+        for label, value in rows
+        if value
+    )
+    return f"<table>{cells}</table>"
+
+
+def _html_overview(framework: dict[str, Any], labels: dict[str, str]) -> str:
+    summary = _review_summary(framework)
+    overview = _text(summary.get("executive_summary"))
+    if not overview:
+        return ""
+    return f"<h2>{html.escape(labels['overview'])}</h2><p>{html.escape(overview)}</p>"
+
+
+def _html_warnings(framework: dict[str, Any], labels: dict[str, str]) -> str:
+    summary = _review_summary(framework)
+    rows = []
+    for item in summary.get("contradictions") or []:
+        rows.append(("Contradiction", _text(item)))
+    for item in summary.get("evidence_warnings") or []:
+        rows.append(("Evidence", _text(item)))
+    for item in summary.get("blocking_items") or []:
+        rows.append(("Blocking", _text(item)))
+    if not rows:
+        return (
+            f"<h2>{html.escape(labels['warnings'])}</h2>"
+            f"<p>{html.escape(labels['no_warnings'])}</p>"
+        )
+    cells = "".join(
+        f"<tr><td>{html.escape(kind)}</td><td>{html.escape(detail)}</td></tr>"
+        for kind, detail in rows
+        if detail
+    )
+    return f"<h2>{html.escape(labels['warnings'])}</h2><table>{cells}</table>"
+
+
 def _html_quality(framework: dict[str, Any], labels: dict[str, str]) -> str:
     scores = framework.get("quality_scores") or {}
     rows = "".join(
@@ -449,7 +589,7 @@ def _html_quality(framework: dict[str, Any], labels: dict[str, str]) -> str:
     return f"<h2>{html.escape(labels['quality'])}</h2><table>{rows}</table>"
 
 
-def _html_body(body: Any) -> list[str]:
+def _html_body(body: Any, *, include_source_refs: bool = True) -> list[str]:
     if isinstance(body, str):
         return [f"<p>{html.escape(_text(body))}</p>"] if body.strip() else []
     parts: list[str] = []
@@ -458,6 +598,10 @@ def _html_body(body: Any) -> list[str]:
             parts.append(f"<p>{html.escape(_text(block))}</p>")
         elif isinstance(block, dict):
             parts.append(_html_block(block))
+            if include_source_refs:
+                refs = _format_source_refs(block.get("source_refs") or [])
+                if refs:
+                    parts.append(f"<p class='muted'>{html.escape(refs)}</p>")
     return parts
 
 

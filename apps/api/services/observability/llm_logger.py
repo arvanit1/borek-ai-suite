@@ -81,6 +81,27 @@ class LlmCallRecord:
     error_category: str | None = None
     estimated_cost_eur: float = 0.0
 
+    def to_json_dict(self) -> dict[str, Any]:
+        """JSON-safe metadata for job result_json and API responses (AT-53)."""
+        return {
+            "request_id": str(self.request_id),
+            "stage": self.stage,
+            "model": self.model,
+            "prompt_version": self.prompt_version,
+            "input_tokens": self.input_tokens,
+            "output_tokens": self.output_tokens,
+            "total_tokens": self.total_tokens,
+            "latency_ms": self.latency_ms,
+            "retry_count": self.retry_count,
+            "timestamp": self.timestamp.isoformat().replace("+00:00", "Z"),
+            "job_id": str(self.job_id) if self.job_id is not None else None,
+            "opportunity_id": str(self.opportunity_id) if self.opportunity_id is not None else None,
+            "provider": self.provider,
+            "status": self.status,
+            "error_category": self.error_category,
+            "estimated_cost_eur": self.estimated_cost_eur,
+        }
+
 
 class LlmCallLogStore:
     def __init__(self) -> None:

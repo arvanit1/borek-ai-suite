@@ -221,3 +221,20 @@ def test_delete_transcript_records_audit_event() -> None:
     assert len(entries) == 1
     assert entries[0]["object_type"] == "transcript"
     assert str(entries[0]["object_id"]) == transcript_id
+
+
+def test_supabase_delete_transcript_cleans_storage() -> None:
+    from unittest.mock import MagicMock
+
+    from app.services.data.supabase_store import SupabaseDataStore
+
+    store = MagicMock()
+    store.get_transcript.return_value = {"storage_path": "owner/meeting.txt"}
+    store._request.return_value = MagicMock(status_code=204)
+    SupabaseDataStore.delete_transcript(
+        store,
+        opportunity_id=uuid.uuid4(),
+        transcript_id=uuid.uuid4(),
+        user_id=USER_ID,
+    )
+    store._delete_transcript_content.assert_called_once_with(storage_path="owner/meeting.txt")

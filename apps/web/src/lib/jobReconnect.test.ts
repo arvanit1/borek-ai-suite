@@ -34,6 +34,10 @@ assert.equal(jobMatchesPage("presentation_generation", "plan"), false);
 assert.equal(jobMatchesPage("presentation_generation", "deck"), true);
 assert.equal(jobMatchesPage("slide_regenerate", "deck"), true);
 assert.equal(jobMatchesPage("presentation_planning", "deck"), false);
+assert.deepEqual(
+  inspectActiveJob(job({ job_type: "slide_regenerate", current_stage: "SLIDE_GENERATING" }), "deck"),
+  { action: "monitor", jobId: "job-1" },
+);
 
 assert.equal(isMonitorableJobStatus("QUEUED"), true);
 assert.equal(isMonitorableJobStatus("RUNNING"), true);
@@ -101,6 +105,19 @@ assert.equal(
 assert.equal(
   generationProgressMessage("deck", true),
   "Resuming presentation rendering…",
+);
+
+assert.match(
+  jobFailureMessage({
+    error: {
+      code: "PRESENTATION_PLANNING_FAILED",
+      message:
+        "Invalid PresentationPlan: PresentationPlan layoutId values must be unique; duplicates: CONTEXT_01",
+      stage: "PRESENTATION_PLANNING",
+      retryable: true,
+    },
+  }),
+  /unique layout/,
 );
 
 console.log("jobReconnect tests passed");

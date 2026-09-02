@@ -5,6 +5,7 @@ from __future__ import annotations
 from celery import Celery
 
 from app.config import settings
+from app.services.job_retry import run_with_transient_retry
 
 celery_app = Celery(
     "borek_worker",
@@ -17,6 +18,13 @@ celery_app.conf.result_serializer = "json"
 celery_app.conf.accept_content = ["json"]
 celery_app.conf.task_always_eager = settings.API_DATA_BACKEND == "memory"
 celery_app.conf.task_eager_propagates = False
+
+
+@celery_app.on_after_configure.connect
+def _log_worker_runtime_profile(**_kwargs) -> None:
+    from app.runtime_profile import log_runtime_profile
+
+    log_runtime_profile(component="worker")
 
 
 def _llm_observability_scope(store, job_id, opportunity_id=None):
@@ -69,27 +77,33 @@ def run_presentation_planning_task(
     parsed_job_id = UUID(job_id)
     stage = JobStage.PRESENTATION_PLANNING
     try:
-        with _llm_observability_scope(store, parsed_job_id):
-            job_service.ensure_stage(parsed_job_id, stage, repository=store)
-            plan = presentation_generation.execute_presentation_planning(
-                store,
-                framework_version_id=UUID(framework_version_id),
-                user_id=UUID(user_id),
-                presentation_plan_id=UUID(presentation_plan_id),
-            )
-            job_service.complete_job(
-                parsed_job_id,
-                repository=store,
-                result_json={"presentation_plan_id": str(plan["id"])},
-            )
-            return {"job_id": job_id, "presentation_plan_id": str(plan["id"])}
+        def _run() -> dict[str, str]:
+            with _llm_observability_scope(store, parsed_job_id):
+                job_service.ensure_stage(parsed_job_id, stage, repository=store)
+                plan = presentation_generation.execute_presentation_planning(
+                    store,
+                    framework_version_id=UUID(framework_version_id),
+                    user_id=UUID(user_id),
+                    presentation_plan_id=UUID(presentation_plan_id),
+                )
+                job_service.complete_job(
+                    parsed_job_id,
+                    repository=store,
+                    result_json={"presentation_plan_id": str(plan["id"])},
+                )
+                return {"job_id": job_id, "presentation_plan_id": str(plan["id"])}
+
+        return run_with_transient_retry(_run)
     except Exception as exc:
+        from app.services.planning_job_errors import format_presentation_planning_failure
+
+        error_code, message, retryable = format_presentation_planning_failure(exc)
         job_service.fail_job(
             parsed_job_id,
-            getattr(exc, "code", "PRESENTATION_PLANNING_FAILED"),
-            str(exc),
+            error_code,
+            message,
             stage,
-            bool(getattr(exc, "retryable", True)),
+            retryable,
             repository=store,
         )
         raise
@@ -112,35 +126,40 @@ def run_framework_generation_task(
     parsed_job_id = UUID(job_id)
     stage = JobStage.TRANSCRIPT_PROCESSING
     try:
-        with _llm_observability_scope(store, parsed_job_id, UUID(opportunity_id)):
-            job_service.ensure_stage(parsed_job_id, stage, repository=store)
-            stage = JobStage.KNOWLEDGE_EXTRACTING
-            job_service.ensure_stage(parsed_job_id, stage, repository=store)
-            stage = JobStage.FRAMEWORK_SYNTHESIZING
-            job_service.ensure_stage(parsed_job_id, stage, repository=store)
-            framework = framework_generation.execute_framework_generate(
-                store,
-                opportunity_id=UUID(opportunity_id),
-                user_id=UUID(user_id),
-                framework_version_id=UUID(framework_version_id),
-            )
-            stage = JobStage.FRAMEWORK_VALIDATING
-            job_service.ensure_stage(parsed_job_id, stage, repository=store)
-            loaded_job = job_service.get_job(parsed_job_id, repository=store)
-            if loaded_job is None:
-                raise RuntimeError(f"Job not found: {job_id}")
-            observability = framework_generation.persist_framework_generation_observability(
-                loaded_job,
-                framework_json=framework["framework_json"],
-                opportunity_id=UUID(opportunity_id),
-                framework_version_id=UUID(framework_version_id),
-            )
-            job_service.complete_job(
-                parsed_job_id,
-                repository=store,
-                result_json=observability,
-            )
-            return {"job_id": job_id, "framework_version_id": str(framework["id"])}
+        def _run() -> dict[str, str]:
+            nonlocal stage
+            with _llm_observability_scope(store, parsed_job_id, UUID(opportunity_id)):
+                job_service.ensure_stage(parsed_job_id, stage, repository=store)
+                stage = JobStage.KNOWLEDGE_EXTRACTING
+                job_service.ensure_stage(parsed_job_id, stage, repository=store)
+                stage = JobStage.FRAMEWORK_SYNTHESIZING
+                job_service.ensure_stage(parsed_job_id, stage, repository=store)
+                framework = framework_generation.execute_framework_generate(
+                    store,
+                    opportunity_id=UUID(opportunity_id),
+                    user_id=UUID(user_id),
+                    framework_version_id=UUID(framework_version_id),
+                )
+                stage = JobStage.FRAMEWORK_VALIDATING
+                job_service.ensure_stage(parsed_job_id, stage, repository=store)
+                loaded_job = job_service.get_job(parsed_job_id, repository=store)
+                if loaded_job is None:
+                    raise RuntimeError(f"Job not found: {job_id}")
+                observability = framework_generation.persist_framework_generation_observability(
+                    loaded_job,
+                    framework_json=framework["framework_json"],
+                    opportunity_id=UUID(opportunity_id),
+                    framework_version_id=UUID(framework_version_id),
+                    repository=store,
+                )
+                job_service.complete_job(
+                    parsed_job_id,
+                    repository=store,
+                    result_json=observability,
+                )
+                return {"job_id": job_id, "framework_version_id": str(framework["id"])}
+
+        return run_with_transient_retry(_run)
     except Exception as exc:
         job_service.fail_job(
             parsed_job_id,
@@ -169,28 +188,31 @@ def run_framework_render_task(
     parsed_job_id = UUID(job_id)
     stage = JobStage.PREVIEW_RENDERING
     try:
-        job_service.ensure_stage(parsed_job_id, stage, repository=store)
-        path = framework_generation.execute_framework_render(
-            store,
-            framework_version_id=UUID(framework_version_id),
-            user_id=UUID(user_id),
-        )
-        job_service.record_metrics(
-            parsed_job_id,
-            repository=store,
-            storage_size_bytes=path.stat().st_size,
-        )
-        job_service.complete_job(
-            parsed_job_id,
-            repository=store,
-            result_json={
-                "framework_version_id": framework_version_id,
-                "pdf_download_url": (
-                    f"/frameworks/{framework_version_id}/render?format=pdf"
-                ),
-            },
-        )
-        return {"job_id": job_id, "framework_version_id": framework_version_id}
+        def _run() -> dict[str, str]:
+            job_service.ensure_stage(parsed_job_id, stage, repository=store)
+            path = framework_generation.execute_framework_render(
+                store,
+                framework_version_id=UUID(framework_version_id),
+                user_id=UUID(user_id),
+            )
+            job_service.record_metrics(
+                parsed_job_id,
+                repository=store,
+                storage_size_bytes=path.stat().st_size,
+            )
+            job_service.complete_job(
+                parsed_job_id,
+                repository=store,
+                result_json={
+                    "framework_version_id": framework_version_id,
+                    "pdf_download_url": (
+                        f"/frameworks/{framework_version_id}/render?format=pdf"
+                    ),
+                },
+            )
+            return {"job_id": job_id, "framework_version_id": framework_version_id}
+
+        return run_with_transient_retry(_run)
     except Exception as exc:
         job_service.fail_job(
             parsed_job_id,
@@ -219,26 +241,30 @@ def run_framework_regenerate_chapter_task(
     parsed_job_id = UUID(job_id)
     stage = JobStage.TRANSCRIPT_PROCESSING
     try:
-        job_service.ensure_stage(parsed_job_id, stage, repository=store)
-        stage = JobStage.KNOWLEDGE_EXTRACTING
-        job_service.ensure_stage(parsed_job_id, stage, repository=store)
-        stage = JobStage.FRAMEWORK_SYNTHESIZING
-        job_service.ensure_stage(parsed_job_id, stage, repository=store)
-        stage = JobStage.FRAMEWORK_VALIDATING
-        job_service.ensure_stage(parsed_job_id, stage, repository=store)
-        job_service.complete_job(
-            parsed_job_id,
-            repository=store,
-            result_json={
+        def _run() -> dict[str, str]:
+            nonlocal stage
+            job_service.ensure_stage(parsed_job_id, stage, repository=store)
+            stage = JobStage.KNOWLEDGE_EXTRACTING
+            job_service.ensure_stage(parsed_job_id, stage, repository=store)
+            stage = JobStage.FRAMEWORK_SYNTHESIZING
+            job_service.ensure_stage(parsed_job_id, stage, repository=store)
+            stage = JobStage.FRAMEWORK_VALIDATING
+            job_service.ensure_stage(parsed_job_id, stage, repository=store)
+            job_service.complete_job(
+                parsed_job_id,
+                repository=store,
+                result_json={
+                    "framework_version_id": framework_version_id,
+                    "chapter_id": chapter_id,
+                },
+            )
+            return {
+                "job_id": job_id,
                 "framework_version_id": framework_version_id,
                 "chapter_id": chapter_id,
-            },
-        )
-        return {
-            "job_id": job_id,
-            "framework_version_id": framework_version_id,
-            "chapter_id": chapter_id,
-        }
+            }
+
+        return run_with_transient_retry(_run)
     except Exception as exc:
         job_service.fail_job(
             parsed_job_id,
@@ -268,44 +294,48 @@ def run_presentation_generation_task(
     parsed_job_id = UUID(job_id)
     stage = JobStage.SLIDE_GENERATING
     try:
-        with _llm_observability_scope(store, parsed_job_id):
-            job_service.ensure_stage(parsed_job_id, stage, repository=store)
-            version, plan = presentation_generation.execute_presentation_generation(
-                store,
-                presentation_id=UUID(presentation_id),
-                user_id=UUID(user_id),
-            )
-            stage = JobStage.SLIDE_VALIDATING
-            job_service.ensure_stage(parsed_job_id, stage, repository=store)
-            stage = JobStage.PPTX_RENDERING
-            job_service.ensure_stage(parsed_job_id, stage, repository=store)
-            render_started = monotonic()
-            version = presentation_generation.render_presentation_version(
-                store,
-                version=version,
-                plan=plan,
-            )
-            job_service.record_metrics(
-                parsed_job_id,
-                repository=store,
-                render_duration_ms=int((monotonic() - render_started) * 1000),
-                storage_size_bytes=int(version.get("storage_size_bytes") or 0),
-            )
-            stage = JobStage.PREVIEW_RENDERING
-            job_service.ensure_stage(parsed_job_id, stage, repository=store)
-            job_service.complete_job(
-                parsed_job_id,
-                repository=store,
-                result_json={
+        def _run() -> dict[str, str]:
+            nonlocal stage
+            with _llm_observability_scope(store, parsed_job_id):
+                job_service.ensure_stage(parsed_job_id, stage, repository=store)
+                version, plan = presentation_generation.execute_presentation_generation(
+                    store,
+                    presentation_id=UUID(presentation_id),
+                    user_id=UUID(user_id),
+                )
+                stage = JobStage.SLIDE_VALIDATING
+                job_service.ensure_stage(parsed_job_id, stage, repository=store)
+                stage = JobStage.PPTX_RENDERING
+                job_service.ensure_stage(parsed_job_id, stage, repository=store)
+                render_started = monotonic()
+                version = presentation_generation.render_presentation_version(
+                    store,
+                    version=version,
+                    plan=plan,
+                )
+                job_service.record_metrics(
+                    parsed_job_id,
+                    repository=store,
+                    render_duration_ms=int((monotonic() - render_started) * 1000),
+                    storage_size_bytes=int(version.get("storage_size_bytes") or 0),
+                )
+                stage = JobStage.PREVIEW_RENDERING
+                job_service.ensure_stage(parsed_job_id, stage, repository=store)
+                job_service.complete_job(
+                    parsed_job_id,
+                    repository=store,
+                    result_json={
+                        "presentation_id": presentation_id,
+                        "presentation_version_id": str(version["id"]),
+                    },
+                )
+                return {
+                    "job_id": job_id,
                     "presentation_id": presentation_id,
                     "presentation_version_id": str(version["id"]),
-                },
-            )
-            return {
-                "job_id": job_id,
-                "presentation_id": presentation_id,
-                "presentation_version_id": str(version["id"]),
-            }
+                }
+
+        return run_with_transient_retry(_run)
     except Exception as exc:
         job_service.fail_job(
             parsed_job_id,
@@ -336,56 +366,60 @@ def _run_slide_task(
     parsed_job_id = UUID(job_id)
     stage = JobStage.SLIDE_GENERATING
     try:
-        with _llm_observability_scope(store, parsed_job_id):
-            job_service.ensure_stage(parsed_job_id, stage, repository=store)
-            if layout_id is None:
-                slide = presentation_generation.execute_slide_regenerate(
-                    store,
+        def _run() -> dict[str, str]:
+            nonlocal stage
+            with _llm_observability_scope(store, parsed_job_id):
+                job_service.ensure_stage(parsed_job_id, stage, repository=store)
+                if layout_id is None:
+                    slide = presentation_generation.execute_slide_regenerate(
+                        store,
+                        presentation_id=UUID(presentation_id),
+                        slide_id=UUID(slide_id),
+                        user_id=UUID(user_id),
+                    )
+                else:
+                    slide = presentation_generation.execute_slide_change_layout(
+                        store,
+                        presentation_id=UUID(presentation_id),
+                        slide_id=UUID(slide_id),
+                        user_id=UUID(user_id),
+                        layout_id=layout_id,
+                    )
+                stage = JobStage.SLIDE_VALIDATING
+                job_service.ensure_stage(parsed_job_id, stage, repository=store)
+                version = store.get_latest_presentation_version(
                     presentation_id=UUID(presentation_id),
-                    slide_id=UUID(slide_id),
                     user_id=UUID(user_id),
                 )
-            else:
-                slide = presentation_generation.execute_slide_change_layout(
-                    store,
+                presentation = store.get_presentation(
                     presentation_id=UUID(presentation_id),
-                    slide_id=UUID(slide_id),
                     user_id=UUID(user_id),
-                    layout_id=layout_id,
                 )
-            stage = JobStage.SLIDE_VALIDATING
-            job_service.ensure_stage(parsed_job_id, stage, repository=store)
-            version = store.get_latest_presentation_version(
-                presentation_id=UUID(presentation_id),
-                user_id=UUID(user_id),
-            )
-            presentation = store.get_presentation(
-                presentation_id=UUID(presentation_id),
-                user_id=UUID(user_id),
-            )
-            plan = store.get_presentation_plan(
-                presentation_plan_id=presentation["presentation_plan_id"],
-                user_id=UUID(user_id),
-            )
-            stage = JobStage.PPTX_RENDERING
-            job_service.ensure_stage(parsed_job_id, stage, repository=store)
-            version = presentation_generation.render_presentation_version(
-                store,
-                version=version,
-                plan=plan,
-            )
-            stage = JobStage.PREVIEW_RENDERING
-            job_service.ensure_stage(parsed_job_id, stage, repository=store)
-            job_service.complete_job(
-                parsed_job_id,
-                repository=store,
-                result_json={
-                    "presentation_id": presentation_id,
-                    "presentation_version_id": str(version["id"]),
-                    "slide_id": str(slide["id"]),
-                },
-            )
-            return {"job_id": job_id, "slide_id": str(slide["id"])}
+                plan = store.get_presentation_plan(
+                    presentation_plan_id=presentation["presentation_plan_id"],
+                    user_id=UUID(user_id),
+                )
+                stage = JobStage.PPTX_RENDERING
+                job_service.ensure_stage(parsed_job_id, stage, repository=store)
+                version = presentation_generation.render_presentation_version(
+                    store,
+                    version=version,
+                    plan=plan,
+                )
+                stage = JobStage.PREVIEW_RENDERING
+                job_service.ensure_stage(parsed_job_id, stage, repository=store)
+                job_service.complete_job(
+                    parsed_job_id,
+                    repository=store,
+                    result_json={
+                        "presentation_id": presentation_id,
+                        "presentation_version_id": str(version["id"]),
+                        "slide_id": str(slide["id"]),
+                    },
+                )
+                return {"job_id": job_id, "slide_id": str(slide["id"])}
+
+        return run_with_transient_retry(_run)
     except Exception as exc:
         job_service.fail_job(
             parsed_job_id,

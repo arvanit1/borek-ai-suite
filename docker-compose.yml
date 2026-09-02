@@ -48,8 +48,8 @@ services:
       REDIS_URL: redis://redis:6379/0
       RENDERER_URL: http://renderer:${RENDERER_PORT:-4000}
       API_DATA_BACKEND: ${API_DATA_BACKEND:-supabase}
-      AI_EXECUTION_MODE: ${AI_EXECUTION_MODE:-fixture}
-      RENDERER_EXECUTION_MODE: ${RENDERER_EXECUTION_MODE:-live}
+      # AI_EXECUTION_MODE and RENDERER_EXECUTION_MODE come from env_file (.env) only.
+      # Do not default them here — a compose-level default can hide .env=live and force fixture decks.
       ARTIFACT_ROOT: /artifacts
       API_HOST: 0.0.0.0
       API_PORT: 8000
@@ -80,8 +80,8 @@ services:
       REDIS_URL: redis://redis:6379/0
       RENDERER_URL: http://renderer:${RENDERER_PORT:-4000}
       API_DATA_BACKEND: ${API_DATA_BACKEND:-supabase}
-      AI_EXECUTION_MODE: ${AI_EXECUTION_MODE:-fixture}
-      RENDERER_EXECUTION_MODE: ${RENDERER_EXECUTION_MODE:-live}
+      # AI_EXECUTION_MODE and RENDERER_EXECUTION_MODE come from env_file (.env) only.
+      # Do not default them here — a compose-level default can hide .env=live and force fixture decks.
       ARTIFACT_ROOT: /artifacts
     volumes:
       - presentation_artifacts:/artifacts

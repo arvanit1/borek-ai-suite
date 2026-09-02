@@ -10,6 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 MIGRATIONS_DIR = ROOT / "apps" / "services" / "api" / "supabase" / "migrations"
 VERIFY_DB = ROOT / "scripts" / "verify_db.py"
+APPLY_MIGRATIONS = ROOT / "scripts" / "apply_migrations.py"
 
 TABLE_MIGRATIONS = [
     ("001_opportunities.sql", "opportunities"),
@@ -65,6 +66,39 @@ def test_files_numbered_001_through_011_with_no_gaps() -> None:
     spine = [number for number in numbers if number <= 11]
     assert spine == list(range(1, 12)), f"expected 001-011 with no gaps, got {spine}"
     assert (MIGRATIONS_DIR / "011_rls_policies.sql").is_file()
+
+
+def test_follow_on_migrations_014_and_015_are_idempotent() -> None:
+    llm_calls = (MIGRATIONS_DIR / "014_llm_calls.sql").read_text(encoding="utf-8")
+    assert "CREATE TABLE IF NOT EXISTS llm_calls" in llm_calls
+    assert "ADD COLUMN IF NOT EXISTS llm_cost_eur" in llm_calls
+    assert "ENABLE ROW LEVEL SECURITY" in llm_calls
+    pii = (MIGRATIONS_DIR / "015_opportunity_pii_redaction.sql").read_text(encoding="utf-8")
+    assert "ADD COLUMN IF NOT EXISTS pii_redaction_enabled" in pii
+
+
+def test_verify_db_covers_llm_calls_table() -> None:
+    content = VERIFY_DB.read_text(encoding="utf-8")
+    assert '"llm_calls"' in content
+    assert "pii_redaction_enabled" in content
+    assert "llm_cost_eur" in content
+    assert "EXPECTED_FOREIGN_KEYS" in content
+    assert "EXPECTED_INDEXES" in content
+
+
+def test_apply_migrations_script_covers_001_through_015() -> None:
+    assert APPLY_MIGRATIONS.is_file()
+    content = APPLY_MIGRATIONS.read_text(encoding="utf-8")
+    compile(content, str(APPLY_MIGRATIONS), "exec")
+    assert "--reapply" in content
+    names = _sql_names()
+    numbers = sorted(
+        int(name.split("_", 1)[0])
+        for name in names
+        if re.match(r"^\d{3}_", name)
+    )
+    assert numbers == list(range(1, 16)), f"expected 001-015 with no gaps, got {numbers}"
+    assert names == sorted(names)
 
 
 def test_verify_db_script_exists_and_is_executable() -> None:

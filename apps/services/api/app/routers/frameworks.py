@@ -58,6 +58,18 @@ def download_framework_render(
     payload = dict(row.get("framework_json") or {})
     payload["status"] = row.get("status") or payload.get("status") or "draft"
     payload.setdefault("version", row.get("version_number") or payload.get("version") or 1)
+    payload.setdefault("created_at", row.get("created_at"))
+    payload.setdefault("updated_at", row.get("updated_at") or row.get("created_at"))
+    try:
+        opportunity = store.get_opportunity(
+            opportunity_id=row["opportunity_id"],
+            user_id=user.id,
+        )
+        payload.setdefault("client_name", opportunity.get("client_name"))
+        payload.setdefault("opportunity_name", opportunity.get("opportunity_name"))
+        payload.setdefault("department", opportunity.get("department") or payload.get("department"))
+    except Exception:
+        pass
     language = "de" if str(lang).lower().startswith("de") else "en"
 
     if format == "pdf":

@@ -260,7 +260,9 @@ def _cover(view: dict[str, Any], styles: dict[str, ParagraphStyle], lang: str, l
         Spacer(1, 8 * mm),
         _meta_table(
             [
-                ["Opportunity", str(view.get("opportunity_id") or "")],
+                ["Client", str(view.get("client_name") or "")],
+                ["Opportunity", str(view.get("opportunity_name") or view.get("title") or "")],
+                ["Opportunity ID", str(view.get("opportunity_id") or "")],
                 ["Department", str(view.get("department") or "")],
                 ["Sources", strip_citations(str(cover.get("sources_line") or ""))],
                 [

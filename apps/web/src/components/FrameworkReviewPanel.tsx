@@ -14,6 +14,7 @@ import {
   ApiRequestError,
   FRAMEWORK_JOB_TIMEOUT_MS,
   confirmFramework,
+  downloadFrameworkRender,
   generateFramework,
   getActiveJob,
   getLatestFramework,
@@ -23,6 +24,10 @@ import {
   updateFramework as persistFramework,
   waitForJob,
 } from "@/lib/api";
+import {
+  buildFrameworkDownloadFilename,
+  buildFrameworkRenderPath,
+} from "@/lib/frameworkExport";
 import { isMissingFrameworkError } from "@/lib/apiErrors";
 import {
   generationProgressMessage,
@@ -56,6 +61,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
   const [transcriptCount, setTranscriptCount] = useState<number | null>(null);
   const [activeChapterId, setActiveChapterId] = useState<string | null>(null);
   const [hoveredChapterId, setHoveredChapterId] = useState<string | null>(null);
+  const [downloadingFormat, setDownloadingFormat] = useState<"docx" | "pdf" | null>(null);
   const chapterNavItemRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
 
   const editable = frameworkVersion
@@ -129,6 +135,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
             await waitForJob(token, decision.jobId, FRAMEWORK_JOB_TIMEOUT_MS);
           } catch (monitorError) {
             if (!cancelled) {
+              setInfo(null);
               setError(
                 monitorError instanceof Error ? monitorError.message : "Generation job failed.",
               );
@@ -138,6 +145,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
             }
           }
         } else if (decision.action === "failed") {
+          setInfo(null);
           setError(decision.message);
           if (decision.retryable) {
             setRetryJobId(decision.jobId);
@@ -285,6 +293,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       await waitForJob(accessToken, generated.job_id, FRAMEWORK_JOB_TIMEOUT_MS);
       await loadFramework();
     } catch (generateError) {
+      setInfo(null);
       setError(generateError instanceof Error ? generateError.message : "Generate failed.");
       if (generateError instanceof ApiRequestError && generateError.retryable && generateError.jobId) {
         setRetryJobId(generateError.jobId);
@@ -307,6 +316,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       await waitForJob(accessToken, queued.job_id, FRAMEWORK_JOB_TIMEOUT_MS);
       await loadFramework();
     } catch (retryError) {
+      setInfo(null);
       setError(retryError instanceof Error ? retryError.message : "Retry failed.");
       if (retryError instanceof ApiRequestError && retryError.retryable && retryError.jobId) {
         setRetryJobId(retryError.jobId);
@@ -333,6 +343,30 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       setError(saveError instanceof Error ? saveError.message : "Save failed.");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function handleDownloadFramework(format: "docx" | "pdf") {
+    if (!accessToken || !frameworkVersion || !frameworkJson) {
+      return;
+    }
+    setDownloadingFormat(format);
+    setError(null);
+    try {
+      const path = buildFrameworkRenderPath(frameworkVersion.id, format);
+      const blob = await downloadFrameworkRender(accessToken, path);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = buildFrameworkDownloadFilename(frameworkJson.title, format);
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (downloadError) {
+      setError(
+        downloadError instanceof Error ? downloadError.message : "Framework download failed.",
+      );
+    } finally {
+      setDownloadingFormat(null);
     }
   }
 
@@ -518,12 +552,28 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
                       </p>
                     </div>
                     <div className="framework-toolbar-actions">
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        disabled={busy || downloadingFormat !== null}
+                        onClick={() => void handleDownloadFramework("docx")}
+                      >
+                        {downloadingFormat === "docx" ? "Downloading…" : "Download Word"}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        disabled={busy || downloadingFormat !== null}
+                        onClick={() => void handleDownloadFramework("pdf")}
+                      >
+                        {downloadingFormat === "pdf" ? "Downloading…" : "Download PDF"}
+                      </button>
                       {editable ? (
                         <>
                           <button
                             type="button"
                             className="btn btn-secondary"
-                            disabled={busy || !dirty}
+                            disabled={busy || !dirty || downloadingFormat !== null}
                             onClick={() => void handleSave()}
                           >
                             Save changes
@@ -531,7 +581,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
                           <button
                             type="button"
                             className="btn btn-primary"
-                            disabled={busy}
+                            disabled={busy || downloadingFormat !== null}
                             onClick={() => void handleConfirm()}
                           >
                             Confirm framework
@@ -577,6 +627,36 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
                       <div>
                         {frameworkJson.chapters.length} / {EXPECTED_CHAPTER_COUNT}
                       </div>
+                    </div>
+                  </div>
+
+                  <div className="framework-export-panel" data-testid="framework-export-panel">
+                    <div>
+                      <strong>Export framework report</strong>
+                      <p>
+                        Download the complete 14-chapter framework as Word or PDF. Draft versions
+                        are labeled accordingly until you confirm.
+                      </p>
+                    </div>
+                    <div className="framework-toolbar-actions">
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        data-testid="framework-download-word"
+                        disabled={busy || downloadingFormat !== null}
+                        onClick={() => void handleDownloadFramework("docx")}
+                      >
+                        {downloadingFormat === "docx" ? "Downloading…" : "Download Word"}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        data-testid="framework-download-pdf"
+                        disabled={busy || downloadingFormat !== null}
+                        onClick={() => void handleDownloadFramework("pdf")}
+                      >
+                        {downloadingFormat === "pdf" ? "Downloading…" : "Download PDF"}
+                      </button>
                     </div>
                   </div>
                 </section>
