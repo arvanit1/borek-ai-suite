@@ -106,8 +106,27 @@ function isValidationError(value: ErrorShape): boolean {
   return (
     (value.code != null && VALIDATION_CODES.has(value.code)) ||
     value.stage === "FRAMEWORK_VALIDATING" ||
-    value.stage === "SLIDE_VALIDATING"
+    value.stage === "SLIDE_VALIDATING" ||
+    (value.code === "PRESENTATION_GENERATION_FAILED" &&
+      value.stage === "SLIDE_GENERATING" &&
+      /generation failed validation|content constraints? failed|item count .* exceeds maximum/i.test(
+        value.message ?? "",
+      ))
   );
+}
+
+export function recoverySurfacePrecedence(
+  notice: RecoveryNotice | null,
+  progressVisible: boolean,
+): { showRecovery: boolean; showProgress: boolean; showSecondary: boolean } {
+  const progressDominates =
+    progressVisible &&
+    (notice?.category === "STILL_RUNNING" || notice?.category === "RETRYING");
+  return {
+    showRecovery: Boolean(notice && !progressDominates),
+    showProgress: progressVisible && (!notice || progressDominates),
+    showSecondary: !notice && !progressVisible,
+  };
 }
 
 function reviewAction(context: RecoveryContext): RecoveryAction {

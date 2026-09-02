@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { AppPageHeader } from "@/components/AppPageHeader";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -10,9 +10,10 @@ import {
   downloadPresentationFile,
   getDeckCenter,
   getLatestFramework,
-  getLatestOpportunityJob,
+  getActiveJob,
   getLatestPresentation,
   getLatestPresentationPlan,
+  getJob,
   listOpportunities,
   listTranscripts,
   type ListedOpportunityResponse,
@@ -28,6 +29,7 @@ import {
   buildRecentWorkItems,
   formatRecentDate,
   latestActivityAt,
+  selectRecentWorkJob,
   type RecentWorkItem,
   type RecentWorkSnapshot,
 } from "@/lib/recentPresentations";
@@ -51,7 +53,14 @@ async function loadSnapshot(
   opportunity: ListedOpportunityResponse,
 ): Promise<RecentWorkSnapshot> {
   try {
-    const [transcripts, framework, plan, presentation, latestJob] = await Promise.all([
+    const [
+      transcripts,
+      framework,
+      plan,
+      presentation,
+      activeFrameworkJob,
+      activePresentationJob,
+    ] = await Promise.all([
       listTranscripts(accessToken, opportunity.id),
       optionalResource(
         getLatestFramework(accessToken, opportunity.id),
@@ -65,8 +74,20 @@ async function loadSnapshot(
         getLatestPresentation(accessToken, opportunity.id),
         isMissingPresentationError,
       ),
-      getLatestOpportunityJob(accessToken, opportunity.id),
+      getActiveJob(accessToken, opportunity.id, "framework"),
+      getActiveJob(accessToken, opportunity.id, "presentation"),
     ]);
+    const activeJob = selectRecentWorkJob([activeFrameworkJob, activePresentationJob]);
+    let autoContinue: boolean | undefined;
+    if (activeJob?.job_type === "presentation_planning") {
+      const planningJob = await getJob(accessToken, activeJob.job_id);
+      const enqueue = planningJob.result._enqueue;
+      autoContinue = Boolean(
+        enqueue &&
+          typeof enqueue === "object" &&
+          (enqueue as Record<string, unknown>).auto_continue === true,
+      );
+    }
 
     const deck = presentation
       ? await optionalResource(
@@ -91,32 +112,40 @@ async function loadSnapshot(
         framework?.framework_json.updated_at,
         plan?.created_at,
         presentation?.created_at,
-        latestJob?.created_at,
-        latestJob?.started_at,
-        latestJob?.completed_at,
+        activeJob?.started_at,
       ),
-      failed: latestJob?.status === "FAILED",
+      job: activeJob
+        ? {
+            job_type: activeJob.job_type,
+            status: activeJob.status,
+            current_stage: activeJob.current_stage,
+            auto_continue: autoContinue,
+          }
+        : undefined,
     };
-  } catch {
-    return {
-      opportunity,
-      transcriptCount: 0,
-      hasPlan: false,
-      activityAt: opportunity.updated_at || opportunity.created_at,
-      failed: true,
-    };
+  } catch (error) {
+    throw error;
   }
 }
 
 export function RecentPresentationsPanel() {
   const { accessToken, session } = useAuth();
   const [items, setItems] = useState<RecentWorkItem[]>([]);
+  const [itemsAuthScope, setItemsAuthScope] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const loadRequestId = useRef(0);
+  const currentUserId = session?.user.id;
+  const authScope = currentUserId ?? accessToken;
+  const visibleItems = authScope && itemsAuthScope === authScope ? items : [];
 
   const loadRecent = useCallback(async () => {
-    if (!accessToken) {
+    const requestId = ++loadRequestId.current;
+    if (!accessToken || !authScope) {
+      setItems([]);
+      setItemsAuthScope(null);
+      setLoading(false);
       return;
     }
     setLoading(true);
@@ -126,13 +155,20 @@ export function RecentPresentationsPanel() {
       const snapshots = await Promise.all(
         opportunities.map((opportunity) => loadSnapshot(accessToken, opportunity)),
       );
-      setItems(buildRecentWorkItems(snapshots));
+      if (requestId === loadRequestId.current) {
+        setItems(buildRecentWorkItems(snapshots, currentUserId));
+        setItemsAuthScope(authScope);
+      }
     } catch {
-      setError("Recent presentations could not be loaded. Please try again.");
+      if (requestId === loadRequestId.current) {
+        setError("Recent presentations could not be loaded. Please try again.");
+      }
     } finally {
-      setLoading(false);
+      if (requestId === loadRequestId.current) {
+        setLoading(false);
+      }
     }
-  }, [accessToken]);
+  }, [accessToken, authScope, currentUserId]);
 
   useEffect(() => {
     void loadRecent();
@@ -192,7 +228,7 @@ export function RecentPresentationsPanel() {
           </section>
         ) : null}
 
-        {!loading && items.length === 0 && !error ? (
+        {!loading && visibleItems.length === 0 && !error ? (
           <section className="recent-empty">
             <p className="recent-empty-kicker">No presentations yet</p>
             <h2>Build your first customer presentation</h2>
@@ -203,9 +239,9 @@ export function RecentPresentationsPanel() {
           </section>
         ) : null}
 
-        {!loading && items.length > 0 ? (
+        {!loading && visibleItems.length > 0 ? (
           <section className="recent-list" aria-label="Recent presentations">
-            {items.map((item) => (
+            {visibleItems.map((item) => (
               <article className="recent-card" key={item.opportunityId}>
                 <div className="recent-card-main">
                   <div className="recent-card-copy">

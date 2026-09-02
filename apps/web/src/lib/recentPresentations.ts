@@ -11,6 +11,7 @@ export interface RecentWorkSnapshot {
     id: string;
     client_name: string;
     opportunity_name: string;
+    created_by: string;
     created_at: string;
     updated_at: string;
   };
@@ -23,7 +24,20 @@ export interface RecentWorkSnapshot {
     pptx_download_url: string;
   };
   activityAt?: string;
-  failed?: boolean;
+  job?: {
+    job_type: string;
+    status: "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED";
+    current_stage: string;
+    auto_continue?: boolean;
+  };
+}
+
+export interface RecentJobCandidate {
+  job_id: string;
+  job_type: string;
+  status: "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED";
+  current_stage: string;
+  started_at?: string | null;
 }
 
 export interface RecentWorkItem {
@@ -52,9 +66,32 @@ function opportunityHref(path: string, opportunityId: string): string {
   return `${path}?opportunityId=${encodeURIComponent(opportunityId)}`;
 }
 
+export function selectRecentWorkJob(
+  candidates: Array<RecentJobCandidate | null>,
+): RecentJobCandidate | undefined {
+  const relevant = candidates.filter(
+    (job): job is RecentJobCandidate => Boolean(job && job.job_type !== "framework_render"),
+  );
+  const active = relevant.filter((job) => job.status === "QUEUED" || job.status === "RUNNING");
+  const pool = active.length > 0 ? active : relevant;
+  return pool.sort(
+    (left, right) => Date.parse(right.started_at ?? "") - Date.parse(left.started_at ?? ""),
+  )[0];
+}
+
+function workflowJob(snapshot: RecentWorkSnapshot): RecentWorkSnapshot["job"] | undefined {
+  return snapshot.job?.job_type === "framework_render" ? undefined : snapshot.job;
+}
+
 function lifecycleFor(snapshot: RecentWorkSnapshot): RecentLifecycle {
-  if (snapshot.failed) {
+  const job = workflowJob(snapshot);
+  if (job?.status === "FAILED") {
     return "needs_attention";
+  }
+  if (job?.status === "QUEUED" || job?.status === "RUNNING") {
+    return job.job_type.toLowerCase().includes("framework")
+      ? "analyzing"
+      : "building_presentation";
   }
   if (snapshot.deck) {
     return "ready";
@@ -73,6 +110,20 @@ function lifecycleFor(snapshot: RecentWorkSnapshot): RecentLifecycle {
 
 function actionHrefFor(snapshot: RecentWorkSnapshot, lifecycle: RecentLifecycle): string {
   const id = snapshot.opportunity.id;
+  const job = workflowJob(snapshot);
+  if (job && job.status !== "COMPLETED") {
+    const jobType = job.job_type.toLowerCase();
+    if (jobType.includes("framework")) {
+      return opportunityHref("/framework-review", id);
+    }
+    if (jobType.includes("plan")) {
+      return opportunityHref(
+        job.auto_continue ? "/framework-review" : "/plan-preview",
+        id,
+      );
+    }
+    return opportunityHref("/deck-center", id);
+  }
   if (lifecycle === "ready" || snapshot.presentationId) {
     return opportunityHref("/deck-center", id);
   }
@@ -85,8 +136,14 @@ function actionHrefFor(snapshot: RecentWorkSnapshot, lifecycle: RecentLifecycle)
   return opportunityHref("/upload", id);
 }
 
-export function buildRecentWorkItems(snapshots: RecentWorkSnapshot[]): RecentWorkItem[] {
+export function buildRecentWorkItems(
+  snapshots: RecentWorkSnapshot[],
+  currentUserId?: string,
+): RecentWorkItem[] {
   return snapshots
+    .filter(
+      (snapshot) => !currentUserId || snapshot.opportunity.created_by === currentUserId,
+    )
     .map((snapshot) => {
       const lifecycle = lifecycleFor(snapshot);
       return {

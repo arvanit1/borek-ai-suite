@@ -42,6 +42,7 @@ import {
   jobFailureRecoveryNotice,
   recoveryActionHref,
   recoveryNoticeFromError,
+  recoverySurfacePrecedence,
   retryingRecoveryNotice,
   runningRecoveryNotice,
 } from "@/lib/recoveryUx";
@@ -265,6 +266,7 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
     if (!accessToken || !retryJobId) {
       return;
     }
+    setJobSnapshot(null);
     setBusy(true);
     setNotice(retryingRecoveryNotice("plan", retryJobId));
     setInfo("Retrying generation from the last failed stage...");
@@ -351,6 +353,9 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
     }
   }
 
+  const progressSurfaceVisible = Boolean(jobPolling || progressView?.failed);
+  const surfacePrecedence = recoverySurfacePrecedence(activeNotice, progressSurfaceVisible);
+
   return (
     <div className="app-workspace">
       <SiteHeader signedInEmail={session?.user.email} opportunityId={opportunityId} />
@@ -408,7 +413,7 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
           </aside>
 
           <div className="upload-main">
-        {activeNotice ? (
+        {activeNotice && surfacePrecedence.showRecovery ? (
           <RecoveryBanner
             notice={
               recoveryActionHref(activeNotice, opportunityId)
@@ -425,7 +430,7 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
             onAction={handleRecoveryAction}
           />
         ) : null}
-        {info && !activeNotice && !jobPolling ? (
+        {info && surfacePrecedence.showSecondary ? (
           <div className="upload-banner upload-banner-success">{info}</div>
         ) : null}
 
@@ -437,15 +442,17 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
           </section>
         ) : null}
 
-        {progressView && (jobPolling || progressView.failed) ? (
-          <LiveGenerationProgress view={progressView} />
-        ) : jobPolling ? (
-          <section className="upload-panel pipeline-panel-loading">
-            <p className="upload-hint" data-testid="pipeline-job-progress">
-              {info ?? "Presentation planning is running…"}
-              {jobStage ? ` · ${jobStageLabel(jobStage)}` : ""}
-            </p>
-          </section>
+        {surfacePrecedence.showProgress ? (
+          progressView && (jobPolling || progressView.failed) ? (
+            <LiveGenerationProgress view={progressView} />
+          ) : jobPolling ? (
+            <section className="upload-panel pipeline-panel-loading">
+              <p className="upload-hint" data-testid="pipeline-job-progress">
+                {info ?? "Presentation planning is running…"}
+                {jobStage ? ` · ${jobStageLabel(jobStage)}` : ""}
+              </p>
+            </section>
+          ) : null
         ) : null}
 
         {!planLoading && !plan && frameworkConfirmed && isAuthenticated && !activeNotice ? (

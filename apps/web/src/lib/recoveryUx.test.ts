@@ -5,6 +5,7 @@ import {
   inputRequiredRecoveryNotice,
   recoveryActionHref,
   recoveryNoticeFromError,
+  recoverySurfacePrecedence,
   retryingRecoveryNotice,
 } from "./recoveryUx.js";
 
@@ -44,6 +45,19 @@ assert.notEqual(validation.action?.kind, "RETRY");
 assert.doesNotMatch(validation.message, /raw validator/i);
 assert.equal(validation.technical?.message, "Raw validator output");
 
+const liveCoverValidation = recoveryNoticeFromError(
+  new ApiRequestError(
+    "COVER_01 generation failed validation: Slide (COVER_01) Field statBadges item count 4 exceeds maximum 3",
+    422,
+    "PRESENTATION_GENERATION_FAILED",
+    { retryable: false, jobId: "job-cover", stage: "SLIDE_GENERATING" },
+  ),
+  "deck",
+);
+assert.equal(liveCoverValidation.category, "VALIDATION_NEEDS_REVIEW");
+assert.equal(liveCoverValidation.action?.kind, "REVIEW");
+assert.doesNotMatch(liveCoverValidation.message, /COVER_01|statBadges/i);
+
 const retryableFailure = recoveryNoticeFromError(
   new ApiRequestError("Provider response body", 422, "PROVIDER_UNAVAILABLE", {
     retryable: true,
@@ -75,6 +89,22 @@ assert.equal(
   recoveryActionHref(frameworkInput, "opportunity-1"),
   "/framework-review?opportunityId=opportunity-1",
 );
+
+assert.deepEqual(recoverySurfacePrecedence(running, true), {
+  showRecovery: false,
+  showProgress: true,
+  showSecondary: false,
+});
+assert.deepEqual(recoverySurfacePrecedence(validation, true), {
+  showRecovery: true,
+  showProgress: false,
+  showSecondary: false,
+});
+assert.deepEqual(recoverySurfacePrecedence(null, false), {
+  showRecovery: false,
+  showProgress: false,
+  showSecondary: true,
+});
 assert.equal(
   recoveryActionHref(validation, "opportunity-1"),
   "/plan-preview?opportunityId=opportunity-1",

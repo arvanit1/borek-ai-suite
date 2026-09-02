@@ -84,6 +84,7 @@ import {
   jobFailureRecoveryNotice,
   recoveryActionHref,
   recoveryNoticeFromError,
+  recoverySurfacePrecedence,
   retryingRecoveryNotice,
   runningRecoveryNotice,
 } from "@/lib/recoveryUx";
@@ -563,6 +564,8 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       return;
     }
     setRecoveryTarget("job");
+    setFrameworkJobSnapshot(null);
+    setPipelineJobSnapshot(null);
     setBusy(true);
     setNotice(retryingRecoveryNotice("framework", retryJobId));
     setInfo("Retrying generation from the last failed stage…");
@@ -924,6 +927,9 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
     await handleApproveAndBuild(true);
   }
 
+  const progressSurfaceVisible = liveProgressVisible || pipelineActive || jobPolling;
+  const surfacePrecedence = recoverySurfacePrecedence(notice, progressSurfaceVisible);
+
   return (
     <div className="app-workspace">
       <SiteHeader signedInEmail={session?.user.email} opportunityId={opportunityId} />
@@ -985,7 +991,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
           </aside>
 
           <div className="upload-main" id="framework-review-content">
-            {notice ? (
+            {notice && surfacePrecedence.showRecovery ? (
               <RecoveryBanner
                 notice={
                   recoveryActionHref(notice, opportunityId)
@@ -1002,7 +1008,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
                 onAction={handleRecoveryAction}
               />
             ) : null}
-            {info && !notice && !jobPolling && !liveProgressVisible ? (
+            {info && surfacePrecedence.showSecondary ? (
               <div className="upload-banner upload-banner-success">{info}</div>
             ) : null}
 
@@ -1014,21 +1020,23 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
               </section>
             ) : null}
 
-            {liveProgressVisible && liveProgressView ? (
-              <LiveGenerationProgress view={liveProgressView} />
-            ) : pipelineActive ? (
-              <section className="upload-panel pipeline-panel-loading">
-                <p className="upload-hint" data-testid="pipeline-job-progress">
-                  Starting the presentation pipeline…
-                </p>
-              </section>
-            ) : jobPolling ? (
-              <section className="upload-panel pipeline-panel-loading">
-                <p className="upload-hint" data-testid="pipeline-job-progress">
-                  {info ?? "Framework generation is running…"}
-                  {jobStage ? ` · ${jobStageLabel(jobStage)}` : ""}
-                </p>
-              </section>
+            {surfacePrecedence.showProgress ? (
+              liveProgressVisible && liveProgressView ? (
+                <LiveGenerationProgress view={liveProgressView} />
+              ) : pipelineActive ? (
+                <section className="upload-panel pipeline-panel-loading">
+                  <p className="upload-hint" data-testid="pipeline-job-progress">
+                    Starting the presentation pipeline…
+                  </p>
+                </section>
+              ) : jobPolling ? (
+                <section className="upload-panel pipeline-panel-loading">
+                  <p className="upload-hint" data-testid="pipeline-job-progress">
+                    {info ?? "Framework generation is running…"}
+                    {jobStage ? ` · ${jobStageLabel(jobStage)}` : ""}
+                  </p>
+                </section>
+              ) : null
             ) : null}
 
             {!frameworkLoading && !frameworkVersion && isAuthenticated && !notice ? (
@@ -1248,7 +1256,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
                   />
                 </details>
 
-                {frameworkConfirmed && !notice ? (
+                {frameworkConfirmed && surfacePrecedence.showSecondary ? (
                   <div className="upload-banner upload-banner-info">
                     <div>
                       <strong>Framework confirmed</strong>

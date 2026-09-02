@@ -18,7 +18,7 @@ import {
   uploadTranscript,
   type OpportunityResponse,
 } from "@/lib/api";
-import { isMissingOpportunityError } from "@/lib/apiErrors";
+import { isMissingOpportunityError, uploadErrorMessage } from "@/lib/apiErrors";
 import {
   clearActiveOpportunity,
   clearOpportunityDraft,
@@ -242,12 +242,10 @@ export function TranscriptUploadPanel({
         );
       } catch (uploadError) {
         errorCount += 1;
-        const message =
-          uploadError instanceof Error ? uploadError.message : "Upload failed.";
         setQueueItems((current) =>
           updateQueueItem(current, item.id, {
             status: "error",
-            errorMessage: message,
+            errorMessage: uploadErrorMessage(uploadError),
           }),
         );
       }
