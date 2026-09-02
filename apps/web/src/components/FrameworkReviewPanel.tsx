@@ -7,8 +7,8 @@ import { AppPageHeader } from "@/components/AppPageHeader";
 import { useAuth } from "@/components/AuthProvider";
 import { FrameworkChapterView } from "@/components/FrameworkChapterView";
 import { FrameworkRootFieldsPanel } from "@/components/FrameworkRootFieldsPanel";
-import { JobFailureAlert } from "@/components/JobFailureAlert";
 import { PipelineStepper } from "@/components/PipelineStepper";
+import { RecoveryBanner } from "@/components/RecoveryBanner";
 import { SiteHeader } from "@/components/SiteHeader";
 import {
   ApiRequestError,
@@ -33,6 +33,7 @@ import {
 import { isMissingFrameworkError } from "@/lib/apiErrors";
 import {
   generationProgressMessage,
+  inspectActiveJob,
   stageGroupForPage,
 } from "@/lib/jobReconnect";
 import { countFactSourceRefs } from "@/lib/frameworkEvidence";
@@ -44,6 +45,15 @@ import {
   updateFrameworkRootField,
 } from "@/lib/frameworkEdit";
 import type { FrameworkObject, FrameworkVersionResponse } from "@/lib/frameworkTypes";
+import {
+  inputRequiredRecoveryNotice,
+  jobFailureRecoveryNotice,
+  recoveryActionHref,
+  recoveryNoticeFromError,
+  retryingRecoveryNotice,
+  runningRecoveryNotice,
+} from "@/lib/recoveryUx";
+import type { RecoveryNotice } from "@/lib/recoveryUx";
 
 interface FrameworkReviewPanelProps {
   opportunityId: string;
@@ -57,11 +67,22 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
   const [frameworkLoading, setFrameworkLoading] = useState(true);
   const [jobPolling, setJobPolling] = useState(false);
   const [jobStage, setJobStage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<RecoveryNotice | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const [regeneratingChapterId, setRegeneratingChapterId] = useState<string | null>(null);
   const [retryJobId, setRetryJobId] = useState<string | null>(null);
+  const [recoveryTarget, setRecoveryTarget] = useState<
+    | "job"
+    | "save"
+    | "download-docx"
+    | "download-pdf"
+    | "regenerate-save"
+    | "regenerate-enqueue"
+    | "confirm-save"
+    | "confirm"
+  >("job");
+  const [recoveryChapterId, setRecoveryChapterId] = useState<string | null>(null);
   const [transcriptCount, setTranscriptCount] = useState<number | null>(null);
   const [activeChapterId, setActiveChapterId] = useState<string | null>(null);
   const [hoveredChapterId, setHoveredChapterId] = useState<string | null>(null);
@@ -100,13 +121,11 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       return;
     }
     setBusy(true);
-    setError(null);
+    setNotice(null);
     try {
       await applyLatestFramework();
     } catch (loadError) {
-      const message =
-        loadError instanceof Error ? loadError.message : "Could not load framework.";
-      setError(message);
+      setNotice(recoveryNoticeFromError(loadError, "framework"));
     } finally {
       setBusy(false);
     }
@@ -120,7 +139,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
     setFrameworkLoading(true);
     setJobPolling(false);
     setJobStage(null);
-    setError(null);
+    setNotice(null);
     setInfo(null);
     setRetryJobId(null);
 
@@ -139,12 +158,13 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
           setFrameworkLoading(false);
         },
         onFrameworkLoadError: (message) => {
-          setError(message);
+          setNotice(recoveryNoticeFromError(new Error(message), "framework"));
         },
-        onJobPollingStart: (message, stage) => {
+        onJobPollingStart: (message, stage, jobId) => {
           setJobPolling(true);
           setInfo(message);
           setJobStage(stage);
+          setNotice(runningRecoveryNotice("framework", jobId));
         },
         onJobStageUpdate: (stage) => {
           setJobStage(stage);
@@ -153,9 +173,19 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
           setJobPolling(false);
           setInfo(null);
           setJobStage(null);
+          setNotice(null);
         },
         onJobFailed: (message, failedJobId) => {
-          setError(message);
+          setNotice(
+            recoveryNoticeFromError(
+              {
+                message,
+                jobId: failedJobId ?? undefined,
+                retryable: Boolean(failedJobId),
+              },
+              "framework",
+            ),
+          );
           setRetryJobId(failedJobId);
         },
       },
@@ -266,21 +296,24 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       return;
     }
     if ((transcriptCount ?? 0) === 0) {
-      setError("Upload at least one transcript before generating a framework.");
+      setNotice(inputRequiredRecoveryNotice("framework"));
       return;
     }
+    setRecoveryTarget("job");
     setBusy(true);
-    setError(null);
+    setNotice(null);
     setInfo(null);
     setRetryJobId(null);
     try {
       const generated = await generateFramework(accessToken, opportunityId);
       setInfo(generationProgressMessage("framework", Boolean(generated.is_existing_job)));
+      setNotice(runningRecoveryNotice("framework", generated.job_id));
       await waitForJob(accessToken, generated.job_id, FRAMEWORK_JOB_TIMEOUT_MS);
+      setNotice(null);
       await loadFramework();
     } catch (generateError) {
       setInfo(null);
-      setError(generateError instanceof Error ? generateError.message : "Generate failed.");
+      setNotice(recoveryNoticeFromError(generateError, "framework"));
       if (generateError instanceof ApiRequestError && generateError.retryable && generateError.jobId) {
         setRetryJobId(generateError.jobId);
       }
@@ -293,17 +326,19 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
     if (!accessToken || !retryJobId) {
       return;
     }
+    setRecoveryTarget("job");
     setBusy(true);
-    setError(null);
+    setNotice(retryingRecoveryNotice("framework", retryJobId));
     setInfo("Retrying generation from the last failed stage…");
     try {
       const queued = await retryJob(accessToken, retryJobId);
       setRetryJobId(null);
       await waitForJob(accessToken, queued.job_id, FRAMEWORK_JOB_TIMEOUT_MS);
+      setNotice(null);
       await loadFramework();
     } catch (retryError) {
       setInfo(null);
-      setError(retryError instanceof Error ? retryError.message : "Retry failed.");
+      setNotice(recoveryNoticeFromError(retryError, "framework"));
       if (retryError instanceof ApiRequestError && retryError.retryable && retryError.jobId) {
         setRetryJobId(retryError.jobId);
       }
@@ -312,12 +347,159 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
     }
   }
 
+  async function handleReconnect() {
+    if (!accessToken) {
+      return;
+    }
+    setBusy(true);
+    setInfo(null);
+    setNotice(runningRecoveryNotice("framework"));
+    try {
+      const job = await getActiveJob(
+        accessToken,
+        opportunityId,
+        stageGroupForPage("framework"),
+      );
+      const decision = inspectActiveJob(job, "framework");
+      if (decision.action === "failed") {
+        setRetryJobId(decision.retryable ? decision.jobId : null);
+        setNotice(jobFailureRecoveryNotice(decision.error, "framework", decision.jobId));
+        return;
+      }
+      if (decision.action === "monitor") {
+        setNotice(runningRecoveryNotice("framework", decision.jobId));
+        await waitForJob(accessToken, decision.jobId, FRAMEWORK_JOB_TIMEOUT_MS);
+      }
+      await applyLatestFramework();
+      setNotice(null);
+    } catch (reconnectError) {
+      setNotice(recoveryNoticeFromError(reconnectError, "framework"));
+      if (
+        reconnectError instanceof ApiRequestError &&
+        reconnectError.retryable &&
+        reconnectError.jobId
+      ) {
+        setRetryJobId(reconnectError.jobId);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleConfirmReconnect() {
+    setBusy(true);
+    setInfo(null);
+    try {
+      await applyLatestFramework();
+      setNotice(null);
+    } catch (reconnectError) {
+      setNotice(
+        recoveryNoticeFromError(reconnectError, "framework", {
+          connectionMessage: "We could not confirm the latest framework status. Reconnect to check again.",
+        }),
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleRegenerateReconnect(chapterId: string) {
+    if (!accessToken) {
+      return;
+    }
+    setBusy(true);
+    setInfo(null);
+    setNotice(runningRecoveryNotice("framework"));
+    try {
+      const job = await getActiveJob(
+        accessToken,
+        opportunityId,
+        stageGroupForPage("framework"),
+      );
+      if (!job || job.job_type !== "framework_regenerate_chapter") {
+        setBusy(false);
+        await handleRegenerateChapter(chapterId);
+        return;
+      }
+      const decision = inspectActiveJob(job, "framework");
+      if (decision.action === "failed") {
+        setRetryJobId(decision.retryable ? decision.jobId : null);
+        setRecoveryTarget("job");
+        setNotice(jobFailureRecoveryNotice(decision.error, "framework", decision.jobId));
+        return;
+      }
+      if (decision.action === "monitor") {
+        setRecoveryTarget("job");
+        setNotice(runningRecoveryNotice("framework", decision.jobId));
+        await waitForJob(accessToken, decision.jobId, FRAMEWORK_JOB_TIMEOUT_MS);
+      }
+      await applyLatestFramework();
+      setNotice({
+        category: "INPUT_REQUIRED",
+        title: "Check the regenerated chapter",
+        message: `We restored the latest framework after the connection interruption. Review chapter ${chapterId}; if its update is missing, regenerate it again.`,
+        action: {
+          kind: "REVIEW",
+          label: "Review chapter",
+          target: "framework",
+          href: `#framework-chapter-${chapterId}`,
+        },
+      });
+    } catch (reconnectError) {
+      setNotice(recoveryNoticeFromError(reconnectError, "framework"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function handleRecoveryAction() {
+    if (notice?.action?.kind === "RETRY") {
+      void handleRetry();
+      return;
+    }
+    if (
+      notice?.action?.kind === "RECONNECT" ||
+      notice?.action?.kind === "KEEP_CHECKING"
+    ) {
+      if (recoveryTarget === "save") {
+        void handleSave();
+        return;
+      }
+      if (recoveryTarget === "download-docx") {
+        void handleDownloadFramework("docx");
+        return;
+      }
+      if (recoveryTarget === "download-pdf") {
+        void handleDownloadFramework("pdf");
+        return;
+      }
+      if (recoveryTarget === "confirm-save") {
+        void handleConfirm();
+        return;
+      }
+      if (recoveryTarget === "confirm") {
+        void handleConfirmReconnect();
+        return;
+      }
+      if (recoveryTarget === "regenerate-save" && recoveryChapterId) {
+        void handleRegenerateChapter(recoveryChapterId);
+        return;
+      }
+      if (recoveryTarget === "regenerate-enqueue" && recoveryChapterId) {
+        void handleRegenerateReconnect(recoveryChapterId);
+        return;
+      }
+      void handleReconnect();
+    }
+  }
+
   async function handleSave() {
     if (!accessToken || !frameworkJson) {
       return;
     }
+    setRecoveryTarget("save");
     setBusy(true);
-    setError(null);
+    setNotice(null);
     setInfo(null);
     try {
       const saved = await persistFramework(accessToken, opportunityId, frameworkJson);
@@ -326,7 +508,11 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       setDirty(false);
       setInfo("Changes saved.");
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Save failed.");
+      setNotice(
+        recoveryNoticeFromError(saveError, "framework", {
+          connectionMessage: "Your changes were not saved. Reconnect to try saving them again.",
+        }),
+      );
     } finally {
       setBusy(false);
     }
@@ -336,8 +522,9 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
     if (!accessToken || !frameworkVersion || !frameworkJson) {
       return;
     }
+    setRecoveryTarget(format === "docx" ? "download-docx" : "download-pdf");
     setDownloadingFormat(format);
-    setError(null);
+    setNotice(null);
     try {
       const path = buildFrameworkRenderPath(frameworkVersion.id, format);
       const blob = await downloadFrameworkRender(accessToken, path);
@@ -348,8 +535,10 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       anchor.click();
       URL.revokeObjectURL(url);
     } catch (downloadError) {
-      setError(
-        downloadError instanceof Error ? downloadError.message : "Framework download failed.",
+      setNotice(
+        recoveryNoticeFromError(downloadError, "framework", {
+          connectionMessage: "The download was interrupted. Reconnect to try it again.",
+        }),
       );
     } finally {
       setDownloadingFormat(null);
@@ -360,23 +549,25 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
     if (!accessToken) {
       return;
     }
+    setRecoveryTarget("regenerate-save");
+    setRecoveryChapterId(chapterId);
     setBusy(true);
     setRegeneratingChapterId(chapterId);
-    setError(null);
+    setNotice(null);
     setInfo(null);
     try {
       if (dirty && frameworkJson) {
         await persistFramework(accessToken, opportunityId, frameworkJson);
       }
+      setRecoveryTarget("regenerate-enqueue");
       const queued = await regenerateFrameworkChapter(accessToken, opportunityId, chapterId);
+      setRecoveryTarget("job");
       setInfo(`Regenerating chapter ${chapterId}…`);
       await waitForJob(accessToken, queued.job_id, FRAMEWORK_JOB_TIMEOUT_MS);
       await loadFramework();
       setInfo(`Chapter ${chapterId} regeneration finished. Other chapters were left unchanged.`);
     } catch (regenerateError) {
-      setError(
-        regenerateError instanceof Error ? regenerateError.message : "Chapter regenerate failed.",
-      );
+      setNotice(recoveryNoticeFromError(regenerateError, "framework"));
     } finally {
       setRegeneratingChapterId(null);
       setBusy(false);
@@ -387,20 +578,26 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
     if (!accessToken) {
       return;
     }
+    setRecoveryTarget("confirm-save");
     setBusy(true);
-    setError(null);
+    setNotice(null);
     setInfo(null);
     try {
       if (dirty && frameworkJson) {
         await persistFramework(accessToken, opportunityId, frameworkJson);
       }
+      setRecoveryTarget("confirm");
       const confirmed = await confirmFramework(accessToken, opportunityId);
       setFrameworkVersion(confirmed);
       setFrameworkJson(confirmed.framework_json);
       setDirty(false);
       setInfo("Framework confirmed. You can preview the presentation plan next.");
     } catch (confirmError) {
-      setError(confirmError instanceof Error ? confirmError.message : "Confirm failed.");
+      setNotice(
+        recoveryNoticeFromError(confirmError, "framework", {
+          connectionMessage: "The framework was not confirmed. Reconnect to try again.",
+        }),
+      );
     } finally {
       setBusy(false);
     }
@@ -458,16 +655,25 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
             </div>
           </aside>
 
-          <div className="upload-main">
-            {error ? (
-              <JobFailureAlert
-                message={error}
-                retryable={Boolean(retryJobId)}
-                retrying={busy}
-                onRetry={() => void handleRetry()}
+          <div className="upload-main" id="framework-review-content">
+            {notice ? (
+              <RecoveryBanner
+                notice={
+                  recoveryActionHref(notice, opportunityId)
+                    ? {
+                        ...notice,
+                        action: {
+                          ...notice.action!,
+                          href: recoveryActionHref(notice, opportunityId),
+                        },
+                      }
+                    : notice
+                }
+                busy={busy}
+                onAction={handleRecoveryAction}
               />
             ) : null}
-            {info && !jobPolling ? (
+            {info && !notice && !jobPolling ? (
               <div className="upload-banner upload-banner-success">{info}</div>
             ) : null}
 
@@ -488,7 +694,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
               </section>
             ) : null}
 
-            {!frameworkLoading && !frameworkVersion && isAuthenticated ? (
+            {!frameworkLoading && !frameworkVersion && isAuthenticated && !notice ? (
               <section className="upload-panel pipeline-empty-panel">
                 <header className="upload-panel-header">
                   <div>
@@ -658,7 +864,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
                   </div>
                 </section>
 
-                {frameworkConfirmed ? (
+                {frameworkConfirmed && !notice ? (
                   <div className="upload-banner upload-banner-info">
                     <div>
                       <strong>Framework confirmed</strong>

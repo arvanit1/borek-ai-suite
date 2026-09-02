@@ -184,6 +184,7 @@ def run_framework_generation_task(
                     framework_json=framework["framework_json"],
                     opportunity_id=UUID(opportunity_id),
                     framework_version_id=UUID(framework_version_id),
+                    repository=store,
                 )
                 job_service.complete_job(
                     parsed_job_id,

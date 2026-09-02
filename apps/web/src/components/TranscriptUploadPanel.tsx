@@ -152,9 +152,7 @@ export function TranscriptUploadPanel({
         setOpportunityLabelText(opportunityLabel(stored));
         saveActiveOpportunity(stored);
         clearOpportunityDraft();
-        if (typeof window !== "undefined") {
-          window.history.replaceState(null, "", pipelineHref("/upload", loaded.id));
-        }
+        router.replace(pipelineHref("/upload", loaded.id));
       } catch (restoreError) {
         if (!cancelled && isMissingOpportunityError(restoreError)) {
           clearActiveOpportunity();
@@ -162,9 +160,7 @@ export function TranscriptUploadPanel({
           setOpportunityId(null);
           setOpportunityLabelText(null);
           setQueueItems([]);
-          if (typeof window !== "undefined") {
-            window.history.replaceState(null, "", "/upload");
-          }
+          router.replace("/upload");
         }
         return;
       }
@@ -196,7 +192,7 @@ export function TranscriptUploadPanel({
     return () => {
       cancelled = true;
     };
-  }, [accessToken, initialOpportunityId, startFresh]);
+  }, [accessToken, initialOpportunityId, router, startFresh]);
 
   async function handleCreateOpportunity(values: {
     client_name: string;
@@ -220,9 +216,7 @@ export function TranscriptUploadPanel({
       queue: queueItems,
       summary: null,
     });
-    if (typeof window !== "undefined") {
-      window.history.replaceState(null, "", pipelineHref("/upload", created.id));
-    }
+    router.replace(pipelineHref("/upload", created.id));
   }
 
   async function handleUploadBatch(batch: TranscriptQueueItem[]) {

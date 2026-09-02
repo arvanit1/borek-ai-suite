@@ -249,11 +249,14 @@ def persist_framework_generation_observability(
     framework_json: dict,
     opportunity_id: UUID,
     framework_version_id: UUID,
+    repository: Any | None = None,
 ) -> dict[str, Any]:
     payload = build_framework_job_observability(
         framework_json=framework_json,
         opportunity_id=str(opportunity_id),
         framework_version_id=str(framework_version_id),
+        job_id=str(getattr(job, "id", "") or ""),
+        store=repository,
     )
     apply_framework_job_observability(job, payload)
     return payload

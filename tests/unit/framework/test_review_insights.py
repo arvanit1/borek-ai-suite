@@ -149,6 +149,18 @@ def test_attach_review_insights_adds_observability_and_pii_meta() -> None:
     assert framework["generation_meta"]["pii_handling"]["redaction_enabled"] is False
 
 
+def test_es36_review_summary_respects_framework_language() -> None:
+    framework = _framework(language="de", language_master="de")
+    framework["customer_view"] = {
+        "render_language": "de",
+        "title": framework["title"],
+        "department": framework["department"],
+        "chapters": [],
+    }
+    summary = build_review_summary(framework)
+    assert summary["language"] == "de"
+
+
 def test_docx_export_renders_zip_magic_bytes() -> None:
     base = _framework(
         render={"allowed": True, "assumptions_banner": True, "band": "ready_with_assumptions"},
