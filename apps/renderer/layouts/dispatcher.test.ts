@@ -18,6 +18,7 @@ import milestonesFixtureJson from "../../../packages/contracts/fixtures/slide_sp
 import processFlowFixtureJson from "../../../packages/contracts/fixtures/slide_spec/group_b/process_flow_01.minimal.json" with { type: "json" };
 import teamFteFixtureJson from "../../../packages/contracts/fixtures/slide_spec/group_b/team_fte_01.minimal.json" with { type: "json" };
 import timelineFixtureJson from "../../../packages/contracts/fixtures/slide_spec/group_b/timeline_01.minimal.json" with { type: "json" };
+import executiveSummaryFixtureJson from "../../../packages/contracts/fixtures/slide_spec/summary/executive_summary_01.minimal.json" with { type: "json" };
 import architectureFixtureJson from "../../../packages/contracts/fixtures/slide_spec/architecture_01.minimal.json" with { type: "json" };
 import complianceFixtureJson from "../../../packages/contracts/fixtures/slide_spec/compliance_01.minimal.json" with { type: "json" };
 import nextStepsFixtureJson from "../../../packages/contracts/fixtures/slide_spec/next_steps_01.minimal.json" with { type: "json" };
@@ -55,7 +56,7 @@ import { renderCompliance01 } from "./group_c/renderCompliance01.js";
 import { renderNextSteps01 } from "./group_c/renderNextSteps01.js";
 import { renderOpenQuestions01 } from "./group_c/renderOpenQuestions01.js";
 import { renderSuccessMetrics01 } from "./group_c/renderSuccessMetrics01.js";
-import { renderExecutiveSummary01Stub } from "./stubs.js";
+import { renderExecutiveSummary01 } from "./summary/renderExecutiveSummary01.js";
 import type { LayoutId, SlideSpecBase } from "../src/contracts.js";
 
 const LAYOUTS_DIR = fileURLToPath(new URL(".", import.meta.url));
@@ -108,6 +109,11 @@ assert.doesNotMatch(
   /render(?:ProcessFlow|Timeline|Milestones|TeamFte)01Stub/,
   "completed Group B layouts must not retain stub renderers",
 );
+assert.doesNotMatch(
+  stubsSource,
+  /renderExecutiveSummary01Stub/,
+  "completed EXECUTIVE_SUMMARY_01 must not retain a stub renderer",
+);
 
 const groupARenderers = {
   COVER_01: renderCover01,
@@ -132,8 +138,8 @@ const groupCRenderers = {
   NEXT_STEPS_01: renderNextSteps01,
 };
 
-const unchangedStubRenderers = {
-  EXECUTIVE_SUMMARY_01: renderExecutiveSummary01Stub,
+const summaryRenderers = {
+  EXECUTIVE_SUMMARY_01: renderExecutiveSummary01,
 };
 
 for (const [layoutId, renderer] of Object.entries(groupARenderers)) {
@@ -160,11 +166,11 @@ for (const [layoutId, renderer] of Object.entries(groupCRenderers)) {
   );
 }
 
-for (const [layoutId, renderer] of Object.entries(unchangedStubRenderers)) {
+for (const [layoutId, renderer] of Object.entries(summaryRenderers)) {
   assert.equal(
     LAYOUT_REGISTRY[layoutId as LayoutId],
     renderer,
-    `${layoutId} must retain its existing Group B/C or shared stub mapping`,
+    `${layoutId} must map directly to its real EXECUTIVE_SUMMARY_01 renderer`,
   );
 }
 
@@ -184,6 +190,15 @@ assert.match(dispatcherSource, /PROCESS_FLOW_01: registerValidatedRenderer\(rend
 assert.match(dispatcherSource, /TIMELINE_01: registerValidatedRenderer\(renderTimeline01\)/);
 assert.match(dispatcherSource, /MILESTONES_01: registerValidatedRenderer\(renderMilestones01\)/);
 assert.match(dispatcherSource, /TEAM_FTE_01: registerValidatedRenderer\(renderTeamFte01\)/);
+assert.match(
+  dispatcherSource,
+  /from "\.\/summary\/renderExecutiveSummary01\.js"/,
+  "JJ-23 must import renderExecutiveSummary01 from the summary layout module",
+);
+assert.match(
+  dispatcherSource,
+  /EXECUTIVE_SUMMARY_01: registerValidatedRenderer\(renderExecutiveSummary01\)/,
+);
 
 function minimalSlideSpec(layoutId: LayoutId): SlideSpecBase {
   const implementedSpecs: Partial<Record<LayoutId, SlideSpecBase>> = {
@@ -192,6 +207,7 @@ function minimalSlideSpec(layoutId: LayoutId): SlideSpecBase {
     PROBLEM_SOLUTION_01: problemSolutionFixtureJson as unknown as SlideSpecBase,
     SCOPE_01: scopeFixtureJson as unknown as SlideSpecBase,
     REQUIREMENTS_MATRIX_01: requirementsFixtureJson as unknown as SlideSpecBase,
+    EXECUTIVE_SUMMARY_01: executiveSummaryFixtureJson as unknown as SlideSpecBase,
     PROCESS_FLOW_01: processFlowFixtureJson as unknown as SlideSpecBase,
     TIMELINE_01: timelineFixtureJson as unknown as SlideSpecBase,
     MILESTONES_01: milestonesFixtureJson as unknown as SlideSpecBase,
@@ -233,6 +249,7 @@ const implementedMasters: Readonly<Record<string, string>> = {
   PROBLEM_SOLUTION_01: MASTER_CONTENT_NAME,
   SCOPE_01: MASTER_CONTENT_NAME,
   REQUIREMENTS_MATRIX_01: MASTER_CONTENT_NAME,
+  EXECUTIVE_SUMMARY_01: MASTER_CONTENT_NAME,
   PROCESS_FLOW_01: MASTER_CONTENT_NAME,
   TIMELINE_01: MASTER_CONTENT_NAME,
   MILESTONES_01: MASTER_CONTENT_NAME,

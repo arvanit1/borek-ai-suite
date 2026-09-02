@@ -1,0 +1,38 @@
+#!/usr/bin/env node
+/** JJ-23: build the EXECUTIVE_SUMMARY_01 golden deck through the production dispatcher. */
+
+import { writeFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+import PptxGenJS from "pptxgenjs";
+
+import { registerMasterContent } from "../../../apps/renderer/design_system/masters/MASTER_CONTENT.js";
+import { dispatchSlide } from "../../../apps/renderer/layouts/dispatcher.js";
+import { SUMMARY_GOLDEN_CASE } from "./fixtures.js";
+
+export async function buildSummaryGoldenDeckBuffer(): Promise<Buffer> {
+  const pptx = new PptxGenJS();
+  registerMasterContent(pptx);
+  dispatchSlide(pptx, SUMMARY_GOLDEN_CASE.spec);
+  const output = await pptx.write({ outputType: "nodebuffer" });
+  if (!Buffer.isBuffer(output)) {
+    throw new Error("EXECUTIVE_SUMMARY_01 golden deck did not produce a PPTX buffer");
+  }
+  return output;
+}
+
+async function main(): Promise<void> {
+  const outputPath = process.argv[2];
+  if (!outputPath) {
+    throw new Error("Usage: build_deck.ts <output.pptx>");
+  }
+  writeFileSync(resolve(outputPath), await buildSummaryGoldenDeckBuffer());
+}
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+  main().catch((error: unknown) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}

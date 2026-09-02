@@ -24,6 +24,13 @@ GROUP_B_FIXTURE_DIR = (
 GROUP_C_FIXTURE_DIR = ROOT / "packages" / "contracts" / "fixtures" / "slide_spec"
 LAYOUT_FIXTURES = {
     **{layout_id: GROUP_A_FIXTURE_DIR / filename for layout_id, filename in GROUP_A_FIXTURES.items()},
+    "EXECUTIVE_SUMMARY_01": ROOT
+    / "packages"
+    / "contracts"
+    / "fixtures"
+    / "slide_spec"
+    / "summary"
+    / "executive_summary_01.realistic.json",
     "PROCESS_FLOW_01": GROUP_B_FIXTURE_DIR / "process_flow_01.realistic.json",
     "TIMELINE_01": GROUP_B_FIXTURE_DIR / "timeline_01.realistic.json",
     "MILESTONES_01": GROUP_B_FIXTURE_DIR / "milestones_01.realistic.json",

@@ -3,6 +3,15 @@
   "layoutId": "TIMELINE_01",
   "title": "Delivery timeline",
   "sourceChapterIds": ["10"],
+  "fieldProvenance": [
+    { "path": "title", "sourceChapterIds": ["10"] },
+    { "path": "phases[0].id", "sourceChapterIds": ["10"] },
+    { "path": "phases[0].name", "sourceChapterIds": ["10"] },
+    { "path": "phases[0].description", "sourceChapterIds": ["10"] },
+    { "path": "milestones[0].id", "sourceChapterIds": ["10"] },
+    { "path": "milestones[0].name", "sourceChapterIds": ["10"] },
+    { "path": "milestones[0].phaseId", "sourceChapterIds": ["10"] }
+  ],
   "phases": [
     { "id": "p1", "name": "Discover", "description": "Confirm scope and access" }
   ],

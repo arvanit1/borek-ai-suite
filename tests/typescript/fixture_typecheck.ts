@@ -12,6 +12,7 @@ import type { Context01SlideSpec } from "../../generated/typescript/contracts/sl
 import type { ProblemSolution01SlideSpec } from "../../generated/typescript/contracts/slide_spec_group_a_problem_solution_01";
 import type { Scope01SlideSpec } from "../../generated/typescript/contracts/slide_spec_group_a_scope_01";
 import type { RequirementsMatrix01SlideSpec } from "../../generated/typescript/contracts/slide_spec_group_a_requirements_matrix_01";
+import type { ExecutiveSummary01SlideSpec } from "../../generated/typescript/contracts/slide_spec_summary_executive_summary_01";
 import type { ProcessFlow01SlideSpec } from "../../generated/typescript/contracts/slide_spec_group_b_process_flow_01";
 import type { Timeline01SlideSpec } from "../../generated/typescript/contracts/slide_spec_group_b_timeline_01";
 import type { Milestones01SlideSpec } from "../../generated/typescript/contracts/slide_spec_group_b_milestones_01";
@@ -30,6 +31,7 @@ import contextFixture from "../../packages/contracts/fixtures/slide_spec/group_a
 import problemSolutionFixture from "../../packages/contracts/fixtures/slide_spec/group_a/problem_solution_01.realistic.json";
 import scopeFixture from "../../packages/contracts/fixtures/slide_spec/group_a/scope_01.realistic.json";
 import requirementsMatrixFixture from "../../packages/contracts/fixtures/slide_spec/group_a/requirements_matrix_01.realistic.json";
+import executiveSummaryFixture from "../../packages/contracts/fixtures/slide_spec/summary/executive_summary_01.realistic.json";
 import processFlowFixture from "../../packages/contracts/fixtures/slide_spec/group_b/process_flow_01.realistic.json";
 import timelineFixture from "../../packages/contracts/fixtures/slide_spec/group_b/timeline_01.realistic.json";
 import milestonesFixture from "../../packages/contracts/fixtures/slide_spec/group_b/milestones_01.realistic.json";
@@ -55,6 +57,8 @@ const problemSolution: ProblemSolution01SlideSpec =
 const scope: Scope01SlideSpec = scopeFixture as unknown as Scope01SlideSpec;
 const requirementsMatrix: RequirementsMatrix01SlideSpec =
   requirementsMatrixFixture as unknown as RequirementsMatrix01SlideSpec;
+const executiveSummary: ExecutiveSummary01SlideSpec =
+  executiveSummaryFixture as unknown as ExecutiveSummary01SlideSpec;
 const processFlow: ProcessFlow01SlideSpec = processFlowFixture as unknown as ProcessFlow01SlideSpec;
 const timeline: Timeline01SlideSpec = timelineFixture as unknown as Timeline01SlideSpec;
 const milestones: Milestones01SlideSpec = milestonesFixture as unknown as Milestones01SlideSpec;
@@ -93,6 +97,7 @@ void context;
 void problemSolution;
 void scope;
 void requirementsMatrix;
+void executiveSummary;
 void processFlow;
 void timeline;
 void milestones;

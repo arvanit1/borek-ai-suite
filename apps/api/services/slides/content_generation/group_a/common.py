@@ -84,6 +84,11 @@ class GroupAGenerationConfig:
     allowed_chapter_ids: tuple[str, ...]
     provenance_path_guidance: str
     instructions: str
+    schema_dir: Path = GROUP_A_SCHEMA_DIR
+
+    @property
+    def schema_path(self) -> Path:
+        return self.schema_dir / self.schema_filename
 
 
 _COMMERCIAL_KEY = re.compile(
@@ -119,6 +124,7 @@ def generate_group_a_slide_spec(
     config: GroupAGenerationConfig,
     structured_generate: StructuredGenerator,
     compress_fields: GroupACompressFieldsFn,
+    validate_and_compress: Callable[..., CompressionResult] | None = None,
 ) -> CompressionResult:
     """Generate, validate, and if necessary compress one Group A SlideSpec.
 
@@ -136,7 +142,7 @@ def generate_group_a_slide_spec(
         framework_object,
         config.allowed_chapter_ids,
     )
-    schema = _load_json(GROUP_A_SCHEMA_DIR / config.schema_filename)
+    schema = _load_json(config.schema_path)
     request = StructuredGenerationRequest(
         layout_id=config.layout_id,
         chapters=chapters,
@@ -159,7 +165,8 @@ def generate_group_a_slide_spec(
     candidate = copy.deepcopy(generated)
     _validate_slide_spec(candidate, config, chapters)
 
-    result = validate_and_compress_group_a_slide_spec(
+    compress_slide = validate_and_compress or validate_and_compress_group_a_slide_spec
+    result = compress_slide(
         candidate,
         compress_fields=compress_fields,
     )
@@ -251,7 +258,7 @@ def _validate_slide_spec(
     chapters: tuple[dict[str, Any], ...],
 ) -> None:
     try:
-        _slide_validator(config.schema_filename).validate(slide_spec)
+        _slide_validator(str(config.schema_path)).validate(slide_spec)
     except jsonschema.ValidationError as exc:
         path = _json_path(exc.absolute_path)
         raise SlideSpecValidationError(
@@ -391,8 +398,8 @@ def _framework_validator() -> jsonschema.Draft202012Validator:
 
 
 @lru_cache(maxsize=None)
-def _slide_validator(schema_filename: str) -> jsonschema.Draft202012Validator:
-    schema = _load_json(GROUP_A_SCHEMA_DIR / schema_filename)
+def _slide_validator(schema_path: str) -> jsonschema.Draft202012Validator:
+    schema = _load_json(Path(schema_path))
     base_schema = _load_json(BASE_SLIDE_SPEC_SCHEMA_PATH)
     base_resource = Resource.from_contents(base_schema)
     relative_base_uri = urljoin(schema["$id"], "../base.schema.json")

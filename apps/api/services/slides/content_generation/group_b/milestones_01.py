@@ -16,6 +16,11 @@ CONFIG = GroupBGenerationConfig(
     layout_id="MILESTONES_01",
     schema_filename="milestones_01.schema.json",
     allowed_chapter_ids=("10",),
+    provenance_path_guidance=(
+        "title; subtitle and sectionLabel when populated; every "
+        "milestones[i].name and milestones[i].description; milestones[i].date "
+        "when populated"
+    ),
     instructions=(
         "Create a standalone milestone list from chapter 10 delivery checkpoints. "
         "Do not attach phaseId. Do not invent dates or duplicate milestone identities."

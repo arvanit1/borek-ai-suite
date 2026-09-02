@@ -1,7 +1,7 @@
 /**
- * AT-33: Layout render stubs until remaining layout tickets replace implementations.
+ * AT-33: LayoutRenderFn shared by LAYOUT_REGISTRY.
  *
- * Group A, Group B, and Group C register real renderers on LAYOUT_REGISTRY.
+ * Group A, Group B, Group C, and EXECUTIVE_SUMMARY_01 register real renderers.
  */
 
 import type PptxGenJS from "pptxgenjs";
@@ -12,8 +12,3 @@ export type LayoutRenderFn = (
   pptx: PptxGenJS,
   spec: SlideSpecBase,
 ) => PptxGenJS.Slide | void;
-
-/** Stub — executive summary layout (registered; renderer TBD). Layout: EXECUTIVE_SUMMARY_01 */
-export function renderExecutiveSummary01Stub(_pptx: PptxGenJS, _spec: SlideSpecBase): void {
-  // Intentionally empty — dispatcher routing test only.
-}

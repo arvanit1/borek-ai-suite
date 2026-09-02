@@ -45,6 +45,13 @@ _LAYOUT_FIXTURES = {
     "PROBLEM_SOLUTION_01": _GROUP_A_FIXTURE_DIR / "problem_solution_01.realistic.json",
     "SCOPE_01": _GROUP_A_FIXTURE_DIR / "scope_01.realistic.json",
     "REQUIREMENTS_MATRIX_01": _GROUP_A_FIXTURE_DIR / "requirements_matrix_01.realistic.json",
+    "EXECUTIVE_SUMMARY_01": _REPO_ROOT
+    / "packages"
+    / "contracts"
+    / "fixtures"
+    / "slide_spec"
+    / "summary"
+    / "executive_summary_01.realistic.json",
     "PROCESS_FLOW_01": _GROUP_B_FIXTURE_DIR / "process_flow_01.realistic.json",
     "TIMELINE_01": _GROUP_B_FIXTURE_DIR / "timeline_01.realistic.json",
     "MILESTONES_01": _GROUP_B_FIXTURE_DIR / "milestones_01.realistic.json",

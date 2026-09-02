@@ -46,6 +46,11 @@ AT5_SCHEMA_OUTPUTS = [
         "RequirementsMatrix01SlideSpec",
     ),
     (
+        "slide_spec/summary/executive_summary_01.schema.json",
+        "slide_spec_summary_executive_summary_01.ts",
+        "ExecutiveSummary01SlideSpec",
+    ),
+    (
         "slide_spec/group_b/process_flow_01.schema.json",
         "slide_spec_group_b_process_flow_01.ts",
         "ProcessFlow01SlideSpec",
@@ -149,6 +154,11 @@ def test_at5_barrel_avoids_duplicate_layout_id_exports() -> None:
         'export type { RequirementsMatrix01SlideSpec } '
         'from "./slide_spec_group_a_requirements_matrix_01"'
     in index_source
+    )
+    assert (
+        'export type { ExecutiveSummary01SlideSpec } '
+        'from "./slide_spec_summary_executive_summary_01"'
+        in index_source
     )
     assert (
         'export type { ProcessFlow01SlideSpec } from "./slide_spec_group_b_process_flow_01"'

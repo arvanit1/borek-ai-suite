@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "slideId": "slide_02",
+  "layoutId": "EXECUTIVE_SUMMARY_01",
+  "sectionLabel": "SUMMARY",
+  "title": "What this proposal decides",
+  "subtitle": "A grounded snapshot of the opportunity before the detailed slides",
+  "sourceChapterIds": ["1"],
+  "fieldProvenance": [
+    { "path": "sectionLabel", "sourceChapterIds": ["1"] },
+    { "path": "title", "sourceChapterIds": ["1"] },
+    { "path": "subtitle", "sourceChapterIds": ["1"] },
+    { "path": "headline", "sourceChapterIds": ["1"] },
+    { "path": "highlights[0].title", "sourceChapterIds": ["1"] },
+    { "path": "highlights[0].description", "sourceChapterIds": ["1"] },
+    { "path": "highlights[1].title", "sourceChapterIds": ["1"] },
+    { "path": "highlights[1].description", "sourceChapterIds": ["1"] },
+    { "path": "highlights[2].title", "sourceChapterIds": ["1"] },
+    { "path": "highlights[2].description", "sourceChapterIds": ["1"] },
+    { "path": "highlights[3].title", "sourceChapterIds": ["1"] },
+    { "path": "highlights[3].description", "sourceChapterIds": ["1"] }
+  ],
+  "headline": "Move invoice matching from line-by-line checking to a controlled three-way match that explains every exception.",
+  "highlights": [
+    {
+      "title": "Starting point",
+      "description": "AP staff compare invoice, purchase-order and goods-receipt data by hand at month-end."
+    },
+    {
+      "title": "Recommended path",
+      "description": "A deterministic match processes clean invoices and routes exceptions with a clear reason."
+    },
+    {
+      "title": "Human control",
+      "description": "Approvals and unclear cases stay with people; the system never invents a match."
+    },
+    {
+      "title": "Ready to build",
+      "description": "Chapter evidence is complete enough to plan the remaining slides and the first delivery steps."
+    }
+  ]
+}

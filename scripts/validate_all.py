@@ -33,6 +33,7 @@ def main() -> int:
                 "import generated.python.contracts.slide_spec_group_a_problem_solution_01; "
                 "import generated.python.contracts.slide_spec_group_a_scope_01; "
                 "import generated.python.contracts.slide_spec_group_a_requirements_matrix_01; "
+                "import generated.python.contracts.slide_spec_summary_executive_summary_01; "
                 "import generated.python.contracts.slide_spec_group_b_process_flow_01; "
                 "import generated.python.contracts.slide_spec_group_b_timeline_01; "
                 "import generated.python.contracts.slide_spec_group_b_milestones_01; "
@@ -55,6 +56,7 @@ def main() -> int:
         "slide_spec_group_a_problem_solution_01.ts",
         "slide_spec_group_a_scope_01.ts",
         "slide_spec_group_a_requirements_matrix_01.ts",
+        "slide_spec_summary_executive_summary_01.ts",
         "slide_spec_group_b_process_flow_01.ts",
         "slide_spec_group_b_timeline_01.ts",
         "slide_spec_group_b_milestones_01.ts",
@@ -120,6 +122,7 @@ def main() -> int:
     run(["npm", "run", "test:jj19", "--workspace", "borek-renderer"], shell=True)
     run(["npm", "run", "test:jj21", "--workspace", "borek-renderer"], shell=True)
     run(["npm", "run", "test:jj22", "--workspace", "borek-renderer"], shell=True)
+    run(["npm", "run", "test:jj23", "--workspace", "borek-renderer"], shell=True)
     run(["npm", "run", "test:ms16", "--workspace", "borek-renderer"], shell=True)
     run(["npm", "run", "test:ms17", "--workspace", "borek-renderer"], shell=True)
     run(["npm", "run", "test:ms18", "--workspace", "borek-renderer"], shell=True)

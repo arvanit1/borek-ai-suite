@@ -16,6 +16,12 @@ CONFIG = GroupBGenerationConfig(
     layout_id="TIMELINE_01",
     schema_filename="timeline_01.schema.json",
     allowed_chapter_ids=("10",),
+    provenance_path_guidance=(
+        "title; subtitle and sectionLabel when populated; every "
+        "phases[i].id, phases[i].name, and phases[i].description; every "
+        "milestones[i].id, milestones[i].name, and milestones[i].phaseId; "
+        "milestones[i].date and milestones[i].description when populated"
+    ),
     instructions=(
         "Create dual-band TIMELINE_01 content only from chapter 10. Keep milestone "
         "phaseId values aligned to phases[].id. Timeline end must not precede start. "

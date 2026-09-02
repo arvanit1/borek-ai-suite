@@ -98,7 +98,7 @@ def test_confirmed_framework_produces_one_validated_plan_with_preserved_fields(
     }
     assert request["frameworkObject"]["status"] == "confirmed"
     assert request["targetSchema"]["title"] == "PresentationPlan"
-    assert "EXECUTIVE_SUMMARY_01" not in request["targetSchema"]["$defs"]["LayoutId"]["enum"]
+    assert "EXECUTIVE_SUMMARY_01" in request["targetSchema"]["$defs"]["LayoutId"]["enum"]
     assert "COVER_01" in request["targetSchema"]["$defs"]["LayoutId"]["enum"]
     assert planner.calls[0]["prompt_version"] == PROMPT_VERSION
     assert planner.calls[0]["retry_count"] == 0

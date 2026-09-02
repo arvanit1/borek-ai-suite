@@ -1,8 +1,7 @@
 """Layouts that have an owner generator and a renderer.
 
-The registry still lists EXECUTIVE_SUMMARY_01 (MVP name reserved). Stage B
-must not plan or generate it until an owner ships both a generator and a
-renderer — otherwise live Generate deck fails closed mid-job.
+GENERATABLE_LAYOUT_IDS is the owner-complete layout set. Unknown layout ids
+are still skipped so a corrupted saved plan cannot fail the whole deck.
 """
 
 from __future__ import annotations
@@ -26,6 +25,7 @@ GENERATABLE_LAYOUT_IDS = frozenset(
         "PROBLEM_SOLUTION_01",
         "SCOPE_01",
         "REQUIREMENTS_MATRIX_01",
+        "EXECUTIVE_SUMMARY_01",
         "PROCESS_FLOW_01",
         "TIMELINE_01",
         "MILESTONES_01",
