@@ -68,13 +68,17 @@ def test_files_numbered_001_through_011_with_no_gaps() -> None:
     assert (MIGRATIONS_DIR / "011_rls_policies.sql").is_file()
 
 
-def test_follow_on_migrations_014_and_015_are_idempotent() -> None:
+def test_follow_on_migrations_014_through_016_are_idempotent() -> None:
     llm_calls = (MIGRATIONS_DIR / "014_llm_calls.sql").read_text(encoding="utf-8")
     assert "CREATE TABLE IF NOT EXISTS llm_calls" in llm_calls
     assert "ADD COLUMN IF NOT EXISTS llm_cost_eur" in llm_calls
     assert "ENABLE ROW LEVEL SECURITY" in llm_calls
     pii = (MIGRATIONS_DIR / "015_opportunity_pii_redaction.sql").read_text(encoding="utf-8")
     assert "ADD COLUMN IF NOT EXISTS pii_redaction_enabled" in pii
+    auto_continue = (MIGRATIONS_DIR / "016_generation_job_auto_continue.sql").read_text(
+        encoding="utf-8",
+    )
+    assert "ADD COLUMN IF NOT EXISTS auto_continue" in auto_continue
 
 
 def test_verify_db_covers_llm_calls_table() -> None:
@@ -86,7 +90,7 @@ def test_verify_db_covers_llm_calls_table() -> None:
     assert "EXPECTED_INDEXES" in content
 
 
-def test_apply_migrations_script_covers_001_through_015() -> None:
+def test_apply_migrations_script_covers_001_through_016() -> None:
     assert APPLY_MIGRATIONS.is_file()
     content = APPLY_MIGRATIONS.read_text(encoding="utf-8")
     compile(content, str(APPLY_MIGRATIONS), "exec")
@@ -97,7 +101,7 @@ def test_apply_migrations_script_covers_001_through_015() -> None:
         for name in names
         if re.match(r"^\d{3}_", name)
     )
-    assert numbers == list(range(1, 16)), f"expected 001-015 with no gaps, got {numbers}"
+    assert numbers == list(range(1, 17)), f"expected 001-016 with no gaps, got {numbers}"
     assert names == sorted(names)
 
 
