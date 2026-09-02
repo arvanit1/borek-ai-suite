@@ -10,8 +10,10 @@ import { RecoveryBanner } from "@/components/RecoveryBanner";
 import { SiteHeader } from "@/components/SiteHeader";
 import {
   ApiRequestError,
+  FRAMEWORK_JOB_TIMEOUT_MS,
   generatePresentationPlan,
   getActiveJob,
+  getJob,
   getLatestFramework,
   getLatestPresentationPlan,
   retryJob,
@@ -23,6 +25,7 @@ import {
   inspectActiveJob,
   stageGroupForPage,
 } from "@/lib/jobReconnect";
+import { startPipelineParallelLoad } from "@/lib/pipelineParallelLoad";
 import { pipelineHref } from "@/lib/pipelineContext";
 import { extractSlidePreviewRows, formatLayoutLabel } from "@/lib/planPreview";
 import type { PresentationPlanResponse } from "@/lib/planTypes";
@@ -46,6 +49,9 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
   const [frameworkVersionId, setFrameworkVersionId] = useState<string | null>(null);
   const [plan, setPlan] = useState<PresentationPlanResponse | null>(null);
   const [busy, setBusy] = useState(false);
+  const [planLoading, setPlanLoading] = useState(true);
+  const [jobPolling, setJobPolling] = useState(false);
+  const [jobStage, setJobStage] = useState<string | null>(null);
   const [notice, setNotice] = useState<RecoveryNotice | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [retryJobId, setRetryJobId] = useState<string | null>(null);
@@ -108,77 +114,87 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
     }
     const token = accessToken;
     let cancelled = false;
-    async function bootstrap() {
-      setBusy(true);
-      setNotice(null);
-      setInfo(null);
-      setRetryJobId(null);
-      try {
-        const frameworkStatus = await loadFrameworkStatus();
-        if (cancelled) {
-          return;
-        }
-        setFrameworkConfirmed(frameworkStatus?.confirmed ?? false);
-        setFrameworkVersionId(frameworkStatus?.frameworkVersionId ?? null);
-        const job = await getActiveJob(
-          token,
-          opportunityId,
-          stageGroupForPage("plan"),
-        );
-        if (cancelled) {
-          return;
-        }
-        const decision = inspectActiveJob(job, "plan");
-        if (decision.action === "monitor") {
-          setInfo(generationProgressMessage("plan", true));
-          setNotice(runningRecoveryNotice("plan", decision.jobId));
-          try {
-            await waitForJob(token, decision.jobId);
-            if (!cancelled) {
-              setNotice(null);
-            }
-          } catch (monitorError) {
-            if (!cancelled) {
-              setInfo(null);
-              setNotice(recoveryNoticeFromError(monitorError, "plan"));
-              if (monitorError instanceof ApiRequestError && monitorError.retryable && monitorError.jobId) {
-                setRetryJobId(monitorError.jobId);
-              }
-            }
-          }
-        } else if (decision.action === "failed") {
-          setInfo(null);
-          setNotice(jobFailureRecoveryNotice(decision.error, "plan", decision.jobId));
-          if (decision.retryable) {
-            setRetryJobId(decision.jobId);
-          }
-        }
-        if (cancelled) {
-          return;
-        }
-        try {
-          await applyLatestPlan();
-        } catch (loadError) {
-          if (!cancelled && decision.action !== "failed") {
-            setNotice(recoveryNoticeFromError(loadError, "plan"));
-          }
-        }
-      } catch (bootstrapError) {
+
+    void loadFrameworkStatus()
+      .then((frameworkStatus) => {
         if (!cancelled) {
-          setInfo(null);
-          setNotice(recoveryNoticeFromError(bootstrapError, "plan"));
+          setFrameworkConfirmed(frameworkStatus?.confirmed ?? false);
+          setFrameworkVersionId(frameworkStatus?.frameworkVersionId ?? null);
         }
-      } finally {
+      })
+      .catch((statusError) => {
         if (!cancelled) {
-          setBusy(false);
+          setNotice(recoveryNoticeFromError(statusError, "plan"));
         }
-      }
-    }
-    void bootstrap();
+      });
+
+    setPlanLoading(true);
+    setJobPolling(false);
+    setJobStage(null);
+    setNotice(null);
+    setInfo(null);
+    setRetryJobId(null);
+
+    const cancel = startPipelineParallelLoad(
+      "plan",
+      {
+        onContentLoaded: () => {},
+        onContentMissing: () => {
+          setPlan(null);
+        },
+        onContentLoadFinished: () => {
+          setPlanLoading(false);
+        },
+        onContentLoadError: (message) => {
+          setNotice(recoveryNoticeFromError(new Error(message), "plan"));
+        },
+        onJobPollingStart: (message, stage, jobId) => {
+          setJobPolling(true);
+          setInfo(message);
+          setJobStage(stage);
+          setNotice(runningRecoveryNotice("plan", jobId));
+        },
+        onJobStageUpdate: (stage) => {
+          setJobStage(stage);
+        },
+        onJobPollingFinished: () => {
+          setJobPolling(false);
+          setInfo(null);
+          setJobStage(null);
+          setNotice(null);
+        },
+        onJobFailed: (message, failedJobId) => {
+          setNotice(
+            recoveryNoticeFromError(
+              {
+                message,
+                jobId: failedJobId ?? undefined,
+                retryable: Boolean(failedJobId),
+              },
+              "plan",
+            ),
+          );
+          setRetryJobId(failedJobId);
+        },
+      },
+      {
+        loadContent: async () => {
+          const latest = await getLatestPresentationPlan(token, opportunityId);
+          if (!cancelled) {
+            setPlan(latest);
+          }
+        },
+        isMissingError: isMissingPresentationPlanError,
+        getActiveJob: () => getActiveJob(token, opportunityId, stageGroupForPage("plan")),
+        getJob: (jobId) => getJob(token, jobId),
+      },
+    );
+
     return () => {
       cancelled = true;
+      cancel();
     };
-  }, [accessToken, applyLatestPlan, loadFrameworkStatus, loading, opportunityId]);
+  }, [accessToken, loadFrameworkStatus, loading, opportunityId]);
 
   async function handleGeneratePlan() {
     if (!accessToken) {
@@ -196,7 +212,7 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
       );
       setInfo(generationProgressMessage("plan", Boolean(generated.is_existing_job)));
       setNotice(runningRecoveryNotice("plan", generated.job_id));
-      await waitForJob(accessToken, generated.job_id);
+      await waitForJob(accessToken, generated.job_id, FRAMEWORK_JOB_TIMEOUT_MS);
       setNotice(null);
       await loadPlan();
       setInfo("Presentation plan ready. Review order, purpose, and layout below.");
@@ -221,7 +237,7 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
     try {
       const queued = await retryJob(accessToken, retryJobId);
       setRetryJobId(null);
-      await waitForJob(accessToken, queued.job_id);
+      await waitForJob(accessToken, queued.job_id, FRAMEWORK_JOB_TIMEOUT_MS);
       setNotice(null);
       await loadPlan();
     } catch (retryError) {
@@ -255,7 +271,7 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
       }
       if (decision.action === "monitor") {
         setNotice(runningRecoveryNotice("plan", decision.jobId));
-        await waitForJob(accessToken, decision.jobId);
+        await waitForJob(accessToken, decision.jobId, FRAMEWORK_JOB_TIMEOUT_MS);
       }
       await applyLatestPlan();
       setNotice(null);
@@ -363,13 +379,49 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
             onAction={handleRecoveryAction}
           />
         ) : null}
-        {info && !activeNotice ? <div className="upload-banner upload-banner-success">{info}</div> : null}
+        {info && !activeNotice && !jobPolling ? (
+          <div className="upload-banner upload-banner-success">{info}</div>
+        ) : null}
 
-        {busy && !plan && !activeNotice ? (
+        {planLoading && !plan ? (
+          <section className="upload-panel pipeline-panel-loading">
+            <p className="upload-hint" data-testid="plan-loading">
+              Loading presentation plan…
+            </p>
+          </section>
+        ) : null}
+
+        {jobPolling ? (
           <section className="upload-panel pipeline-panel-loading">
             <p className="upload-hint" data-testid="pipeline-job-progress">
-              {info ?? "Loading presentation plan..."}
+              {info ?? "Presentation planning is running…"}
+              {jobStage ? ` · ${jobStage.replaceAll("_", " ").toLowerCase()}` : ""}
             </p>
+          </section>
+        ) : null}
+
+        {!planLoading && !plan && frameworkConfirmed && isAuthenticated && !activeNotice ? (
+          <section className="upload-panel pipeline-empty-panel">
+            <header className="upload-panel-header">
+              <div>
+                <h2>Generate the presentation plan</h2>
+                <p>
+                  After the customer story is approved, generate the slide plan to review order
+                  and purpose before building the presentation.
+                </p>
+              </div>
+            </header>
+            <div className="pipeline-empty-body">
+              <p>No presentation plan exists yet for this opportunity.</p>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={busy}
+                onClick={() => void handleGeneratePlan()}
+              >
+                Generate plan
+              </button>
+            </div>
           </section>
         ) : null}
 
@@ -416,29 +468,6 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
               <strong>Plan complete.</strong> Continue to the presentation to preview slides and
               download the PowerPoint.
             </p>
-          </section>
-        ) : frameworkConfirmed && !busy && isAuthenticated && !activeNotice ? (
-          <section className="upload-panel pipeline-empty-panel">
-            <header className="upload-panel-header">
-              <div>
-                <h2>Generate the presentation plan</h2>
-                <p>
-                  After the customer story is approved, generate the slide plan to review order
-                  and purpose before building the presentation.
-                </p>
-              </div>
-            </header>
-            <div className="pipeline-empty-body">
-              <p>No presentation plan exists yet for this opportunity.</p>
-              <button
-                type="button"
-                className="btn btn-primary"
-                disabled={busy}
-                onClick={() => void handleGeneratePlan()}
-              >
-                Generate plan
-              </button>
-            </div>
           </section>
         ) : null}
           </div>
