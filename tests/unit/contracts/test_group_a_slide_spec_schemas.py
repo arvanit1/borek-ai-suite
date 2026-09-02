@@ -200,6 +200,19 @@ def test_requirements_status_is_semantic_and_rejects_arbitrary_color() -> None:
         _validator("requirements_matrix_01").validate(payload)
 
 
+def test_cover_schema_allows_zero_stat_badges() -> None:
+    payload = copy.deepcopy(_fixture("cover_01", "realistic"))
+    payload["statBadges"] = []
+    _validator("cover_01").validate(payload)
+
+
+def test_cover_schema_does_not_cap_stat_badge_count() -> None:
+    """BT-4 leaves item-count limits to BT-15; four badges remain schema-valid."""
+    payload = copy.deepcopy(_fixture("cover_01", "realistic"))
+    payload["statBadges"].append({"value": "4", "label": "Extra badge"})
+    _validator("cover_01").validate(payload)
+
+
 def test_cover_rejects_malformed_stat_badge_extra_field() -> None:
     payload = copy.deepcopy(_fixture("cover_01", "minimal"))
     payload["statBadges"][0]["fontSize"] = 24
