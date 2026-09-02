@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 
 import type { ActiveJobResponse, JobResponse } from "./api.js";
 import type { PresentationResponse } from "./deckTypes.js";
+import { buildJobProgressView } from "./jobProgress.js";
 import type { PresentationPlanResponse } from "./planTypes.js";
 import {
   PresentationPipelineError,
@@ -10,7 +11,11 @@ import {
   deckResultHref,
   recoverPresentationPipeline,
 } from "./presentationPipeline.js";
-import type { PresentationPipelineApi } from "./presentationPipeline.js";
+import type {
+  PresentationPipelineApi,
+  PresentationPipelineProgress,
+} from "./presentationPipeline.js";
+import { recoveryNoticeFromError } from "./recoveryUx.js";
 
 const FRAMEWORK_ID = "framework-version-1";
 const PLAN_ID = "presentation-plan-1";
@@ -55,11 +60,43 @@ function completedJob(
   };
 }
 
+function runningJob(
+  jobType: "presentation_planning" | "presentation_generation",
+  stage: string,
+  jobId: string,
+): JobResponse {
+  return {
+    job_id: jobId,
+    job_type: jobType,
+    status: "RUNNING",
+    current_stage: stage,
+    created_at: "2026-09-02T09:00:00Z",
+    started_at: "2026-09-02T09:00:00Z",
+    completed_at: null,
+    result: {},
+    error: null,
+  };
+}
+
 const plan: PresentationPlanResponse = {
   id: PLAN_ID,
   framework_version_id: FRAMEWORK_ID,
   plan_json: { schema_version: "1.0", title: "Plan", slides: [] },
   created_at: "2026-09-02T09:01:00Z",
+};
+
+const planWithSlides: PresentationPlanResponse = {
+  ...plan,
+  plan_json: {
+    schema_version: "1.0",
+    title: "Plan",
+    slides: [1, 2, 3].map((order) => ({
+      order,
+      purpose: `Slide ${order}`,
+      layoutId: "title_and_content",
+      frameworkReferences: [],
+    })),
+  },
 };
 
 const presentation: PresentationResponse = {
@@ -432,6 +469,133 @@ async function main() {
   assert.equal(planningCalls, 0);
   assert.equal(result.presentationGenerationJobId, GENERATION_JOB_ID);
   assert.equal(result.presentationId, PRESENTATION_ID);
+}
+
+// BT-26: the automated pipeline reports real job stages, the planning→generation
+// handoff, and the persisted planned slide count.
+{
+  const progress: PresentationPipelineProgress[] = [];
+  let activeCalls = 0;
+  await buildPresentationPipeline({
+    frameworkVersionId: FRAMEWORK_ID,
+    api: successfulApi([], {
+      async getActivePresentationJob() {
+        activeCalls += 1;
+        if (activeCalls === 1) {
+          return null;
+        }
+        // Planning is COMPLETED but backend continuation has not surfaced yet.
+        if (activeCalls === 2) {
+          return activeJob("presentation_planning", "COMPLETED");
+        }
+        return activeJob("presentation_generation");
+      },
+      async waitForJob(jobId, onJobUpdate) {
+        if (jobId === PLANNING_JOB_ID) {
+          onJobUpdate?.(runningJob("presentation_planning", "PRESENTATION_PLANNING", jobId));
+          return completedJob("presentation_planning");
+        }
+        onJobUpdate?.(runningJob("presentation_generation", "SLIDE_VALIDATING", jobId));
+        onJobUpdate?.(runningJob("presentation_generation", "PPTX_RENDERING", jobId));
+        return completedJob("presentation_generation");
+      },
+      async getLatestPresentationPlan() {
+        return planWithSlides;
+      },
+      async getPresentationPlan() {
+        return planWithSlides;
+      },
+    }),
+    onProgress: (event) => progress.push(event),
+  });
+
+  const stages = progress
+    .filter((event) => event.state === "running")
+    .map((event) => (event.state === "running" ? event.job.currentStage : ""));
+  assert.deepEqual(stages, [
+    "PRESENTATION_PLANNING",
+    "SLIDE_GENERATING",
+    "SLIDE_VALIDATING",
+    "PPTX_RENDERING",
+  ]);
+
+  const handoffIndex = progress.findIndex((event) => event.state === "handoff");
+  assert.ok(handoffIndex >= 0, "the planning→generation gap is reported as a handoff");
+  assert.equal(
+    progress[handoffIndex].state === "handoff" ? progress[handoffIndex].jobId : null,
+    PLANNING_JOB_ID,
+  );
+
+  const planningCompleted = progress.find(
+    (event) => event.phase === "planning" && event.state === "completed",
+  );
+  assert.equal(
+    planningCompleted?.state === "completed" && planningCompleted.phase === "planning"
+      ? planningCompleted.plannedSlideCount
+      : null,
+    3,
+    "the planned slide count comes from the persisted PresentationPlan",
+  );
+
+  const lastRunning = progress.filter((event) => event.state === "running").at(-1);
+  assert.ok(lastRunning?.state === "running");
+  const renderingView = buildJobProgressView({ snapshot: lastRunning.job });
+  assert.equal(renderingView?.headline, "Rendering PowerPoint/PDF");
+}
+
+// BT-26: AT-56 reconnect shows the recovered stage immediately, without a plan POST.
+{
+  const progress: PresentationPipelineProgress[] = [];
+  const recovery = await recoverPresentationPipeline({
+    frameworkVersionId: FRAMEWORK_ID,
+    api: successfulApi([], {
+      async getActivePresentationJob() {
+        return { ...activeJob("presentation_generation"), current_stage: "PPTX_RENDERING" };
+      },
+      async generatePresentationPlan() {
+        throw new Error("refresh must not POST plan generation");
+      },
+      async waitForJob(jobId, onJobUpdate) {
+        onJobUpdate?.(runningJob("presentation_generation", "PPTX_RENDERING", jobId));
+        return completedJob("presentation_generation");
+      },
+    }),
+    onProgress: (event) => progress.push(event),
+  });
+  assert.equal(recovery.state, "completed");
+  const firstRunning = progress.find((event) => event.state === "running");
+  assert.ok(firstRunning?.state === "running");
+  const view = buildJobProgressView({ snapshot: firstRunning.job });
+  assert.equal(view?.headline, "Rendering PowerPoint/PDF");
+  assert.equal(view?.status, "RUNNING");
+}
+
+// BT-26: a client polling timeout stays a "still running" state, never a backend failure.
+{
+  await assert.rejects(
+    buildPresentationPipeline({
+      frameworkVersionId: FRAMEWORK_ID,
+      api: successfulApi([], {
+        async getActivePresentationJob() {
+          return null;
+        },
+        async waitForJob() {
+          throw Object.assign(new Error("Generation job timed out"), {
+            code: "JOB_TIMEOUT",
+            jobId: PLANNING_JOB_ID,
+          });
+        },
+      }),
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof PresentationPipelineError);
+      assert.equal(error.code, "JOB_TIMEOUT");
+      const notice = recoveryNoticeFromError(error, "plan");
+      assert.equal(notice.category, "STILL_RUNNING");
+      assert.notEqual(notice.category, "TERMINAL_FAILURE");
+      return true;
+    },
+  );
 }
 
 assert.equal(

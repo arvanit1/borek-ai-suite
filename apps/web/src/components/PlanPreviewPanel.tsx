@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { AppPageHeader } from "@/components/AppPageHeader";
 import { useAuth } from "@/components/AuthProvider";
+import { LiveGenerationProgress } from "@/components/LiveGenerationProgress";
 import { PipelineStepper } from "@/components/PipelineStepper";
 import { RecoveryBanner } from "@/components/RecoveryBanner";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -19,7 +20,14 @@ import {
   retryJob,
   waitForJob,
 } from "@/lib/api";
+import type { JobResponse } from "@/lib/api";
 import { isMissingFrameworkError, isMissingPresentationPlanError } from "@/lib/apiErrors";
+import {
+  buildJobProgressView,
+  jobStageLabel,
+  snapshotFromJob,
+  type JobProgressSnapshot,
+} from "@/lib/jobProgress";
 import {
   generationProgressMessage,
   inspectActiveJob,
@@ -52,6 +60,7 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
   const [planLoading, setPlanLoading] = useState(true);
   const [jobPolling, setJobPolling] = useState(false);
   const [jobStage, setJobStage] = useState<string | null>(null);
+  const [jobSnapshot, setJobSnapshot] = useState<JobProgressSnapshot | null>(null);
   const [notice, setNotice] = useState<RecoveryNotice | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [retryJobId, setRetryJobId] = useState<string | null>(null);
@@ -62,6 +71,21 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
     }
     return extractSlidePreviewRows(plan.plan_json);
   }, [plan]);
+
+  const trackJob = useCallback((job: JobResponse) => {
+    setJobSnapshot(snapshotFromJob(job));
+  }, []);
+
+  const progressView = useMemo(
+    () =>
+      buildJobProgressView({
+        snapshot: jobSnapshot,
+        // Only the plan being generated from counts; a stale plan must not be quoted.
+        plannedSlideCount:
+          plan && jobSnapshot?.jobType === "presentation_generation" ? slideRows.length : null,
+      }),
+    [jobSnapshot, plan, slideRows.length],
+  );
 
   const loadFrameworkStatus = useCallback(async () => {
     if (!accessToken) {
@@ -131,6 +155,7 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
     setPlanLoading(true);
     setJobPolling(false);
     setJobStage(null);
+    setJobSnapshot(null);
     setNotice(null);
     setInfo(null);
     setRetryJobId(null);
@@ -157,10 +182,12 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
         onJobStageUpdate: (stage) => {
           setJobStage(stage);
         },
+        onJobSnapshot: setJobSnapshot,
         onJobPollingFinished: () => {
           setJobPolling(false);
           setInfo(null);
           setJobStage(null);
+          setJobSnapshot(null);
           setNotice(null);
         },
         onJobFailed: (message, failedJobId) => {
@@ -212,7 +239,13 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
       );
       setInfo(generationProgressMessage("plan", Boolean(generated.is_existing_job)));
       setNotice(runningRecoveryNotice("plan", generated.job_id));
-      await waitForJob(accessToken, generated.job_id, FRAMEWORK_JOB_TIMEOUT_MS);
+      setJobPolling(true);
+      await waitForJob(accessToken, generated.job_id, {
+        timeoutMs: FRAMEWORK_JOB_TIMEOUT_MS,
+        onProgress: trackJob,
+      });
+      setJobPolling(false);
+      setJobSnapshot(null);
       setNotice(null);
       await loadPlan();
       setInfo("Presentation plan ready. Review order, purpose, and layout below.");
@@ -224,6 +257,7 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
       }
     } finally {
       setBusy(false);
+      setJobPolling(false);
     }
   }
 
@@ -237,7 +271,12 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
     try {
       const queued = await retryJob(accessToken, retryJobId);
       setRetryJobId(null);
-      await waitForJob(accessToken, queued.job_id, FRAMEWORK_JOB_TIMEOUT_MS);
+      setJobPolling(true);
+      await waitForJob(accessToken, queued.job_id, {
+        timeoutMs: FRAMEWORK_JOB_TIMEOUT_MS,
+        onProgress: trackJob,
+      });
+      setJobSnapshot(null);
       setNotice(null);
       await loadPlan();
     } catch (retryError) {
@@ -248,6 +287,7 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
       }
     } finally {
       setBusy(false);
+      setJobPolling(false);
     }
   }
 
@@ -271,7 +311,12 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
       }
       if (decision.action === "monitor") {
         setNotice(runningRecoveryNotice("plan", decision.jobId));
-        await waitForJob(accessToken, decision.jobId, FRAMEWORK_JOB_TIMEOUT_MS);
+        setJobPolling(true);
+        await waitForJob(accessToken, decision.jobId, {
+          timeoutMs: FRAMEWORK_JOB_TIMEOUT_MS,
+          onProgress: trackJob,
+        });
+        setJobSnapshot(null);
       }
       await applyLatestPlan();
       setNotice(null);
@@ -286,6 +331,7 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
       }
     } finally {
       setBusy(false);
+      setJobPolling(false);
     }
   }
 
@@ -391,11 +437,13 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
           </section>
         ) : null}
 
-        {jobPolling ? (
+        {progressView && (jobPolling || progressView.failed) ? (
+          <LiveGenerationProgress view={progressView} />
+        ) : jobPolling ? (
           <section className="upload-panel pipeline-panel-loading">
             <p className="upload-hint" data-testid="pipeline-job-progress">
               {info ?? "Presentation planning is running…"}
-              {jobStage ? ` · ${jobStage.replaceAll("_", " ").toLowerCase()}` : ""}
+              {jobStage ? ` · ${jobStageLabel(jobStage)}` : ""}
             </p>
           </section>
         ) : null}

@@ -2227,3 +2227,93 @@ textarea {
   font-size: 0.85rem;
   overflow-wrap: anywhere;
 }
+
+.live-progress {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.live-progress-header {
+  display: flex;
+  gap: 1rem;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.live-progress-title {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.live-progress-headline {
+  margin: 0.2rem 0 0;
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.live-progress-headline-failed {
+  color: var(--color-danger);
+}
+
+.live-progress-elapsed {
+  color: var(--color-muted);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.live-progress-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.live-progress-step {
+  display: grid;
+  grid-template-columns: 1.25rem minmax(0, 1fr) auto;
+  gap: 0.6rem;
+  align-items: center;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.live-progress-mark {
+  text-align: center;
+  line-height: 1;
+}
+
+.live-progress-step[data-state="complete"] {
+  color: var(--color-text);
+}
+
+.live-progress-step[data-state="complete"] .live-progress-mark {
+  color: var(--color-success);
+}
+
+.live-progress-step[data-state="current"] {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.live-progress-step[data-state="current"] .live-progress-mark {
+  color: var(--color-accent);
+}
+
+.live-progress-step[data-state="failed"] {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+.live-progress-step-status {
+  font-size: 0.78rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-muted);
+}
+
+.live-progress-detail {
+  margin: 0;
+}

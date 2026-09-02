@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 
+import { buildJobProgressView, type JobProgressSnapshot } from "./jobProgress.js";
 import {
   PIPELINE_JOB_POLL_MS,
   startPipelineParallelLoad,
@@ -15,6 +16,7 @@ function createHarness() {
   let contentLoading = true;
   let jobPolling = false;
   const events: string[] = [];
+  const snapshots: JobProgressSnapshot[] = [];
 
   const handlers: PipelineParallelLoadHandlers = {
     onContentLoaded: () => {
@@ -40,6 +42,9 @@ function createHarness() {
     onJobStageUpdate: () => {
       events.push("job_stage_update");
     },
+    onJobSnapshot: (snapshot) => {
+      snapshots.push(snapshot);
+    },
     onJobPollingFinished: () => {
       jobPolling = false;
       events.push("job_polling_finished");
@@ -54,6 +59,7 @@ function createHarness() {
     contentVisible: () => contentLoaded && !contentLoading,
     jobIndicatorVisible: () => jobPolling,
     events,
+    snapshots,
   };
 }
 
@@ -165,6 +171,15 @@ async function testDeckRefreshAfterJobCompletes(): Promise<void> {
   assert.equal(loadCount, 2);
   assert.equal(harness.contentVisible(), true);
   assert.equal(harness.jobIndicatorVisible(), false);
+
+  // BT-26: recovered jobs expose their real stage for the live progress panel.
+  const recovered = harness.snapshots[0];
+  assert.equal(recovered.jobType, "presentation_generation");
+  assert.equal(recovered.currentStage, "SLIDE_GENERATING");
+  assert.equal(
+    buildJobProgressView({ snapshot: recovered })?.headline,
+    "Generating slide content",
+  );
   cancel();
 }
 

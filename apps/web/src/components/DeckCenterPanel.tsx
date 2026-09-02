@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { AppPageHeader } from "@/components/AppPageHeader";
 import { useAuth } from "@/components/AuthProvider";
+import { LiveGenerationProgress } from "@/components/LiveGenerationProgress";
 import { PipelineStepper } from "@/components/PipelineStepper";
 import { RecoveryBanner } from "@/components/RecoveryBanner";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -25,6 +26,7 @@ import {
   retryJob,
   waitForJob,
 } from "@/lib/api";
+import type { JobResponse } from "@/lib/api";
 import {
   isDeckFileMissingError,
   isMissingPresentationError,
@@ -32,6 +34,12 @@ import {
 } from "@/lib/apiErrors";
 import { buildDownloadFilename, mapDeckSlides } from "@/lib/deckCenter";
 import type { DeckCenterResponse, PresentationResponse } from "@/lib/deckTypes";
+import {
+  buildJobProgressView,
+  jobStageLabel,
+  snapshotFromJob,
+  type JobProgressSnapshot,
+} from "@/lib/jobProgress";
 import {
   generationProgressMessage,
   inspectActiveJob,
@@ -75,6 +83,7 @@ export function DeckCenterPanel({
   const [contentLoading, setContentLoading] = useState(true);
   const [jobPolling, setJobPolling] = useState(false);
   const [jobStage, setJobStage] = useState<string | null>(null);
+  const [jobSnapshot, setJobSnapshot] = useState<JobProgressSnapshot | null>(null);
   const [notice, setNotice] = useState<RecoveryNotice | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [retryJobId, setRetryJobId] = useState<string | null>(null);
@@ -84,6 +93,15 @@ export function DeckCenterPanel({
   const [partialArtifacts, setPartialArtifacts] = useState(false);
   const [recoveryTarget, setRecoveryTarget] = useState<"job" | "download-pptx" | "download-pdf">(
     "job",
+  );
+
+  const trackJob = useCallback((job: JobResponse) => {
+    setJobSnapshot(snapshotFromJob(job));
+  }, []);
+
+  const progressView = useMemo(
+    () => buildJobProgressView({ snapshot: jobSnapshot }),
+    [jobSnapshot],
   );
 
   const slideTiles = useMemo(() => (deck ? mapDeckSlides(deck) : []), [deck]);
@@ -177,6 +195,7 @@ export function DeckCenterPanel({
     setContentLoading(true);
     setJobPolling(false);
     setJobStage(null);
+    setJobSnapshot(null);
     setNotice(null);
     setInfo(null);
     setRetryJobId(null);
@@ -204,10 +223,12 @@ export function DeckCenterPanel({
         onJobStageUpdate: (stage) => {
           setJobStage(stage);
         },
+        onJobSnapshot: setJobSnapshot,
         onJobPollingFinished: () => {
           setJobPolling(false);
           setInfo(null);
           setJobStage(null);
+          setJobSnapshot(null);
           setNotice(null);
         },
         onJobFailed: (message, failedJobId) => {
@@ -256,7 +277,12 @@ export function DeckCenterPanel({
       const generated = await generatePresentation(accessToken, opportunityId);
       setInfo(generationProgressMessage("deck", Boolean(generated.is_existing_job)));
       setNotice(runningRecoveryNotice("deck", generated.job_id));
-      await waitForJob(accessToken, generated.job_id, FRAMEWORK_JOB_TIMEOUT_MS);
+      setJobPolling(true);
+      await waitForJob(accessToken, generated.job_id, {
+        timeoutMs: FRAMEWORK_JOB_TIMEOUT_MS,
+        onProgress: trackJob,
+      });
+      setJobSnapshot(null);
       setNotice(null);
       await applyLatestPresentation();
       setInfo(null);
@@ -268,6 +294,7 @@ export function DeckCenterPanel({
       }
     } finally {
       setBusy(false);
+      setJobPolling(false);
     }
   }
 
@@ -282,7 +309,12 @@ export function DeckCenterPanel({
     try {
       const queued = await retryJob(accessToken, retryJobId);
       setRetryJobId(null);
-      await waitForJob(accessToken, queued.job_id, FRAMEWORK_JOB_TIMEOUT_MS);
+      setJobPolling(true);
+      await waitForJob(accessToken, queued.job_id, {
+        timeoutMs: FRAMEWORK_JOB_TIMEOUT_MS,
+        onProgress: trackJob,
+      });
+      setJobSnapshot(null);
       setNotice(null);
       await applyLatestPresentation();
       setInfo(null);
@@ -294,6 +326,7 @@ export function DeckCenterPanel({
       }
     } finally {
       setBusy(false);
+      setJobPolling(false);
     }
   }
 
@@ -314,7 +347,12 @@ export function DeckCenterPanel({
       }
       if (decision.action === "monitor") {
         setNotice(runningRecoveryNotice("deck", decision.jobId));
-        await waitForJob(accessToken, decision.jobId, FRAMEWORK_JOB_TIMEOUT_MS);
+        setJobPolling(true);
+        await waitForJob(accessToken, decision.jobId, {
+          timeoutMs: FRAMEWORK_JOB_TIMEOUT_MS,
+          onProgress: trackJob,
+        });
+        setJobSnapshot(null);
       }
       await applyLatestPresentation();
       setNotice(null);
@@ -329,6 +367,7 @@ export function DeckCenterPanel({
       }
     } finally {
       setBusy(false);
+      setJobPolling(false);
     }
   }
 
@@ -399,7 +438,12 @@ export function DeckCenterPanel({
       const queued = await regeneratePresentationSlide(accessToken, presentation.id, slideId);
       setInfo("Updating this slide…");
       setNotice(runningRecoveryNotice("deck", queued.job_id));
-      await waitForJob(accessToken, queued.job_id, FRAMEWORK_JOB_TIMEOUT_MS);
+      setJobPolling(true);
+      await waitForJob(accessToken, queued.job_id, {
+        timeoutMs: FRAMEWORK_JOB_TIMEOUT_MS,
+        onProgress: trackJob,
+      });
+      setJobSnapshot(null);
       await loadDeck(presentation.id);
       setNotice(null);
       setInfo(null);
@@ -408,6 +452,7 @@ export function DeckCenterPanel({
       setNotice(recoveryNoticeFromError(regenerateError, "deck"));
     } finally {
       setBusy(false);
+      setJobPolling(false);
     }
   }
 
@@ -427,7 +472,12 @@ export function DeckCenterPanel({
       );
       setInfo("Updating this slide layout…");
       setNotice(runningRecoveryNotice("deck", queued.job_id));
-      await waitForJob(accessToken, queued.job_id, FRAMEWORK_JOB_TIMEOUT_MS);
+      setJobPolling(true);
+      await waitForJob(accessToken, queued.job_id, {
+        timeoutMs: FRAMEWORK_JOB_TIMEOUT_MS,
+        onProgress: trackJob,
+      });
+      setJobSnapshot(null);
       await loadDeck(presentation.id);
       setNotice(null);
       setInfo(null);
@@ -436,6 +486,7 @@ export function DeckCenterPanel({
       setNotice(recoveryNoticeFromError(layoutError, "deck"));
     } finally {
       setBusy(false);
+      setJobPolling(false);
     }
   }
 
@@ -534,11 +585,13 @@ export function DeckCenterPanel({
               </section>
             ) : null}
 
-            {jobPolling ? (
+            {progressView && (jobPolling || progressView.failed) ? (
+              <LiveGenerationProgress view={progressView} />
+            ) : jobPolling ? (
               <section className="upload-panel pipeline-panel-loading">
                 <p className="upload-hint" data-testid="pipeline-job-progress">
                   {info ?? "Presentation rendering is running…"}
-                  {jobStage ? ` · ${jobStage.replaceAll("_", " ").toLowerCase()}` : ""}
+                  {jobStage ? ` · ${jobStageLabel(jobStage)}` : ""}
                 </p>
               </section>
             ) : null}
