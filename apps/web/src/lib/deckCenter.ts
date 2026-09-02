@@ -5,9 +5,10 @@ export function mapDeckSlides(deck: DeckCenterResponse): SlidePreviewTile[] {
     .slice()
     .sort((left, right) => left.slide_index - right.slide_index)
     .map((slide) => ({
+      slideId: slide.slide_id,
       slideIndex: slide.slide_index,
       layoutId: slide.layout_id,
-      previewUrl: slide.preview_url,
+      previewUrl: slide.preview_url?.trim() ? slide.preview_url : null,
     }));
 }
 

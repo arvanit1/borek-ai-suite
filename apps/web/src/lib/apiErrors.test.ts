@@ -8,6 +8,7 @@ import {
   isMissingPresentationError,
   isMissingPresentationPlanError,
   isPresentationNotReadyError,
+  isDeckFileMissingError,
 } from "./apiErrors.js";
 
 assert.equal(
@@ -42,5 +43,9 @@ assert.equal(
   true,
 );
 assert.equal(isPresentationNotReadyError(new ApiRequestError("Missing presentation", 404)), false);
+assert.equal(
+  isDeckFileMissingError(new ApiRequestError("Deck pptx file is not available", 404, "DECK_FILE_NOT_FOUND")),
+  true,
+);
 
 console.log("apiErrors tests passed");

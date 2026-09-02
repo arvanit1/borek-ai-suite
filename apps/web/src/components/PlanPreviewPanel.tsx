@@ -23,6 +23,7 @@ import {
   inspectActiveJob,
   stageGroupForPage,
 } from "@/lib/jobReconnect";
+import { pipelineHref } from "@/lib/pipelineContext";
 import { extractSlidePreviewRows, formatLayoutLabel } from "@/lib/planPreview";
 import type { PresentationPlanResponse } from "@/lib/planTypes";
 
@@ -273,10 +274,10 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
               </Link>
               {plan ? (
                 <Link
-                  href={`/deck-center?opportunityId=${opportunityId}`}
+                  href={pipelineHref("/deck-center", opportunityId)}
                   className="btn btn-primary btn-block"
                 >
-                  Open deck center
+                  Open presentation
                 </Link>
               ) : null}
             </div>
@@ -346,19 +347,23 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
                     <tr key={`${row.order}-${row.layoutId}`}>
                       <td>{row.order}</td>
                       <td>{row.purpose}</td>
-                      <td>
-                        <code>{row.layoutId}</code>
-                        <span className="plan-layout-label">{formatLayoutLabel(row.layoutId)}</span>
-                      </td>
+                      <td>{formatLayoutLabel(row.layoutId)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
 
+            <details className="framework-details-disclosure">
+              <summary>Details</summary>
+              <p className="upload-hint">
+                {slideRows.map((row) => `Slide ${row.order}: ${row.layoutId}`).join(" · ")}
+              </p>
+            </details>
+
             <p className="upload-hint plan-next-step">
-              <strong>Step 3 complete.</strong> When you are satisfied with the planned sequence,
-              continue to the deck center to generate slide previews and download the presentation.
+              <strong>Plan complete.</strong> Continue to the presentation to preview slides and
+              download the PowerPoint.
             </p>
           </section>
         ) : frameworkConfirmed && !busy && isAuthenticated ? (
@@ -367,8 +372,8 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
               <div>
                 <h2>Generate the presentation plan</h2>
                 <p>
-                  After the framework is confirmed, generate the slide plan to review order,
-                  purpose, and layout before full deck generation.
+                  After the customer story is approved, generate the slide plan to review order
+                  and purpose before building the presentation.
                 </p>
               </div>
             </header>

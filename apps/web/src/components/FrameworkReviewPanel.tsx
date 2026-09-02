@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AppPageHeader } from "@/components/AppPageHeader";
 import { useAuth } from "@/components/AuthProvider";
 import { FrameworkChapterView } from "@/components/FrameworkChapterView";
+import { FrameworkReviewSummary } from "@/components/FrameworkReviewSummary";
 import { FrameworkRootFieldsPanel } from "@/components/FrameworkRootFieldsPanel";
 import { JobFailureAlert } from "@/components/JobFailureAlert";
 import { PipelineStepper } from "@/components/PipelineStepper";
@@ -16,7 +18,9 @@ import {
   confirmFramework,
   downloadFrameworkRender,
   generateFramework,
+  generatePresentationPlan,
   getActiveJob,
+  getFrameworkReview,
   getLatestFramework,
   listTranscripts,
   regenerateFrameworkChapter,
@@ -42,6 +46,14 @@ import {
   updateChapter,
   updateFrameworkRootField,
 } from "@/lib/frameworkEdit";
+import { customerStatusLabel } from "@/lib/frameworkLabels";
+import {
+  canApproveAndBuild,
+  isApprovalBlocked,
+  reviewPayloadFromUnknown,
+  type FrameworkReviewPayload,
+} from "@/lib/frameworkReview";
+import { pipelineHref } from "@/lib/pipelineContext";
 import type { FrameworkObject, FrameworkVersionResponse } from "@/lib/frameworkTypes";
 
 interface FrameworkReviewPanelProps {
@@ -49,13 +61,16 @@ interface FrameworkReviewPanelProps {
 }
 
 export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProps) {
+  const router = useRouter();
   const { accessToken, isAuthenticated, loading, session } = useAuth();
   const [frameworkVersion, setFrameworkVersion] = useState<FrameworkVersionResponse | null>(null);
   const [frameworkJson, setFrameworkJson] = useState<FrameworkObject | null>(null);
+  const [review, setReview] = useState<FrameworkReviewPayload | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
+  const [humanConfirmed, setHumanConfirmed] = useState(false);
   const [regeneratingChapterId, setRegeneratingChapterId] = useState<string | null>(null);
   const [retryJobId, setRetryJobId] = useState<string | null>(null);
   const [transcriptCount, setTranscriptCount] = useState<number | null>(null);
@@ -73,6 +88,29 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
         (frameworkJson != null && isFrameworkConfirmed(frameworkJson.status))),
   );
 
+  const applyReview = useCallback(
+    async (source?: unknown) => {
+      const extracted = reviewPayloadFromUnknown(source);
+      if (extracted) {
+        setReview(extracted);
+      }
+      if (!accessToken) {
+        return extracted ?? null;
+      }
+      try {
+        const payload = await getFrameworkReview(accessToken, opportunityId);
+        setReview(payload);
+        return payload;
+      } catch {
+        if (!extracted) {
+          setReview(null);
+        }
+        return extracted ?? null;
+      }
+    },
+    [accessToken, opportunityId],
+  );
+
   const applyLatestFramework = useCallback(async () => {
     if (!accessToken) {
       return;
@@ -82,14 +120,17 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       setFrameworkVersion(latest);
       setFrameworkJson(latest.framework_json);
       setDirty(false);
+      setHumanConfirmed(false);
+      await applyReview(latest);
     } catch (loadError) {
       setFrameworkVersion(null);
       setFrameworkJson(null);
+      setReview(null);
       if (!isMissingFrameworkError(loadError)) {
         throw loadError;
       }
     }
-  }, [accessToken, opportunityId]);
+  }, [accessToken, applyReview, opportunityId]);
 
   const loadFramework = useCallback(async () => {
     if (!accessToken) {
@@ -275,6 +316,12 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
     setDirty(true);
   }
 
+  function jumpToChapter(chapterId: string) {
+    setActiveChapterId(chapterId);
+    const node = document.getElementById(`framework-chapter-${chapterId}`);
+    node?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   async function handleGenerate() {
     if (!accessToken) {
       return;
@@ -338,6 +385,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       setFrameworkVersion(saved);
       setFrameworkJson(saved.framework_json);
       setDirty(false);
+      await applyReview(saved);
       setInfo("Changes saved.");
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Save failed.");
@@ -383,10 +431,10 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
         await persistFramework(accessToken, opportunityId, frameworkJson);
       }
       const queued = await regenerateFrameworkChapter(accessToken, opportunityId, chapterId);
-      setInfo(`Regenerating chapter ${chapterId}…`);
+      setInfo(`Updating chapter ${chapterId}…`);
       await waitForJob(accessToken, queued.job_id, FRAMEWORK_JOB_TIMEOUT_MS);
       await loadFramework();
-      setInfo(`Chapter ${chapterId} regeneration finished. Other chapters were left unchanged.`);
+      setInfo(`Chapter ${chapterId} was updated. Other chapters were left unchanged.`);
     } catch (regenerateError) {
       setError(
         regenerateError instanceof Error ? regenerateError.message : "Chapter regenerate failed.",
@@ -397,8 +445,19 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
     }
   }
 
-  async function handleConfirm() {
+  async function handleApprove() {
     if (!accessToken) {
+      return;
+    }
+    const blocked = review ? isApprovalBlocked(review) : false;
+    if (
+      !canApproveAndBuild({
+        editable,
+        confirmed: frameworkConfirmed,
+        humanConfirmed,
+        blocked,
+      })
+    ) {
       return;
     }
     setBusy(true);
@@ -406,15 +465,33 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
     setInfo(null);
     try {
       if (dirty && frameworkJson) {
-        await persistFramework(accessToken, opportunityId, frameworkJson);
+        const saved = await persistFramework(accessToken, opportunityId, frameworkJson);
+        setFrameworkVersion(saved);
+        setFrameworkJson(saved.framework_json);
+        setDirty(false);
+        const nextReview = await applyReview(saved);
+        if (nextReview && isApprovalBlocked(nextReview)) {
+          setError(
+            "This customer story still has issues that must be resolved before the presentation can be built.",
+          );
+          return;
+        }
       }
       const confirmed = await confirmFramework(accessToken, opportunityId);
       setFrameworkVersion(confirmed);
       setFrameworkJson(confirmed.framework_json);
       setDirty(false);
-      setInfo("Framework confirmed. You can preview the presentation plan next.");
+      setHumanConfirmed(false);
+      await applyReview(confirmed);
+      setInfo("Approved. Building the presentation plan…");
+      try {
+        await generatePresentationPlan(accessToken, opportunityId, confirmed.id);
+      } catch {
+        // Plan generation can continue from the next step if enqueue fails.
+      }
+      router.push(pipelineHref("/plan-preview", opportunityId));
     } catch (confirmError) {
-      setError(confirmError instanceof Error ? confirmError.message : "Confirm failed.");
+      setError(confirmError instanceof Error ? confirmError.message : "Approval failed.");
     } finally {
       setBusy(false);
     }
@@ -449,26 +526,34 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
         />
         <AppPageHeader
           kicker="Step 2 of 4"
-          title="Framework review"
-          lead="Review all 14 chapters, inspect source references, and edit any field while the framework is draft or in review. Confirmation locks the object."
+          title="Review the customer story"
+          lead="Start with the summary, resolve anything that needs attention, then approve to build the presentation. All 14 chapters stay available below for review and editing."
         />
 
         <div className="upload-layout">
           <aside className="upload-sidebar">
             <div className="upload-meta-card">
               <h3>Active opportunity</h3>
-              <p className="upload-meta-empty">Continue when the 14-chapter draft is ready to lock.</p>
-              <Link href={`/upload?opportunityId=${opportunityId}`} className="btn btn-secondary btn-block">
+              <p className="upload-meta-empty">
+                {frameworkConfirmed
+                  ? "This customer story is approved. Continue to the presentation."
+                  : "Approve only after you have reviewed the summary and any warnings."}
+              </p>
+              <Link href={pipelineHref("/upload", opportunityId)} className="btn btn-secondary btn-block">
                 Back to upload
               </Link>
               {frameworkConfirmed ? (
                 <Link
-                  href={`/plan-preview?opportunityId=${opportunityId}`}
+                  href={pipelineHref("/plan-preview", opportunityId)}
                   className="btn btn-primary btn-block"
                 >
-                  Preview plan
+                  Continue to presentation
                 </Link>
-              ) : null}
+              ) : (
+                <a href="#framework-chapters" className="btn btn-secondary btn-block">
+                  Review all 14 chapters
+                </a>
+              )}
             </div>
           </aside>
 
@@ -486,7 +571,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
             {busy && !frameworkVersion ? (
               <section className="upload-panel pipeline-panel-loading">
                 <p className="upload-hint" data-testid="pipeline-job-progress">
-                  {info ?? "Loading framework…"}
+                  {info ?? "Loading customer story…"}
                 </p>
               </section>
             ) : null}
@@ -495,11 +580,11 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
               <section className="upload-panel pipeline-empty-panel">
                 <header className="upload-panel-header">
                   <div>
-                    <h2>Generate the framework draft</h2>
+                    <h2>Generate the customer story</h2>
                     <p>
-                      After transcripts are uploaded, generate the 14-chapter Customer Framework
-                      Report. You can review source references, edit every field, or regenerate a
-                      single chapter before confirming.
+                      After transcripts are uploaded, generate the 14-chapter customer report.
+                      Review the summary first, then inspect chapters and cited sources before you
+                      approve.
                     </p>
                   </div>
                 </header>
@@ -511,10 +596,10 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
                     <>
                       <p>
                         No transcripts are attached to this opportunity yet. Upload at least one
-                        discovery transcript, then generate the framework.
+                        discovery transcript, then generate the customer story.
                       </p>
                       <Link
-                        href={`/upload?opportunityId=${opportunityId}`}
+                        href={pipelineHref("/upload", opportunityId)}
                         className="btn btn-primary"
                       >
                         Back to upload
@@ -532,7 +617,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
                         disabled={busy}
                         onClick={() => void handleGenerate()}
                       >
-                        Generate framework
+                        Generate customer story
                       </button>
                     </>
                   )}
@@ -545,10 +630,12 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
                 <section className="upload-panel">
                   <header className="upload-panel-header">
                     <div>
-                      <h2>Framework summary</h2>
+                      <h2>Customer story summary</h2>
                       <p>
-                        Version {frameworkVersion.version_number} · status{" "}
-                        <span className="framework-status-pill">{frameworkVersion.status}</span>
+                        Version {frameworkVersion.version_number} ·{" "}
+                        <span className="framework-status-pill">
+                          {customerStatusLabel(frameworkVersion.status)}
+                        </span>
                       </p>
                     </div>
                     <div className="framework-toolbar-actions">
@@ -568,32 +655,12 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
                       >
                         {downloadingFormat === "pdf" ? "Downloading…" : "Download PDF"}
                       </button>
-                      {editable ? (
-                        <>
-                          <button
-                            type="button"
-                            className="btn btn-secondary"
-                            disabled={busy || !dirty || downloadingFormat !== null}
-                            onClick={() => void handleSave()}
-                          >
-                            Save changes
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn-primary"
-                            disabled={busy || downloadingFormat !== null}
-                            onClick={() => void handleConfirm()}
-                          >
-                            Confirm framework
-                          </button>
-                        </>
-                      ) : null}
                     </div>
                   </header>
 
                   <div className="framework-meta-grid">
                     <div className="form-field">
-                      <label htmlFor="framework-title">Framework title</label>
+                      <label htmlFor="framework-title">Title</label>
                       <input
                         id="framework-title"
                         value={frameworkJson.title}
@@ -630,12 +697,68 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
                     </div>
                   </div>
 
+                  {review ? (
+                    <FrameworkReviewSummary
+                      review={review}
+                      editable={editable}
+                      confirmed={frameworkConfirmed}
+                      busy={busy || downloadingFormat !== null}
+                      dirty={dirty}
+                      humanConfirmed={humanConfirmed}
+                      onHumanConfirmedChange={setHumanConfirmed}
+                      onApprove={() => void handleApprove()}
+                      onSave={() => void handleSave()}
+                      onJumpToChapter={jumpToChapter}
+                    />
+                  ) : (
+                    <div className="framework-approve-panel">
+                      <p className="upload-hint">
+                        The concise summary is not available yet. Review the 14 chapters below
+                        before approving.
+                      </p>
+                      {editable && !frameworkConfirmed ? (
+                        <>
+                          <label className="framework-human-confirm">
+                            <input
+                              type="checkbox"
+                              data-testid="framework-human-confirm"
+                              checked={humanConfirmed}
+                              disabled={busy}
+                              onChange={(event) => setHumanConfirmed(event.target.checked)}
+                            />
+                            <span>
+                              I have reviewed this customer story and I approve building the
+                              presentation.
+                            </span>
+                          </label>
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            data-testid="framework-approve-button"
+                            disabled={
+                              busy ||
+                              !canApproveAndBuild({
+                                editable,
+                                confirmed: frameworkConfirmed,
+                                humanConfirmed,
+                                blocked: false,
+                              })
+                            }
+                            onClick={() => void handleApprove()}
+                          >
+                            Approve & build presentation
+                          </button>
+                        </>
+                      ) : null}
+                    </div>
+                  )}
+
                   <div className="framework-export-panel" data-testid="framework-export-panel">
                     <div>
-                      <strong>Export framework report</strong>
+                      <strong>Download the customer report</strong>
                       <p>
-                        Download the complete 14-chapter framework as Word or PDF. Draft versions
-                        are labeled accordingly until you confirm.
+                        Export the complete 14-chapter report as Word or PDF. Draft versions are
+                        labeled until you approve.
                       </p>
                     </div>
                     <div className="framework-toolbar-actions">
@@ -661,27 +784,18 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
                   </div>
                 </section>
 
-                {frameworkConfirmed ? (
-                  <div className="upload-banner upload-banner-info">
-                    <div>
-                      <strong>Framework confirmed</strong>
-                      <p>
-                        This version is locked. Fields, source references, and chapter regenerate
-                        stay read-only so Stage B can only use the confirmed object.
-                      </p>
-                    </div>
-                  </div>
-                ) : null}
+                <details className="framework-details-disclosure">
+                  <summary>Additional structured details</summary>
+                  <FrameworkRootFieldsPanel
+                    framework={frameworkJson}
+                    editable={editable && !busy}
+                    onChange={applyFrameworkDraft}
+                  />
+                </details>
 
-                <FrameworkRootFieldsPanel
-                  framework={frameworkJson}
-                  editable={editable && !busy}
-                  onChange={applyFrameworkDraft}
-                />
-
-                <div className="framework-layout">
+                <div className="framework-layout" id="framework-chapters">
                   <aside className="framework-sidebar">
-                    <h2>Chapters</h2>
+                    <h2>All 14 chapters</h2>
                     <ol className="framework-chapter-nav">
                       {chapterNav.map((item) => {
                         const isHighlighted = highlightedChapterId === item.chapterId;
@@ -700,10 +814,12 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
                               aria-current={isHighlighted ? "true" : undefined}
                               onClick={() => setActiveChapterId(item.chapterId)}
                             >
-                              <span>{item.chapterId}</span>
+                              <span>Chapter {item.chapterId}</span>
                               <span>{item.title}</span>
                               {item.refCount > 0 ? (
-                                <span className="framework-ref-count">{item.refCount} refs</span>
+                                <span className="framework-ref-count">
+                                  {item.refCount} cited source{item.refCount === 1 ? "" : "s"}
+                                </span>
                               ) : null}
                             </a>
                           </li>

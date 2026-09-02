@@ -14,8 +14,8 @@ export default async function DeckCenterPage({ searchParams }: DeckCenterPagePro
     <RequireAuth>
       {!opportunityId ? (
         <PipelineContextMissing
-          title="Deck center"
-          detail="Preview slide PNGs and download the generated presentation for an opportunity."
+          title="Your presentation"
+          detail="Preview slides and download the generated PowerPoint for an opportunity."
         />
       ) : (
         <DeckCenterPanel opportunityId={opportunityId} />

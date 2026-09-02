@@ -29,6 +29,7 @@ const sampleDeck: DeckCenterResponse = {
 const tiles = mapDeckSlides(sampleDeck);
 assert.equal(tiles.length, 2);
 assert.equal(tiles[0].slideIndex, 0);
+assert.equal(tiles[0].slideId, "22222222-2222-4222-8222-222222222222");
 assert.equal(tiles[1].layoutId, "CONTEXT_01");
 
 assert.equal(
