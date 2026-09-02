@@ -12,7 +12,11 @@ export default async function UploadPage({ searchParams }: UploadPageProps) {
 
   return (
     <RequireAuth>
-      <TranscriptUploadPanel initialOpportunityId={opportunityId} startFresh={startFresh} />
+      <TranscriptUploadPanel
+        key={`${opportunityId ?? "new"}:${startFresh}`}
+        initialOpportunityId={opportunityId}
+        startFresh={startFresh}
+      />
     </RequireAuth>
   );
 }

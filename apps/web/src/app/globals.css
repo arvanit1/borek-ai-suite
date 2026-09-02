@@ -319,6 +319,35 @@ textarea {
   border: 1px solid #abefc6;
 }
 
+.recovery-banner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.recovery-banner-copy > p,
+.recovery-details p {
+  margin: 0.35rem 0 0;
+}
+
+.recovery-details {
+  margin-top: 0.65rem;
+  color: inherit;
+  font-size: 0.82rem;
+}
+
+.recovery-details summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .recovery-banner {
+    flex-direction: column;
+  }
+}
+
 .success-text {
   color: var(--color-success);
   font-weight: 600;

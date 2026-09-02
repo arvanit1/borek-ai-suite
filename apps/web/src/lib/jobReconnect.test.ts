@@ -74,6 +74,12 @@ assert.deepEqual(
     jobId: "job-1",
     message: "Synthesis failed",
     retryable: true,
+    error: {
+      code: "GENERATION_FAILED",
+      message: "Synthesis failed",
+      stage: "FRAMEWORK_SYNTHESIZING",
+      retryable: true,
+    },
   },
 );
 assert.deepEqual(

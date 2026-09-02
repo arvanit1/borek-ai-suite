@@ -41,12 +41,13 @@ export class ApiRequestError extends Error {
   readonly code?: string;
   readonly retryable?: boolean;
   readonly jobId?: string;
+  readonly stage?: string;
 
   constructor(
     message: string,
     status: number,
     code?: string,
-    extras?: { retryable?: boolean; jobId?: string },
+    extras?: { retryable?: boolean; jobId?: string; stage?: string },
   ) {
     super(message);
     this.name = "ApiRequestError";
@@ -54,6 +55,7 @@ export class ApiRequestError extends Error {
     this.code = code;
     this.retryable = extras?.retryable;
     this.jobId = extras?.jobId;
+    this.stage = extras?.stage;
   }
 }
 
@@ -199,12 +201,16 @@ export async function waitForJob(
         formatJobFailureMessage(job.error),
         422,
         job.error?.code,
-        { retryable: Boolean(job.error?.retryable), jobId: job.job_id },
+        {
+          retryable: Boolean(job.error?.retryable),
+          jobId: job.job_id,
+          stage: job.error?.stage,
+        },
       );
     }
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
-  throw new ApiRequestError("Generation job timed out", 408, "JOB_TIMEOUT");
+  throw new ApiRequestError("Generation job timed out", 408, "JOB_TIMEOUT", { jobId });
 }
 
 export async function apiFetchBlob(
