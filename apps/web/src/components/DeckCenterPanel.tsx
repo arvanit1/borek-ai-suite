@@ -20,6 +20,7 @@ import {
   getJob,
   getLatestPresentation,
   getOpportunity,
+  getPresentation,
   regeneratePresentationSlide,
   retryJob,
   waitForJob,
@@ -58,9 +59,14 @@ import type { RecoveryNotice } from "@/lib/recoveryUx";
 
 interface DeckCenterPanelProps {
   opportunityId: string;
+  presentationId?: string;
+  presentationVersionId?: string;
 }
 
-export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
+export function DeckCenterPanel({
+  opportunityId,
+  presentationId: requestedPresentationId,
+}: DeckCenterPanelProps) {
   const { accessToken, isAuthenticated, loading, session } = useAuth();
   const [presentation, setPresentation] = useState<PresentationResponse | null>(null);
   const [deck, setDeck] = useState<DeckCenterResponse | null>(null);
@@ -120,7 +126,9 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
       return;
     }
     try {
-      const latest = await getLatestPresentation(accessToken, opportunityId);
+      const latest = requestedPresentationId
+        ? await getPresentation(accessToken, requestedPresentationId)
+        : await getLatestPresentation(accessToken, opportunityId);
       setPresentation(latest);
       await loadDeck(latest.id);
     } catch (loadError) {
@@ -136,7 +144,7 @@ export function DeckCenterPanel({ opportunityId }: DeckCenterPanelProps) {
         setPartialArtifacts(true);
       }
     }
-  }, [accessToken, loadDeck, opportunityId]);
+  }, [accessToken, loadDeck, opportunityId, requestedPresentationId]);
 
   useEffect(() => {
     if (!accessToken) {

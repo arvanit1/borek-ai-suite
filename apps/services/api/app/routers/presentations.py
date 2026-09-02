@@ -119,6 +119,7 @@ def generate_presentation_plan(
         opportunity_id=opportunity_id,
         user_id=user.id,
         framework_version_id=body.framework_version_id,
+        auto_continue=body.auto_continue,
     )
     record_audit_event(
         store,

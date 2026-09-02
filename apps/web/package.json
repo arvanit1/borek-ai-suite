@@ -17,7 +17,8 @@
     "test:at56": "tsx src/lib/jobReconnect.test.ts && tsx src/lib/jobErrors.test.ts && tsx src/lib/apiErrors.test.ts && tsx src/lib/pipelineParallelLoad.test.ts",
     "test:at57": "tsx src/lib/jobReconnect.test.ts",
     "test:ms24": "tsx src/lib/recentPresentations.test.ts",
-    "test:ms25": "tsx src/lib/recoveryUx.test.ts && tsx src/components/RecoveryBanner.test.tsx"
+    "test:ms25": "tsx src/lib/recoveryUx.test.ts && tsx src/components/RecoveryBanner.test.tsx",
+    "test:bt25": "tsx src/lib/presentationPipeline.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.8",
