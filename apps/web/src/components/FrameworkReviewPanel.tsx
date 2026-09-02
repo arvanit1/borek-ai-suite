@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AppPageHeader } from "@/components/AppPageHeader";
@@ -16,8 +17,13 @@ import {
   confirmFramework,
   downloadFrameworkRender,
   generateFramework,
+  generatePresentationPlan,
   getActiveJob,
+  getJob,
   getLatestFramework,
+  getLatestPresentationPlan,
+  getPresentation,
+  getPresentationPlan,
   listTranscripts,
   regenerateFrameworkChapter,
   retryJob,
@@ -44,6 +50,17 @@ import {
 } from "@/lib/frameworkEdit";
 import type { FrameworkObject, FrameworkVersionResponse } from "@/lib/frameworkTypes";
 import {
+  PresentationPipelineError,
+  approveAndBuildPresentation,
+  deckResultHref,
+  recoverPresentationPipeline,
+} from "@/lib/presentationPipeline";
+import type {
+  PresentationPipelineApi,
+  PresentationPipelineProgress,
+  PresentationPipelineResult,
+} from "@/lib/presentationPipeline";
+import {
   inputRequiredRecoveryNotice,
   jobFailureRecoveryNotice,
   recoveryActionHref,
@@ -58,6 +75,7 @@ interface FrameworkReviewPanelProps {
 }
 
 export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProps) {
+  const router = useRouter();
   const { accessToken, isAuthenticated, loading, session } = useAuth();
   const [frameworkVersion, setFrameworkVersion] = useState<FrameworkVersionResponse | null>(null);
   const [frameworkJson, setFrameworkJson] = useState<FrameworkObject | null>(null);
@@ -76,6 +94,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
     | "regenerate-enqueue"
     | "confirm-save"
     | "confirm"
+    | "presentation-pipeline"
   >("job");
   const [recoveryChapterId, setRecoveryChapterId] = useState<string | null>(null);
   const [transcriptCount, setTranscriptCount] = useState<number | null>(null);
@@ -83,6 +102,8 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
   const [hoveredChapterId, setHoveredChapterId] = useState<string | null>(null);
   const [downloadingFormat, setDownloadingFormat] = useState<"docx" | "pdf" | null>(null);
   const chapterNavItemRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
+  const presentationPipelineRunningRef = useRef(false);
+  const presentationRecoveryAttemptedRef = useRef<string | null>(null);
 
   const editable = frameworkVersion
     ? canEditFramework(frameworkVersion.status, frameworkJson?.status)
@@ -93,21 +114,103 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
         (frameworkJson != null && isFrameworkConfirmed(frameworkJson.status))),
   );
 
-  const applyLatestFramework = useCallback(async () => {
-    if (!accessToken) {
+  const presentationPipelineApi = useCallback(
+    (token: string): PresentationPipelineApi => ({
+      getActivePresentationJob: () => getActiveJob(token, opportunityId, "presentation"),
+      getJob: (jobId) => getJob(token, jobId),
+      waitForJob: (jobId) => waitForJob(token, jobId),
+      generatePresentationPlan: (frameworkVersionId, autoContinue) =>
+        generatePresentationPlan(token, opportunityId, frameworkVersionId, autoContinue),
+      getLatestPresentationPlan: () => getLatestPresentationPlan(token, opportunityId),
+      getPresentationPlan: (presentationPlanId) =>
+        getPresentationPlan(token, presentationPlanId),
+      getPresentation: (presentationId) => getPresentation(token, presentationId),
+    }),
+    [opportunityId],
+  );
+
+  const reportPresentationProgress = useCallback((progress: PresentationPipelineProgress) => {
+    setRecoveryTarget("presentation-pipeline");
+    setNotice(
+      runningRecoveryNotice(
+        progress.phase === "planning" ? "plan" : "deck",
+        progress.jobId,
+      ),
+    );
+    if (progress.phase === "planning") {
+      setInfo(
+        progress.state === "completed"
+          ? "Presentation plan completed. Starting presentation generation…"
+          : progress.reused
+            ? "Resuming presentation planning…"
+            : "Presentation planning is running…",
+      );
       return;
+    }
+    setInfo(
+      progress.state === "completed"
+        ? "Presentation is ready. Opening the deck…"
+        : progress.reused
+          ? "Resuming presentation generation…"
+          : "Presentation generation is running…",
+    );
+  }, []);
+
+  const openPresentationResult = useCallback(
+    (result: PresentationPipelineResult) => {
+      router.push(deckResultHref(opportunityId, result));
+    },
+    [opportunityId, router],
+  );
+
+  const reportPresentationFailure = useCallback((error: unknown) => {
+    const pipelineError =
+      error instanceof PresentationPipelineError
+        ? error
+        : new PresentationPipelineError("generation", "Presentation generation failed");
+    const context = pipelineError.phase === "generation" ? "deck" : "plan";
+    const recovered = recoveryNoticeFromError(pipelineError, context);
+    setInfo(null);
+    setRetryJobId(null);
+    setRecoveryTarget("presentation-pipeline");
+    const reconnectAction =
+      recovered.action?.kind === "RECONNECT" || recovered.action?.kind === "KEEP_CHECKING"
+        ? recovered.action
+        : null;
+    setNotice({
+      ...recovered,
+      action: reconnectAction ??
+        (pipelineError.phase === "generation"
+          ? {
+              kind: "REVIEW",
+              label: "View presentation structure",
+              target: "plan",
+            }
+          : {
+              kind: "REVIEW",
+              label: "Review confirmed framework",
+              target: "framework",
+            }),
+    });
+  }, []);
+
+  const applyLatestFramework = useCallback(async (): Promise<FrameworkVersionResponse | null> => {
+    if (!accessToken) {
+      return null;
     }
     try {
       const latest = await getLatestFramework(accessToken, opportunityId);
       setFrameworkVersion(latest);
       setFrameworkJson(latest.framework_json);
       setDirty(false);
+      return latest;
     } catch (loadError) {
       setFrameworkVersion(null);
       setFrameworkJson(null);
       if (!isMissingFrameworkError(loadError)) {
         throw loadError;
       }
+      return null;
     }
   }, [accessToken, opportunityId]);
 
@@ -125,6 +228,40 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       setBusy(false);
     }
   }, [accessToken, applyLatestFramework]);
+
+  const recoverConfirmedPresentation = useCallback(
+    async (framework: FrameworkVersionResponse) => {
+      if (!accessToken || presentationPipelineRunningRef.current) {
+        return;
+      }
+      presentationPipelineRunningRef.current = true;
+      setRecoveryTarget("presentation-pipeline");
+      setBusy(true);
+      try {
+        const recovery = await recoverPresentationPipeline({
+          frameworkVersionId: framework.id,
+          api: presentationPipelineApi(accessToken),
+          onProgress: reportPresentationProgress,
+        });
+        if (recovery.state === "completed") {
+          setNotice(null);
+          openPresentationResult(recovery.result);
+        }
+      } catch (error) {
+        reportPresentationFailure(error);
+      } finally {
+        presentationPipelineRunningRef.current = false;
+        setBusy(false);
+      }
+    },
+    [
+      accessToken,
+      openPresentationResult,
+      presentationPipelineApi,
+      reportPresentationFailure,
+      reportPresentationProgress,
+    ],
+  );
 
   useEffect(() => {
     if (loading || !accessToken) {
@@ -196,6 +333,18 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       cancelled = true;
     };
   }, [accessToken, applyLatestFramework, loading, opportunityId]);
+
+  useEffect(() => {
+    if (
+      !frameworkVersion ||
+      !frameworkConfirmed ||
+      presentationRecoveryAttemptedRef.current === frameworkVersion.id
+    ) {
+      return;
+    }
+    presentationRecoveryAttemptedRef.current = frameworkVersion.id;
+    void recoverConfirmedPresentation(frameworkVersion);
+  }, [frameworkConfirmed, frameworkVersion, recoverConfirmedPresentation]);
 
   useEffect(() => {
     if (!accessToken) {
@@ -479,6 +628,10 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
         void handleConfirmReconnect();
         return;
       }
+      if (recoveryTarget === "presentation-pipeline" && frameworkVersion) {
+        void recoverConfirmedPresentation(frameworkVersion);
+        return;
+      }
       if (recoveryTarget === "regenerate-save" && recoveryChapterId) {
         void handleRegenerateChapter(recoveryChapterId);
         return;
@@ -572,33 +725,59 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
     }
   }
 
-  async function handleConfirm() {
-    if (!accessToken) {
+  async function handleApproveAndBuild(alreadyConfirmed: boolean) {
+    if (!accessToken || !frameworkVersion || presentationPipelineRunningRef.current) {
       return;
     }
     setRecoveryTarget("confirm-save");
     setBusy(true);
     setNotice(null);
     setInfo(null);
+    presentationPipelineRunningRef.current = true;
     try {
+      let currentFramework = frameworkVersion;
       if (dirty && frameworkJson) {
-        await persistFramework(accessToken, opportunityId, frameworkJson);
+        currentFramework = await persistFramework(accessToken, opportunityId, frameworkJson);
+        setFrameworkVersion(currentFramework);
+        setFrameworkJson(currentFramework.framework_json);
+        setDirty(false);
       }
       setRecoveryTarget("confirm");
-      const confirmed = await confirmFramework(accessToken, opportunityId);
-      setFrameworkVersion(confirmed);
-      setFrameworkJson(confirmed.framework_json);
-      setDirty(false);
-      setInfo("Framework confirmed. You can preview the presentation plan next.");
-    } catch (confirmError) {
-      setNotice(
-        recoveryNoticeFromError(confirmError, "framework", {
-          connectionMessage: "The framework was not confirmed. Reconnect to try again.",
-        }),
-      );
+      const result = await approveAndBuildPresentation({
+        alreadyConfirmed,
+        frameworkVersionId: alreadyConfirmed ? currentFramework.id : undefined,
+        confirmFramework: async () => {
+          const confirmed = await confirmFramework(
+            accessToken,
+            opportunityId,
+            currentFramework.id,
+          );
+          setFrameworkVersion(confirmed);
+          setFrameworkJson(confirmed.framework_json);
+          setDirty(false);
+          presentationRecoveryAttemptedRef.current = confirmed.id;
+          return { id: confirmed.id, status: confirmed.status };
+        },
+        api: presentationPipelineApi(accessToken),
+        onProgress: reportPresentationProgress,
+      });
+      setNotice(null);
+      setInfo("Presentation is ready. Opening the deck…");
+      openPresentationResult(result);
+    } catch (pipelineError) {
+      reportPresentationFailure(pipelineError);
     } finally {
+      presentationPipelineRunningRef.current = false;
       setBusy(false);
     }
+  }
+
+  async function handleConfirm() {
+    await handleApproveAndBuild(false);
+  }
+
+  async function handleBuildConfirmedFramework() {
+    await handleApproveAndBuild(true);
   }
 
   return (
@@ -645,9 +824,9 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
               {frameworkConfirmed ? (
                 <Link
                   href={`/plan-preview?opportunityId=${opportunityId}`}
-                  className="btn btn-primary btn-block"
+                  className="btn btn-secondary btn-block"
                 >
-                  Preview plan
+                  View presentation structure
                 </Link>
               ) : null}
             </div>
@@ -774,9 +953,18 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
                             disabled={busy || downloadingFormat !== null}
                             onClick={() => void handleConfirm()}
                           >
-                            Confirm framework
+                            Approve &amp; build presentation
                           </button>
                         </>
+                      ) : frameworkConfirmed ? (
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          disabled={busy || downloadingFormat !== null}
+                          onClick={() => void handleBuildConfirmedFramework()}
+                        >
+                          Build presentation
+                        </button>
                       ) : null}
                     </div>
                   </header>
@@ -857,8 +1045,17 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
                       <strong>Framework confirmed</strong>
                       <p>
                         This version is locked. Fields, source references, and chapter regenerate
-                        stay read-only so Stage B can only use the confirmed object.
+                        stay read-only so Stage B can only use the confirmed object. Presentation
+                        building can continue here without opening Plan Preview first.
                       </p>
+                    </div>
+                    <div className="upload-banner-actions">
+                      <Link
+                        href={`/plan-preview?opportunityId=${opportunityId}`}
+                        className="btn btn-secondary"
+                      >
+                        View presentation structure
+                      </Link>
                     </div>
                   </div>
                 ) : null}

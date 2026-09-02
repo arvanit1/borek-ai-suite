@@ -417,15 +417,17 @@ export async function generatePresentationPlan(
   accessToken: string,
   opportunityId: string,
   frameworkVersionId?: string,
+  autoContinue = false,
 ): Promise<PresentationPlanGenerateResponse> {
   return apiFetch<PresentationPlanGenerateResponse>(
     `/opportunities/${opportunityId}/presentation-plan/generate`,
     accessToken,
     {
       method: "POST",
-      body: JSON.stringify(
-        frameworkVersionId ? { framework_version_id: frameworkVersionId } : {},
-      ),
+      body: JSON.stringify({
+        ...(frameworkVersionId ? { framework_version_id: frameworkVersionId } : {}),
+        ...(autoContinue ? { auto_continue: true } : {}),
+      }),
     },
   );
 }
@@ -442,6 +444,26 @@ export async function getLatestPresentation(
 ): Promise<PresentationResponse> {
   return apiFetch<PresentationResponse>(
     `/opportunities/${opportunityId}/presentation`,
+    accessToken,
+  );
+}
+
+export async function getPresentationPlan(
+  accessToken: string,
+  presentationPlanId: string,
+): Promise<PresentationPlanResponse> {
+  return apiFetch<PresentationPlanResponse>(
+    `/presentation-plans/${presentationPlanId}`,
+    accessToken,
+  );
+}
+
+export async function getPresentation(
+  accessToken: string,
+  presentationId: string,
+): Promise<PresentationResponse> {
+  return apiFetch<PresentationResponse>(
+    `/presentations/${presentationId}`,
     accessToken,
   );
 }

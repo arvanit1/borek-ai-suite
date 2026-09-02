@@ -40,6 +40,7 @@ class Job:
     status: JobStatus = JobStatus.QUEUED
     current_stage: JobStage = JobStage.QUEUED
     presentation_id: uuid.UUID | None = None
+    auto_continue: bool = False
     error_code: str | None = None
     error_message: str | None = None
     failed_stage: JobStage | None = None
@@ -84,6 +85,7 @@ def _job_from_row(row: dict[str, Any]) -> Job:
         presentation_id=(
             uuid.UUID(str(row["presentation_id"])) if row.get("presentation_id") else None
         ),
+        auto_continue=bool(row.get("auto_continue", False)),
         error_code=row.get("error_code"),
         error_message=row.get("error_message"),
         failed_stage=JobStage(row["failed_stage"]) if row.get("failed_stage") else None,
@@ -139,6 +141,8 @@ def _save(job: Job, repository: Any | None, *, create: bool = False) -> Job:
     if repository is None:
         return job_store.save(job)
     payload = _job_payload(job)
+    if create:
+        payload["auto_continue"] = job.auto_continue
     row = (
         repository.create_generation_job(payload)
         if create
@@ -241,6 +245,7 @@ def create_job(
     job_type: str,
     *,
     presentation_id: uuid.UUID | None = None,
+    auto_continue: bool = False,
     enqueue: dict[str, Any] | None = None,
     repository: Any | None = None,
 ) -> Job:
@@ -251,6 +256,7 @@ def create_job(
         status=JobStatus.QUEUED,
         current_stage=JobStage.QUEUED,
         presentation_id=presentation_id,
+        auto_continue=auto_continue,
         result_json={"_enqueue": dict(enqueue)} if enqueue else {},
     )
     return _save(job, repository, create=True)
@@ -409,6 +415,23 @@ def get_job(job_id: uuid.UUID, *, repository: Any | None = None) -> Job | None:
     return _load(job_id, repository)
 
 
+def update_job_auto_continue(
+    job_id: uuid.UUID,
+    enabled: bool,
+    *,
+    repository: Any | None = None,
+) -> Job:
+    """Persist continuation intent independently from concurrent job-state writes."""
+    if repository is None:
+        job = _load(job_id, repository)
+        if job is None:
+            raise JobNotFoundError(str(job_id))
+        job.auto_continue = enabled
+        return _save(job, repository)
+    row = repository.update_generation_job(job_id, {"auto_continue": enabled})
+    return _job_from_row(row)
+
+
 def get_latest_job_for_opportunity(
     opportunity_id: uuid.UUID,
     *,
@@ -452,6 +475,11 @@ def job_to_response(job: Job) -> JobResponse:
             retryable=bool(job.error_retryable),
         )
 
+    result = dict(job.result_json)
+    enqueue = dict(result.get("_enqueue") or {})
+    enqueue["auto_continue"] = job.auto_continue
+    result["_enqueue"] = enqueue
+
     return JobResponse(
         job_id=str(job.id),
         job_type=job.job_type,
@@ -461,7 +489,7 @@ def job_to_response(job: Job) -> JobResponse:
         started_at=job.started_at,
         completed_at=job.completed_at,
         error=error,
-        result=job.result_json,
+        result=result,
         metrics={
             "ai_input_tokens": job.ai_input_tokens,
             "ai_output_tokens": job.ai_output_tokens,
