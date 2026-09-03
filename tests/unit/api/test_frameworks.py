@@ -323,3 +323,35 @@ def test_framework_review_returns_summary_and_attention_signals() -> None:
     assert body["review_state"]
     assert body["pii_handling"]["applied_before_llm"] is True
     assert "prompt_observability" in body
+
+
+def test_framework_review_rebuilds_after_chapter_edit() -> None:
+    client = _client()
+    opportunity_id = _create_opportunity(client)
+    client.post(f"/opportunities/{opportunity_id}/framework/generate", headers=_headers())
+
+    latest = client.get(f"/opportunities/{opportunity_id}/framework", headers=_headers())
+    framework_json = latest.json()["framework_json"]
+    framework_json["review_summary"] = {
+        **dict(framework_json.get("review_summary") or {}),
+        "confirm_ready": True,
+        "confirm_block_reason": None,
+        "blocking_items": [],
+    }
+    framework_json["attention"] = {"review_state": "READY_TO_APPROVE", "signals": []}
+    chapter_6 = next(ch for ch in framework_json["chapters"] if ch["chapter_id"] == "6")
+    ai_split = next(block for block in chapter_6["body"] if block.get("block") == "ai_split")
+    ai_split["used_for"] = ["Deciding whether a case matches"]
+    ai_split["not_used_for"] = ["Deciding whether a case matches", "Evaluating employees"]
+
+    patch = client.patch(
+        f"/opportunities/{opportunity_id}/framework",
+        headers=_headers(),
+        json={"framework_json": framework_json},
+    )
+    assert patch.status_code == 200
+
+    review = client.get(f"/opportunities/{opportunity_id}/framework/review", headers=_headers())
+    assert review.status_code == 200
+    assert review.json()["review_state"] == "BLOCKING_CONTRADICTION"
+    assert review.json()["review_summary"]["confirm_ready"] is False

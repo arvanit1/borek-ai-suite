@@ -16,6 +16,7 @@ import {
   getOpportunity,
   listTranscripts,
   uploadTranscript,
+  type OpportunityCreatePayload,
   type OpportunityResponse,
 } from "@/lib/api";
 import { isMissingOpportunityError, uploadErrorMessage } from "@/lib/apiErrors";
@@ -46,6 +47,7 @@ function storedFromResponse(opportunity: OpportunityResponse) {
     opportunity_name: opportunity.opportunity_name,
     department: opportunity.department,
     language: opportunity.language,
+    pii_redaction_enabled: opportunity.pii_redaction_enabled !== false,
   };
 }
 
@@ -194,12 +196,7 @@ export function TranscriptUploadPanel({
     };
   }, [accessToken, initialOpportunityId, router, startFresh]);
 
-  async function handleCreateOpportunity(values: {
-    client_name: string;
-    opportunity_name: string;
-    department: string;
-    language: string;
-  }) {
+  async function handleCreateOpportunity(values: OpportunityCreatePayload) {
     if (!accessToken) {
       throw new Error("Sign in is required before creating an opportunity.");
     }
@@ -320,6 +317,7 @@ export function TranscriptUploadPanel({
                         opportunity_name: opportunity.opportunity_name,
                         department: opportunity.department,
                         language: opportunity.language,
+                        pii_redaction_enabled: opportunity.pii_redaction_enabled !== false,
                       }
                     : null
                 }
