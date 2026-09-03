@@ -246,7 +246,7 @@ class SupabaseDataStore:
         params: dict[str, str] = {
             "select": "*",
             "opportunity_id": f"eq.{opportunity_id}",
-            "order": "created_at.desc",
+            "order": "created_at.desc,id.desc",
         }
         if job_type:
             params["job_type"] = f"eq.{job_type}"
@@ -270,7 +270,7 @@ class SupabaseDataStore:
             params={
                 "opportunity_id": f"eq.{opportunity_id}",
                 "select": "*",
-                "order": "created_at.desc",
+                "order": "created_at.desc,id.desc",
                 "limit": "1",
             },
         )

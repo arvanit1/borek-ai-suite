@@ -190,6 +190,11 @@ def _job_timestamp(row: dict[str, Any], *keys: str) -> datetime:
     return datetime.min.replace(tzinfo=UTC)
 
 
+def _job_order_key(row: dict[str, Any], *timestamp_keys: str) -> tuple[datetime, str]:
+    """Return the durable timestamp/UUID total order used for job selection."""
+    return _job_timestamp(row, *timestamp_keys), str(row.get("id") or "")
+
+
 def select_reconnect_job(
     rows: list[dict[str, Any]],
     *,
@@ -202,9 +207,20 @@ def select_reconnect_job(
     ]
     active = [row for row in matched if _job_status_value(row) not in _TERMINAL_JOB_STATUSES]
     if active:
-        return max(active, key=lambda row: _job_timestamp(row, "started_at", "created_at"))
+        return max(
+            active,
+            key=lambda row: _job_order_key(row, "started_at", "created_at"),
+        )
     if matched:
-        return max(matched, key=lambda row: _job_timestamp(row, "completed_at", "started_at", "created_at"))
+        return max(
+            matched,
+            key=lambda row: _job_order_key(
+                row,
+                "completed_at",
+                "started_at",
+                "created_at",
+            ),
+        )
     return None
 
 
