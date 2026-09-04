@@ -33,4 +33,8 @@ test("buildFrameworkDownloadFilename sanitizes title", () => {
     "Invoice-3-Way-Match.docx",
   );
   assert.equal(buildFrameworkDownloadFilename("", "pdf"), "framework.pdf");
+  assert.equal(
+    buildFrameworkDownloadFilename("Invoice Automation", "docx", "de"),
+    "Invoice-Automation-DE.docx",
+  );
 });

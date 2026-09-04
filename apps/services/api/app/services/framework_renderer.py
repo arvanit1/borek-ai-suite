@@ -51,6 +51,15 @@ _LABELS = {
         "type": "Type",
         "owner": "Owner",
         "consequence": "If different",
+        "key_pain_points": "Key pain points",
+        "key_requirements": "Key requirements",
+        "target_outcomes": "Target outcomes",
+        "contradiction": "Contradiction",
+        "evidence": "Evidence",
+        "blocking": "Blocking",
+        "name": "Name",
+        "term": "Term",
+        "meaning": "Meaning",
     },
     "de": {
         "report": "Kunden-Framework-Bericht",
@@ -87,6 +96,15 @@ _LABELS = {
         "type": "Typ",
         "owner": "Verantwortlich",
         "consequence": "Falls abweichend",
+        "key_pain_points": "Wichtige Schmerzpunkte",
+        "key_requirements": "Wichtige Anforderungen",
+        "target_outcomes": "Zielergebnisse",
+        "contradiction": "Widerspruch",
+        "evidence": "Evidenz",
+        "blocking": "Blockierend",
+        "name": "Name",
+        "term": "Begriff",
+        "meaning": "Bedeutung",
     },
 }
 
@@ -183,14 +201,16 @@ def render_framework_docx(
     payload = _as_mapping(framework)
     labels = _labels(language)
     doc = Document()
-    _style_document(doc)
+    _style_document(doc, language)
     _add_cover_page(doc, payload, labels, language)
+    doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
+    _add_footer(doc, payload, labels, language)
     _add_executive_overview(doc, payload, labels)
     _add_quality_summary(doc, payload, labels)
     _add_warnings(doc, payload, labels)
     chapters = _ordered_chapters(payload)
     for index, chapter in enumerate(chapters):
-        _add_chapter(doc, chapter, include_source_refs=include_source_refs)
+        _add_chapter(doc, chapter, include_source_refs=include_source_refs, labels=labels)
         if index < len(chapters) - 1:
             doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
     _add_open_items(doc, payload, labels)
@@ -199,7 +219,7 @@ def render_framework_docx(
     return buffer.getvalue()
 
 
-def _style_document(doc: Document) -> None:
+def _style_document(doc: Document, language: str = "en") -> None:
     styles = doc.styles
     styles["Normal"].font.name = "Calibri"
     styles["Normal"].font.size = Pt(11)
@@ -207,6 +227,32 @@ def _style_document(doc: Document) -> None:
     styles["Heading 1"].font.color.rgb = _NAVY
     styles["Heading 1"].font.size = Pt(16)
     styles["Title"].font.color.rgb = _NAVY
+    locale = "de-DE" if str(language).lower().startswith("de") else "en-GB"
+    rpr = styles["Normal"].element.get_or_add_rPr()
+    lang = rpr.find(qn("w:lang"))
+    if lang is None:
+        lang = OxmlElement("w:lang")
+        rpr.append(lang)
+    lang.set(qn("w:val"), locale)
+    lang.set(qn("w:eastAsia"), locale)
+    lang.set(qn("w:bidi"), locale)
+
+
+def _add_footer(
+    doc: Document,
+    framework: dict[str, Any],
+    labels: dict[str, str],
+    language: str,
+) -> None:
+    footer = doc.sections[0].footer.paragraphs[0]
+    version = str(framework.get("version") or 1)
+    footer.text = (
+        f"{labels['borek']} · {labels['version']} {version} · "
+        f"{_status_banner(framework, labels)} · {language.upper()}"
+    )
+    if footer.runs:
+        footer.runs[0].font.size = Pt(8)
+        footer.runs[0].font.color.rgb = RGBColor(0x5C, 0x57, 0x4F)
 
 
 def _add_cover_page(
@@ -266,9 +312,9 @@ def _add_executive_overview(doc: Document, framework: dict[str, Any], labels: di
     doc.add_heading(labels["overview"], level=1)
     doc.add_paragraph(overview)
     for key, heading in (
-        ("key_pain_points", "Key pain points"),
-        ("key_requirements", "Key requirements"),
-        ("target_outcomes", "Target outcomes"),
+        ("key_pain_points", labels["key_pain_points"]),
+        ("key_requirements", labels["key_requirements"]),
+        ("target_outcomes", labels["target_outcomes"]),
     ):
         items = [item for item in (summary.get(key) or []) if _text(item)]
         if not items:
@@ -282,11 +328,11 @@ def _add_warnings(doc: Document, framework: dict[str, Any], labels: dict[str, st
     summary = _review_summary(framework)
     rows: list[tuple[str, str]] = []
     for item in summary.get("contradictions") or []:
-        rows.append(("Contradiction", _text(item)))
+        rows.append((labels["contradiction"], _text(item)))
     for item in summary.get("evidence_warnings") or []:
-        rows.append(("Evidence", _text(item)))
+        rows.append((labels["evidence"], _text(item)))
     for item in summary.get("blocking_items") or []:
-        rows.append(("Blocking", _text(item)))
+        rows.append((labels["blocking"], _text(item)))
     attention = framework.get("attention") or {}
     for signal in attention.get("signals") or []:
         if isinstance(signal, dict):
@@ -316,21 +362,34 @@ def _add_quality_summary(doc: Document, framework: dict[str, Any], labels: dict[
             )
 
 
-def _add_chapter(doc: Document, chapter: dict[str, Any], *, include_source_refs: bool) -> None:
+def _add_chapter(
+    doc: Document,
+    chapter: dict[str, Any],
+    *,
+    include_source_refs: bool,
+    labels: dict[str, str],
+) -> None:
     cid = _text(chapter.get("chapter_id"))
     title = _text(chapter.get("title"))
     doc.add_heading(f"{cid} {title}".strip(), level=1)
-    _add_body(doc, chapter.get("body"), include_source_refs=include_source_refs)
+    _add_body(doc, chapter.get("body"), include_source_refs=include_source_refs, labels=labels)
     if include_source_refs:
         refs = chapter.get("source_refs") or []
         if refs:
-            note = doc.add_paragraph(_format_source_refs(refs))
+            note = doc.add_paragraph(_format_source_refs(refs, labels))
             if note.runs:
                 note.runs[0].italic = True
                 note.runs[0].font.size = Pt(8)
 
 
-def _add_body(doc: Document, body: Any, *, include_source_refs: bool = True) -> None:
+def _add_body(
+    doc: Document,
+    body: Any,
+    *,
+    include_source_refs: bool = True,
+    labels: dict[str, str] | None = None,
+) -> None:
+    labels = labels or _labels("en")
     if isinstance(body, str):
         if body.strip():
             doc.add_paragraph(_text(body))
@@ -341,9 +400,9 @@ def _add_body(doc: Document, body: Any, *, include_source_refs: bool = True) -> 
         if isinstance(block, str) and block.strip():
             doc.add_paragraph(_text(block))
         elif isinstance(block, dict):
-            _add_block(doc, block)
+            _add_block(doc, block, labels)
             if include_source_refs:
-                refs = _format_source_refs(block.get("source_refs") or [])
+                refs = _format_source_refs(block.get("source_refs") or [], labels)
                 if refs:
                     note = doc.add_paragraph(refs)
                     if note.runs:
@@ -351,7 +410,8 @@ def _add_body(doc: Document, body: Any, *, include_source_refs: bool = True) -> 
                         note.runs[0].font.size = Pt(8)
 
 
-def _add_block(doc: Document, block: dict[str, Any]) -> None:
+def _add_block(doc: Document, block: dict[str, Any], labels: dict[str, str] | None = None) -> None:
+    labels = labels or _labels("en")
     kind = str(block.get("block") or "")
     if kind == "prose":
         text = _text(block.get("text"))
@@ -373,7 +433,7 @@ def _add_block(doc: Document, block: dict[str, Any]) -> None:
             doc.add_paragraph(_text(block.get("caption"))).runs[0].bold = True
         rows = [(_text(row.get("label")), _text(row.get("value"))) for row in block.get("rows") or [] if isinstance(row, dict)]
         if rows:
-            _add_table(doc, ["Item", "Detail"], rows)
+            _add_table(doc, [labels["item"], labels["detail"]], rows)
         return
     if kind == "table":
         if block.get("caption"):
@@ -410,7 +470,7 @@ def _add_block(doc: Document, block: dict[str, Any]) -> None:
                 )
             )
         if rows:
-            _add_table(doc, ["Name", "Score", "Band", "Detail"], rows)
+            _add_table(doc, [labels["name"], labels["score"], labels["band"], labels["detail"]], rows)
         return
     if kind == "timeline":
         rows = []
@@ -420,27 +480,27 @@ def _add_block(doc: Document, block: dict[str, Any]) -> None:
             items = "; ".join(_text(item) for item in week.get("items") or [])
             rows.append((_text(week.get("id") or week.get("label")), items))
         if rows:
-            _add_table(doc, ["Week", "Activities"], rows)
+            _add_table(doc, [labels["week"], labels["activities"]], rows)
         return
     if kind == "ai_split":
         used = "\n".join(f"• {_text(item)}" for item in block.get("used_for") or [])
         not_used = "\n".join(f"• {_text(item)}" for item in block.get("not_used_for") or [])
-        _add_table(doc, ["AI is used for", "AI is not used for"], [(used, not_used)])
+        _add_table(doc, [labels["ai_used"], labels["ai_not_used"]], [(used, not_used)])
         return
     if kind == "sensitivity":
         rows = [(_text(row.get("label")), _text(row.get("detail"))) for row in block.get("rows") or [] if isinstance(row, dict)]
         if rows:
-            _add_table(doc, ["Item", "Detail"], rows)
+            _add_table(doc, [labels["item"], labels["detail"]], rows)
         return
     if kind == "glossary":
         rows = [(_text(term.get("term")), _text(term.get("meaning"))) for term in block.get("terms") or [] if isinstance(term, dict)]
         if rows:
-            _add_table(doc, ["Term", "Meaning"], rows)
+            _add_table(doc, [labels["term"], labels["meaning"]], rows)
         return
-    _add_untyped_block(doc, block)
+    _add_untyped_block(doc, block, labels)
 
 
-def _add_untyped_block(doc: Document, block: dict[str, Any]) -> None:
+def _add_untyped_block(doc: Document, block: dict[str, Any], labels: dict[str, str]) -> None:
     skip = {"block", "source_refs", "id"}
     pairs = [(_humanize(key), _text(value)) for key, value in block.items() if key not in skip and _text(value)]
     if not pairs:
@@ -448,7 +508,7 @@ def _add_untyped_block(doc: Document, block: dict[str, Any]) -> None:
     if len(pairs) == 1:
         doc.add_paragraph(f"{pairs[0][0]}: {pairs[0][1]}" if pairs[0][0] else pairs[0][1])
         return
-    _add_table(doc, ["Item", "Detail"], pairs)
+    _add_table(doc, [labels["item"], labels["detail"]], pairs)
 
 
 def _add_open_items(doc: Document, framework: dict[str, Any], labels: dict[str, str]) -> None:
@@ -498,6 +558,7 @@ def _shade_cell(cell: Any, fill: str) -> None:
     tc_pr = cell._tc.get_or_add_tcPr()
     shading = OxmlElement("w:shd")
     shading.set(qn("w:fill"), fill)
+    shading.set(qn("w:color"), "auto")
     shading.set(qn("w:val"), "clear")
     tc_pr.append(shading)
 
@@ -507,7 +568,8 @@ def _ordered_chapters(framework: dict[str, Any]) -> list[dict[str, Any]]:
     return sorted(chapters, key=lambda chapter: int(str(chapter.get("chapter_id") or 0)))
 
 
-def _format_source_refs(refs: list[Any]) -> str:
+def _format_source_refs(refs: list[Any], labels: dict[str, str] | None = None) -> str:
+    labels = labels or _labels("en")
     bits = []
     for ref in refs:
         if not isinstance(ref, dict):
@@ -523,7 +585,8 @@ def _format_source_refs(refs: list[Any]) -> str:
                 if part
             )
         )
-    return "Sources: " + "; ".join(bit for bit in bits if bit)
+    joined = "; ".join(bit for bit in bits if bit)
+    return f"{labels['sources']}: {joined}" if joined else ""
 
 
 def _humanize(key: str) -> str:
@@ -560,11 +623,11 @@ def _html_warnings(framework: dict[str, Any], labels: dict[str, str]) -> str:
     summary = _review_summary(framework)
     rows = []
     for item in summary.get("contradictions") or []:
-        rows.append(("Contradiction", _text(item)))
+        rows.append((labels["contradiction"], _text(item)))
     for item in summary.get("evidence_warnings") or []:
-        rows.append(("Evidence", _text(item)))
+        rows.append((labels["evidence"], _text(item)))
     for item in summary.get("blocking_items") or []:
-        rows.append(("Blocking", _text(item)))
+        rows.append((labels["blocking"], _text(item)))
     if not rows:
         return (
             f"<h2>{html.escape(labels['warnings'])}</h2>"

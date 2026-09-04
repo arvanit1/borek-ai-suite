@@ -15,9 +15,11 @@ export function buildFrameworkRenderPath(
 export function buildFrameworkDownloadFilename(
   frameworkTitle: string,
   format: "pdf" | "docx",
+  language = "en",
 ): string {
   const safe =
     frameworkTitle.trim().replace(/[^\w\- ]+/g, "").replace(/\s+/g, "-") || "framework";
   const extension = format === "docx" ? "docx" : "pdf";
-  return `${safe}.${extension}`;
+  const langSuffix = language.toLowerCase().startsWith("de") ? "-DE" : "";
+  return `${safe}${langSuffix}.${extension}`;
 }

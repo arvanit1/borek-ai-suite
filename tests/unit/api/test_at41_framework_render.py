@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+import subprocess
 import uuid
+import zipfile
 from html import unescape
 from io import BytesIO
+from pathlib import Path
+from xml.etree import ElementTree
 
+import pytest
 from docx import Document
 from fastapi.testclient import TestClient
 
@@ -270,21 +275,135 @@ def test_render_docx_includes_tables_and_lists() -> None:
     assert len(document.tables) >= 1
 
 
+def _docx_blob(document: Document) -> str:
+    return "\n".join(
+        [paragraph.text for paragraph in document.paragraphs]
+        + [cell.text for table in document.tables for row in table.rows for cell in row.cells]
+        + [paragraph.text for section in document.sections for paragraph in section.footer.paragraphs]
+    )
+
+
+def _assert_valid_opc(content: bytes) -> None:
+    assert content.startswith(b"PK")
+    with zipfile.ZipFile(BytesIO(content)) as archive:
+        names = set(archive.namelist())
+        assert "[Content_Types].xml" in names
+        assert "word/document.xml" in names
+        document_xml = archive.read("word/document.xml")
+        ElementTree.fromstring(document_xml)
+        assert b"w:document" in document_xml
+
+
+def _word_exe() -> Path | None:
+    candidates = [
+        Path(r"C:\Program Files\Microsoft Office\root\Office16\WINWORD.EXE"),
+        Path(r"C:\Program Files (x86)\Microsoft Office\root\Office16\WINWORD.EXE"),
+        Path(r"C:\Program Files\Microsoft Office\Office16\WINWORD.EXE"),
+    ]
+    return next((path for path in candidates if path.is_file()), None)
+
+
 def test_render_german_framework() -> None:
     client = _client()
-    framework_id, _ = _create_framework(client)
+    framework_id, framework = _create_framework(client)
     response = client.get(
         f"/frameworks/{framework_id}/render?format=docx&lang=de",
         headers=_headers(),
     )
     assert response.status_code == 200, response.text
     assert DOCX_TYPE in response.headers["content-type"]
+    _assert_valid_opc(response.content)
     document = Document(BytesIO(response.content))
-    blob = "\n".join(
-        [paragraph.text for paragraph in document.paragraphs]
-        + [cell.text for table in document.tables for row in table.rows for cell in row.cells]
-    )
+    blob = _docx_blob(document)
     assert "Kunden-Framework-Bericht" in blob
-    assert "ENTWURF" in blob or "nicht bestätigt" in blob
+    assert "ENTWURF" in blob
+    assert "nicht bestätigt" in blob
     assert "Version" in blob
-    Document(BytesIO(response.content))
+    assert "Qualität und Bereitschaft" in blob
+    assert "Annahmen und offene Punkte" in blob
+    for title in _chapter_titles(framework):
+        assert title in blob
+    assert str(framework.get("version") or framework["framework_json"].get("version") or 1) in blob
+
+
+def test_render_docx_is_real_word_package_not_renamed_html() -> None:
+    client = _client()
+    framework_id, _ = _create_framework(client)
+    response = client.get(
+        f"/frameworks/{framework_id}/render?format=docx",
+        headers=_headers(),
+    )
+    assert response.status_code == 200, response.text
+    _assert_valid_opc(response.content)
+    assert b"<html" not in response.content[:200]
+
+
+@pytest.mark.skipif(_word_exe() is None, reason="Microsoft Word is not installed")
+def test_render_docx_opens_in_word_english_and_german(tmp_path: Path) -> None:
+    client = _client()
+    framework_id, framework = _create_framework(client)
+    titles = _chapter_titles(framework)
+    script = tmp_path / "open_word.ps1"
+    script.write_text(
+            """
+param([string]$Path, [string]$OutFile)
+$word = New-Object -ComObject Word.Application
+$word.Visible = $false
+$word.DisplayAlerts = 0
+try {
+  $doc = $word.Documents.Open($Path, $false, $true)
+  $text = $doc.Content.Text
+  $paras = $doc.Paragraphs.Count
+  $doc.Close($false)
+  $payload = "PARAS=$paras`nTEXT_START`n$text"
+  [System.IO.File]::WriteAllText($OutFile, $payload, [System.Text.UTF8Encoding]::new($false))
+} finally {
+  $word.Quit()
+  [System.Runtime.Interopservices.Marshal]::ReleaseComObject($word) | Out-Null
+}
+""".strip(),
+            encoding="utf-8",
+        )
+
+    for lang, markers in (
+        ("en", ("DRAFT", "Customer Framework Report", "Version")),
+        ("de", ("ENTWURF", "Kunden-Framework-Bericht", "Version")),
+    ):
+        response = client.get(
+            f"/frameworks/{framework_id}/render?format=docx&lang={lang}",
+            headers=_headers(),
+        )
+        assert response.status_code == 200, response.text
+        path = tmp_path / f"framework-{lang}.docx"
+        extracted = tmp_path / f"framework-{lang}.txt"
+        path.write_bytes(response.content)
+        opened = subprocess.run(
+            [
+                "powershell",
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                str(script),
+                "-Path",
+                str(path),
+                "-OutFile",
+                str(extracted),
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=120,
+        )
+        assert opened.returncode == 0, opened.stderr or opened.stdout
+        assert extracted.is_file(), opened.stderr or opened.stdout
+        output = extracted.read_text(encoding="utf-8")
+        assert "PARAS=" in output
+        para_count = int(output.split("PARAS=", 1)[1].splitlines()[0])
+        assert para_count >= 14
+        for title in titles:
+            assert title in output
+        for marker in markers:
+            assert marker in output
