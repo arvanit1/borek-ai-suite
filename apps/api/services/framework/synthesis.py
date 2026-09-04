@@ -18,6 +18,7 @@ from llm.claude.client import (
 from packages.contracts.validators import chapter_specs_from_registry
 from services.framework.chapter_builder import overlay_llm_chapters
 from services.framework.config_loader import repo_root, tone_voice
+from services.framework.client_pack import format_client_pack_for_prompt
 from services.knowledge_model.source_refs import (
     collect_customer_report_source_ref_violations,
     parse_turn_index,
@@ -48,10 +49,11 @@ def synthesize_customer_draft(
     engine_outputs: dict[str, Any],
     complete: ClaudeComplete | None = None,
     opportunity_id: str | None = None,
+    client_pack: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """One structured Claude call. The draft must contain all 14 registry chapters."""
     system = _system_prompt()
-    base_user = _user_prompt(skeleton, engine_outputs)
+    base_user = _user_prompt(skeleton, engine_outputs, client_pack=client_pack)
     schema = load_customer_report_schema()
     runner = complete or _anthropic_complete
     allowed_cids, allowed_turns = _allowed_citation_scope(skeleton)
@@ -220,7 +222,13 @@ def _format_tone_and_guardrails(guide: dict[str, Any]) -> str:
     return "\n".join(parts)
 
 
-def _user_prompt(skeleton: dict[str, Any], engine_outputs: dict[str, Any]) -> str:
+def _user_prompt(
+    skeleton: dict[str, Any],
+    engine_outputs: dict[str, Any],
+    *,
+    client_pack: dict[str, Any] | None = None,
+) -> str:
+    pack_block = format_client_pack_for_prompt(client_pack or skeleton.get("client_pack"))
     safe_skeleton = {
         key: skeleton[key]
         for key in (
@@ -242,6 +250,7 @@ def _user_prompt(skeleton: dict[str, Any], engine_outputs: dict[str, Any]) -> st
             "conversation_ids",
             "stage3_candidates",
             "conflicts",
+            "client_pack",
         )
         if key in skeleton
     }
@@ -257,10 +266,13 @@ def _user_prompt(skeleton: dict[str, Any], engine_outputs: dict[str, Any]) -> st
                 "source_refs": refs,
             }
         )
+    pack_section = f"{pack_block}\n\n" if pack_block else ""
     return (
         f"prompt_version: {PROMPT_VERSION}\n"
         "Use ONLY these knowledge entries. If a field is missing, write an open_item — do not invent it.\n"
-        "If conflicts are listed, keep both values and require clarification — do not pick a winner.\n\n"
+        "If conflicts are listed, keep both values and require clarification — do not pick a winner.\n"
+        "Use additional_client_information only when CLIENT_PACK is present; never invent extra pack fields.\n\n"
+        f"{pack_section}"
         f"SKELETON:\n{json.dumps(safe_skeleton, ensure_ascii=False, indent=2)}\n\n"
         f"KNOWLEDGE ENTRIES:\n{json.dumps(entries, ensure_ascii=False, indent=2)}\n\n"
         "ENGINE OUTPUTS (copy numbers exactly; do not recalculate):\n"

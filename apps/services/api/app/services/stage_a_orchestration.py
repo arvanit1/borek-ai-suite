@@ -7,6 +7,7 @@ generation, and their validation remain implemented in ``apps/api/services``.
 from __future__ import annotations
 
 import copy
+import inspect
 from collections.abc import Callable
 from typing import Any
 from uuid import UUID
@@ -16,6 +17,10 @@ from app.services.api_errors import bad_request
 from app.services.framework_stub_template import load_framework_stub_template
 from services.framework.pipeline import generate_customer_framework
 from services.framework.review_insights import attach_review_insights, opportunity_pii_redaction_enabled
+from services.framework.client_pack import (
+    apply_client_pack_to_framework,
+    normalize_client_pack,
+)
 from services.knowledge_model.extraction import extract_knowledge_model
 from services.transcript.conversation_ids import TranscriptIdentity
 from services.transcript.speaker_turns import SpeakerTurn
@@ -43,11 +48,13 @@ def generate_framework_from_transcripts(
         opportunity_id=opportunity_id,
         user_id=user_id,
     )
+    opportunity = store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+    client_pack = normalize_client_pack(opportunity.get("additional_client_information"))
     if mode != "live":
         payload = load_framework_stub_template(opportunity_id)
         if sources:
             payload["generated_from"] = [str(source["id"]) for source in sources]
-        opportunity = store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        apply_client_pack_to_framework(payload, client_pack)
         return attach_review_insights(
             payload,
             pii_redaction_enabled=opportunity_pii_redaction_enabled(opportunity),
@@ -58,7 +65,6 @@ def generate_framework_from_transcripts(
             "Upload at least one valid transcript before generating a framework",
         )
 
-    opportunity = store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
     redact = opportunity_pii_redaction_enabled(opportunity)
     knowledge_models: list[dict[str, Any]] = []
     for source in sources:
@@ -70,10 +76,12 @@ def generate_framework_from_transcripts(
         )
         try:
             knowledge_models.append(
-                extract_fn(
+                _call_with_optional_kwargs(
+                    extract_fn,
                     turns,
                     identity,
                     redact=redact,
+                    client_pack=client_pack,
                 )
             )
         except Exception as exc:
@@ -87,12 +95,14 @@ def generate_framework_from_transcripts(
         )
 
     try:
-        framework = generate_fn(
+        framework = _call_with_optional_kwargs(
+            generate_fn,
             knowledge_models,
             opportunity_id=str(opportunity_id),
             title_hint=str(opportunity.get("opportunity_name") or "") or None,
             lang=str(opportunity.get("language") or "en"),
             use_llm=True,
+            client_pack=client_pack,
         )
     except Exception as exc:
         user_message = getattr(exc, "user_message", str(exc))
@@ -102,7 +112,23 @@ def generate_framework_from_transcripts(
     payload["opportunity_id"] = str(opportunity_id)
     payload["status"] = "draft"
     payload["generated_from"] = [str(source["id"]) for source in sources]
+    apply_client_pack_to_framework(payload, client_pack)
     return attach_review_insights(payload, pii_redaction_enabled=redact)
+
+
+def _call_with_optional_kwargs(fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+    try:
+        signature = inspect.signature(fn)
+    except (TypeError, ValueError):
+        return fn(*args, **{key: value for key, value in kwargs.items() if key != "client_pack"})
+    if any(parameter.kind == inspect.Parameter.VAR_KEYWORD for parameter in signature.parameters.values()):
+        return fn(*args, **kwargs)
+    accepted = {
+        key: value
+        for key, value in kwargs.items()
+        if key in signature.parameters
+    }
+    return fn(*args, **accepted)
 
 
 def _speaker_turns(source: dict[str, Any]) -> list[SpeakerTurn]:
