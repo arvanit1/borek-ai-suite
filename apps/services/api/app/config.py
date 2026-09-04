@@ -59,6 +59,45 @@ class Settings(BaseSettings):
         min_length=1,
         description="Private filesystem shared by API and worker for generated artifacts",
     )
+    PRESENTATION_ENGINE: Literal["internal", "gamma"] = Field(
+        default="internal",
+        description="internal uses the existing renderer; gamma runs the AT-60 Gamma stage",
+    )
+    GAMMA_EXECUTION_MODE: Literal["fixture", "live"] = Field(
+        default="fixture",
+        description="fixture is deterministic; live calls public-api.gamma.app when a key is set",
+    )
+    GAMMA_API_KEY: str = Field(
+        default="",
+        description="Gamma X-API-KEY; required only when PRESENTATION_ENGINE=gamma and GAMMA_EXECUTION_MODE=live",
+    )
+    GAMMA_API_BASE_URL: str = Field(
+        default="https://public-api.gamma.app",
+        min_length=1,
+    )
+    GAMMA_THEME_ID: str = Field(
+        default="4kv51cbpy4xonmj",
+        min_length=1,
+        description="Borek Pitch Theme id recorded from the Phase 2 spike",
+    )
+    GAMMA_TEMPLATE_ID: str = Field(
+        default="",
+        description="Optional Gamma template id once JJ-26 delivers a named template",
+    )
+    GAMMA_TIMEOUT_SECONDS: float = Field(default=180.0, gt=0)
+    FILING_DESTINATION: Literal["fixture", "live"] = Field(
+        default="fixture",
+        description="fixture writes under ARTIFACT_ROOT/enterprise; live uses the O2 repository",
+    )
+    ENTERPRISE_REPOSITORY_URL: str = Field(
+        default="",
+        description="Enterprise repository base URL; required only when FILING_DESTINATION=live",
+    )
+    ENTERPRISE_REPOSITORY_TOKEN: str = Field(
+        default="",
+        description="Enterprise repository credential; required only when FILING_DESTINATION=live",
+    )
+    ENTERPRISE_REPOSITORY_TIMEOUT_SECONDS: float = Field(default=30.0, gt=0)
     API_DATA_BACKEND: str = Field(
         default="supabase",
         description="memory for unit tests; supabase for PostgREST with caller JWT",

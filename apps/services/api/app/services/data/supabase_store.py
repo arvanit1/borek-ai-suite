@@ -138,6 +138,20 @@ def _normalize_opportunity(row: dict[str, Any]) -> dict[str, Any]:
         "created_at": _parse_timestamp(row["created_at"]),
         "updated_at": _parse_timestamp(row["updated_at"]),
         "pii_redaction_enabled": bool(row.get("pii_redaction_enabled", True)),
+        "additional_client_information": row.get("additional_client_information"),
+    }
+
+
+def _normalize_client_logo(row: dict[str, Any]) -> dict[str, Any]:
+    return {
+        **row,
+        "id": UUID(str(row["id"])),
+        "opportunity_id": UUID(str(row["opportunity_id"])),
+        "created_by": UUID(str(row["created_by"])),
+        "size_bytes": int(row["size_bytes"]),
+        "width_px": int(row["width_px"]) if row.get("width_px") is not None else None,
+        "height_px": int(row["height_px"]) if row.get("height_px") is not None else None,
+        "uploaded_at": _parse_timestamp(row["uploaded_at"]),
     }
 
 
@@ -370,6 +384,7 @@ class SupabaseDataStore:
         department: str,
         language: str,
         pii_redaction_enabled: bool = True,
+        additional_client_information: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         payload = {
             "client_name": client_name,
@@ -378,6 +393,7 @@ class SupabaseDataStore:
             "language": language,
             "status": "active",
             "pii_redaction_enabled": bool(pii_redaction_enabled),
+            "additional_client_information": additional_client_information,
             "created_by": str(user_id),
         }
         response = self._request("POST", "opportunities", json_body=payload)
@@ -422,7 +438,11 @@ class SupabaseDataStore:
         user_id: UUID,
         updates: dict[str, Any],
     ) -> dict[str, Any]:
-        payload = {key: value for key, value in updates.items() if value is not None}
+        payload = {
+            key: value
+            for key, value in updates.items()
+            if value is not None or key == "additional_client_information"
+        }
         payload["updated_at"] = datetime.now(UTC).isoformat()
         response = self._request(
             "PATCH",
@@ -436,6 +456,143 @@ class SupabaseDataStore:
         if response.status_code not in (200, 204) or not response.json():
             raise not_found("OPPORTUNITY_NOT_FOUND", f"Opportunity {opportunity_id} was not found")
         return _normalize_opportunity(response.json()[0])
+
+    def _upload_client_logo_content(
+        self,
+        *,
+        storage_path: str,
+        mime_type: str,
+        content: bytes,
+    ) -> None:
+        headers = {
+            "apikey": self._headers["apikey"],
+            "Authorization": self._headers["Authorization"],
+            "Content-Type": mime_type,
+            "x-upsert": "false",
+        }
+        response = _request_with_retry(
+            "POST",
+            f"{self._base_url}/storage/v1/object/client-logos/{storage_path}",
+            headers=headers,
+            content=content,
+        )
+        if response.status_code not in (200, 201):
+            raise bad_request("CLIENT_LOGO_STORAGE_FAILED", response.text)
+
+    def _delete_client_logo_content(self, *, storage_path: str) -> None:
+        if not storage_path:
+            return
+        headers = {
+            "apikey": self._headers["apikey"],
+            "Authorization": self._headers["Authorization"],
+        }
+        response = _request_with_retry(
+            "DELETE",
+            f"{self._base_url}/storage/v1/object/client-logos/{storage_path}",
+            headers=headers,
+        )
+        if response.status_code not in (200, 204, 404):
+            logger.warning(
+                "Client logo storage cleanup failed for %s: HTTP %s",
+                storage_path,
+                response.status_code,
+            )
+
+    def upsert_client_logo(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        file_name: str,
+        mime_type: str,
+        size_bytes: int,
+        storage_path: str,
+        content: bytes,
+        width_px: int | None = None,
+        height_px: int | None = None,
+    ) -> tuple[dict[str, Any], bool]:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        response = self._request(
+            "GET",
+            "opportunity_client_logos",
+            params={"opportunity_id": f"eq.{opportunity_id}", "select": "*", "limit": "1"},
+        )
+        if response.status_code != 200:
+            raise bad_request("CLIENT_LOGO_READ_FAILED", response.text)
+        previous = response.json()[0] if response.json() else None
+        self._upload_client_logo_content(
+            storage_path=storage_path,
+            mime_type=mime_type,
+            content=content,
+        )
+        payload = {
+            "opportunity_id": str(opportunity_id),
+            "created_by": str(user_id),
+            "file_name": file_name,
+            "mime_type": mime_type,
+            "size_bytes": size_bytes,
+            "width_px": width_px,
+            "height_px": height_px,
+            "storage_path": storage_path,
+            "uploaded_at": datetime.now(UTC).isoformat(),
+        }
+        if previous:
+            metadata_response = self._request(
+                "PATCH",
+                "opportunity_client_logos",
+                params={"id": f"eq.{previous['id']}"},
+                json_body=payload,
+            )
+        else:
+            metadata_response = self._request(
+                "POST",
+                "opportunity_client_logos",
+                json_body=payload,
+            )
+        if metadata_response.status_code not in (200, 201) or not metadata_response.json():
+            self._delete_client_logo_content(storage_path=storage_path)
+            raise bad_request("CLIENT_LOGO_SAVE_FAILED", metadata_response.text)
+        if previous and previous.get("storage_path") != storage_path:
+            self._delete_client_logo_content(storage_path=str(previous["storage_path"]))
+        return _normalize_client_logo(metadata_response.json()[0]), previous is not None
+
+    def get_client_logo(self, *, opportunity_id: UUID, user_id: UUID) -> dict[str, Any]:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        response = self._request(
+            "GET",
+            "opportunity_client_logos",
+            params={"opportunity_id": f"eq.{opportunity_id}", "select": "*", "limit": "1"},
+        )
+        if response.status_code != 200 or not response.json():
+            raise not_found("CLIENT_LOGO_NOT_FOUND", "No client logo is stored for this opportunity")
+        return _normalize_client_logo(response.json()[0])
+
+    def get_client_logo_content(self, *, opportunity_id: UUID, user_id: UUID) -> bytes:
+        row = self.get_client_logo(opportunity_id=opportunity_id, user_id=user_id)
+        headers = {
+            "apikey": self._headers["apikey"],
+            "Authorization": self._headers["Authorization"],
+        }
+        response = _request_with_retry(
+            "GET",
+            f"{self._base_url}/storage/v1/object/client-logos/{row['storage_path']}",
+            headers=headers,
+        )
+        if response.status_code != 200:
+            raise not_found("CLIENT_LOGO_NOT_FOUND", "Client logo bytes are not available")
+        return response.content
+
+    def delete_client_logo(self, *, opportunity_id: UUID, user_id: UUID) -> dict[str, Any]:
+        row = self.get_client_logo(opportunity_id=opportunity_id, user_id=user_id)
+        response = self._request(
+            "DELETE",
+            "opportunity_client_logos",
+            params={"id": f"eq.{row['id']}"},
+        )
+        if response.status_code not in (200, 204):
+            raise bad_request("CLIENT_LOGO_DELETE_FAILED", response.text)
+        self._delete_client_logo_content(storage_path=str(row["storage_path"]))
+        return row
 
     def create_transcript(
         self,
@@ -769,6 +926,8 @@ class SupabaseDataStore:
             confirmed_framework_json if confirmed_framework_json is not None else row["framework_json"]
         )
         framework_json["status"] = "confirmed"
+        framework_json["confirmed_by"] = str(user_id)
+        framework_json["confirmed_at"] = datetime.now(UTC).isoformat().replace("+00:00", "Z")
         response = self._request(
             "PATCH",
             "framework_versions",
@@ -1365,6 +1524,61 @@ class SupabaseDataStore:
         ]
         return version
 
+    def get_filing_record(self, idempotency_key: str) -> dict[str, Any] | None:
+        response = self._request(
+            "GET",
+            "filed_artifacts",
+            params={
+                "select": "*",
+                "idempotency_key": f"eq.{idempotency_key}",
+                "limit": "1",
+            },
+        )
+        if response.status_code != 200:
+            raise bad_request("FILING_RECORD_READ_FAILED", response.text)
+        rows = response.json()
+        return dict(rows[0]) if rows else None
+
+    def save_filing_record(
+        self,
+        idempotency_key: str,
+        record: dict[str, Any],
+    ) -> dict[str, Any]:
+        body = _json_safe_value({**record, "idempotency_key": idempotency_key})
+        existing = self.get_filing_record(idempotency_key)
+        if existing is None:
+            response = self._request("POST", "filed_artifacts", json_body=body)
+        else:
+            response = self._request(
+                "PATCH",
+                "filed_artifacts",
+                params={"idempotency_key": f"eq.{idempotency_key}"},
+                json_body=body,
+            )
+        if response.status_code not in (200, 201) or not response.json():
+            raise bad_request("FILING_RECORD_WRITE_FAILED", response.text)
+        return dict(response.json()[0])
+
+    def list_filed_artifacts(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+    ) -> list[dict[str, Any]]:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        response = self._request(
+            "GET",
+            "filed_artifacts",
+            params={
+                "select": "*",
+                "opportunity_id": f"eq.{opportunity_id}",
+                "order": "updated_at.desc",
+            },
+        )
+        if response.status_code != 200:
+            raise bad_request("FILING_RECORD_READ_FAILED", response.text)
+        return [dict(row) for row in response.json()]
+
     def append_llm_call(self, record: Any) -> dict[str, Any]:
         from app.services.data.memory_store import _llm_call_row
 
@@ -1432,6 +1646,210 @@ class SupabaseDataStore:
             "object_type": row["object_type"],
             "object_id": UUID(str(row["object_id"])),
             "timestamp": _parse_timestamp(row["timestamp"]),
+        }
+
+    def ingest_approved_corpus(self, raw: dict[str, Any]) -> dict[str, Any]:
+        from services.borek_rag.ingest import ingest_summary, plan_ingest
+
+        plan = plan_ingest(raw)
+        existing_response = self._request(
+            "GET",
+            "knowledge_corpus_versions",
+            params={
+                "corpus_key": f"eq.{plan.corpus_key}",
+                "version": f"eq.{plan.version}",
+                "select": "*",
+                "limit": "1",
+            },
+        )
+        if existing_response.status_code != 200:
+            raise bad_request("KNOWLEDGE_INGEST_FAILED", existing_response.text)
+        existing = existing_response.json()[0] if existing_response.json() else None
+        replaced_existing = existing is not None
+        version_id = str(existing["id"]) if existing is not None else str(uuid.uuid4())
+        if existing is not None:
+            self._delete_knowledge_version_children(version_id)
+        retire_response = self._request(
+            "PATCH",
+            "knowledge_corpus_versions",
+            params={
+                "corpus_key": f"eq.{plan.corpus_key}",
+                "status": "eq.approved",
+                "version": f"neq.{plan.version}",
+            },
+            json_body={"status": "retired"},
+        )
+        if retire_response.status_code not in (200, 204):
+            raise bad_request("KNOWLEDGE_INGEST_FAILED", retire_response.text)
+        version_payload = {
+            "id": version_id,
+            "corpus_key": plan.corpus_key,
+            "version": plan.version,
+            "status": "approved",
+            "owner": plan.owner,
+            "approved_at": datetime.now(UTC).isoformat(),
+        }
+        if existing is not None:
+            version_response = self._request(
+                "PATCH",
+                "knowledge_corpus_versions",
+                params={"id": f"eq.{version_id}"},
+                json_body=version_payload,
+            )
+        else:
+            version_response = self._request(
+                "POST",
+                "knowledge_corpus_versions",
+                json_body=version_payload,
+            )
+        if version_response.status_code not in (200, 201) or not version_response.json():
+            raise bad_request("KNOWLEDGE_INGEST_FAILED", version_response.text)
+        for document in plan.documents:
+            document_id = str(uuid.uuid4())
+            document_response = self._request(
+                "POST",
+                "knowledge_documents",
+                json_body={
+                    "id": document_id,
+                    "corpus_version_id": version_id,
+                    "document_key": document.document_key,
+                    "document_type": document.document_type,
+                    "source_uri": document.source_uri,
+                    "source_version": document.source_version,
+                    "classification": document.classification,
+                    "effective_from": document.effective_from,
+                    "effective_to": document.effective_to,
+                },
+            )
+            if document_response.status_code not in (200, 201):
+                raise bad_request("KNOWLEDGE_INGEST_FAILED", document_response.text)
+            if not document.facts:
+                continue
+            facts_response = self._request(
+                "POST",
+                "knowledge_facts",
+                json_body=[
+                    {
+                        "document_id": document_id,
+                        "fact_key": fact.fact_key,
+                        "kind": fact.kind,
+                        "service_key": fact.service_key,
+                        "query_key": fact.query_key,
+                        "statement": fact.statement,
+                        "payload": fact.payload,
+                        "search_terms": list(fact.search_terms),
+                    }
+                    for fact in document.facts
+                ],
+            )
+            if facts_response.status_code not in (200, 201):
+                raise bad_request("KNOWLEDGE_INGEST_FAILED", facts_response.text)
+        return ingest_summary(plan, replaced_existing=replaced_existing)
+
+    def _delete_knowledge_version_children(self, version_id: str) -> None:
+        documents_response = self._request(
+            "GET",
+            "knowledge_documents",
+            params={"corpus_version_id": f"eq.{version_id}", "select": "id"},
+        )
+        if documents_response.status_code != 200:
+            raise bad_request("KNOWLEDGE_INGEST_FAILED", documents_response.text)
+        document_ids = [str(row["id"]) for row in documents_response.json()]
+        if document_ids:
+            facts_response = self._request(
+                "DELETE",
+                "knowledge_facts",
+                params={"document_id": f"in.({','.join(document_ids)})"},
+            )
+            if facts_response.status_code not in (200, 204):
+                raise bad_request("KNOWLEDGE_INGEST_FAILED", facts_response.text)
+        documents_delete = self._request(
+            "DELETE",
+            "knowledge_documents",
+            params={"corpus_version_id": f"eq.{version_id}"},
+        )
+        if documents_delete.status_code not in (200, 204):
+            raise bad_request("KNOWLEDGE_INGEST_FAILED", documents_delete.text)
+
+    def list_approved_knowledge_facts(self) -> list[dict[str, Any]]:
+        versions_response = self._request(
+            "GET",
+            "knowledge_corpus_versions",
+            params={"status": "eq.approved", "select": "*"},
+        )
+        if versions_response.status_code != 200:
+            raise bad_request("KNOWLEDGE_READ_FAILED", versions_response.text)
+        versions = {str(row["id"]): row for row in versions_response.json()}
+        if not versions:
+            return []
+        documents_response = self._request(
+            "GET",
+            "knowledge_documents",
+            params={
+                "corpus_version_id": f"in.({','.join(versions)})",
+                "classification": "in.(public,internal)",
+                "select": "*",
+            },
+        )
+        if documents_response.status_code != 200:
+            raise bad_request("KNOWLEDGE_READ_FAILED", documents_response.text)
+        documents = {str(row["id"]): row for row in documents_response.json()}
+        if not documents:
+            return []
+        facts_response = self._request(
+            "GET",
+            "knowledge_facts",
+            params={"document_id": f"in.({','.join(documents)})", "select": "*"},
+        )
+        if facts_response.status_code != 200:
+            raise bad_request("KNOWLEDGE_READ_FAILED", facts_response.text)
+        rows: list[dict[str, Any]] = []
+        for fact in facts_response.json():
+            document = documents.get(str(fact["document_id"]))
+            if document is None:
+                continue
+            version = versions.get(str(document["corpus_version_id"]))
+            if version is None:
+                continue
+            rows.append(
+                {
+                    "fact_key": fact["fact_key"],
+                    "kind": fact["kind"],
+                    "service_key": fact.get("service_key"),
+                    "query_key": fact["query_key"],
+                    "statement": fact["statement"],
+                    "payload": fact.get("payload") or {},
+                    "search_terms": list(fact.get("search_terms") or []),
+                    "corpus_key": version["corpus_key"],
+                    "corpus_version": version["version"],
+                    "owner": version["owner"],
+                    "schema_version": None,
+                    "corpus_classification": None,
+                    "document_key": document["document_key"],
+                    "document_type": document["document_type"],
+                    "document_version": document["source_version"],
+                    "classification": document["classification"],
+                    "effective_from": document.get("effective_from"),
+                    "effective_to": document.get("effective_to"),
+                }
+            )
+        return rows
+
+    def get_approved_knowledge_corpus(self) -> dict[str, Any] | None:
+        rows = self.list_approved_knowledge_facts()
+        if not rows:
+            return None
+        first = rows[0]
+        return {
+            "source": "store",
+            "corpus_key": first["corpus_key"],
+            "version": first["corpus_version"],
+            "status": "approved",
+            "owner": first["owner"],
+            "classification": first.get("classification") or "internal",
+            "document_count": len({row["document_key"] for row in rows}),
+            "fact_count": len(rows),
+            "fact_kinds": sorted({row["kind"] for row in rows}),
         }
 
 

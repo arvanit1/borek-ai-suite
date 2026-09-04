@@ -128,6 +128,11 @@ textarea {
   background: #fff;
 }
 
+.form-field input[type="checkbox"] {
+  width: auto;
+  padding: 0;
+}
+
 .form-field input:focus,
 .form-field select:focus {
   outline: 2px solid rgba(var(--borek-primary-rgb), 0.25);
@@ -1257,6 +1262,24 @@ textarea {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
+}
+
+.opportunity-form-pii {
+  grid-column: 1 / -1;
+}
+
+.opportunity-form-pii label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  font-weight: 600;
+}
+
+.opportunity-form-pii p {
+  margin: 0.35rem 0 0 1.55rem;
+  color: var(--color-muted);
+  font-size: 0.88rem;
+  font-weight: 400;
 }
 
 .opportunity-form-actions {

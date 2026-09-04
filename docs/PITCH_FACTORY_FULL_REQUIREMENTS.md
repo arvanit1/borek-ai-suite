@@ -615,23 +615,23 @@ BT-25 + BT-26 + JJ-24 + JJ-25 + AT-41 + AT-56 → BT-27
 
 ## 9. Current implementation status snapshot
 
-*(As of 2026-09-01 local Docker + Supabase live tests)*
+*(Updated 2026-09-03 from `main` at `90871f0` plus live Supabase proof)*
 
 | Area | Status |
 |------|--------|
 | Framework generation (live) | Working (~6 min) |
 | Framework Word/PDF download UI | Working (Framework review → Export panel) |
 | Presentation planning (live) | Working |
-| Deck generation (live) | **Fails slide 1 COVER_01** — BT-9/BT-15 |
-| AT unit/integration proofs | **107+ AT tests pass** |
-| Live DB verify (AT-37) | `verify_db.py` OK |
-| Live RLS (AT-38) | 7/7 pass with `RUN_SUPABASE_INTEGRATION=1` |
-| Live LLM persist (AT-53) | Integration test pass |
-| Full `validate_all.py` | **Fails on JJ-22** (`timeline_01.png`) |
-| EXECUTIVE_SUMMARY_01 | Stub — JJ-23 open |
-| Auto pipeline after approve | Not done — BT-25 open |
-| Summary-first Framework UI | Not done — JJ-24 open |
-| Branch state | `arvanit` ahead of origin; **uncommitted AT work** not on `main` |
+| Deck generation live blocker | COVER_01 badge overflow fix merged in PR #65 |
+| AT unit/integration proofs | Confirmed AT suites pass; see `docs/ARVANIT_DELIVERY_CHECKLIST.md` |
+| Live DB verify (AT-37) | Full 16-migration reapply and schema verification pass |
+| Live RLS (AT-38) | Direct negative test 1/1 and authenticated HTTP suite 7/7 pass |
+| Live LLM persist (AT-53) | Hosted persistence test 1/1 pass |
+| Full `validate_all.py` | Previous JJ-22 and COVER_01 blockers are merged; deterministic fixture gate is isolated from live Supabase configuration |
+| EXECUTIVE_SUMMARY_01 | JJ-23 merged in PR #61 |
+| Auto pipeline after approve | BT-25/26/27 merged in PRs #59/#60/#64 |
+| Summary-first Framework UI | JJ-24/25 merged before PR #61 |
+| Branch state | `main` equals `origin/main` at `90871f0`; AT work through PR #63 is merged |
 
 ---
 
@@ -649,22 +649,26 @@ BT-25 + BT-26 + JJ-24 + JJ-25 + AT-41 + AT-56 → BT-27
 | AT-47 | Done (API + UI per block source_refs) | API + `test:at47` pass | — |
 | AT-53 | Done (+ UUID serialization fix) | Unit + live persist pass | — |
 | AT-56 | Done | `test_at56_*` + `test:at56` pass | Refresh smoke optional |
-| AT-57 | Done (retry infra) | `test_at57_*` + `test:at57` pass | Optional: mark validation failures non-retryable |
+| AT-57 | Done (retry + durable stage checkpoints) | 22 `test_at57_*` tests + fixture E2E pass | Explicit `SLIDE_VALIDATING` and `PREVIEW_RENDERING` resume proof added |
 
 ### What is **still left for Arvanit** (not “all done” until these)
 
-1. **Commit + PR to `main`** — substantial uncommitted work on `arvanit` (observability, download UI, job UX, health runtime, etc.).
-2. **Formal ticket closure** — attach proof outputs to PR description per §11 below.
-3. **Optional polish (backlog-aligned, not blocking):**
-   - AT-57: set `retryable=False` on validation failures (e.g. COVER_01) so UI doesn’t suggest useless retry.
-   - Add `frameworkExport.test.ts` to npm `test:at41` script if desired.
-4. **Do NOT own:** JJ-22 golden failure, BT-9 deck failure, BT-25–27 automation, JJ-24/25 UX.
+1. **Formal ticket closure** — retain the proof in
+   `docs/ARVANIT_DELIVERY_CHECKLIST.md` and attach it to the delivery record.
+2. **Merge the 2026-09-03 hardening patch** — fixture-gate environment isolation
+   and AT-57 late-stage checkpoint reuse.
+3. **Optional live UI proof** — run the AT-47 browser smoke when the local web,
+   API, worker and LLM account are available.
+4. **Do NOT own:** ongoing layout/content quality or BT/JJ/MS product UX.
 
 ### Verdict
 
-**AT implementation work for the 9 continuation-plan AT tickets is essentially complete and proven.**  
-**Project/release is NOT complete** — Gates A–E require ES/JJ/BT/MS tickets and BT-27 E2E.  
-**Your personal “done” = merge AT PR + proof checklist; team “done” = BT-27.**
+**AT implementation work for the nine continuation-plan tickets is complete and
+has automated plus live Supabase proof.**  
+**The merged team now includes BT-27 and the JJ/MS continuation work; final
+release status still requires the complete gate and any required live smoke.**  
+**Arvanit's next proposed scope (client pack, RAG, Gamma and filing) is not part
+of this confirmed backlog; see `docs/ARVANIT_DELIVERY_CHECKLIST.md`.**
 
 ---
 

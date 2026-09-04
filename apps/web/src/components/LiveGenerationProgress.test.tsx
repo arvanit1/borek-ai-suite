@@ -39,11 +39,15 @@ function render(
   assert.match(html, /data-step="SLIDE_GENERATING" data-state="complete"/);
   assert.match(html, /data-step="SLIDE_VALIDATING" data-state="current"/);
   assert.match(html, /data-step="PPTX_RENDERING" data-state="upcoming"/);
+  assert.match(html, /data-step="GAMMA_RENDERING" data-state="upcoming"/);
+  assert.match(html, /data-step="ARTIFACT_FILING" data-state="upcoming"/);
   assert.match(html, /aria-current="step"/);
   assert.match(html, /Preparing presentation structure/);
   assert.match(html, /Generating slide content/);
   assert.match(html, /Validating slides/);
   assert.match(html, /Rendering PowerPoint\/PDF/);
+  assert.match(html, /Building branded presentation/);
+  assert.match(html, /Archiving generated files/);
   assert.match(html, /Preparing preview/);
   assert.match(html, /12 slides planned/);
 

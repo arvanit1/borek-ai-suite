@@ -15,6 +15,7 @@ export interface OpportunityFormValues {
   opportunity_name: string;
   department: string;
   language: string;
+  pii_redaction_enabled: boolean;
 }
 
 const DEFAULT_VALUES: OpportunityFormValues = {
@@ -22,6 +23,7 @@ const DEFAULT_VALUES: OpportunityFormValues = {
   opportunity_name: "",
   department: "",
   language: "en",
+  pii_redaction_enabled: true,
 };
 
 interface OpportunityFormProps {
@@ -45,13 +47,21 @@ export function OpportunityForm({
 
   useEffect(() => {
     if (existing) {
-      setValues(existing);
+      setValues({
+        ...DEFAULT_VALUES,
+        ...existing,
+        pii_redaction_enabled: existing.pii_redaction_enabled !== false,
+      });
       setCreatedLabel(`${existing.client_name} — ${existing.opportunity_name}`);
       return;
     }
     const draft = loadOpportunityDraft();
     if (draft) {
-      setValues(draft);
+      setValues({
+        ...DEFAULT_VALUES,
+        ...draft,
+        pii_redaction_enabled: draft.pii_redaction_enabled !== false,
+      });
     }
   }, [existing]);
 
@@ -142,6 +152,22 @@ export function OpportunityForm({
             <option value="de">German</option>
             <option value="fr">French</option>
           </select>
+        </div>
+        <div className="form-field opportunity-form-pii">
+          <label htmlFor="pii_redaction_enabled">
+            <input
+              id="pii_redaction_enabled"
+              type="checkbox"
+              checked={values.pii_redaction_enabled}
+              disabled={disabled || busy || locked}
+              onChange={(event) => updateField("pii_redaction_enabled", event.target.checked)}
+            />
+            Redact personal data before AI processing
+          </label>
+          <p>
+            Names, emails, and phone numbers are removed from transcripts before they are sent to the
+            model. Leave this on unless a case explicitly needs the original identifiers.
+          </p>
         </div>
       </div>
 

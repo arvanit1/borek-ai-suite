@@ -109,6 +109,7 @@ def _load_framework_template(opportunity_id: UUID) -> dict[str, Any]:
 class MemoryDataStore:
     opportunities: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     transcripts: dict[UUID, dict[str, Any]] = field(default_factory=dict)
+    client_logos: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     framework_versions: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     presentation_plans: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     presentations: dict[UUID, dict[str, Any]] = field(default_factory=dict)
@@ -117,6 +118,40 @@ class MemoryDataStore:
     generation_jobs: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     audit_logs: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     llm_calls: dict[UUID, dict[str, Any]] = field(default_factory=dict)
+    filed_artifacts: dict[str, dict[str, Any]] = field(default_factory=dict)
+    knowledge_corpus_versions: dict[UUID, dict[str, Any]] = field(default_factory=dict)
+    knowledge_documents: dict[UUID, dict[str, Any]] = field(default_factory=dict)
+    knowledge_facts: dict[UUID, dict[str, Any]] = field(default_factory=dict)
+
+    def get_filing_record(self, idempotency_key: str) -> dict[str, Any] | None:
+        row = self.filed_artifacts.get(idempotency_key)
+        return copy.deepcopy(row) if row is not None else None
+
+    def save_filing_record(
+        self,
+        idempotency_key: str,
+        record: dict[str, Any],
+    ) -> dict[str, Any]:
+        row = copy.deepcopy(record)
+        row["idempotency_key"] = idempotency_key
+        row.setdefault("id", uuid.uuid4())
+        self.filed_artifacts[idempotency_key] = row
+        return copy.deepcopy(row)
+
+    def list_filed_artifacts(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+    ) -> list[dict[str, Any]]:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        target = str(opportunity_id)
+        rows = [
+            copy.deepcopy(row)
+            for row in self.filed_artifacts.values()
+            if str(row.get("opportunity_id")) == target
+        ]
+        return sorted(rows, key=lambda row: str(row.get("updated_at") or ""), reverse=True)
 
     def create_generation_job(self, payload: dict[str, Any]) -> dict[str, Any]:
         row = copy.deepcopy(payload)
@@ -182,6 +217,7 @@ class MemoryDataStore:
         department: str,
         language: str,
         pii_redaction_enabled: bool = True,
+        additional_client_information: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         opportunity_id = uuid.uuid4()
         now = _now()
@@ -193,6 +229,7 @@ class MemoryDataStore:
             "language": language,
             "status": "active",
             "pii_redaction_enabled": bool(pii_redaction_enabled),
+            "additional_client_information": copy.deepcopy(additional_client_information),
             "created_by": user_id,
             "created_at": now,
             "updated_at": now,
@@ -219,9 +256,73 @@ class MemoryDataStore:
     ) -> dict[str, Any]:
         row = self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
         for key, value in updates.items():
-            if value is not None:
+            if value is not None or key == "additional_client_information":
                 row[key] = value
         row["updated_at"] = _now()
+        return row
+
+    def upsert_client_logo(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        file_name: str,
+        mime_type: str,
+        size_bytes: int,
+        storage_path: str,
+        content: bytes,
+        width_px: int | None = None,
+        height_px: int | None = None,
+    ) -> tuple[dict[str, Any], bool]:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        existing = next(
+            (
+                row
+                for row in self.client_logos.values()
+                if row["opportunity_id"] == opportunity_id
+            ),
+            None,
+        )
+        replaced = existing is not None
+        if existing is not None:
+            del self.client_logos[existing["id"]]
+        row = {
+            "id": existing["id"] if existing is not None else uuid.uuid4(),
+            "opportunity_id": opportunity_id,
+            "created_by": user_id,
+            "file_name": file_name,
+            "mime_type": mime_type,
+            "size_bytes": size_bytes,
+            "width_px": width_px,
+            "height_px": height_px,
+            "storage_path": storage_path,
+            "content": bytes(content),
+            "uploaded_at": _now(),
+        }
+        self.client_logos[row["id"]] = row
+        return copy.deepcopy(row), replaced
+
+    def get_client_logo(self, *, opportunity_id: UUID, user_id: UUID) -> dict[str, Any]:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        row = next(
+            (
+                row
+                for row in self.client_logos.values()
+                if row["opportunity_id"] == opportunity_id
+            ),
+            None,
+        )
+        if row is None:
+            raise not_found("CLIENT_LOGO_NOT_FOUND", "No client logo is stored for this opportunity")
+        return copy.deepcopy(row)
+
+    def get_client_logo_content(self, *, opportunity_id: UUID, user_id: UUID) -> bytes:
+        row = self.get_client_logo(opportunity_id=opportunity_id, user_id=user_id)
+        return bytes(row["content"])
+
+    def delete_client_logo(self, *, opportunity_id: UUID, user_id: UUID) -> dict[str, Any]:
+        row = self.get_client_logo(opportunity_id=opportunity_id, user_id=user_id)
+        del self.client_logos[row["id"]]
         return row
 
     def create_transcript(
@@ -438,10 +539,15 @@ class MemoryDataStore:
 
         require_reviewable_framework(row["status"], action="confirm")
 
+        now = _now()
         row["status"] = "confirmed"
         framework_json = confirmed_framework_json if confirmed_framework_json is not None else row["framework_json"]
         framework_json["status"] = "confirmed"
+        framework_json["confirmed_by"] = str(user_id)
+        framework_json["confirmed_at"] = now.isoformat().replace("+00:00", "Z")
         row["framework_json"] = framework_json
+        row["confirmed_by"] = user_id
+        row["confirmed_at"] = now
         return row
 
     def update_latest_framework(
@@ -1004,6 +1110,145 @@ class MemoryDataStore:
         if actor_id is not None:
             rows = [row for row in rows if row["actor_id"] == actor_id]
         return sorted(rows, key=lambda row: row["timestamp"])
+
+    def ingest_approved_corpus(self, raw: dict[str, Any]) -> dict[str, Any]:
+        from services.borek_rag.ingest import ingest_summary, plan_ingest
+
+        plan = plan_ingest(raw)
+        existing = next(
+            (
+                row
+                for row in self.knowledge_corpus_versions.values()
+                if row["corpus_key"] == plan.corpus_key and row["version"] == plan.version
+            ),
+            None,
+        )
+        replaced_existing = existing is not None
+        version_id = existing["id"] if existing is not None else uuid.uuid4()
+        if existing is not None:
+            document_ids = [
+                document_id
+                for document_id, document in self.knowledge_documents.items()
+                if document["corpus_version_id"] == version_id
+            ]
+            fact_ids = [
+                fact_id
+                for fact_id, fact in self.knowledge_facts.items()
+                if fact["document_id"] in document_ids
+            ]
+            for fact_id in fact_ids:
+                del self.knowledge_facts[fact_id]
+            for document_id in document_ids:
+                del self.knowledge_documents[document_id]
+        for row in self.knowledge_corpus_versions.values():
+            if (
+                row["corpus_key"] == plan.corpus_key
+                and row["status"] == "approved"
+                and row["version"] != plan.version
+            ):
+                row["status"] = "retired"
+        now = _now()
+        self.knowledge_corpus_versions[version_id] = {
+            "id": version_id,
+            "corpus_key": plan.corpus_key,
+            "version": plan.version,
+            "status": "approved",
+            "owner": plan.owner,
+            "classification": plan.classification,
+            "schema_version": plan.schema_version,
+            "created_at": existing["created_at"] if existing is not None else now,
+            "approved_at": now,
+        }
+        for document in plan.documents:
+            document_id = uuid.uuid4()
+            self.knowledge_documents[document_id] = {
+                "id": document_id,
+                "corpus_version_id": version_id,
+                "document_key": document.document_key,
+                "document_type": document.document_type,
+                "source_uri": document.source_uri,
+                "source_version": document.source_version,
+                "classification": document.classification,
+                "effective_from": document.effective_from,
+                "effective_to": document.effective_to,
+                "created_at": now,
+            }
+            for fact in document.facts:
+                fact_id = uuid.uuid4()
+                self.knowledge_facts[fact_id] = {
+                    "id": fact_id,
+                    "document_id": document_id,
+                    "fact_key": fact.fact_key,
+                    "kind": fact.kind,
+                    "service_key": fact.service_key,
+                    "query_key": fact.query_key,
+                    "statement": fact.statement,
+                    "payload": copy.deepcopy(fact.payload),
+                    "search_terms": list(fact.search_terms),
+                    "created_at": now,
+                }
+        return ingest_summary(plan, replaced_existing=replaced_existing)
+
+    def list_approved_knowledge_facts(self) -> list[dict[str, Any]]:
+        approved = {
+            version_id: version
+            for version_id, version in self.knowledge_corpus_versions.items()
+            if version["status"] == "approved"
+        }
+        if not approved:
+            return []
+        readable = {
+            document_id: document
+            for document_id, document in self.knowledge_documents.items()
+            if document["corpus_version_id"] in approved
+            and document["classification"] in {"public", "internal"}
+        }
+        rows: list[dict[str, Any]] = []
+        for fact in self.knowledge_facts.values():
+            document = readable.get(fact["document_id"])
+            if document is None:
+                continue
+            version = approved[document["corpus_version_id"]]
+            rows.append(
+                {
+                    "fact_key": fact["fact_key"],
+                    "kind": fact["kind"],
+                    "service_key": fact["service_key"],
+                    "query_key": fact["query_key"],
+                    "statement": fact["statement"],
+                    "payload": copy.deepcopy(fact["payload"]),
+                    "search_terms": list(fact["search_terms"]),
+                    "corpus_key": version["corpus_key"],
+                    "corpus_version": version["version"],
+                    "owner": version["owner"],
+                    "schema_version": version.get("schema_version"),
+                    "corpus_classification": version.get("classification"),
+                    "document_key": document["document_key"],
+                    "document_type": document["document_type"],
+                    "document_version": document["source_version"],
+                    "classification": document["classification"],
+                    "effective_from": document["effective_from"],
+                    "effective_to": document["effective_to"],
+                }
+            )
+        return rows
+
+    def get_approved_knowledge_corpus(self) -> dict[str, Any] | None:
+        rows = self.list_approved_knowledge_facts()
+        if not rows:
+            return None
+        first = rows[0]
+        return {
+            "source": "store",
+            "corpus_key": first["corpus_key"],
+            "version": first["corpus_version"],
+            "status": "approved",
+            "owner": first["owner"],
+            "classification": first.get("corpus_classification") or first["classification"],
+            "document_count": len({row["document_key"] for row in rows}),
+            "fact_count": len(rows),
+            "fact_kinds": sorted({row["kind"] for row in rows}),
+        }
 
     def append_llm_call(self, record: Any) -> dict[str, Any]:
         row = _llm_call_row(record)

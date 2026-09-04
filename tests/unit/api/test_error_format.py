@@ -4,13 +4,19 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 from app.main import create_app
 
 
 class SampleBody(BaseModel):
     name: str
+
+    @model_validator(mode="after")
+    def reject_blank_name(self) -> SampleBody:
+        if not self.name.strip():
+            raise ValueError("name cannot be blank")
+        return self
 
 
 def _client_with_test_routes() -> TestClient:
@@ -47,6 +53,16 @@ def test_validation_error_uses_standard_error_shape() -> None:
     assert body["error"]["code"] == "VALIDATION_ERROR"
     assert "detail" in body["error"]
     assert "errors" in body["error"]["detail"]
+
+
+def test_model_validator_value_error_is_json_serializable() -> None:
+    client = _client_with_test_routes()
+    response = client.post("/test/validate", json={"name": "   "})
+
+    assert response.status_code == 422
+    body = response.json()
+    assert body["error"]["code"] == "VALIDATION_ERROR"
+    assert "blank" in str(body["error"]["detail"]).lower()
 
 
 def test_internal_error_never_exposes_traceback() -> None:

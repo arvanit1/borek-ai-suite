@@ -5,6 +5,7 @@ export interface OpportunityDraft {
   opportunity_name: string;
   department: string;
   language: string;
+  pii_redaction_enabled?: boolean;
 }
 
 const ACTIVE_KEY = "borek.activeOpportunity";
@@ -16,6 +17,7 @@ export interface StoredOpportunity {
   opportunity_name: string;
   department: string;
   language: string;
+  pii_redaction_enabled?: boolean;
 }
 
 export interface CachedUploadSession {
@@ -127,7 +129,10 @@ export function loadOpportunityDraft(): OpportunityDraft | null {
     if (!parsed || typeof parsed.client_name !== "string") {
       return null;
     }
-    return parsed;
+    return {
+      ...parsed,
+      pii_redaction_enabled: parsed.pii_redaction_enabled !== false,
+    };
   } catch {
     return null;
   }

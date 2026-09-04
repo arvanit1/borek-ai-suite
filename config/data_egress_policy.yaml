@@ -1,0 +1,64 @@
+version: "1.0"
+default: deny
+
+classifications:
+  - public
+  - internal
+  - client_confidential
+  - restricted
+
+# Only these providers may receive any outbound field.
+approved_providers:
+  - openai
+  - anthropic
+  - gamma
+
+rules:
+  public:
+    external_provider: allow
+  internal:
+    external_provider: allow_if_provider_approved
+  client_confidential:
+    external_provider: allow_if_provider_and_field_approved
+  restricted:
+    external_provider: deny
+
+# Working default field map until Head of AI / ES signs the production list.
+# A path applies to itself and every descendant unless a longer path overrides it.
+# Restricted has no entries: nothing classified restricted may leave.
+field_classifications:
+  "/instructions": internal
+  "/targetSchema": internal
+  "/layoutId": internal
+  "/chapterLayoutGuidance": internal
+  "/violations": internal
+  "/system": internal
+  "/frameworkObject": client_confidential
+  "/chapters": client_confidential
+  "/offendingValues": client_confidential
+  "/user": client_confidential
+  "/slots/cover.title": internal
+  "/slots/cover.client_name": client_confidential
+  "/slots/context.summary": client_confidential
+  "/slots/scope.in_scope": client_confidential
+  "/slots/next_steps.body": internal
+
+# Client-confidential leaves require an exact or prefix allow-list entry per provider.
+# These are the structured fields current live pipelines already send after PII redaction.
+client_confidential_allowlist:
+  openai:
+    - "/frameworkObject"
+    - "/chapters"
+    - "/offendingValues"
+  anthropic:
+    - "/user"
+  gamma:
+    - "/slots/cover.client_name"
+    - "/slots/context.summary"
+    - "/slots/scope.in_scope"
+
+requirements:
+  unclassified_fields: deny
+  restricted_fields: deny
+  log_payload_values: false
+  audit_allowed_and_blocked_paths: true

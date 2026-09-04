@@ -123,3 +123,60 @@ def test_llm_calls_migration_creates_durable_observability_table() -> None:
     assert "users_own_llm_calls" in content
     assert "ADD COLUMN IF NOT EXISTS llm_cost_eur" in content
     assert "created_by = auth.uid()" in content
+
+
+def test_at58_migration_adds_private_scoped_client_logo_storage() -> None:
+    content = (
+        MIGRATIONS_DIR / "017_opportunity_client_information_logo.sql"
+    ).read_text(encoding="utf-8")
+    assert "ADD COLUMN IF NOT EXISTS additional_client_information JSONB" in content
+    assert "CREATE TABLE IF NOT EXISTS opportunity_client_logos" in content
+    assert "REFERENCES opportunities(id) ON DELETE CASCADE" in content
+    assert "ALTER TABLE opportunity_client_logos ENABLE ROW LEVEL SECURITY;" in content
+    assert "users_own_opportunity_client_logos" in content
+    assert "created_by = auth.uid()" in content
+    assert "WITH CHECK" in content
+    assert "VALUES ('client-logos', 'client-logos', false)" in content
+    assert "users_own_client_logo_objects" in content
+    assert "(storage.foldername(name))[1]" in content
+    assert "size_bytes <= 5242880" in content
+
+
+def test_at58_follow_on_migration_persists_logo_dimensions() -> None:
+    content = (MIGRATIONS_DIR / "020_client_logo_dimensions.sql").read_text(
+        encoding="utf-8"
+    )
+    assert "ADD COLUMN IF NOT EXISTS width_px INTEGER" in content
+    assert "ADD COLUMN IF NOT EXISTS height_px INTEGER" in content
+    assert "width_px >= 64 AND width_px <= 4096" in content
+    assert "height_px >= 64 AND height_px <= 4096" in content
+
+
+def test_at61_migration_adds_private_idempotent_filing_records() -> None:
+    content = (MIGRATIONS_DIR / "018_filed_artifacts.sql").read_text(encoding="utf-8")
+    assert "CREATE TABLE IF NOT EXISTS filed_artifacts" in content
+    assert "idempotency_key TEXT NOT NULL UNIQUE" in content
+    assert "REFERENCES opportunities(id) ON DELETE CASCADE" in content
+    assert "REFERENCES presentation_versions(id) ON DELETE CASCADE" in content
+    assert "REFERENCES framework_versions(id) ON DELETE RESTRICT" in content
+    assert "CHECK (status IN ('filing', 'filed', 'failed'))" in content
+    assert "ALTER TABLE filed_artifacts ENABLE ROW LEVEL SECURITY;" in content
+    assert "users_own_filed_artifacts" in content
+    assert "created_by = auth.uid()" in content
+    assert "WITH CHECK" in content
+
+
+def test_at59_migration_adds_read_only_versioned_knowledge_corpus() -> None:
+    content = (
+        MIGRATIONS_DIR / "019_borek_knowledge_corpus.sql"
+    ).read_text(encoding="utf-8")
+    assert "CREATE TABLE IF NOT EXISTS knowledge_corpus_versions" in content
+    assert "CREATE TABLE IF NOT EXISTS knowledge_documents" in content
+    assert "CREATE TABLE IF NOT EXISTS knowledge_facts" in content
+    assert "UNIQUE (corpus_key, version)" in content
+    assert "REFERENCES knowledge_corpus_versions(id) ON DELETE CASCADE" in content
+    assert "REFERENCES knowledge_documents(id) ON DELETE CASCADE" in content
+    assert "CHECK (kind IN ('service', 'pricing', 'staffing', 'reference'))" in content
+    assert content.count("ENABLE ROW LEVEL SECURITY") == 3
+    assert "authenticated_read_approved_knowledge_facts" in content
+    assert "d.classification IN ('public', 'internal')" in content

@@ -19,6 +19,13 @@ def bad_request(code: str, message: str) -> HTTPException:
     )
 
 
+def forbidden(code: str, message: str) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail={"code": code, "message": message},
+    )
+
+
 def conflict(code: str, message: str) -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_409_CONFLICT,

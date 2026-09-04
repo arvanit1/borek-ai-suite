@@ -51,6 +51,8 @@ function labels(view: ReturnType<typeof buildJobProgressView>): string[] {
   assert.equal(jobStageLabel("SLIDE_GENERATING"), "Generating slide content");
   assert.equal(jobStageLabel("SLIDE_VALIDATING"), "Validating slides");
   assert.equal(jobStageLabel("PPTX_RENDERING"), "Rendering PowerPoint/PDF");
+  assert.equal(jobStageLabel("GAMMA_RENDERING"), "Building branded presentation");
+  assert.equal(jobStageLabel("ARTIFACT_FILING"), "Archiving generated files");
   assert.equal(jobStageLabel("PREVIEW_RENDERING"), "Preparing preview");
   // No raw enum ever reaches the user, even for an unknown future stage.
   assert.equal(jobStageLabel("SOME_NEW_STAGE"), "Some new stage");
@@ -77,6 +79,8 @@ function labels(view: ReturnType<typeof buildJobProgressView>): string[] {
     SLIDE_GENERATING: "upcoming",
     SLIDE_VALIDATING: "upcoming",
     PPTX_RENDERING: "upcoming",
+    GAMMA_RENDERING: "upcoming",
+    ARTIFACT_FILING: "upcoming",
     PREVIEW_RENDERING: "upcoming",
   });
   assert.deepEqual(labels(view), [
@@ -84,6 +88,8 @@ function labels(view: ReturnType<typeof buildJobProgressView>): string[] {
     "Generating slide content",
     "Validating slides",
     "Rendering PowerPoint/PDF",
+    "Building branded presentation",
+    "Archiving generated files",
     "Preparing preview",
   ]);
 }
@@ -94,6 +100,8 @@ function labels(view: ReturnType<typeof buildJobProgressView>): string[] {
     ["SLIDE_GENERATING", "Generating slide content"],
     ["SLIDE_VALIDATING", "Validating slides"],
     ["PPTX_RENDERING", "Rendering PowerPoint/PDF"],
+    ["GAMMA_RENDERING", "Building branded presentation"],
+    ["ARTIFACT_FILING", "Archiving generated files"],
     ["PREVIEW_RENDERING", "Preparing preview"],
   ];
   for (const [stage, headline] of expected) {
@@ -115,6 +123,8 @@ function labels(view: ReturnType<typeof buildJobProgressView>): string[] {
     SLIDE_GENERATING: "complete",
     SLIDE_VALIDATING: "current",
     PPTX_RENDERING: "upcoming",
+    GAMMA_RENDERING: "upcoming",
+    ARTIFACT_FILING: "upcoming",
     PREVIEW_RENDERING: "upcoming",
   });
 }
@@ -164,6 +174,8 @@ function labels(view: ReturnType<typeof buildJobProgressView>): string[] {
     SLIDE_GENERATING: "complete",
     SLIDE_VALIDATING: "complete",
     PPTX_RENDERING: "current",
+    GAMMA_RENDERING: "upcoming",
+    ARTIFACT_FILING: "upcoming",
     PREVIEW_RENDERING: "upcoming",
   });
 }
@@ -190,6 +202,8 @@ function labels(view: ReturnType<typeof buildJobProgressView>): string[] {
     SLIDE_GENERATING: "upcoming",
     SLIDE_VALIDATING: "upcoming",
     PPTX_RENDERING: "upcoming",
+    GAMMA_RENDERING: "upcoming",
+    ARTIFACT_FILING: "upcoming",
     PREVIEW_RENDERING: "upcoming",
   });
 
@@ -240,6 +254,8 @@ function labels(view: ReturnType<typeof buildJobProgressView>): string[] {
     SLIDE_GENERATING: "complete",
     SLIDE_VALIDATING: "complete",
     PPTX_RENDERING: "failed",
+    GAMMA_RENDERING: "upcoming",
+    ARTIFACT_FILING: "upcoming",
     PREVIEW_RENDERING: "upcoming",
   });
 }
@@ -271,6 +287,8 @@ function labels(view: ReturnType<typeof buildJobProgressView>): string[] {
     "SLIDE_GENERATING",
     "SLIDE_VALIDATING",
     "PPTX_RENDERING",
+    "GAMMA_RENDERING",
+    "ARTIFACT_FILING",
     "PREVIEW_RENDERING",
   ]);
 }

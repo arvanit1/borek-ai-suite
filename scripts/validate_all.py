@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -10,14 +11,29 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def run(command: list[str], *, shell: bool = False) -> None:
+def run(
+    command: list[str],
+    *,
+    shell: bool = False,
+    env_overrides: dict[str, str] | None = None,
+) -> None:
     print("+", " ".join(command) if isinstance(command, list) else command)
-    subprocess.run(command, cwd=ROOT, check=True, shell=shell)
+    env = None
+    if env_overrides:
+        env = os.environ.copy()
+        env.update(env_overrides)
+    subprocess.run(command, cwd=ROOT, check=True, shell=shell, env=env)
 
 
 def main() -> int:
     run([sys.executable, "-m", "pytest", "tests/unit", "-v"])
-    run([sys.executable, "-m", "pytest", "tests/integration/full_pipeline", "-v"])
+    # The delivery-gate pipeline is intentionally fixture-backed. Do not let a
+    # developer's live Supabase flag make integration/conftest.py preserve real
+    # JWT settings and invalidate the deterministic test tokens.
+    run(
+        [sys.executable, "-m", "pytest", "tests/integration/full_pipeline", "-v"],
+        env_overrides={"RUN_SUPABASE_INTEGRATION": "0"},
+    )
     run([sys.executable, "scripts/generate_pydantic.py"])
     run(["node", "scripts/generate_typescript.js"])
     run(

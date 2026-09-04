@@ -21,9 +21,19 @@ _COMPACT_RETRY = (
 
 
 class ClaudeClientError(RuntimeError):
-    def __init__(self, message: str) -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        code: str = "",
+        retryable: bool | None = None,
+    ) -> None:
         super().__init__(message)
         self.user_message = message
+        if code:
+            self.code = code
+        if retryable is not None:
+            self.retryable = retryable
 
 
 def sonnet_model() -> str:
@@ -46,6 +56,19 @@ def structured_complete(
         raise ClaudeClientError(
             "ANTHROPIC_API_KEY is not set. Add it to the .env file before generating a customer report."
         )
+
+    from services.security.egress_policy import EgressBlockedError, enforce_external_egress
+
+    try:
+        safe = enforce_external_egress(
+            {"system": system, "user": user},
+            provider="anthropic",
+            stage="anthropic_structured",
+        )
+    except EgressBlockedError as exc:
+        raise ClaudeClientError(str(exc), code=exc.code, retryable=False) from exc
+    system = str(safe.get("system") or "")
+    user = str(safe.get("user") or "")
 
     # anthropic>=1.0 dropped the temperature kwarg on messages.create.
     _ = temperature
