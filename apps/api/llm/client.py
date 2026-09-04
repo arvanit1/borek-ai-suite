@@ -43,9 +43,30 @@ class LlmClient:
         *,
         model: str = DEFAULT_MODEL,
         executor: Callable[..., LlmUsageResult] | None = None,
+        external_provider: str | None = None,
     ) -> None:
         self._model = model
         self._executor = executor or _stub_executor
+        self._external_provider = (external_provider or "").strip().lower() or None
+
+    def _filter_external_request(
+        self,
+        request: dict[str, Any] | None,
+        *,
+        stage: str,
+    ) -> dict[str, Any] | None:
+        if request is None or self._external_provider is None:
+            return request
+        from services.security.egress_policy import enforce_external_egress
+
+        filtered = enforce_external_egress(
+            copy.deepcopy(request),
+            provider=self._external_provider,
+            stage=stage,
+        )
+        if not isinstance(filtered, dict):
+            raise TypeError("Filtered external LLM payload must remain an object")
+        return filtered
 
     def complete_framework(
         self,
@@ -76,6 +97,7 @@ class LlmClient:
         prompt_version: str = DEFAULT_PROMPT_VERSION,
         retry_count: int = 0,
     ) -> dict[str, Any]:
+        filtered_input = self._filter_external_request(planning_input, stage="planning")
         result = invoke_llm(
             stage=LlmStage.PLANNING,
             model=self._model,
@@ -87,7 +109,7 @@ class LlmClient:
                 "presentation_planner",
                 prompt_version,
                 retry_count,
-                request=planning_input,
+                request=filtered_input,
             ),
             input_tokens=lambda value: value.input_tokens,
             output_tokens=lambda value: value.output_tokens,
@@ -101,12 +123,15 @@ class LlmClient:
         retry_count: int = 0,
     ) -> StructuredGenerator:
         def generate(request: StructuredGenerationRequest) -> dict[str, Any]:
-            payload = {
-                "instructions": request.instructions,
-                "layoutId": request.layout_id,
-                "chapters": [copy.deepcopy(chapter) for chapter in request.chapters],
-                "targetSchema": copy.deepcopy(request.target_schema),
-            }
+            payload = self._filter_external_request(
+                {
+                    "instructions": request.instructions,
+                    "layoutId": request.layout_id,
+                    "chapters": [copy.deepcopy(chapter) for chapter in request.chapters],
+                    "targetSchema": copy.deepcopy(request.target_schema),
+                },
+                stage="slide_generation",
+            )
             result = invoke_llm(
                 stage=LlmStage.SLIDE_GENERATION,
                 model=self._model,
@@ -163,17 +188,20 @@ class LlmClient:
                 bound_instructions = (
                     f"{bound_instructions}\n\nHard limits:\n" + "\n".join(limit_lines)
                 )
-            payload = {
-                "instructions": bound_instructions,
-                "offendingValues": copy.deepcopy(offending_values),
-                "violations": [_violation_payload(item) for item in violations],
-                "targetSchema": {
-                    "type": "object",
-                    "additionalProperties": False,
-                    "properties": properties,
-                    "required": list(offending_values),
+            payload = self._filter_external_request(
+                {
+                    "instructions": bound_instructions,
+                    "offendingValues": copy.deepcopy(offending_values),
+                    "violations": [_violation_payload(item) for item in violations],
+                    "targetSchema": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": properties,
+                        "required": list(offending_values),
+                    },
                 },
-            }
+                stage="compression",
+            )
             result = invoke_llm(
                 stage=LlmStage.COMPRESSION,
                 model=self._model,

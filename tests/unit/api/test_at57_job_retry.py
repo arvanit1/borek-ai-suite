@@ -224,6 +224,79 @@ def test_resume_rendering_failure_keeps_same_job_and_checkpoint() -> None:
     assert resumed.result_json["_enqueue"]["presentation_id"] == str(presentation_id)
 
 
+@pytest.mark.parametrize(
+    ("failed_stage", "expected_render_calls"),
+    [
+        (JobStage.SLIDE_VALIDATING, 1),
+        (JobStage.PREVIEW_RENDERING, 0),
+    ],
+)
+def test_presentation_worker_resumes_from_late_stage_without_regenerating_slides(
+    failed_stage: JobStage,
+    expected_render_calls: int,
+) -> None:
+    from app.worker import run_presentation_generation_task
+
+    store = get_memory_store()
+    presentation_id = uuid.uuid4()
+    version_id = uuid.uuid4()
+    job = job_service.create_job(
+        uuid.uuid4(),
+        "presentation_generation",
+        presentation_id=presentation_id,
+        enqueue={"user_id": str(USER_A), "presentation_id": str(presentation_id)},
+        repository=store,
+    )
+    job_service.record_result_checkpoint(
+        job.id,
+        {"presentation_version_id": str(version_id)},
+        repository=store,
+    )
+    failed = job_service.fail_job(
+        job.id,
+        "LATE_STAGE_FAILED",
+        "Late stage failed",
+        failed_stage,
+        True,
+        repository=store,
+    )
+    job_service.resume_job(failed.id, repository=store)
+
+    checkpoint = ({"id": version_id, "storage_size_bytes": 123}, {"id": uuid.uuid4()})
+    with (
+        patch(
+            "app.services.data.build_worker_data_store",
+            return_value=store,
+        ),
+        patch(
+            "app.services.presentation_generation.execute_presentation_generation"
+        ) as generate,
+        patch(
+            "app.services.presentation_generation.load_presentation_generation_checkpoint",
+            return_value=checkpoint,
+        ) as load_checkpoint,
+        patch(
+            "app.services.presentation_generation.render_presentation_version",
+            return_value=checkpoint[0],
+        ) as render,
+    ):
+        result = run_presentation_generation_task.run(
+            str(job.id),
+            str(presentation_id),
+            str(USER_A),
+        )
+
+    generate.assert_not_called()
+    load_checkpoint.assert_called_once()
+    assert render.call_count == expected_render_calls
+    assert result["presentation_version_id"] == str(version_id)
+    completed = job_service.get_job(job.id, repository=store)
+    assert completed is not None
+    assert completed.status == JobStatus.COMPLETED
+    assert completed.result_json["_enqueue"]["presentation_id"] == str(presentation_id)
+    assert completed.result_json["presentation_version_id"] == str(version_id)
+
+
 def test_resume_planning_keeps_existing_plan_id() -> None:
     store = get_memory_store()
     plan_id = uuid.uuid4()

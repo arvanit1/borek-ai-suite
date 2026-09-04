@@ -42,3 +42,8 @@ local_es_harness/
 !tests/fixtures/**/*.pptx
 tests/golden_deck/**/output/
 tmp/
+
+# Local scratch dirs for document extraction / e2e debugging
+.tmp_*/
+.tmp_*.txt
+.tmp_*.tsx

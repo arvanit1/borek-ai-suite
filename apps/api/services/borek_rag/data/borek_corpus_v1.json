@@ -1,0 +1,119 @@
+{
+  "corpus_id": "borek-internal-dummy",
+  "corpus_version": "2026.09.03",
+  "schema_version": "at59.1",
+  "classification": "internal",
+  "owner": "Commercial",
+  "owner_placeholder": "O3-unassigned-named-owner",
+  "notes": "Dummy versioned corpus for AT-59. Rate cards are structured and owned by Commercial. Not offer-grade. The model must never originate a number from this file unless retrieval cites a fact.",
+  "documents": [
+    {
+      "document_id": "RC-DUMMY-2026-Q3",
+      "document_type": "rate_card",
+      "title": "Borek dummy rate card Q3 2026",
+      "version": "2026.Q3.1",
+      "effective_from": "2026-07-01",
+      "effective_to": "2026-09-30",
+      "classification": "internal",
+      "facts": [
+        {
+          "fact_id": "price.invoice-3way.senior-consultant.day-rate",
+          "kind": "pricing",
+          "service_key": "invoice_3way_match",
+          "query_key": "pricing:invoice_3way_match:senior_consultant:day_rate",
+          "required_terms": ["invoice", "senior", "consultant"],
+          "optional_terms": ["3-way", "three-way", "day", "rate", "pricing", "price"],
+          "statement": "Senior Consultant day rate for Invoice 3-way Match is EUR 1250.00 (indicative dummy rate).",
+          "payload": {
+            "role": "senior_consultant",
+            "unit": "day",
+            "amount": "1250.00",
+            "currency": "EUR",
+            "indicative": true
+          }
+        }
+      ]
+    },
+    {
+      "document_id": "STAFF-DUMMY-INV3WAY-v1",
+      "document_type": "staffing_profile",
+      "title": "Invoice 3-way Match dummy staffing profile",
+      "version": "1.0.0",
+      "effective_from": "2026-07-01",
+      "effective_to": "2026-12-31",
+      "classification": "internal",
+      "facts": [
+        {
+          "fact_id": "staff.invoice-3way.core-team",
+          "kind": "staffing",
+          "service_key": "invoice_3way_match",
+          "query_key": "staffing:invoice_3way_match:core_team",
+          "required_terms": ["invoice", "staff"],
+          "optional_terms": ["3-way", "three-way", "team", "fte", "staffing"],
+          "statement": "Invoice 3-way Match core team is 4 people / 2.6 FTE: 1 Solution Architect at 0.4 FTE, 2 Senior Consultants at 0.8 FTE each, 1 Analyst at 0.6 FTE.",
+          "payload": {
+            "headcount": 4,
+            "total_fte": "2.6",
+            "roles": [
+              { "role": "solution_architect", "count": 1, "fte": "0.4" },
+              { "role": "senior_consultant", "count": 2, "fte": "0.8" },
+              { "role": "analyst", "count": 1, "fte": "0.6" }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "document_id": "SVC-DUMMY-INV3WAY-v1",
+      "document_type": "service_definition",
+      "title": "Invoice 3-way Match dummy service definition",
+      "version": "1.0.0",
+      "effective_from": "2026-07-01",
+      "effective_to": "2026-12-31",
+      "classification": "internal",
+      "facts": [
+        {
+          "fact_id": "service.invoice-3way.definition",
+          "kind": "service",
+          "service_key": "invoice_3way_match",
+          "query_key": "service:invoice_3way_match:definition",
+          "required_terms": ["invoice", "service"],
+          "optional_terms": ["3-way", "three-way", "match", "definition"],
+          "statement": "Invoice 3-way Match matches supplier invoices to purchase orders and goods receipts before payment release.",
+          "payload": {
+            "service_key": "invoice_3way_match",
+            "name": "Invoice 3-way Match",
+            "outcomes": [
+              "match invoices to purchase orders and goods receipts",
+              "flag exceptions before payment"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "document_id": "REF-DUMMY-INV3WAY-v1",
+      "document_type": "reference",
+      "title": "Invoice 3-way Match dummy reference pattern",
+      "version": "1.0.0",
+      "effective_from": "2026-07-01",
+      "effective_to": "2026-12-31",
+      "classification": "internal",
+      "facts": [
+        {
+          "fact_id": "reference.invoice-3way.delivery-pattern",
+          "kind": "reference",
+          "service_key": "invoice_3way_match",
+          "query_key": "reference:invoice_3way_match:delivery_pattern",
+          "required_terms": ["invoice", "reference"],
+          "optional_terms": ["3-way", "three-way", "delivery", "pattern"],
+          "statement": "Invoice 3-way Match is typically delivered as a structured finance-operations engagement with a named delivery lead.",
+          "payload": {
+            "pattern": "structured_finance_operations",
+            "named_roles": ["delivery_lead"]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
@@ -13,6 +14,16 @@ from app.schemas.errors import build_error_response
 from app.services.renderer_client import RendererClientError
 
 logger = logging.getLogger(__name__)
+
+
+def _jsonable(value: Any) -> Any:
+    if isinstance(value, BaseException):
+        return str(value)
+    if isinstance(value, dict):
+        return {str(key): _jsonable(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_jsonable(item) for item in value]
+    return value
 
 
 def register_error_handlers(app: FastAPI) -> None:
@@ -61,7 +72,7 @@ def register_error_handlers(app: FastAPI) -> None:
             content=build_error_response(
                 code="VALIDATION_ERROR",
                 message="Request validation failed",
-                detail={"errors": exc.errors()},
+                detail={"errors": _jsonable(exc.errors())},
             ),
         )
 

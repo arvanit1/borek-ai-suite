@@ -14,6 +14,9 @@ logger = logging.getLogger(__name__)
 class AuditAction(StrEnum):
     OPPORTUNITY_CREATE = "opportunity.create"
     OPPORTUNITY_UPDATE = "opportunity.update"
+    CLIENT_LOGO_UPLOAD = "client_logo.upload"
+    CLIENT_LOGO_REPLACE = "client_logo.replace"
+    CLIENT_LOGO_DELETE = "client_logo.delete"
     TRANSCRIPT_UPLOAD = "transcript.upload"
     TRANSCRIPT_REGENERATE = "transcript.regenerate"
     TRANSCRIPT_DELETE = "transcript.delete"
@@ -30,6 +33,7 @@ class AuditAction(StrEnum):
 
 class AuditObjectType(StrEnum):
     OPPORTUNITY = "opportunity"
+    CLIENT_LOGO = "client_logo"
     TRANSCRIPT = "transcript"
     FRAMEWORK_VERSION = "framework_version"
     PRESENTATION_PLAN = "presentation_plan"

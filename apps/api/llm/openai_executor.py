@@ -15,6 +15,19 @@ from services.observability.llm_logger import LlmStage
 class OpenAIProviderError(RuntimeError):
     """Base error for OpenAI transport and response failures."""
 
+    def __init__(
+        self,
+        message: str = "",
+        *,
+        code: str = "",
+        retryable: bool | None = None,
+    ) -> None:
+        super().__init__(message)
+        if code:
+            self.code = code
+        if retryable is not None:
+            self.retryable = retryable
+
 
 class OpenAIProviderConfigurationError(OpenAIProviderError):
     """The live OpenAI provider is not configured correctly."""
@@ -80,6 +93,19 @@ class OpenAIResponsesExecutor:
             raise OpenAIProviderError(
                 f"OpenAIResponsesExecutor does not support {stage.value}/{operation}"
             )
+        if not isinstance(request, dict):
+            raise OpenAIProviderError(f"{spec.label} input must be an object")
+
+        from services.security.egress_policy import EgressBlockedError, enforce_external_egress
+
+        try:
+            request = enforce_external_egress(
+                copy.deepcopy(request),
+                provider="openai",
+                stage=spec.kind,
+            )
+        except EgressBlockedError as exc:
+            raise OpenAIProviderError(str(exc), code=exc.code, retryable=False) from exc
         if not isinstance(request, dict):
             raise OpenAIProviderError(f"{spec.label} input must be an object")
 

@@ -68,7 +68,7 @@ def test_files_numbered_001_through_011_with_no_gaps() -> None:
     assert (MIGRATIONS_DIR / "011_rls_policies.sql").is_file()
 
 
-def test_follow_on_migrations_014_through_016_are_idempotent() -> None:
+def test_follow_on_migrations_014_through_020_are_idempotent() -> None:
     llm_calls = (MIGRATIONS_DIR / "014_llm_calls.sql").read_text(encoding="utf-8")
     assert "CREATE TABLE IF NOT EXISTS llm_calls" in llm_calls
     assert "ADD COLUMN IF NOT EXISTS llm_cost_eur" in llm_calls
@@ -79,6 +79,29 @@ def test_follow_on_migrations_014_through_016_are_idempotent() -> None:
         encoding="utf-8",
     )
     assert "ADD COLUMN IF NOT EXISTS auto_continue" in auto_continue
+    client_pack = (
+        MIGRATIONS_DIR / "017_opportunity_client_information_logo.sql"
+    ).read_text(encoding="utf-8")
+    assert "ADD COLUMN IF NOT EXISTS additional_client_information" in client_pack
+    assert "CREATE TABLE IF NOT EXISTS opportunity_client_logos" in client_pack
+    filing = (MIGRATIONS_DIR / "018_filed_artifacts.sql").read_text(encoding="utf-8")
+    assert "CREATE TABLE IF NOT EXISTS filed_artifacts" in filing
+    assert "CREATE INDEX IF NOT EXISTS" in filing
+    assert "ENABLE ROW LEVEL SECURITY" in filing
+    corpus = (MIGRATIONS_DIR / "019_borek_knowledge_corpus.sql").read_text(
+        encoding="utf-8"
+    )
+    assert "CREATE TABLE IF NOT EXISTS knowledge_corpus_versions" in corpus
+    assert "CREATE TABLE IF NOT EXISTS knowledge_documents" in corpus
+    assert "CREATE TABLE IF NOT EXISTS knowledge_facts" in corpus
+    assert "ENABLE ROW LEVEL SECURITY" in corpus
+    logo_dims = (MIGRATIONS_DIR / "020_client_logo_dimensions.sql").read_text(
+        encoding="utf-8"
+    )
+    assert "ADD COLUMN IF NOT EXISTS width_px" in logo_dims
+    assert "ADD COLUMN IF NOT EXISTS height_px" in logo_dims
+    assert "opportunity_client_logos_width_px_range" in logo_dims
+    assert "opportunity_client_logos_height_px_range" in logo_dims
 
 
 def test_verify_db_covers_llm_calls_table() -> None:
@@ -86,11 +109,13 @@ def test_verify_db_covers_llm_calls_table() -> None:
     assert '"llm_calls"' in content
     assert "pii_redaction_enabled" in content
     assert "llm_cost_eur" in content
+    assert "width_px" in content
+    assert "height_px" in content
     assert "EXPECTED_FOREIGN_KEYS" in content
     assert "EXPECTED_INDEXES" in content
 
 
-def test_apply_migrations_script_covers_001_through_016() -> None:
+def test_apply_migrations_script_covers_001_through_020() -> None:
     assert APPLY_MIGRATIONS.is_file()
     content = APPLY_MIGRATIONS.read_text(encoding="utf-8")
     compile(content, str(APPLY_MIGRATIONS), "exec")
@@ -101,7 +126,7 @@ def test_apply_migrations_script_covers_001_through_016() -> None:
         for name in names
         if re.match(r"^\d{3}_", name)
     )
-    assert numbers == list(range(1, 17)), f"expected 001-016 with no gaps, got {numbers}"
+    assert numbers == list(range(1, 21)), f"expected 001-020 with no gaps, got {numbers}"
     assert names == sorted(names)
 
 
