@@ -45,6 +45,18 @@ _FIXTURE_PATH = (
 )
 
 
+def _supabase_auth_headers(access_token: str) -> dict[str, str]:
+    """Build user- or privileged-request headers without treating secret keys as JWTs."""
+    service_credential = settings.SUPABASE_SERVICE_ROLE_KEY
+    is_privileged = access_token == service_credential
+    headers = {
+        "apikey": service_credential if is_privileged else settings.SUPABASE_ANON_KEY,
+    }
+    if not (is_privileged and service_credential.startswith("sb_secret_")):
+        headers["Authorization"] = f"Bearer {access_token}"
+    return headers
+
+
 def _shared_client() -> httpx.Client:
     global _HTTP_CLIENT
     if _HTTP_CLIENT is None or _HTTP_CLIENT.is_closed:
@@ -218,16 +230,17 @@ class SupabaseDataStore:
 
     def __init__(self, access_token: str) -> None:
         self._base_url = settings.SUPABASE_URL.rstrip("/")
-        api_key = (
-            settings.SUPABASE_SERVICE_ROLE_KEY
-            if access_token == settings.SUPABASE_SERVICE_ROLE_KEY
-            else settings.SUPABASE_ANON_KEY
-        )
         self._headers = {
-            "apikey": api_key,
-            "Authorization": f"Bearer {access_token}",
+            **_supabase_auth_headers(access_token),
             "Content-Type": "application/json",
             "Prefer": "return=representation",
+        }
+
+    def _storage_auth_headers(self) -> dict[str, str]:
+        return {
+            name: self._headers[name]
+            for name in ("apikey", "Authorization")
+            if name in self._headers
         }
 
     def create_generation_job(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -260,7 +273,7 @@ class SupabaseDataStore:
         params: dict[str, str] = {
             "select": "*",
             "opportunity_id": f"eq.{opportunity_id}",
-            "order": "created_at.desc",
+            "order": "created_at.desc,id.desc",
         }
         if job_type:
             params["job_type"] = f"eq.{job_type}"
@@ -284,7 +297,7 @@ class SupabaseDataStore:
             params={
                 "opportunity_id": f"eq.{opportunity_id}",
                 "select": "*",
-                "order": "created_at.desc",
+                "order": "created_at.desc,id.desc",
                 "limit": "1",
             },
         )
@@ -333,8 +346,7 @@ class SupabaseDataStore:
         content: bytes,
     ) -> None:
         headers = {
-            "apikey": self._headers["apikey"],
-            "Authorization": self._headers["Authorization"],
+            **self._storage_auth_headers(),
             "Content-Type": mime_type,
             "x-upsert": "false",
         }
@@ -350,10 +362,7 @@ class SupabaseDataStore:
     def _delete_transcript_content(self, *, storage_path: str) -> None:
         if not storage_path:
             return
-        headers = {
-            "apikey": self._headers["apikey"],
-            "Authorization": self._headers["Authorization"],
-        }
+        headers = self._storage_auth_headers()
         response = _request_with_retry(
             "DELETE",
             f"{self._base_url}/storage/v1/object/transcripts/{storage_path}",

@@ -108,6 +108,18 @@ def fail(msg: str) -> None:
     print(f"  FAIL {msg}")
 
 
+def _service_role_headers(service_role_key: str) -> dict[str, str]:
+    """Build privileged REST headers for legacy JWTs or Supabase secret keys."""
+    headers = {
+        "apikey": service_role_key,
+        "Content-Type": "application/json",
+        "Prefer": "return=minimal",
+    }
+    if not service_role_key.startswith("sb_secret_"):
+        headers["Authorization"] = f"Bearer {service_role_key}"
+    return headers
+
+
 def check_env() -> tuple[str, str, str, str, int]:
     """Return (db_url, supabase_url, service_role_key, jwt, error_count)."""
     errors = 0
@@ -330,12 +342,7 @@ def verify_via_rest(supabase_url: str, service_role_key: str) -> int:
     print("\n2) Supabase REST API (SUPABASE_URL + SERVICE_ROLE_KEY)")
     ok(f"Endpoint: {supabase_url}/rest/v1")
 
-    headers = {
-        "apikey": service_role_key,
-        "Authorization": f"Bearer {service_role_key}",
-        "Content-Type": "application/json",
-        "Prefer": "return=minimal",
-    }
+    headers = _service_role_headers(service_role_key)
 
     print("\n3) Expected tables (REST read probe)")
     with httpx.Client(timeout=20.0) as client:

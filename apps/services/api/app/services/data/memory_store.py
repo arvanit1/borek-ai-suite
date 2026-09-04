@@ -175,7 +175,9 @@ class MemoryDataStore:
         ]
         if not rows:
             return None
-        return copy.deepcopy(max(rows, key=lambda row: row["created_at"]))
+        return copy.deepcopy(
+            max(rows, key=lambda row: (row["created_at"], str(row["id"])))
+        )
 
     def update_generation_job(
         self,
