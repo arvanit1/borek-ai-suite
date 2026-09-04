@@ -134,6 +134,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
   const [hoveredChapterId, setHoveredChapterId] = useState<string | null>(null);
   const [chapterNavOpen, setChapterNavOpen] = useState(false);
   const [downloadingFormat, setDownloadingFormat] = useState<"docx" | "pdf" | null>(null);
+  const [downloadLanguage, setDownloadLanguage] = useState("en");
   const chapterNavItemRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
   const presentationPipelineRunningRef = useRef(false);
   const presentationRecoveryAttemptedRef = useRef<string | null>(null);
@@ -715,7 +716,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
         return;
       }
       if (recoveryTarget === "download-docx") {
-        void handleDownloadFramework("docx");
+        void handleDownloadFramework("docx", downloadLanguage);
         return;
       }
       if (recoveryTarget === "download-pdf") {
@@ -772,20 +773,21 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
     }
   }
 
-  async function handleDownloadFramework(format: "docx" | "pdf") {
+  async function handleDownloadFramework(format: "docx" | "pdf", language = "en") {
     if (!accessToken || !frameworkVersion || !frameworkJson) {
       return;
     }
+    setDownloadLanguage(language);
     setRecoveryTarget(format === "docx" ? "download-docx" : "download-pdf");
     setDownloadingFormat(format);
     setNotice(null);
     try {
-      const path = buildFrameworkRenderPath(frameworkVersion.id, format);
+      const path = buildFrameworkRenderPath(frameworkVersion.id, format, language);
       const blob = await downloadFrameworkRender(accessToken, path);
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = buildFrameworkDownloadFilename(frameworkJson.title, format);
+      anchor.download = buildFrameworkDownloadFilename(frameworkJson.title, format, language);
       anchor.click();
       URL.revokeObjectURL(url);
     } catch (downloadError) {
@@ -1195,7 +1197,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
                       <strong>Download the customer report</strong>
                       <p>
                         Export the complete 14-chapter report as Word or PDF. Draft versions are
-                        labeled until you approve.
+                        labeled until you approve. Word is available in English and German.
                       </p>
                     </div>
                     <div className="framework-toolbar-actions">
@@ -1204,9 +1206,22 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
                         className="btn btn-secondary"
                         data-testid="framework-download-word"
                         disabled={busy || downloadingFormat !== null}
-                        onClick={() => void handleDownloadFramework("docx")}
+                        onClick={() => void handleDownloadFramework("docx", "en")}
                       >
-                        {downloadingFormat === "docx" ? "Downloading…" : "Download Word"}
+                        {downloadingFormat === "docx" && downloadLanguage === "en"
+                          ? "Downloading…"
+                          : "Word (English)"}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        data-testid="framework-download-word-de"
+                        disabled={busy || downloadingFormat !== null}
+                        onClick={() => void handleDownloadFramework("docx", "de")}
+                      >
+                        {downloadingFormat === "docx" && downloadLanguage === "de"
+                          ? "Downloading…"
+                          : "Word (Deutsch)"}
                       </button>
                       <button
                         type="button"
