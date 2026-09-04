@@ -344,6 +344,33 @@ def execute_presentation_generation(
     return version, plan
 
 
+def load_presentation_generation_checkpoint(
+    store: DataStore,
+    *,
+    presentation_id: UUID,
+    user_id: UUID,
+) -> tuple[dict, dict]:
+    """Load slides already persisted by an earlier successful generation stage."""
+    presentation = store.get_presentation(
+        presentation_id=presentation_id,
+        user_id=user_id,
+    )
+    plan = store.get_presentation_plan(
+        presentation_plan_id=presentation["presentation_plan_id"],
+        user_id=user_id,
+    )
+    version = store.get_latest_presentation_version(
+        presentation_id=presentation_id,
+        user_id=user_id,
+    )
+    if version is None:
+        raise RuntimeError(
+            "PRESENTATION_CHECKPOINT_NOT_FOUND: "
+            f"presentation {presentation_id} has no persisted version to resume"
+        )
+    return version, plan
+
+
 def render_presentation_version(
     store: DataStore,
     *,

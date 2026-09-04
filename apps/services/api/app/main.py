@@ -8,7 +8,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.middleware.error_handler import register_error_handlers
-from app.routers import frameworks, health, jobs, opportunities, presentations, transcripts
+from app.routers import (
+    frameworks,
+    health,
+    jobs,
+    knowledge,
+    opportunities,
+    presentations,
+    transcripts,
+)
 
 
 @asynccontextmanager
@@ -58,6 +66,7 @@ def create_app() -> FastAPI:
         tags=["presentations"],
     )
     app.include_router(presentations.router, prefix="/presentations", tags=["presentations"])
+    app.include_router(knowledge.router, prefix="/knowledge", tags=["knowledge"])
     app.include_router(jobs.router, prefix="/jobs", tags=["jobs"])
 
     return app

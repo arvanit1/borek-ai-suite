@@ -15,6 +15,8 @@ export const JOB_STAGE_LABELS: Record<string, string> = {
   SLIDE_GENERATING: "Generating slide content",
   SLIDE_VALIDATING: "Validating slides",
   PPTX_RENDERING: "Rendering PowerPoint/PDF",
+  GAMMA_RENDERING: "Building branded presentation",
+  ARTIFACT_FILING: "Archiving generated files",
   PREVIEW_RENDERING: "Preparing preview",
   COMPLETED: "Finished",
   FAILED: "Stopped",
@@ -32,6 +34,8 @@ export const PRESENTATION_PROGRESS_STAGES = [
   "SLIDE_GENERATING",
   "SLIDE_VALIDATING",
   "PPTX_RENDERING",
+  "GAMMA_RENDERING",
+  "ARTIFACT_FILING",
   "PREVIEW_RENDERING",
 ] as const;
 
@@ -39,6 +43,8 @@ export const SLIDE_PROGRESS_STAGES = [
   "SLIDE_GENERATING",
   "SLIDE_VALIDATING",
   "PPTX_RENDERING",
+  "GAMMA_RENDERING",
+  "ARTIFACT_FILING",
   "PREVIEW_RENDERING",
 ] as const;
 

@@ -120,7 +120,7 @@ def _live_llm_client() -> LlmClient:
         )
     model = settings.OPENAI_PRESENTATION_MODEL.strip()
     executor = OpenAIResponsesExecutor(api_key=api_key, model=model)
-    return LlmClient(model=model, executor=executor)
+    return LlmClient(model=model, executor=executor, external_provider="openai")
 
 
 def build_live_planning_client() -> PlanningClient:

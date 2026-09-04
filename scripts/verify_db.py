@@ -33,10 +33,15 @@ EXPECTED_TABLES = [
     "generation_jobs",
     "audit_log",
     "llm_calls",
+    "opportunity_client_logos",
+    "filed_artifacts",
+    "knowledge_corpus_versions",
+    "knowledge_documents",
+    "knowledge_facts",
 ]
 
 EXPECTED_COLUMNS = {
-    "opportunities": ("pii_redaction_enabled",),
+    "opportunities": ("pii_redaction_enabled", "additional_client_information"),
     "generation_jobs": (
         "llm_cost_eur",
         "error_retryable",
@@ -53,6 +58,16 @@ EXPECTED_COLUMNS = {
         "retry_count",
         "estimated_cost_eur",
     ),
+    "filed_artifacts": (
+        "idempotency_key",
+        "repository_ref",
+        "status",
+        "approved_by",
+        "approved_at",
+        "corpus_versions",
+        "error_retryable",
+    ),
+    "opportunity_client_logos": ("width_px", "height_px"),
 }
 
 EXPECTED_FOREIGN_KEYS = {
@@ -62,10 +77,20 @@ EXPECTED_FOREIGN_KEYS = {
     "presentations": "presentation_plans",
     "generation_jobs": "opportunities",
     "llm_calls": "generation_jobs",
+    "opportunity_client_logos": "opportunities",
+    "filed_artifacts": "presentation_versions",
+    "knowledge_documents": "knowledge_corpus_versions",
+    "knowledge_facts": "knowledge_documents",
 }
 
 EXPECTED_INDEXES = (
     "transcripts_opportunity_conversation_id_key",
+    "filed_artifacts_opportunity_idx",
+    "filed_artifacts_presentation_version_idx",
+    "knowledge_corpus_status_idx",
+    "knowledge_documents_corpus_idx",
+    "knowledge_facts_query_idx",
+    "knowledge_facts_service_kind_idx",
 )
 
 LOCAL_DB_HOSTS = {"localhost", "127.0.0.1", "::1"}

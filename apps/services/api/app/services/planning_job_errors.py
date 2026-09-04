@@ -17,6 +17,14 @@ def format_presentation_planning_failure(exc: BaseException) -> tuple[str, str, 
     """Return (error_code, message, retryable) for a planning worker failure."""
     if isinstance(exc, PresentationPlanValidationError):
         return _validation_failure(str(exc))
+    current: BaseException | None = exc
+    seen: set[int] = set()
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        code = str(getattr(current, "code", "") or "")
+        if code == "EGRESS_BLOCKED":
+            return "EGRESS_BLOCKED", str(current), False
+        current = current.__cause__
     code = str(getattr(exc, "code", "") or "PRESENTATION_PLANNING_FAILED")
     retryable = bool(getattr(exc, "retryable", True))
     return code, str(exc), retryable

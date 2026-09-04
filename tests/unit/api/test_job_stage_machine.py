@@ -31,13 +31,15 @@ def test_job_stage_enum_values_in_order() -> None:
         "SLIDE_GENERATING",
         "SLIDE_VALIDATING",
         "PPTX_RENDERING",
+        "GAMMA_RENDERING",
+        "ARTIFACT_FILING",
         "PREVIEW_RENDERING",
         "COMPLETED",
         "FAILED",
     ]
     assert [stage.value for stage in JobStage] == expected
-    assert len(JobStage) == 12
-    assert list(JOB_PIPELINE_STAGES) == [JobStage.QUEUED, *expected[1:10]]
+    assert len(JobStage) == 14
+    assert list(JOB_PIPELINE_STAGES) == [JobStage.QUEUED, *expected[1:-2]]
 
 
 def test_job_status_enum_has_four_values() -> None:

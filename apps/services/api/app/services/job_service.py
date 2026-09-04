@@ -385,6 +385,21 @@ def complete_job(
     return _save(job, repository)
 
 
+def record_result_checkpoint(
+    job_id: uuid.UUID,
+    result_json: dict[str, Any],
+    *,
+    repository: Any | None = None,
+) -> Job:
+    """Durably merge reusable stage output without completing the job."""
+    job = _load(job_id, repository)
+    if job is None:
+        raise JobNotFoundError(str(job_id))
+    _ensure_not_terminal(job)
+    job.result_json = {**job.result_json, **dict(result_json)}
+    return _save(job, repository)
+
+
 def fail_job(
     job_id: uuid.UUID,
     error_code: str,
