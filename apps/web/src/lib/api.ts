@@ -255,6 +255,7 @@ export interface OpportunityCreatePayload {
   opportunity_name: string;
   department: string;
   language: string;
+  pii_redaction_enabled?: boolean;
 }
 
 export interface OpportunityResponse {
@@ -264,6 +265,7 @@ export interface OpportunityResponse {
   department: string;
   language: string;
   status: string;
+  pii_redaction_enabled?: boolean;
 }
 
 export interface ListedOpportunityResponse extends OpportunityResponse {

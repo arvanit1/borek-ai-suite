@@ -54,6 +54,24 @@ def test_es36_review_summary_contains_required_fields() -> None:
     assert summary["target_outcomes"]
     assert summary["assumptions"]
     assert summary["readiness"]["build_readiness"] == 58
+    for field in (
+        "executive_summary",
+        "key_pain_points",
+        "key_requirements",
+        "target_outcomes",
+        "assumptions",
+        "open_questions",
+        "contradictions",
+        "evidence_warnings",
+        "readiness",
+        "blocking_items",
+        "confirm_ready",
+        "headline",
+        "language",
+    ):
+        assert field in summary
+    blob = json.dumps(summary)
+    assert "never mentioned in the source" not in blob
 
 
 def test_es37_attention_states_cover_blocking_contradiction() -> None:
@@ -122,6 +140,30 @@ def test_es37_ready_to_approve_when_no_blockers() -> None:
     ]
     framework = attach_review_insights(framework)
     assert framework["attention"]["review_state"] == REVIEW_STATE_READY
+
+
+def test_es37_high_scores_cannot_hide_blocking_contradiction() -> None:
+    framework = _framework(
+        render={"allowed": True, "assumptions_banner": False, "band": "ready_to_build"},
+        readiness_band="ready_to_build",
+        quality_scores={
+            "opportunity_rating": 95,
+            "conversation_quality": 92,
+            "build_readiness": 94,
+            "rationale": {},
+        },
+    )
+    chapter_6 = next(ch for ch in framework["chapters"] if ch["chapter_id"] == "6")
+    chapter_6["body"] = [
+        {
+            "block": "ai_split",
+            "used_for": ["Deciding whether a case matches"],
+            "not_used_for": ["Deciding whether a case matches"],
+        }
+    ]
+    bundle = build_attention_bundle(framework)
+    assert bundle["review_state"] == REVIEW_STATE_BLOCKING
+    assert any(signal["id"] == REVIEW_STATE_BLOCKING for signal in bundle["signals"])
 
 
 def test_attach_review_insights_adds_observability_and_pii_meta() -> None:

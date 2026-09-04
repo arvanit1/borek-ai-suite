@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 from fastapi.testclient import TestClient
 
@@ -109,16 +112,26 @@ def test_get_latest_opportunity_job_returns_latest_failure() -> None:
     client = _client()
     opportunity_id = _create_opportunity(client)
     store = get_memory_store()
-    job_service.create_job(
-        uuid.UUID(opportunity_id),
-        "framework_generation",
-        repository=store,
+    lower_id = uuid.UUID("00000000-0000-4000-8000-000000000001")
+    higher_id = uuid.UUID("00000000-0000-4000-8000-000000000002")
+    fixed_uuid = SimpleNamespace(
+        UUID=uuid.UUID,
+        uuid4=Mock(side_effect=[lower_id, higher_id]),
     )
-    latest = job_service.create_job(
-        uuid.UUID(opportunity_id),
-        "presentation_generation",
-        repository=store,
-    )
+    with patch.object(job_service, "uuid", fixed_uuid):
+        older = job_service.create_job(
+            uuid.UUID(opportunity_id),
+            "framework_generation",
+            repository=store,
+        )
+        latest = job_service.create_job(
+            uuid.UUID(opportunity_id),
+            "presentation_generation",
+            repository=store,
+        )
+    tied_timestamp = datetime(2026, 9, 3, 12, 0, tzinfo=UTC)
+    store.generation_jobs[older.id]["created_at"] = tied_timestamp
+    store.generation_jobs[latest.id]["created_at"] = tied_timestamp
     job_service.fail_job(
         latest.id,
         "PPTX_RENDER_FAILED",

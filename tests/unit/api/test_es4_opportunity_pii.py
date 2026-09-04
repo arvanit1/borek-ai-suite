@@ -55,6 +55,54 @@ def test_opportunity_create_persists_pii_redaction_enabled() -> None:
     assert disabled.json()["pii_redaction_enabled"] is False
 
 
+def test_opportunity_patch_does_not_change_sibling_pii_setting() -> None:
+    client = _client()
+    enabled = client.post(
+        "/opportunities",
+        headers=_headers(),
+        json={
+            "client_name": "Acme",
+            "opportunity_name": "PII Stay On",
+            "department": "Finance",
+            "pii_redaction_enabled": True,
+        },
+    )
+    disabled = client.post(
+        "/opportunities",
+        headers=_headers(),
+        json={
+            "client_name": "Beta",
+            "opportunity_name": "PII Stay Off",
+            "department": "Finance",
+            "pii_redaction_enabled": False,
+        },
+    )
+    renamed = client.patch(
+        f"/opportunities/{enabled.json()['id']}",
+        headers=_headers(),
+        json={"opportunity_name": "PII Still On"},
+    )
+    sibling = client.get(
+        f"/opportunities/{disabled.json()['id']}",
+        headers=_headers(),
+    )
+    assert renamed.status_code == 200
+    assert renamed.json()["pii_redaction_enabled"] is True
+    assert sibling.json()["pii_redaction_enabled"] is False
+    flipped = client.patch(
+        f"/opportunities/{disabled.json()['id']}",
+        headers=_headers(),
+        json={"pii_redaction_enabled": True},
+    )
+    original = client.get(
+        f"/opportunities/{enabled.json()['id']}",
+        headers=_headers(),
+    )
+    assert flipped.status_code == 200
+    assert flipped.json()["pii_redaction_enabled"] is True
+    assert original.json()["pii_redaction_enabled"] is True
+
+
 def test_stage_a_live_mode_respects_opportunity_pii_setting(monkeypatch: object) -> None:
     from app.services.data.memory_store import get_memory_store
     from app.services.stage_a_orchestration import generate_framework_from_transcripts

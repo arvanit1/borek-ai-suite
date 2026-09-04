@@ -235,11 +235,10 @@ def get_framework_review(
     row = store.get_latest_framework(opportunity_id=opportunity_id, user_id=user_id)
     opportunity = store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
     framework_json = dict(row["framework_json"])
-    if not framework_json.get("review_summary"):
-        framework_json = attach_review_insights(
-            framework_json,
-            pii_redaction_enabled=opportunity_pii_redaction_enabled(opportunity),
-        )
+    framework_json = attach_review_insights(
+        framework_json,
+        pii_redaction_enabled=opportunity_pii_redaction_enabled(opportunity),
+    )
     return build_review_payload(framework_json)
 
 

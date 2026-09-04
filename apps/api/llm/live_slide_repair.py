@@ -25,6 +25,7 @@ import re
 from typing import Any, Callable
 
 from llm.client import ungrounded_content_retry_instruction
+from llm.json_schema_bundle import layout_constraint_config
 from services.slides.content_generation.group_a.common import (
     ProhibitedCommercialContentError,
     UngroundedContentError,
@@ -37,6 +38,7 @@ from services.slides.content_generation.group_b.common import (
     _validate_numeric_grounding as _validate_group_b_numeric_grounding,
 )
 from services.validation.compression_retry import get_value_at_path, set_value_at_path
+from services.validation.constraint_validator import collect_constraint_violations
 from services.validation.source_chapter_enforcement import (
     SourceChapterEnforcementError,
     populated_content_leaf_paths,
@@ -98,6 +100,10 @@ class LiveSlideRepairError(RuntimeError):
     """The live SlideSpec is still illegal after repair."""
 
 
+class LiveSlideConstraintError(LiveSlideRepairError):
+    """The live SlideSpec violates its canonical AT-7 layout constraints."""
+
+
 def wrap_live_structured_generator(
     generate: Callable[[Any], dict[str, Any]],
 ) -> Callable[[Any], dict[str, Any]]:
@@ -105,6 +111,7 @@ def wrap_live_structured_generator(
 
     def generate_and_repair(request: Any) -> dict[str, Any]:
         last_error: str | None = None
+        last_exception: Exception | None = None
         last_payload: dict[str, Any] | None = None
         rewrite_path: str | None = None
         for attempt in range(MAX_LIVE_GENERATION_ATTEMPTS):
@@ -123,6 +130,7 @@ def wrap_live_structured_generator(
                 return repaired
             except _UNGROUNDED_ERRORS as exc:
                 last_error = _ungrounded_retry_message(exc, repaired, request)
+                last_exception = exc
                 rewrite_path = _ungrounded_field_path(exc)
                 _ = attempt
             except (
@@ -131,8 +139,15 @@ def wrap_live_structured_generator(
                 ProhibitedCommercialContentError,
             ) as exc:
                 last_error = str(exc)
+                last_exception = exc
                 rewrite_path = None
                 _ = attempt
+        if isinstance(last_exception, LiveSlideConstraintError):
+            raise LiveSlideRepairError(
+                f"{getattr(request, 'layout_id', 'SlideSpec')} failed canonical AT-7 "
+                f"constraint validation after {MAX_LIVE_GENERATION_ATTEMPTS} attempts: "
+                f"{last_exception}"
+            ) from last_exception
         return last_payload if last_payload is not None else {}
 
     return generate_and_repair
@@ -192,6 +207,20 @@ def _assert_live_slide_is_acceptable(slide_spec: dict[str, Any], request: Any) -
         copy.deepcopy(chapter) for chapter in getattr(request, "chapters", ())
     )
     layout_id = str(getattr(request, "layout_id", "slide"))
+    constraint_config = layout_constraint_config(layout_id)
+    if constraint_config is not None:
+        violations = collect_constraint_violations(slide_spec, constraint_config)
+        # AT-8 remains responsible for bounded semantic text compression. Structural
+        # and other non-text constraints require a complete model regeneration.
+        regeneration_violations = [
+            violation for violation in violations if violation.code != "max_length"
+        ]
+        if regeneration_violations:
+            violation = regeneration_violations[0]
+            raise LiveSlideConstraintError(
+                f"{layout_id}.{violation.path} violates {violation.code}: "
+                f"{violation.message}"
+            )
     if _should_keep_field_provenance(request):
         provenance = validate_field_provenance(
             slide_spec,
