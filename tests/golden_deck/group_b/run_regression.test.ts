@@ -1,8 +1,15 @@
-/** JJ-22: Group B golden-deck discovery, rendering, and AT-55 regression checks. */
+/**
+ * JJ-22: Group B golden-deck discovery, rendering, and AT-55 regression checks.
+ *
+ * TIMELINE_01 diagnosis: the original approved reference (commit 3a33899) placed
+ * checkpoints on each phase end tick. A later layout change moved them to the
+ * segment midpoint and the checked-in PNG was updated to match (1344 color
+ * pixels). That midpoint update is rejected; the renderer is restored to the
+ * approved end-tick geometry and live schematics are compared through AT-55.
+ */
 
 import assert from "node:assert/strict";
 import {
-  copyFileSync,
   mkdtempSync,
   readFileSync,
   rmSync,
@@ -97,7 +104,7 @@ async function main(): Promise<void> {
   const missingReferenceDir = mkdtempSync(join(tmpdir(), "jj22-missing-reference-"));
   try {
     for (const fileName of GROUP_B_GOLDEN_FILES) {
-      copyFileSync(join(referenceDir, fileName), join(actualDir, fileName));
+      writeFileSync(join(actualDir, fileName), PNG.sync.write(buildGroupBGoldenPng(fileName)));
     }
 
     const originalArgv = process.argv;

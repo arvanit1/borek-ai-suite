@@ -135,6 +135,11 @@ assert.ok(
   "overlapping date ranges must share horizontal track space",
 );
 assert.ok(pilotSegment.segment.x > buildSegment.segment.x);
+assert.equal(
+  Number(overlappingLayout.milestoneAnchors[0]!.x.toFixed(4)),
+  Number((buildSegment.segment.x + buildSegment.segment.w).toFixed(4)),
+  "JJ-22: overlapping phases still park the phase checkpoint on the end tick",
+);
 
 const overlappingRendered = await renderToPptx((pptx) =>
   renderTimeline01(pptx, overlappingFixture),
