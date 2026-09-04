@@ -156,20 +156,17 @@ export function buildProcessFlow01Png(): PNG {
 
 export function buildTimeline01Png(): PNG {
   const png = blankSlide();
-  const phases = [
-    { id: "p1", name: "Discover", description: "Confirm scope" },
-    { id: "p2", name: "Build", description: "Matching rules" },
-    { id: "p3", name: "Pilot", description: "Controlled run" },
-    { id: "p4", name: "Handover", description: "Operations" },
-  ];
-  const milestones = [
-    { id: "m1", name: "Access", phaseId: "p1", date: "Week 2" },
-    { id: "m2", name: "Rules", phaseId: "p2", date: "Week 6" },
-    { id: "m3", name: "Pilot", phaseId: "p3", date: "Week 10" },
-    { id: "m4", name: "Handover", phaseId: "p4", date: "Week 14" },
-  ];
-  const items = buildTimeline01PhaseItems(phases, milestones);
-  const layout = computeTimeline01Layout(true, items, 4);
+  const spec = timelineFixtureJson as {
+    subtitle?: string;
+    phases: Array<{ id: string; name: string; description: string }>;
+    milestones: Array<{ id: string; name: string; phaseId: string; date?: string }>;
+  };
+  const items = buildTimeline01PhaseItems(spec.phases, spec.milestones);
+  const layout = computeTimeline01Layout(
+    Boolean(spec.subtitle),
+    items,
+    spec.milestones.length,
+  );
   const geometry = computeTimelineLayout(layout.timeline, items);
   fillInchRect(png, layout.timeline, hexToRgb(BorekColors.border));
   for (const phase of geometry.phases) {

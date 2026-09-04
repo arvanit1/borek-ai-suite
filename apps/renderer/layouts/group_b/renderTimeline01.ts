@@ -118,11 +118,13 @@ export function computeTimeline01Layout(
     band.bodyBottom - lowerHeight,
   );
 
+  // JJ-22: approved TIMELINE_01 goldens place the phase checkpoint on the end tick
+  // (date label / week gate), not the segment midpoint.
   const milestoneAnchors = phaseItems.slice(0, milestoneCount).map((_, index) => {
     const phaseLayout = timelineLayout.phases[index];
     const x = phaseLayout
-      ? phaseLayout.segment.x + phaseLayout.segment.w / 2
-      : timeline.x + ((index + 0.5) / Math.max(phaseItems.length, 1)) * timeline.w;
+      ? phaseLayout.segment.x + phaseLayout.segment.w
+      : timeline.x + ((index + 1) / Math.max(phaseItems.length, 1)) * timeline.w;
     return { x, y: milestoneTrackY };
   });
 
@@ -187,7 +189,7 @@ export function renderTimeline01(
     }
     const slotCount = Math.max(siblings.length, 1);
     const x = segment
-      ? segment.x + ((siblingIndex + 0.5) / slotCount) * segment.w
+      ? segment.x + ((siblingIndex + 1) / slotCount) * segment.w
       : fallback.x + (siblingIndex - (slotCount - 1) / 2) * (milestoneLabelWidth() / 2);
     addMilestone(slide, { x, y: layout.milestoneTrackY }, milestoneContent(milestone));
   });

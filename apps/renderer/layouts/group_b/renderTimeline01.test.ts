@@ -6,6 +6,8 @@ import type { Timeline01SlideSpec } from "../../../../generated/typescript/contr
 import minimalFixtureJson from "../../../../packages/contracts/fixtures/slide_spec/group_b/timeline_01.minimal.json";
 import realisticFixtureJson from "../../../../packages/contracts/fixtures/slide_spec/group_b/timeline_01.realistic.json";
 import { BorekSpacing } from "../../design_system/tokens/spacing.js";
+import { milestoneMarkerDiameter } from "../../design_system/components/addMilestone.js";
+import { computeTimelineLayout } from "../../design_system/components/addTimeline.js";
 import {
   buildTimeline01PhaseItems,
   computeTimeline01Layout,
@@ -60,6 +62,46 @@ assert.equal(layout.timeline.x, BorekSpacing.marginX);
 assert.equal(layout.milestoneAnchors.length, 4);
 assert.ok(layout.milestoneAnchors[0]!.x < layout.milestoneAnchors[3]!.x);
 assert.equal(layout.milestoneAnchors[0]!.y, layout.milestoneAnchors[3]!.y);
+const timelineGeometry = computeTimelineLayout(layout.timeline, weekItems);
+for (const [index, anchor] of layout.milestoneAnchors.entries()) {
+  const segment = timelineGeometry.phases[index]?.segment;
+  assert.ok(segment, `phase ${index} must have a timeline segment`);
+  assert.equal(
+    Number(anchor.x.toFixed(4)),
+    Number((segment.x + segment.w).toFixed(4)),
+    "JJ-22: one milestone per phase sits on the phase end tick",
+  );
+}
+
+const EMU_PER_INCH = 914400;
+const renderedRealistic = await renderToPptx((pptx) => renderTimeline01(pptx, realisticFixture));
+const markerDiameter = milestoneMarkerDiameter();
+const renderedMarkerCenters = [
+  ...renderedRealistic.slideXml.matchAll(
+    /<a:off x="(\d+)" y="(\d+)"\/>\s*<a:ext cx="(\d+)" cy="(\d+)"\/>/g,
+  ),
+]
+  .map((match) => ({
+    x: Number(match[1]) / EMU_PER_INCH,
+    y: Number(match[2]) / EMU_PER_INCH,
+    w: Number(match[3]) / EMU_PER_INCH,
+    h: Number(match[4]) / EMU_PER_INCH,
+  }))
+  .filter(
+    (rect) =>
+      Math.abs(rect.w - markerDiameter) < 0.01 && Math.abs(rect.h - markerDiameter) < 0.01,
+  )
+  .map((rect) => rect.x + rect.w / 2)
+  .sort((left, right) => left - right);
+assert.equal(renderedMarkerCenters.length, 4, "realistic TIMELINE_01 must render four diamond markers");
+for (const [index, centerX] of renderedMarkerCenters.entries()) {
+  const segment = timelineGeometry.phases[index]?.segment;
+  assert.ok(segment, `phase ${index} must have a timeline segment`);
+  assert.ok(
+    Math.abs(centerX - (segment.x + segment.w)) < 0.02,
+    `rendered milestone ${index} must sit on the phase end tick`,
+  );
+}
 
 for (const fixture of [minimalFixture, realisticFixture]) {
   const original = structuredClone(fixture);
