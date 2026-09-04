@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
+import copy
 import json
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-from llm.live_slide_repair import repair_live_slide_spec, wrap_live_structured_generator
+from llm.live_slide_repair import (
+    MAX_LIVE_GENERATION_ATTEMPTS,
+    LiveSlideRepairError,
+    repair_live_slide_spec,
+    wrap_live_structured_generator,
+)
 from services.slides.content_generation.group_a.common import StructuredGenerationRequest
 from services.validation.source_chapter_enforcement import validate_field_provenance
 
@@ -49,6 +55,25 @@ def _cover(*, provenance: list[dict[str, Any]] | None = None, **extra: Any) -> d
     }
     spec.update(extra)
     return spec
+
+
+def _cover_with_badge_count(count: int) -> dict[str, Any]:
+    badges = [
+        {"value": "80%", "label": "Grounded automation rate"}
+        for _ in range(count)
+    ]
+    provenance = [
+        {"path": "title", "sourceChapterIds": ["1"]},
+        {"path": "subtitle", "sourceChapterIds": ["1"]},
+    ]
+    for index in range(count):
+        provenance.extend(
+            [
+                {"path": f"statBadges[{index}].value", "sourceChapterIds": ["1"]},
+                {"path": f"statBadges[{index}].label", "sourceChapterIds": ["1"]},
+            ]
+        )
+    return _cover(statBadges=badges, provenance=provenance)
 
 
 def test_single_chapter_layout_fills_missing_section_label_provenance() -> None:
@@ -513,3 +538,67 @@ def test_wrapper_retries_then_returns_repaired_cover() -> None:
     assert result["sectionLabel"] == "AUTOMATION"
     assert any(entry["path"] == "sectionLabel" for entry in result["fieldProvenance"])
     assert len(calls) == 1
+
+
+def test_wrapper_regenerates_cover_after_at7_max_items_rejection() -> None:
+    responses = [_cover_with_badge_count(5), _cover_with_badge_count(3)]
+    requests: list[StructuredGenerationRequest] = []
+
+    def regenerate(request: StructuredGenerationRequest) -> dict[str, Any]:
+        requests.append(request)
+        return copy.deepcopy(responses[len(requests) - 1])
+
+    result = wrap_live_structured_generator(regenerate)(_request(chapters=("1",)))
+
+    assert len(requests) == 2
+    assert "COVER_01.statBadges violates max_items" in requests[1].instructions
+    assert "item count 5 exceeds maximum 3" in requests[1].instructions
+    assert len(result["statBadges"]) == 3
+    assert result["statBadges"] == responses[1]["statBadges"]
+    validate_field_provenance(
+        result,
+        real_chapter_ids=["1"],
+        allowed_chapter_ids=["1"],
+    )
+
+
+def test_wrapper_leaves_max_length_repair_to_at8_without_regeneration() -> None:
+    overlong = _cover(title="T" * 61)
+    calls: list[StructuredGenerationRequest] = []
+
+    def generate(request: StructuredGenerationRequest) -> dict[str, Any]:
+        calls.append(request)
+        return overlong
+
+    result = wrap_live_structured_generator(generate)(_request(chapters=("1",)))
+
+    assert len(calls) == 1
+    assert result["title"] == overlong["title"]
+
+
+def test_wrapper_fails_explicitly_when_at7_max_items_retries_are_exhausted() -> None:
+    oversized = _cover_with_badge_count(5)
+    original = copy.deepcopy(oversized)
+    requests: list[StructuredGenerationRequest] = []
+
+    def always_oversized(request: StructuredGenerationRequest) -> dict[str, Any]:
+        requests.append(request)
+        return oversized
+
+    with pytest.raises(
+        LiveSlideRepairError,
+        match=(
+            rf"failed canonical AT-7 constraint validation after "
+            rf"{MAX_LIVE_GENERATION_ATTEMPTS} attempts"
+        ),
+    ) as exc_info:
+        wrap_live_structured_generator(always_oversized)(_request(chapters=("1",)))
+
+    assert len(requests) == MAX_LIVE_GENERATION_ATTEMPTS
+    assert "COVER_01.statBadges violates max_items" in str(exc_info.value)
+    assert "item count 5 exceeds maximum 3" in str(exc_info.value)
+    assert all(
+        "item count 5 exceeds maximum 3" in request.instructions
+        for request in requests[1:]
+    )
+    assert oversized == original
