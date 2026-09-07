@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import uuid
 from typing import Any
 
@@ -55,6 +56,10 @@ def test_fixture_mode_cites_dummy_invoice_company_facts() -> None:
     assert pricing["payload"]["amount"] == "1250.00"
     assert pricing["sources"][0]["corpus_version"] == "2026.09.03"
     assert pricing["sources"][0]["fact_id"] == "price.invoice-3way.senior-consultant.day-rate"
+    chapter_text = json.dumps(framework["chapters"])
+    assert "1250.00" in chapter_text
+    assert "corpus 2026.09.03" in chapter_text
+    assert "price.invoice-3way.senior-consultant.day-rate" in chapter_text
 
 
 def test_fixture_mode_unknown_company_facts_are_open_questions() -> None:

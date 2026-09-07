@@ -9,6 +9,14 @@ from services.borek_rag import RetrievalQuery, RetrievalResult, retrieve
 from services.borek_rag.models import Corpus, SourceCitation
 
 FACT_KINDS = ("service", "pricing", "staffing", "reference")
+COMPANY_FACT_ORIGIN = "company_corpus"
+COMPANY_FACT_CAPTION = "Borek company facts (retrieved)"
+_CHAPTER_FOR_KIND = {
+    "service": "4",
+    "reference": "4",
+    "pricing": "9",
+    "staffing": "10",
+}
 RetrieveFn = Callable[..., RetrievalResult]
 
 _KIND_QUESTIONS = {
@@ -127,6 +135,27 @@ def attach_company_facts_meta(
     return framework
 
 
+def apply_company_facts_to_chapters(
+    framework: dict[str, Any],
+    grounding: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Write answered retrieve facts into chapters 4/9/10 with corpus citations."""
+    blocks = _chapter_blocks(grounding)
+    for chapter in framework.get("chapters") or []:
+        if not isinstance(chapter, dict):
+            continue
+        body = [
+            block
+            for block in (chapter.get("body") or [])
+            if not (isinstance(block, dict) and block.get("origin") == COMPANY_FACT_ORIGIN)
+        ]
+        extra = blocks.get(str(chapter.get("chapter_id")))
+        if extra is not None:
+            body.append(copy.deepcopy(extra))
+        chapter["body"] = body
+    return framework
+
+
 def apply_company_facts_to_framework(
     framework: dict[str, Any],
     grounding: dict[str, Any] | None,
@@ -137,7 +166,81 @@ def apply_company_facts_to_framework(
     open_items = list(framework.get("open_items") or [])
     open_items.extend(unknown_open_items(grounding))
     framework["open_items"] = _unique_open_items(open_items)
+    apply_company_facts_to_chapters(framework, grounding)
     return framework
+
+
+def _chapter_blocks(grounding: dict[str, Any] | None) -> dict[str, dict[str, Any]]:
+    rows_by_chapter: dict[str, list[dict[str, str]]] = {}
+    for lookup in (grounding or {}).get("answered") or []:
+        if lookup.get("status") != "answered":
+            continue
+        chapter_id = _CHAPTER_FOR_KIND.get(str(lookup.get("kind") or ""))
+        row = _row_for_lookup(lookup)
+        if not chapter_id or row is None:
+            continue
+        rows_by_chapter.setdefault(chapter_id, []).append(row)
+    return {
+        chapter_id: {
+            "block": "kv_rows",
+            "caption": COMPANY_FACT_CAPTION,
+            "origin": COMPANY_FACT_ORIGIN,
+            "rows": rows,
+        }
+        for chapter_id, rows in rows_by_chapter.items()
+        if rows
+    }
+
+
+def _row_for_lookup(lookup: dict[str, Any]) -> dict[str, str] | None:
+    kind = str(lookup.get("kind") or "")
+    cite = _citation_text(lookup.get("sources") or [])
+    if not cite:
+        return None
+    payload = lookup.get("payload") or {}
+    statement = str(lookup.get("statement") or "").strip()
+    if kind == "pricing":
+        amount = payload.get("amount")
+        currency = payload.get("currency")
+        unit = payload.get("unit")
+        if amount is None or not currency or not unit:
+            return None
+        value = f"{currency} {amount} / {unit}"
+        if payload.get("indicative") is True:
+            value += " (indicative)"
+        return {"label": "Borek rate card", "value": f"{value}. {cite}"}
+    if kind == "staffing":
+        headcount = payload.get("headcount")
+        fte = payload.get("total_fte")
+        if headcount is None:
+            return None
+        value = f"{headcount} people"
+        if fte is not None and str(fte).strip():
+            value += f" / {fte} FTE"
+        return {"label": "Borek staffing", "value": f"{value}. {cite}"}
+    if kind == "service":
+        text = statement or str(payload.get("name") or "").strip()
+        if not text:
+            return None
+        return {"label": "Borek service", "value": f"{text} {cite}"}
+    if kind == "reference":
+        text = statement or str(payload.get("pattern") or "").strip()
+        if not text:
+            return None
+        return {"label": "Borek reference", "value": f"{text} {cite}"}
+    return None
+
+
+def _citation_text(sources: list[Any]) -> str:
+    if not sources or not isinstance(sources[0], dict):
+        return ""
+    source = sources[0]
+    corpus_version = str(source.get("corpus_version") or "").strip()
+    document_id = str(source.get("document_id") or "").strip()
+    fact_id = str(source.get("fact_id") or "").strip()
+    if not (corpus_version and document_id and fact_id):
+        return ""
+    return f"(corpus {corpus_version}, {document_id}, {fact_id})"
 
 
 def unknown_open_items(grounding: dict[str, Any] | None) -> list[dict[str, str]]:

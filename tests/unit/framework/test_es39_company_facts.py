@@ -95,6 +95,23 @@ def test_generate_framework_cites_answered_company_facts() -> None:
     assert pricing["sources"][0]["corpus_version"] == "2026.09.03"
     assert pricing["sources"][0]["fact_id"] == "price.invoice-3way.senior-consultant.day-rate"
     assert not any("Do not invent a number" in item["description"] for item in framework["open_items"])
+    chapter_text = json.dumps(framework["chapters"])
+    assert "1250.00" in chapter_text
+    assert "corpus 2026.09.03" in chapter_text
+    assert "RC-DUMMY-2026-Q3" in chapter_text
+    assert "price.invoice-3way.senior-consultant.day-rate" in chapter_text
+    assert "staff.invoice-3way.core-team" in chapter_text
+    assert "service.invoice-3way.definition" in chapter_text
+    assert "reference.invoice-3way.delivery-pattern" in chapter_text
+    ch9 = json.dumps(next(ch for ch in framework["chapters"] if str(ch["chapter_id"]) == "9"))
+    ch10 = json.dumps(next(ch for ch in framework["chapters"] if str(ch["chapter_id"]) == "10"))
+    ch4 = json.dumps(next(ch for ch in framework["chapters"] if str(ch["chapter_id"]) == "4"))
+    assert "1250.00" in ch9
+    assert "4 people" in ch10
+    assert "Invoice 3-way Match" in ch4
+    view = json.dumps(framework.get("customer_view") or {})
+    assert "1250.00" in view
+    assert "corpus 2026.09.03" in view
 
 
 def test_generate_framework_unknown_company_facts_add_open_items() -> None:
@@ -117,6 +134,9 @@ def test_generate_framework_unknown_company_facts_add_open_items() -> None:
     dumped = json.dumps(framework["generation_meta"]["company_facts"])
     assert "1250" not in dumped
     assert '"headcount": 4' not in dumped
+    chapter_text = json.dumps(framework["chapters"])
+    assert "1250" not in chapter_text
+    assert "Borek rate card" not in chapter_text
 
 
 def test_synthesis_prompt_includes_company_facts_and_forbids_invention() -> None:

@@ -312,6 +312,8 @@ def _block_requires_traceability(block: dict[str, Any]) -> bool:
     """
     if str(block.get("block") or "") not in _FACTUAL_BLOCKS or not _block_has_text(block):
         return False
+    if str(block.get("origin") or "") == "company_corpus":
+        return False
     text = _block_text(block).lower()
     # Typed chapter scaffolding and neutral safety wording are framework
     # structure, not claims introduced from a customer conversation.

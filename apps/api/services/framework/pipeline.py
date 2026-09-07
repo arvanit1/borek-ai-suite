@@ -16,6 +16,7 @@ from services.framework.business_case import compute_business_case
 from services.framework.chapter_builder import build_chapters
 from services.framework.client_pack import apply_client_pack_to_skeleton, attach_client_pack_meta, normalize_client_pack
 from services.framework.company_facts import (
+    apply_company_facts_to_chapters,
     apply_company_facts_to_skeleton,
     attach_company_facts_meta,
     ground_company_facts,
@@ -237,6 +238,7 @@ def generate_customer_framework(
     }
     attach_client_pack_meta(framework, client_pack or skeleton.get("client_pack"))
     attach_company_facts_meta(framework, grounded_facts)
+    apply_company_facts_to_chapters(framework, grounded_facts)
 
     schema = json.loads((repo_root() / "packages" / "contracts" / "framework_object.schema.json").read_text(encoding="utf-8"))
     jsonschema.validate(instance=framework, schema=schema)

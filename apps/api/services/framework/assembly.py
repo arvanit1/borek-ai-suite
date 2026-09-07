@@ -194,6 +194,12 @@ def allowed_customer_numbers(framework: dict[str, Any]) -> set[str]:
     entry_count = len(framework.get("source_entries") or [])
     if entry_count:
         _register_numeric_variants(allowed, entry_count)
+    company_facts = (framework.get("generation_meta") or {}).get("company_facts") or {}
+    for lookup in company_facts.get("answered") or company_facts.get("lookups") or []:
+        if str(lookup.get("status") or "") != "answered":
+            continue
+        _register_numeric_tree(allowed, lookup.get("payload"))
+        _register_numeric_tree(allowed, lookup.get("statement"))
     return {token for token in allowed if token}
 
 

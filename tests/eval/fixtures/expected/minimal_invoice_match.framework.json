@@ -562,6 +562,28 @@
               "excerpt_pointer": "turn:3"
             }
           ]
+        },
+        {
+          "block": "kv_rows",
+          "caption": "Borek company facts (retrieved)",
+          "origin": "company_corpus",
+          "rows": [
+            {
+              "label": "Borek service",
+              "value": "Invoice 3-way Match matches supplier invoices to purchase orders and goods receipts before payment release. (corpus 2026.09.03, SVC-DUMMY-INV3WAY-v1, service.invoice-3way.definition)"
+            },
+            {
+              "label": "Borek reference",
+              "value": "Invoice 3-way Match is typically delivered as a structured finance-operations engagement with a named delivery lead. (corpus 2026.09.03, REF-DUMMY-INV3WAY-v1, reference.invoice-3way.delivery-pattern)"
+            }
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Maria",
+              "excerpt_pointer": "turn:1"
+            }
+          ]
         }
       ],
       "source_refs": [
@@ -1072,6 +1094,24 @@
               "excerpt_pointer": "turn:3"
             }
           ]
+        },
+        {
+          "block": "kv_rows",
+          "caption": "Borek company facts (retrieved)",
+          "origin": "company_corpus",
+          "rows": [
+            {
+              "label": "Borek rate card",
+              "value": "EUR 1250.00 / day (indicative). (corpus 2026.09.03, RC-DUMMY-2026-Q3, price.invoice-3way.senior-consultant.day-rate)"
+            }
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Maria",
+              "excerpt_pointer": "turn:1"
+            }
+          ]
         }
       ],
       "source_refs": [
@@ -1165,6 +1205,24 @@
               "conversation_id": "C1",
               "speaker_role": "Maria",
               "excerpt_pointer": "turn:3"
+            }
+          ]
+        },
+        {
+          "block": "kv_rows",
+          "caption": "Borek company facts (retrieved)",
+          "origin": "company_corpus",
+          "rows": [
+            {
+              "label": "Borek staffing",
+              "value": "4 people / 2.6 FTE. (corpus 2026.09.03, STAFF-DUMMY-INV3WAY-v1, staff.invoice-3way.core-team)"
+            }
+          ],
+          "source_refs": [
+            {
+              "conversation_id": "C1",
+              "speaker_role": "Maria",
+              "excerpt_pointer": "turn:1"
             }
           ]
         }
