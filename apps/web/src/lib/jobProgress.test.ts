@@ -79,8 +79,6 @@ function labels(view: ReturnType<typeof buildJobProgressView>): string[] {
     SLIDE_GENERATING: "upcoming",
     SLIDE_VALIDATING: "upcoming",
     PPTX_RENDERING: "upcoming",
-    GAMMA_RENDERING: "upcoming",
-    ARTIFACT_FILING: "upcoming",
     PREVIEW_RENDERING: "upcoming",
   });
   assert.deepEqual(labels(view), [
@@ -88,8 +86,6 @@ function labels(view: ReturnType<typeof buildJobProgressView>): string[] {
     "Generating slide content",
     "Validating slides",
     "Rendering PowerPoint/PDF",
-    "Building branded presentation",
-    "Archiving generated files",
     "Preparing preview",
   ]);
 }
@@ -100,8 +96,6 @@ function labels(view: ReturnType<typeof buildJobProgressView>): string[] {
     ["SLIDE_GENERATING", "Generating slide content"],
     ["SLIDE_VALIDATING", "Validating slides"],
     ["PPTX_RENDERING", "Rendering PowerPoint/PDF"],
-    ["GAMMA_RENDERING", "Building branded presentation"],
-    ["ARTIFACT_FILING", "Archiving generated files"],
     ["PREVIEW_RENDERING", "Preparing preview"],
   ];
   for (const [stage, headline] of expected) {
@@ -123,8 +117,6 @@ function labels(view: ReturnType<typeof buildJobProgressView>): string[] {
     SLIDE_GENERATING: "complete",
     SLIDE_VALIDATING: "current",
     PPTX_RENDERING: "upcoming",
-    GAMMA_RENDERING: "upcoming",
-    ARTIFACT_FILING: "upcoming",
     PREVIEW_RENDERING: "upcoming",
   });
 }
@@ -174,8 +166,6 @@ function labels(view: ReturnType<typeof buildJobProgressView>): string[] {
     SLIDE_GENERATING: "complete",
     SLIDE_VALIDATING: "complete",
     PPTX_RENDERING: "current",
-    GAMMA_RENDERING: "upcoming",
-    ARTIFACT_FILING: "upcoming",
     PREVIEW_RENDERING: "upcoming",
   });
 }
@@ -202,8 +192,6 @@ function labels(view: ReturnType<typeof buildJobProgressView>): string[] {
     SLIDE_GENERATING: "upcoming",
     SLIDE_VALIDATING: "upcoming",
     PPTX_RENDERING: "upcoming",
-    GAMMA_RENDERING: "upcoming",
-    ARTIFACT_FILING: "upcoming",
     PREVIEW_RENDERING: "upcoming",
   });
 
@@ -254,8 +242,6 @@ function labels(view: ReturnType<typeof buildJobProgressView>): string[] {
     SLIDE_GENERATING: "complete",
     SLIDE_VALIDATING: "complete",
     PPTX_RENDERING: "failed",
-    GAMMA_RENDERING: "upcoming",
-    ARTIFACT_FILING: "upcoming",
     PREVIEW_RENDERING: "upcoming",
   });
 }
@@ -287,13 +273,38 @@ function labels(view: ReturnType<typeof buildJobProgressView>): string[] {
     "SLIDE_GENERATING",
     "SLIDE_VALIDATING",
     "PPTX_RENDERING",
-    "GAMMA_RENDERING",
-    "ARTIFACT_FILING",
     "PREVIEW_RENDERING",
   ]);
 }
 
-// 11. Slide counts are only shown when a real planned count exists.
+// 11. Optional extension stages appear only when the backend reports them.
+{
+  const gamma = buildJobProgressView({
+    snapshot: snapshot({ currentStage: "GAMMA_RENDERING" }),
+  });
+  assert.ok(gamma);
+  assert.equal(gamma.headline, "Building branded presentation");
+  assert.equal(states(gamma).GAMMA_RENDERING, "current");
+  assert.equal(states(gamma).ARTIFACT_FILING, undefined);
+
+  const filingFailure = buildJobProgressView({
+    snapshot: snapshot({
+      status: "FAILED",
+      currentStage: "ARTIFACT_FILING",
+      error: {
+        code: "ARTIFACT_FILING_FAILED",
+        message: "Generated files could not be archived.",
+        stage: "ARTIFACT_FILING",
+        retryable: true,
+      },
+    }),
+  });
+  assert.ok(filingFailure);
+  assert.equal(states(filingFailure).ARTIFACT_FILING, "failed");
+  assert.equal(states(filingFailure).GAMMA_RENDERING, undefined);
+}
+
+// 12. Slide counts are only shown when a real planned count exists.
 {
   const withoutPlan = buildJobProgressView({ snapshot: snapshot() });
   assert.ok(withoutPlan);
@@ -306,7 +317,7 @@ function labels(view: ReturnType<typeof buildJobProgressView>): string[] {
   assert.equal(zero?.detail, null);
 }
 
-// 12. Elapsed time comes from real timestamps and never predicts a finish time.
+// 13. Elapsed time comes from real timestamps and never predicts a finish time.
 {
   const started = Date.parse(STARTED_AT);
   assert.equal(

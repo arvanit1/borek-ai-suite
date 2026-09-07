@@ -227,9 +227,11 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       recovered.action?.kind === "RECONNECT" || recovered.action?.kind === "KEEP_CHECKING"
         ? recovered.action
         : null;
+    const validationAction =
+      recovered.category === "VALIDATION_NEEDS_REVIEW" ? recovered.action : null;
     setNotice({
       ...recovered,
-      action: reconnectAction ??
+      action: reconnectAction ?? validationAction ??
         (pipelineError.phase === "generation"
           ? {
               kind: "REVIEW",

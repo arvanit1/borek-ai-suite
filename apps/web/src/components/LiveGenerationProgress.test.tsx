@@ -39,15 +39,15 @@ function render(
   assert.match(html, /data-step="SLIDE_GENERATING" data-state="complete"/);
   assert.match(html, /data-step="SLIDE_VALIDATING" data-state="current"/);
   assert.match(html, /data-step="PPTX_RENDERING" data-state="upcoming"/);
-  assert.match(html, /data-step="GAMMA_RENDERING" data-state="upcoming"/);
-  assert.match(html, /data-step="ARTIFACT_FILING" data-state="upcoming"/);
+  assert.doesNotMatch(html, /data-step="GAMMA_RENDERING"/);
+  assert.doesNotMatch(html, /data-step="ARTIFACT_FILING"/);
   assert.match(html, /aria-current="step"/);
   assert.match(html, /Preparing presentation structure/);
   assert.match(html, /Generating slide content/);
   assert.match(html, /Validating slides/);
   assert.match(html, /Rendering PowerPoint\/PDF/);
-  assert.match(html, /Building branded presentation/);
-  assert.match(html, /Archiving generated files/);
+  assert.doesNotMatch(html, /Building branded presentation/);
+  assert.doesNotMatch(html, /Archiving generated files/);
   assert.match(html, /Preparing preview/);
   assert.match(html, /12 slides planned/);
 
@@ -57,6 +57,14 @@ function render(
   assert.doesNotMatch(html, /remaining|minutes left|\bETA\b/i);
   assert.doesNotMatch(html, />[^<]*SLIDE_VALIDATING[^<]*</);
   assert.doesNotMatch(html, /progressbar/);
+}
+
+// Optional extension stages appear when the backend actually enters them.
+{
+  const html = render({ snapshot: snapshot({ currentStage: "GAMMA_RENDERING" }) });
+  assert.match(html, /data-step="GAMMA_RENDERING" data-state="current"/);
+  assert.match(html, /Building branded presentation/);
+  assert.doesNotMatch(html, /data-step="ARTIFACT_FILING"/);
 }
 
 // Framework generation uses Framework stages only.

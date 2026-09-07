@@ -68,6 +68,24 @@ assert.equal(ready.actionLabel, "Open");
 assert.equal(ready.actionHref, "/deck-center?opportunityId=ready");
 assert.equal(ready.downloadPath, "/presentations/presentation-ready/download/pptx");
 
+const filingFailedAfterRender = buildRecentWorkItems([
+  snapshot("filing-failed", "2026-09-01T10:30:00Z", {
+    presentationId: "presentation-filing-failed",
+    deck: { pptx_download_url: "/presentations/presentation-filing-failed/download/pptx" },
+    job: {
+      job_type: "presentation_generation",
+      status: "FAILED",
+      current_stage: "ARTIFACT_FILING",
+    },
+  }),
+])[0]!;
+assert.equal(filingFailedAfterRender.statusLabel, "Needs attention");
+assert.equal(filingFailedAfterRender.actionHref, "/deck-center?opportunityId=filing-failed");
+assert.equal(
+  filingFailedAfterRender.downloadPath,
+  "/presentations/presentation-filing-failed/download/pptx",
+);
+
 const running = buildRecentWorkItems([
   snapshot("running", "2026-09-01T11:00:00Z", {
     hasPlan: true,

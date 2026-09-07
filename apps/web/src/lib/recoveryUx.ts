@@ -133,6 +133,9 @@ function reviewAction(context: RecoveryContext): RecoveryAction {
   if (context === "deck") {
     return { kind: "REVIEW", label: "Review presentation plan", target: "plan" };
   }
+  if (context === "plan") {
+    return { kind: "REVIEW", label: "Generate plan again", target: "plan" };
+  }
   return { kind: "REVIEW", label: "Review framework", target: "framework" };
 }
 

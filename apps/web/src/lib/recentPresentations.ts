@@ -189,7 +189,8 @@ export function buildRecentWorkItems(
             : "Resume",
         actionHref: actionHrefFor(snapshot, lifecycle),
         presentationName: snapshot.presentationName,
-        downloadPath: lifecycle === "ready" ? snapshot.deck?.pptx_download_url : undefined,
+        // Filing may fail after rendering; keep an already-created deck accessible.
+        downloadPath: snapshot.deck?.pptx_download_url,
       } satisfies RecentWorkItem;
     })
     .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt));
