@@ -139,6 +139,30 @@
       "item_type": "assumption",
       "owner": "Business",
       "consequence_if_different": "Missing data is never guessed. Confirm before build, or keep as an assumption."
+    },
+    {
+      "description": "Borek service is not uniquely supported by the company corpus (no_supported_fact). Do not invent a number; confirm with Commercial.",
+      "item_type": "assumption",
+      "owner": "Commercial",
+      "consequence_if_different": "Company prices and headcount come only from retrieval. A guessed EUR or FTE figure is not allowed."
+    },
+    {
+      "description": "Borek pricing is not uniquely supported by the company corpus (no_supported_fact). Do not invent a number; confirm with Commercial.",
+      "item_type": "assumption",
+      "owner": "Commercial",
+      "consequence_if_different": "Company prices and headcount come only from retrieval. A guessed EUR or FTE figure is not allowed."
+    },
+    {
+      "description": "Borek staffing is not uniquely supported by the company corpus (no_supported_fact). Do not invent a number; confirm with Commercial.",
+      "item_type": "assumption",
+      "owner": "Commercial",
+      "consequence_if_different": "Company prices and headcount come only from retrieval. A guessed EUR or FTE figure is not allowed."
+    },
+    {
+      "description": "Borek reference is not uniquely supported by the company corpus (no_supported_fact). Do not invent a number; confirm with Commercial.",
+      "item_type": "assumption",
+      "owner": "Commercial",
+      "consequence_if_different": "Company prices and headcount come only from retrieval. A guessed EUR or FTE figure is not allowed."
     }
   ],
   "chapters": [
@@ -1260,6 +1284,30 @@
               "assumption",
               "Business",
               "Missing data is never guessed. Confirm before build, or keep as an assumption."
+            ],
+            [
+              "Borek service is not uniquely supported by the company corpus (no_supported_fact). Do not invent a number; confirm with Commercial.",
+              "assumption",
+              "Commercial",
+              "Company prices and headcount come only from retrieval. A guessed EUR or FTE figure is not allowed."
+            ],
+            [
+              "Borek pricing is not uniquely supported by the company corpus (no_supported_fact). Do not invent a number; confirm with Commercial.",
+              "assumption",
+              "Commercial",
+              "Company prices and headcount come only from retrieval. A guessed EUR or FTE figure is not allowed."
+            ],
+            [
+              "Borek staffing is not uniquely supported by the company corpus (no_supported_fact). Do not invent a number; confirm with Commercial.",
+              "assumption",
+              "Commercial",
+              "Company prices and headcount come only from retrieval. A guessed EUR or FTE figure is not allowed."
+            ],
+            [
+              "Borek reference is not uniquely supported by the company corpus (no_supported_fact). Do not invent a number; confirm with Commercial.",
+              "assumption",
+              "Commercial",
+              "Company prices and headcount come only from retrieval. A guessed EUR or FTE figure is not allowed."
             ]
           ],
           "source_refs": [
@@ -1889,6 +1937,140 @@
     "generated_at": "2026-08-26T10:00:00Z",
     "llm_job_log": [],
     "process_scope": null,
+    "client_pack": {
+      "applied": false,
+      "source": "additional_client_information",
+      "fields": [
+        "location_requirements",
+        "constraints",
+        "contacts",
+        "priorities",
+        "notes"
+      ],
+      "payload": null
+    },
+    "company_facts": {
+      "applied": false,
+      "source": "borek_rag.retrieve",
+      "subject": "Warehouse Delivery-Note Match Unspecified",
+      "lookups": [
+        {
+          "kind": "service",
+          "status": "unknown",
+          "reason": "no_supported_fact",
+          "statement": null,
+          "payload": null,
+          "sources": [],
+          "query": {
+            "text": "What is the Borek service definition for Warehouse Delivery-Note Match Unspecified?",
+            "kind": "service",
+            "query_key": null,
+            "service_key": null
+          }
+        },
+        {
+          "kind": "pricing",
+          "status": "unknown",
+          "reason": "no_supported_fact",
+          "statement": null,
+          "payload": null,
+          "sources": [],
+          "query": {
+            "text": "What is the senior consultant day rate for Warehouse Delivery-Note Match Unspecified?",
+            "kind": "pricing",
+            "query_key": null,
+            "service_key": null
+          }
+        },
+        {
+          "kind": "staffing",
+          "status": "unknown",
+          "reason": "no_supported_fact",
+          "statement": null,
+          "payload": null,
+          "sources": [],
+          "query": {
+            "text": "What staffing and FTE do we have for Warehouse Delivery-Note Match Unspecified?",
+            "kind": "staffing",
+            "query_key": null,
+            "service_key": null
+          }
+        },
+        {
+          "kind": "reference",
+          "status": "unknown",
+          "reason": "no_supported_fact",
+          "statement": null,
+          "payload": null,
+          "sources": [],
+          "query": {
+            "text": "What reference delivery pattern do we use for Warehouse Delivery-Note Match Unspecified?",
+            "kind": "reference",
+            "query_key": null,
+            "service_key": null
+          }
+        }
+      ],
+      "answered": [],
+      "unknown": [
+        {
+          "kind": "service",
+          "status": "unknown",
+          "reason": "no_supported_fact",
+          "statement": null,
+          "payload": null,
+          "sources": [],
+          "query": {
+            "text": "What is the Borek service definition for Warehouse Delivery-Note Match Unspecified?",
+            "kind": "service",
+            "query_key": null,
+            "service_key": null
+          }
+        },
+        {
+          "kind": "pricing",
+          "status": "unknown",
+          "reason": "no_supported_fact",
+          "statement": null,
+          "payload": null,
+          "sources": [],
+          "query": {
+            "text": "What is the senior consultant day rate for Warehouse Delivery-Note Match Unspecified?",
+            "kind": "pricing",
+            "query_key": null,
+            "service_key": null
+          }
+        },
+        {
+          "kind": "staffing",
+          "status": "unknown",
+          "reason": "no_supported_fact",
+          "statement": null,
+          "payload": null,
+          "sources": [],
+          "query": {
+            "text": "What staffing and FTE do we have for Warehouse Delivery-Note Match Unspecified?",
+            "kind": "staffing",
+            "query_key": null,
+            "service_key": null
+          }
+        },
+        {
+          "kind": "reference",
+          "status": "unknown",
+          "reason": "no_supported_fact",
+          "statement": null,
+          "payload": null,
+          "sources": [],
+          "query": {
+            "text": "What reference delivery pattern do we use for Warehouse Delivery-Note Match Unspecified?",
+            "kind": "reference",
+            "query_key": null,
+            "service_key": null
+          }
+        }
+      ]
+    },
     "pii_handling": {
       "redaction_enabled": true,
       "applied_before_llm": true,
@@ -1954,6 +2136,34 @@
         "owner": "Business",
         "status": null,
         "chapter_id": null
+      },
+      {
+        "item_type": "assumption",
+        "description": "Borek service is not uniquely supported by the company corpus (no_supported_fact). Do not invent a number; confirm with Commercial.",
+        "owner": "Commercial",
+        "status": null,
+        "chapter_id": null
+      },
+      {
+        "item_type": "assumption",
+        "description": "Borek pricing is not uniquely supported by the company corpus (no_supported_fact). Do not invent a number; confirm with Commercial.",
+        "owner": "Commercial",
+        "status": null,
+        "chapter_id": null
+      },
+      {
+        "item_type": "assumption",
+        "description": "Borek staffing is not uniquely supported by the company corpus (no_supported_fact). Do not invent a number; confirm with Commercial.",
+        "owner": "Commercial",
+        "status": null,
+        "chapter_id": null
+      },
+      {
+        "item_type": "assumption",
+        "description": "Borek reference is not uniquely supported by the company corpus (no_supported_fact). Do not invent a number; confirm with Commercial.",
+        "owner": "Commercial",
+        "status": null,
+        "chapter_id": null
       }
     ],
     "open_questions": [],
@@ -2004,7 +2214,7 @@
         "message": "Build-readiness is 54/100 with documented assumptions.",
         "action": "Review assumptions in chapter 11 before approval.",
         "chapter_id": "11",
-        "count": 2
+        "count": 6
       }
     ]
   },
@@ -2022,7 +2232,7 @@
       "message": "Build-readiness is 54/100 with documented assumptions.",
       "action": "Review assumptions in chapter 11 before approval.",
       "chapter_id": "11",
-      "count": 2
+      "count": 6
     }
   ]
 }

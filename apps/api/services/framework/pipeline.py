@@ -15,6 +15,12 @@ from services.framework.assembly import assemble_from_knowledge
 from services.framework.business_case import compute_business_case
 from services.framework.chapter_builder import build_chapters
 from services.framework.client_pack import apply_client_pack_to_skeleton, attach_client_pack_meta, normalize_client_pack
+from services.framework.company_facts import (
+    apply_company_facts_to_skeleton,
+    attach_company_facts_meta,
+    ground_company_facts,
+    query_text_from_parts,
+)
 from services.framework.chapter_validators import validate_all_chapters
 from services.framework.chapter_validators.ch06_how_built import scrub_framework_chapter_6
 from services.framework.config_loader import repo_root
@@ -58,6 +64,9 @@ def generate_customer_framework(
     process_complete: ProcessComplete | None = None,
     engine_overrides: dict[str, Any] | None = None,
     client_pack: dict[str, Any] | None = None,
+    company_facts: dict[str, Any] | None = None,
+    corpus: Any | None = None,
+    retrieve_fn: Callable[..., Any] | None = None,
 ) -> dict[str, Any]:
     # Live generation must not reject a single process merely because two
     # domain keywords occur in one conversation. ES-29 is decided by Claude's
@@ -74,6 +83,17 @@ def generate_customer_framework(
         knowledge_models, opportunity_id=opportunity_id, title_hint=title_hint
     )
     skeleton = apply_client_pack_to_skeleton(skeleton, client_pack)
+    fact_subject = (
+        query_text_from_parts(title_hint, skeleton.get("department"))
+        if title_hint
+        else query_text_from_parts(skeleton.get("title"), skeleton.get("department"))
+    )
+    grounded_facts = company_facts or ground_company_facts(
+        fact_subject,
+        retrieve_fn=retrieve_fn,
+        corpus=corpus,
+    )
+    skeleton = apply_company_facts_to_skeleton(skeleton, grounded_facts)
     engines = run_engines(skeleton, overrides=engine_overrides or {})
     if engines["business_case"].get("payback_months") is None:
         skeleton["open_items"] = _merge_open_items(
@@ -133,6 +153,7 @@ def generate_customer_framework(
             complete=complete,
             opportunity_id=opportunity_id,
             client_pack=normalize_client_pack(client_pack) or skeleton.get("client_pack"),
+            company_facts=grounded_facts,
         )
         chapters = apply_draft_to_chapters(chapters, draft)
         cover.update(draft.get("cover") or {})
@@ -215,6 +236,7 @@ def generate_customer_framework(
         },
     }
     attach_client_pack_meta(framework, client_pack or skeleton.get("client_pack"))
+    attach_company_facts_meta(framework, grounded_facts)
 
     schema = json.loads((repo_root() / "packages" / "contracts" / "framework_object.schema.json").read_text(encoding="utf-8"))
     jsonschema.validate(instance=framework, schema=schema)

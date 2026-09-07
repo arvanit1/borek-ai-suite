@@ -17,9 +17,15 @@ from app.services.api_errors import bad_request
 from app.services.framework_stub_template import load_framework_stub_template
 from services.framework.pipeline import generate_customer_framework
 from services.framework.review_insights import attach_review_insights, opportunity_pii_redaction_enabled
+from app.services.knowledge_access import resolve_active_corpus
 from services.framework.client_pack import (
     apply_client_pack_to_framework,
     normalize_client_pack,
+)
+from services.framework.company_facts import (
+    apply_company_facts_to_framework,
+    ground_company_facts,
+    query_text_from_opportunity,
 )
 from services.knowledge_model.extraction import extract_knowledge_model
 from services.transcript.conversation_ids import TranscriptIdentity
@@ -50,11 +56,16 @@ def generate_framework_from_transcripts(
     )
     opportunity = store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
     client_pack = normalize_client_pack(opportunity.get("additional_client_information"))
+    company_facts = ground_company_facts(
+        query_text_from_opportunity(opportunity),
+        corpus=_corpus_for_store(store),
+    )
     if mode != "live":
         payload = load_framework_stub_template(opportunity_id)
         if sources:
             payload["generated_from"] = [str(source["id"]) for source in sources]
         apply_client_pack_to_framework(payload, client_pack)
+        apply_company_facts_to_framework(payload, company_facts)
         return attach_review_insights(
             payload,
             pii_redaction_enabled=opportunity_pii_redaction_enabled(opportunity),
@@ -103,6 +114,7 @@ def generate_framework_from_transcripts(
             lang=str(opportunity.get("language") or "en"),
             use_llm=True,
             client_pack=client_pack,
+            company_facts=company_facts,
         )
     except Exception as exc:
         user_message = getattr(exc, "user_message", str(exc))
@@ -113,7 +125,15 @@ def generate_framework_from_transcripts(
     payload["status"] = "draft"
     payload["generated_from"] = [str(source["id"]) for source in sources]
     apply_client_pack_to_framework(payload, client_pack)
+    apply_company_facts_to_framework(payload, company_facts)
     return attach_review_insights(payload, pii_redaction_enabled=redact)
+
+
+def _corpus_for_store(store: Any):
+    lister = getattr(store, "list_approved_knowledge_facts", None)
+    if not callable(lister):
+        return None
+    return resolve_active_corpus(store)
 
 
 def _call_with_optional_kwargs(fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
