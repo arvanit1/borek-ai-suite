@@ -260,6 +260,18 @@ function stepsFor(
   }));
 }
 
+const OPTIONAL_EXTENSION_STAGES = new Set(["GAMMA_RENDERING", "ARTIFACT_FILING"]);
+
+function visibleStages(
+  stages: readonly string[],
+  snapshot: JobProgressSnapshot,
+): readonly string[] {
+  const observed = new Set([snapshot.currentStage, snapshot.error?.stage].filter(Boolean));
+  // The job API does not expose runtime feature flags. Do not promise optional
+  // extension stages unless the backend reports that one is actually running.
+  return stages.filter((stage) => !OPTIONAL_EXTENSION_STAGES.has(stage) || observed.has(stage));
+}
+
 export function buildJobProgressView(input: JobProgressInput): JobProgressView | null {
   const snapshot = input.snapshot;
   if (!snapshot) {
@@ -270,7 +282,7 @@ export function buildJobProgressView(input: JobProgressInput): JobProgressView |
     return null;
   }
 
-  const stages = profile.stages;
+  const stages = visibleStages(profile.stages, snapshot);
   const states: JobProgressStepState[] = stages.map(() => "upcoming");
   const startIndex = Math.max(0, stageIndex(stages, profile.startStage));
   // A generation job can only exist once planning persisted its plan.

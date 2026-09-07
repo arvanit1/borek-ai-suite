@@ -45,6 +45,23 @@ assert.notEqual(validation.action?.kind, "RETRY");
 assert.doesNotMatch(validation.message, /raw validator/i);
 assert.equal(validation.technical?.message, "Raw validator output");
 
+const duplicatePlan = recoveryNoticeFromError(
+  new ApiRequestError(
+    "The presentation plan contains duplicate layouts.",
+    422,
+    "PRESENTATION_PLAN_DUPLICATE_LAYOUTS",
+    { retryable: false, jobId: "job-plan", stage: "PRESENTATION_PLANNING" },
+  ),
+  "plan",
+);
+assert.equal(duplicatePlan.category, "VALIDATION_NEEDS_REVIEW");
+assert.equal(duplicatePlan.action?.label, "Generate plan again");
+assert.equal(duplicatePlan.action?.target, "plan");
+assert.equal(
+  recoveryActionHref(duplicatePlan, "opportunity-1"),
+  "/plan-preview?opportunityId=opportunity-1",
+);
+
 const liveCoverValidation = recoveryNoticeFromError(
   new ApiRequestError(
     "COVER_01 generation failed validation: Slide (COVER_01) Field statBadges item count 4 exceeds maximum 3",
