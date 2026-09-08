@@ -256,6 +256,33 @@ export interface OpportunityCreatePayload {
   department: string;
   language: string;
   pii_redaction_enabled?: boolean;
+  additional_client_information?: AdditionalClientInformation;
+}
+
+export interface ClientContact {
+  name: string;
+  role?: string | null;
+  email?: string | null;
+  phone?: string | null;
+}
+
+export interface AdditionalClientInformation {
+  location_requirements: string[];
+  constraints: string[];
+  contacts: ClientContact[];
+  priorities: string[];
+  notes?: string | null;
+}
+
+export interface ClientLogoMetadata {
+  id: string;
+  opportunity_id: string;
+  file_name: string;
+  mime_type: string;
+  size_bytes: number;
+  width_px: number | null;
+  height_px: number | null;
+  uploaded_at: string;
 }
 
 export interface OpportunityResponse {
@@ -266,6 +293,7 @@ export interface OpportunityResponse {
   language: string;
   status: string;
   pii_redaction_enabled?: boolean;
+  additional_client_information?: AdditionalClientInformation | null;
 }
 
 export interface ListedOpportunityResponse extends OpportunityResponse {
@@ -302,6 +330,49 @@ export async function getOpportunity(
   opportunityId: string,
 ): Promise<OpportunityResponse> {
   return apiFetch<OpportunityResponse>(`/opportunities/${opportunityId}`, accessToken);
+}
+
+export async function uploadClientLogo(
+  accessToken: string,
+  opportunityId: string,
+  file: File,
+): Promise<ClientLogoMetadata> {
+  const formData = new FormData();
+  formData.append("file", file, file.name);
+  return apiFetch<ClientLogoMetadata>(
+    `/opportunities/${opportunityId}/client-logo`,
+    accessToken,
+    { method: "PUT", body: formData },
+  );
+}
+
+export async function getClientLogoMetadata(
+  accessToken: string,
+  opportunityId: string,
+): Promise<ClientLogoMetadata> {
+  return apiFetch<ClientLogoMetadata>(
+    `/opportunities/${opportunityId}/client-logo`,
+    accessToken,
+  );
+}
+
+export async function fetchClientLogoContent(
+  accessToken: string,
+  opportunityId: string,
+): Promise<Blob> {
+  return apiFetchBlob(
+    `/opportunities/${opportunityId}/client-logo/content`,
+    accessToken,
+  );
+}
+
+export async function deleteClientLogo(
+  accessToken: string,
+  opportunityId: string,
+): Promise<void> {
+  return apiFetch<void>(`/opportunities/${opportunityId}/client-logo`, accessToken, {
+    method: "DELETE",
+  });
 }
 
 export async function listOpportunities(

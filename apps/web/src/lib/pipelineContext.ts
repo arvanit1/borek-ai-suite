@@ -1,4 +1,5 @@
 import type { TranscriptQueueItem } from "@/lib/uploadQueue";
+import type { AdditionalClientInformation } from "@/lib/api";
 
 export interface OpportunityDraft {
   client_name: string;
@@ -6,6 +7,7 @@ export interface OpportunityDraft {
   department: string;
   language: string;
   pii_redaction_enabled?: boolean;
+  additional_client_information?: AdditionalClientInformation | null;
 }
 
 const ACTIVE_KEY = "borek.activeOpportunity";
@@ -18,6 +20,7 @@ export interface StoredOpportunity {
   department: string;
   language: string;
   pii_redaction_enabled?: boolean;
+  additional_client_information?: AdditionalClientInformation | null;
 }
 
 export interface CachedUploadSession {

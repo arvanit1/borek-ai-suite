@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { AppPageHeader } from "@/components/AppPageHeader";
 import { useAuth } from "@/components/AuthProvider";
+import { ClientLogoUpload } from "@/components/ClientLogoUpload";
 import { FileUploadQueue } from "@/components/FileUploadQueue";
 import { OpportunityForm } from "@/components/OpportunityForm";
 import { PipelineStepper } from "@/components/PipelineStepper";
@@ -48,6 +49,7 @@ function storedFromResponse(opportunity: OpportunityResponse) {
     department: opportunity.department,
     language: opportunity.language,
     pii_redaction_enabled: opportunity.pii_redaction_enabled !== false,
+    additional_client_information: opportunity.additional_client_information ?? null,
   };
 }
 
@@ -318,11 +320,15 @@ export function TranscriptUploadPanel({
                         department: opportunity.department,
                         language: opportunity.language,
                         pii_redaction_enabled: opportunity.pii_redaction_enabled !== false,
+                        additional_client_information: opportunity.additional_client_information ?? null,
                       }
                     : null
                 }
                 onSubmit={handleCreateOpportunity}
               />
+              {accessToken && opportunityId ? (
+                <ClientLogoUpload accessToken={accessToken} opportunityId={opportunityId} />
+              ) : null}
             </section>
 
             <section
