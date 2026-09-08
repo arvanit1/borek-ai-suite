@@ -840,20 +840,24 @@ def _merge_kv_rows(
         return
     if not base_kv:
         return
-    have = {str(row.get("label", "")).lower() for row in (existing.get("rows") or []) if isinstance(row, dict)}
-    rows = list(existing.get("rows") or [])
+    rows = [dict(row) if isinstance(row, dict) else row for row in (existing.get("rows") or [])]
     for token in required_substrings:
         if token in blob:
             continue
         for row in base_kv.get("rows") or []:
-            if not isinstance(row, dict):
+            if not isinstance(row, dict) or token not in str(row).lower():
                 continue
             label = str(row.get("label", "")).lower()
-            if token in str(row).lower() and label not in have:
-                rows.append(row)
-                have.add(label)
-                blob += " " + str(row).lower()
-                break
+            replaced = False
+            for existing_row in rows:
+                if isinstance(existing_row, dict) and str(existing_row.get("label", "")).lower() == label:
+                    existing_row["value"] = row.get("value")
+                    replaced = True
+                    break
+            if not replaced:
+                rows.append(dict(row))
+            blob += " " + str(row).lower()
+            break
     existing["rows"] = rows
 
 

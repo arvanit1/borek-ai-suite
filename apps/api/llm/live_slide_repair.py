@@ -334,7 +334,7 @@ def _number_to_words(digit: str) -> str | None:
     if not digit.isdigit():
         return None
     value = int(digit)
-    if value < 1 or value > 999:
+    if value < 1 or value > 999_999:
         return None
     ones = [
         "",
@@ -368,10 +368,21 @@ def _number_to_words(digit: str) -> str | None:
     if value < 100:
         ten, one = divmod(value, 10)
         return tens[ten] if one == 0 else f"{tens[ten]}-{ones[one]}"
-    hundred, rest = divmod(value, 100)
+    if value < 1000:
+        hundred, rest = divmod(value, 100)
+        if rest == 0:
+            return f"{ones[hundred]} hundred"
+        return f"{ones[hundred]} hundred {_number_to_words(str(rest))}"
+    thousands, rest = divmod(value, 1000)
+    thousand_words = _number_to_words(str(thousands))
+    if thousand_words is None:
+        return None
     if rest == 0:
-        return f"{ones[hundred]} hundred"
-    return f"{ones[hundred]} hundred {_number_to_words(str(rest))}"
+        return f"{thousand_words} thousand"
+    rest_words = _number_to_words(str(rest))
+    if rest_words is None:
+        return None
+    return f"{thousand_words} thousand {rest_words}"
 
 
 def _chapter_body_text(chapter: dict[str, Any]) -> str:

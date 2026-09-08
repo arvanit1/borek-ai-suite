@@ -232,9 +232,10 @@ class LlmClient:
                     if isinstance(value, str)
                 }
             return {
-                path: _spell_introduced_number_tokens(
+                path: _apply_compression_number_forms(
                     offending_values[path],
-                    _restore_source_number_forms(offending_values[path], value),
+                    value,
+                    limits.get(path),
                 )
                 for path, value in fitted.items()
             }
@@ -338,6 +339,21 @@ def _normalize_number_token(token: str) -> str:
 
 def _number_token_set(text: str) -> set[str]:
     return {_normalize_number_token(match.group(0)) for match in _NUMBER_TOKEN.finditer(text)}
+
+
+def _apply_compression_number_forms(
+    original: str,
+    rewritten: str,
+    limit: int | None,
+) -> str:
+    """Restore source digits, then spell invented ones without breaking max_length."""
+    restored = _restore_source_number_forms(original, rewritten)
+    spelled = _spell_introduced_number_tokens(original, restored)
+    if limit is None or len(spelled) <= limit:
+        return spelled
+    if len(restored) <= limit:
+        return restored
+    return spelled
 
 
 def _spell_introduced_number_tokens(original: str, rewritten: str) -> str:

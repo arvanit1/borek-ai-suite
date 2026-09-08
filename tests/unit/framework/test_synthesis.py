@@ -157,6 +157,24 @@ def test_missing_chapter_fails_validation() -> None:
     assert "14" in exc_info.value.user_message
 
 
+def test_short_chapter_draft_is_retried_then_accepted() -> None:
+    valid = _draft_from_framework(_base_framework())
+    short = dict(valid)
+    short["chapters"] = valid["chapters"][:13]
+    responses = [short, valid]
+    users: list[str] = []
+
+    def complete(system: str, user: str, schema: dict) -> dict:
+        users.append(user)
+        return responses[len(users) - 1]
+
+    result = synthesize_customer_draft(skeleton={}, engine_outputs={}, complete=complete)
+    assert len(users) == 2
+    assert "structural validation" in users[1]
+    assert "14 chapters" in users[1]
+    assert len(result["chapters"]) == 14
+
+
 def test_claude_extra_cover_fields_are_coerced() -> None:
     draft = _draft_from_framework(_base_framework())
     draft["cover"]["status_label"] = "READY TO BUILD"
@@ -260,6 +278,7 @@ def test_llm_overlay_keeps_required_chapter_blocks() -> None:
     assert "hour" in ch7
     assert "classification" in ch8
     assert "residency" in ch8
+    assert "employee" in ch8
     assert len([block for block in ch0_body if block.get("block") == "bullets"]) == 1
     assert len([block for block in ch1_body if block.get("block") == "kv_rows"]) == 1
     assert len([block for block in ch5_body if block.get("block") == "kv_rows"]) == 1
@@ -267,6 +286,42 @@ def test_llm_overlay_keeps_required_chapter_blocks() -> None:
     assert len([block for block in ch7_body if block.get("block") == "table"]) == 1
     hours_cols = " ".join(str(col) for col in ch7_body[0]["columns"]).lower()
     assert "hour" in hours_cols
+
+
+def test_llm_overlay_restores_chapter_8_employee_guardrail() -> None:
+    models, overrides = _golden()
+    base = _base_framework()
+    draft = _draft_from_framework(base)
+    draft["chapters"][8]["body"] = [
+        {
+            "block": "kv_rows",
+            "caption": "Binding guardrails",
+            "rows": [
+                {"label": "Data classification", "value": "Internal"},
+                {"label": "Data residency", "value": "EU"},
+                {"label": "Audit", "value": "Every decision logged."},
+                {"label": "Human control", "value": "Exceptions stay with people."},
+                {"label": "Retention", "value": "No extra copies."},
+                {"label": "What the agent never does", "value": "No unsourced rule changes."},
+                {"label": "Breach", "value": "A breach is a failed acceptance test."},
+            ],
+        }
+    ]
+
+    def complete(system: str, user: str, schema: dict) -> dict:
+        return draft
+
+    framework = generate_customer_framework(
+        models,
+        opportunity_id="OPP-142",
+        title_hint="Invoice 3-Way Match",
+        use_llm=True,
+        complete=complete,
+        engine_overrides=overrides,
+    )
+    chapter8 = str(framework["chapters"][8]["body"]).lower()
+    assert "employee" in chapter8
+    assert "never" in chapter8
 
 
 def test_missing_payback_is_listed_not_guessed() -> None:

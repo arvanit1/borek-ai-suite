@@ -46,6 +46,16 @@ class CapturingGenerator:
         return copy.deepcopy(self.output)
 
 
+@dataclass
+class SequentialGenerator:
+    outputs: list[dict[str, Any]]
+    requests: list[StructuredGenerationRequest] = field(default_factory=list)
+
+    def __call__(self, request: StructuredGenerationRequest) -> dict[str, Any]:
+        self.requests.append(request)
+        return copy.deepcopy(self.outputs[len(self.requests) - 1])
+
+
 def _load_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
@@ -75,6 +85,8 @@ def test_valid_generated_executive_summary_is_accepted() -> None:
     assert result.slide_spec["sourceChapterIds"] == ["1"]
     assert generator.requests[0].layout_id == "EXECUTIVE_SUMMARY_01"
     assert tuple(chapter["chapter_id"] for chapter in generator.requests[0].chapters) == ("1",)
+    assert "at most 32 characters" in generator.requests[0].instructions
+    assert "at most 140 characters" in generator.requests[0].instructions
 
 
 @pytest.mark.parametrize("status", ["draft", "in_review"])
@@ -98,6 +110,27 @@ def test_invalid_executive_summary_schema_output_is_rejected() -> None:
             structured_generate=CapturingGenerator(output=invalid),
             compress_fields=_no_op_compressor,
         )
+
+
+def test_overflowing_highlight_title_is_regenerated_after_at8_failure() -> None:
+    overflowing = _slide()
+    overflowing["highlights"][1]["title"] = "Three-way match exception handlings."
+    assert len(overflowing["highlights"][1]["title"]) == 36
+    accepted = _slide()
+    generator = SequentialGenerator(outputs=[overflowing, accepted])
+
+    result = generate_executive_summary_01(
+        _framework(),
+        structured_generate=generator,
+        compress_fields=_no_op_compressor,
+    )
+
+    assert result.status == "VALID"
+    assert result.slide_spec is not None
+    assert result.slide_spec["highlights"][1]["title"] == accepted["highlights"][1]["title"]
+    assert len(generator.requests) == 2
+    assert "highlights[1].title length 36 exceeds maximum 32" in generator.requests[1].instructions
+    assert "Honor every maxLength" in generator.requests[1].instructions
 
 
 def test_executive_summary_source_chapters_must_stay_in_chapter_1() -> None:

@@ -119,7 +119,25 @@ def synthesize_customer_draft(
         draft, _attempts = require_valid_source_refs(call=call, collect_violations=collect)
     except SourceRefRetryError as exc:
         raise FrameworkSynthesisError(exc.user_message) from exc
-    return _finalize_customer_draft(draft, schema)
+    try:
+        return _finalize_customer_draft(draft, schema)
+    except FrameworkSynthesisError as exc:
+        # Same bounded retry as source_refs: do not accept a short draft, and do
+        # not invent chapters locally. Ask the model to regenerate the complete
+        # 14-chapter object once, then fail closed.
+        draft = call(
+            "RETRY — previous draft failed structural validation:\n"
+            f"{exc.user_message}\n"
+            "Return exactly 14 chapters with registry ids 0..13 and titles, in order."
+        )
+        leftover = collect(draft)
+        if leftover:
+            raise FrameworkSynthesisError(
+                leftover[0].message
+                if leftover[0].message
+                else "Customer report draft still has invalid source_refs after retry."
+            ) from exc
+        return _finalize_customer_draft(draft, schema)
 
 
 def _finalize_customer_draft(draft: dict[str, Any], schema: dict[str, Any]) -> dict[str, Any]:
