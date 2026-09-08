@@ -110,6 +110,16 @@ class CapturingGenerator:
         return copy.deepcopy(self.output)
 
 
+@dataclass
+class SequentialGenerator:
+    outputs: list[dict[str, Any]]
+    requests: list[StructuredGenerationRequest] = field(default_factory=list)
+
+    def __call__(self, request: StructuredGenerationRequest) -> dict[str, Any]:
+        self.requests.append(request)
+        return copy.deepcopy(self.outputs[len(self.requests) - 1])
+
+
 def _load_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
@@ -559,6 +569,25 @@ def test_ms6_compression_cannot_introduce_commercial_content() -> None:
             CapturingGenerator(output=architecture),
             compressor=compress,
         )
+
+
+def test_overflowing_architecture_description_is_regenerated_after_at8_failure() -> None:
+    overflowing = _slide(CASES["architecture"])
+    overflowing["components"][1]["description"] = "D" * 102
+    accepted = _slide(CASES["architecture"])
+    generator = SequentialGenerator(outputs=[overflowing, accepted])
+
+    result = generate_architecture_01(
+        _framework(),
+        structured_generate=generator,
+        compress_fields=_no_op_compressor,
+    )
+
+    assert result.status == "VALID"
+    assert result.slide_spec is not None
+    assert result.slide_spec["components"][1]["description"] == accepted["components"][1]["description"]
+    assert len(generator.requests) == 2
+    assert "components[1].description length 102 exceeds maximum 100" in generator.requests[1].instructions
 
 
 def test_non_monetary_business_language_remains_allowed() -> None:

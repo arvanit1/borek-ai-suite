@@ -83,6 +83,7 @@ class StructuredGenerationRequest:
 
 
 StructuredGenerator = Callable[[StructuredGenerationRequest], dict[str, Any]]
+_MAX_AT8_REGENERATION_ATTEMPTS = 3
 
 
 @dataclass(frozen=True)
@@ -152,25 +153,41 @@ def generate_group_b_slide_spec(
         instructions=_generation_instructions(config),
     )
 
-    try:
-        generated = structured_generate(request)
-    except Exception as exc:
-        raise StructuredGenerationFailure(
-            f"Structured generation failed for {config.layout_id}: {exc}"
-        ) from exc
+    result: CompressionResult | None = None
+    for attempt in range(_MAX_AT8_REGENERATION_ATTEMPTS):
+        try:
+            generated = structured_generate(request)
+        except Exception as exc:
+            raise StructuredGenerationFailure(
+                f"Structured generation failed for {config.layout_id}: {exc}"
+            ) from exc
 
-    if not isinstance(generated, dict):
-        raise SlideSpecValidationError(
-            f"{config.layout_id} structured generator must return an object"
+        if not isinstance(generated, dict):
+            raise SlideSpecValidationError(
+                f"{config.layout_id} structured generator must return an object"
+            )
+
+        candidate = copy.deepcopy(generated)
+        try:
+            _validate_slide_spec(candidate, config, chapters)
+        except UngroundedContentError as exc:
+            if attempt + 1 < _MAX_AT8_REGENERATION_ATTEMPTS:
+                request = _with_at8_rejection(request, str(exc))
+                continue
+            raise
+        result = validate_and_compress_group_b_slide_spec(
+            candidate,
+            compress_fields=compress_fields,
         )
+        if result.status == "VALID":
+            break
+        if attempt + 1 < _MAX_AT8_REGENERATION_ATTEMPTS and result.message:
+            request = _with_at8_rejection(request, result.message)
 
-    candidate = copy.deepcopy(generated)
-    _validate_slide_spec(candidate, config, chapters)
-
-    result = validate_and_compress_group_b_slide_spec(
-        candidate,
-        compress_fields=compress_fields,
-    )
+    if result is None:
+        raise SlideSpecValidationError(
+            f"{config.layout_id} validation returned no result"
+        )
     if result.status != "VALID":
         return result
 
@@ -180,6 +197,24 @@ def generate_group_b_slide_spec(
         )
     _validate_slide_spec(result.slide_spec, config, chapters)
     return result
+
+
+def _with_at8_rejection(
+    request: StructuredGenerationRequest,
+    message: str,
+) -> StructuredGenerationRequest:
+    extra = (
+        f"\n\nYour previous SlideSpec was rejected: {message} "
+        "Honor every maxLength and maxItems limit. Rewrite overflowing "
+        "fields as complete shorter phrases. Do not clip with an ellipsis "
+        "or invent facts."
+    )
+    return StructuredGenerationRequest(
+        layout_id=request.layout_id,
+        chapters=request.chapters,
+        target_schema=request.target_schema,
+        instructions=f"{request.instructions}{extra}",
+    )
 
 
 def _validate_framework_object(framework_object: Any) -> None:
@@ -365,9 +400,12 @@ def _validate_numeric_grounding(
 
 
 def _generation_instructions(config: GroupBGenerationConfig) -> str:
+    from llm.json_schema_bundle import layout_limit_instruction
+
     allowed = ", ".join(config.allowed_chapter_ids)
     return (
-        f"{config.instructions} Include fieldProvenance in the generated SlideSpec. "
+        f"{config.instructions}{layout_limit_instruction(config.layout_id)} "
+        "Include fieldProvenance in the generated SlideSpec. "
         "Use the same dotted/array path syntax as AT-8 (for example, "
         "phases[0].name or roles[0].fte). Include exactly one provenance "
         "entry for every populated Framework-derived content leaf and no entries for "

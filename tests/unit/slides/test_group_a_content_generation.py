@@ -803,6 +803,18 @@ def test_sanitizer_spells_ungrounded_250() -> None:
     assert "two hundred fifty" in result
 
 
+def test_sanitizer_spells_ungrounded_3000() -> None:
+    from llm.live_slide_repair import _sanitize_ungrounded_digit_compounds
+
+    result = _sanitize_ungrounded_digit_compounds(
+        text="About 3000 invoices each month.",
+        allowed_chapter_bodies={"1": "Invoice volume is high every month."},
+        ungrounded_tokens={"3000"},
+    )
+    assert "3000" not in result
+    assert "three thousand" in result
+
+
 def _overflow_cover(extra_count: int) -> dict[str, Any]:
     cover = _slide(CASES["cover"])
     extras = [

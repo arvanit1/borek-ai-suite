@@ -29,6 +29,45 @@ def layout_constraint_config(layout_id: str) -> dict[str, Any] | None:
     return copy.deepcopy(config) if isinstance(config, dict) else None
 
 
+def layout_limit_instruction(layout_id: str) -> str:
+    """Render registered AT-7 length/item limits for the live generation prompt."""
+    config = layout_constraint_config(layout_id)
+    properties = (config or {}).get("properties") if isinstance(config, dict) else None
+    if not isinstance(properties, dict):
+        return ""
+    limits = _collect_layout_limits(properties, "")
+    if not limits:
+        return ""
+    return (
+        " Honor these hard field limits exactly: "
+        + "; ".join(limits)
+        + ". Rewrite to fit; do not omit required fields or clip with an ellipsis."
+    )
+
+
+def _collect_layout_limits(rules: dict[str, Any], prefix: str) -> list[str]:
+    limits: list[str] = []
+    for name, spec in rules.items():
+        if not isinstance(spec, dict):
+            continue
+        path = f"{prefix}.{name}" if prefix else name
+        if isinstance(spec.get("max_length"), int):
+            limits.append(f"{path} <= {spec['max_length']} characters")
+        if isinstance(spec.get("max_items"), int):
+            limits.append(f"{path} <= {spec['max_items']} items")
+        nested = spec.get("properties")
+        if isinstance(nested, dict):
+            limits.extend(_collect_layout_limits(nested, path))
+        items = spec.get("items")
+        if isinstance(items, dict):
+            item_properties = items.get("properties")
+            if isinstance(item_properties, dict):
+                limits.extend(_collect_layout_limits(item_properties, f"{path}[i]"))
+            elif isinstance(items.get("max_length"), int):
+                limits.append(f"{path}[i] <= {items['max_length']} characters")
+    return limits
+
+
 def prepare_openai_json_schema(schema: dict[str, Any]) -> dict[str, Any]:
     """Return a schema OpenAI structured output can accept.
 

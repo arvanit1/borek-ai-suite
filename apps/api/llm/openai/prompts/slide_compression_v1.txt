@@ -37,6 +37,18 @@ SCOPE_01 paths:
 - Prefer concise verb or noun phrases and remove explanation before the core scope
   action or object. Never finish with an incomplete subordinate clause.
 
+EXECUTIVE_SUMMARY_01 paths:
+- Every `highlights[i].title` must be a complete card label of at most 32
+  characters. Prefer a short noun phrase. If the source cannot fit, paraphrase
+  more aggressively instead of returning its prefix or keeping extra qualifiers.
+- Every `highlights[i].description` must stay a complete takeaway sentence
+  within its stated limit. Preserve the subject, action, and outcome.
+
+ARCHITECTURE_01 and other component-card paths:
+- Every `components[i].description` must be one complete sentence within its
+  stated limit. If the source cannot fit, paraphrase more aggressively instead
+  of returning a 1-2 character overflow.
+
 REQUIREMENTS_MATRIX_01 paths:
 - Every `requirements[i].category` must be a very short stable label that preserves
   the category meaning.

@@ -24,7 +24,9 @@ CONFIG = GroupAGenerationConfig(
     ),
     instructions=(
         "Create the problem, solution, currentState, and targetState blocks using "
-        "only chapters 1 and 2. Select, shorten, reorganize, or paraphrase grounded "
+        "only chapters 1 and 2. Each of problem.title, solution.title, "
+        "currentState.title, and targetState.title must be a complete label of "
+        "at most 32 characters. Select, shorten, reorganize, or paraphrase grounded "
         "content only; do not add facts or capabilities. "
         "NUMBERS: Always spell out numbers as words when they appear in compound "
         "terms or process names. Write 'three-way match', never '3-way match'. "

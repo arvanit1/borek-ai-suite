@@ -26,10 +26,13 @@ CONFIG = GroupAGenerationConfig(
     ),
     instructions=(
         "Create EXECUTIVE_SUMMARY_01 content using only chapter 1. Write one "
-        "grounded headline and three or four highlight cards. Select, shorten, "
-        "reorganize, or paraphrase grounded content only; do not add facts. "
-        "Never output currency, investment, pricing, ROI, payback, costs, "
-        "savings, or other monetary content. Do not invent metrics. "
+        "grounded headline and three or four highlight cards. Each highlight "
+        "title must be a complete label of at most 32 characters; each "
+        "highlight description must be a complete sentence of at most 140 "
+        "characters. Select, shorten, reorganize, or paraphrase grounded "
+        "content only; do not add facts. Never output currency, investment, "
+        "pricing, ROI, payback, costs, savings, or other monetary content. "
+        "Do not invent metrics. "
         "NUMBERS: Always spell out numbers as words when they appear in compound "
         "terms. Write 'three-way match', never '3-way match'. Use digits only "
         "for quantities that appear as digits in the chapter text you were given."

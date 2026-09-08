@@ -16,8 +16,8 @@ from app.config import settings
 from app.services import stage_b_orchestration as stage_b
 from app.services import stage_b_providers
 from app.services.data.memory_store import MemoryDataStore
-from llm.client import LlmClient, LlmUsageResult
-from llm.json_schema_bundle import prepare_openai_json_schema
+from llm.client import LlmClient, LlmUsageResult, _apply_compression_number_forms
+from llm.json_schema_bundle import layout_limit_instruction, prepare_openai_json_schema
 from llm.openai_executor import (
     OpenAIProviderConfigurationError,
     OpenAIResponsesExecutor,
@@ -488,6 +488,38 @@ def test_scope_compression_preserves_included_and_later_semantics() -> None:
     request = json.loads(responses.calls[0]["input"])
     assert set(request["targetSchema"]["required"]) == {"included[0]", "later[0]"}
     assert set(result) == set(request["offendingValues"])
+
+
+def test_compression_number_forms_do_not_break_max_length() -> None:
+    original = "Manual invoice matching exceptions"
+    rewritten = "3-way match exception handling"
+    spelled = "three-way match exception handling"
+    assert len(rewritten) <= 32
+    assert len(spelled) > 32
+    fitted = _apply_compression_number_forms(original, rewritten, 32)
+    assert fitted == rewritten
+    assert len(fitted) <= 32
+
+
+def test_layout_limit_instruction_includes_context_title_bounds() -> None:
+    instruction = layout_limit_instruction("CONTEXT_01")
+    assert "solution.title <= 32 characters" in instruction
+    assert "problem.title <= 32 characters" in instruction
+    assert "clip with an ellipsis" in instruction
+
+
+def test_executive_summary_highlight_compression_receives_card_title_guidance() -> None:
+    result, responses = _run_bt_compression(
+        offending={"highlights[1].title": "Three-way match exception handling"},
+        rewritten={"highlights[1].title": "Three-way match exceptions"},
+        limits={"highlights[1].title": 32},
+    )
+
+    assert result == {"highlights[1].title": "Three-way match exceptions"}
+    instructions = " ".join(responses.calls[0]["instructions"].split()).lower()
+    assert "`highlights[i].title` must be a complete card label" in instructions
+    assert "paraphrase more aggressively" in instructions
+    assert "at most 32 characters" in instructions
 
 
 def test_requirement_compression_preserves_requirement_and_never_rewrites_status() -> None:
