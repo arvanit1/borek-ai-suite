@@ -23,6 +23,7 @@ from services.gamma.contract import (
     GammaTimeoutError,
 )
 from services.gamma.fixture_client import validate_generate_request
+from services.gamma.template import load_gamma_template
 
 _CONTENT_TYPES = {
     "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
@@ -91,7 +92,7 @@ class LiveGammaClient:
             template_id=request.template_id,
             template_version=request.template_version,
             branding_locked=True,
-            client_logo_applied=request.client_logo_ref is not None,
+            client_logo_applied=_fetchable_client_logo_url(request) is not None,
             artifacts=tuple(artifacts),
         )
 
@@ -123,17 +124,24 @@ class LiveGammaClient:
 
     def _generation_payload(self, request: GammaGenerateRequest) -> dict[str, Any]:
         input_text = "\n\n".join(f"{slot.name}: {slot.value}" for slot in request.slots)
+        header_footer: dict[str, Any] = {
+            "bottomLeft": {"type": "image", "source": "themeLogo"},
+        }
+        client_logo_url = _fetchable_client_logo_url(request)
+        if client_logo_url is not None:
+            placement = request.client_logo_placement or load_gamma_template().client_logo
+            header_footer["bottomRight"] = {
+                "type": "image",
+                "source": client_logo_url,
+                "maxHeightPercent": placement.max_height_pct,
+            }
         payload: dict[str, Any] = {
             "inputText": input_text,
             "textMode": "preserve",
             "format": "presentation",
             "themeId": self._theme_id,
             "exportAs": request.output_formats[0],
-            "cardOptions": {
-                "headerFooter": {
-                    "bottomLeft": {"type": "image", "source": "themeLogo"},
-                }
-            },
+            "cardOptions": {"headerFooter": header_footer},
         }
         if self._template_id:
             payload["gammaId"] = self._template_id
@@ -241,6 +249,19 @@ class LiveGammaClient:
         if not isinstance(payload, dict):
             raise GammaProviderError("Gamma returned a non-object payload.")
         return payload
+
+
+def _fetchable_client_logo_url(request: GammaGenerateRequest) -> str | None:
+    """Gamma renders the client logo only from a reference it can retrieve.
+
+    Private `artifact:` and `s3:` references stay behind our auth, so the deck
+    falls back to the client name wordmark rather than a broken image (JJ-27).
+    """
+    ref = request.client_logo_ref
+    prefixes = load_gamma_template().client_logo.signed_url_prefixes
+    if ref is None or not prefixes:
+        return None
+    return ref if ref.startswith(prefixes) else None
 
 
 def raise_for_gamma_status(response: httpx.Response) -> None:

@@ -82,7 +82,10 @@ class Settings(BaseSettings):
     )
     GAMMA_TEMPLATE_ID: str = Field(
         default="",
-        description="Optional Gamma template id once JJ-26 delivers a named template",
+        description=(
+            "Gamma-side id of the branded template defined by JJ-26 in "
+            "packages/contracts/gamma_template.json; empty until it is built in the workspace"
+        ),
     )
     GAMMA_TIMEOUT_SECONDS: float = Field(default=180.0, gt=0)
     FILING_DESTINATION: Literal["fixture", "live"] = Field(

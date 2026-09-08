@@ -10,14 +10,19 @@ from uuid import UUID
 from app.config import settings
 from app.services.gamma_generation import generate_with_egress_policy
 from services.gamma.artifacts import gamma_result_metadata, persist_gamma_result
+from services.gamma.client_logo import (
+    FALLBACK_WORDMARK,
+    ClientLogoDecision,
+    decide_client_logo,
+)
 from services.gamma.contract import (
     LOCKED_BOREK_TEMPLATE_ID,
     LOCKED_BOREK_TEMPLATE_VERSION,
-    GammaContentSlot,
     GammaError,
     GammaGenerateRequest,
 )
 from services.gamma.provider import build_gamma_provider
+from services.gamma.slot_mapping import build_gamma_content_slots, slot_chapter_provenance
 from services.observability.llm_logger import llm_observability_scope, log_llm_call
 from services.security.egress_policy import load_runtime_egress_policy, slot_classifications_from_policy
 
@@ -30,39 +35,21 @@ def gamma_enabled() -> bool:
     return presentation_engine() == "gamma"
 
 
-def provisional_gamma_slots(
+def client_logo_decision_for_opportunity(
+    store: Any,
     *,
-    opportunity: dict[str, Any],
-    framework: dict[str, Any] | None = None,
-) -> tuple[GammaContentSlot, ...]:
-    """Working content mapping until ES-40 / JJ-26 deliver the slot contract."""
-    information = opportunity.get("additional_client_information") or {}
-    notes = str(information.get("notes") or "").strip()
-    constraints = [str(item).strip() for item in information.get("constraints") or [] if str(item).strip()]
-    chapters = (framework or {}).get("chapters") or []
-    first_body = ""
-    if chapters and isinstance(chapters[0], dict):
-        first_body = str(chapters[0].get("body") or "").strip()
-    summary = notes or first_body or str(opportunity.get("opportunity_name") or "Customer opportunity")
-    scope = ", ".join(constraints) or str(opportunity.get("department") or "To be confirmed")
-    return (
-        GammaContentSlot("cover.title", str(opportunity.get("opportunity_name") or "Opportunity")),
-        GammaContentSlot("cover.client_name", str(opportunity.get("client_name") or "Client")),
-        GammaContentSlot("context.summary", summary[:4000]),
-        GammaContentSlot("scope.in_scope", scope[:2000]),
-        GammaContentSlot("next_steps.body", "Review the draft with the client and confirm next steps."),
-    )
-
-
-def client_logo_ref_for_opportunity(store: Any, *, opportunity_id: UUID, user_id: UUID) -> str | None:
+    opportunity_id: UUID,
+    user_id: UUID,
+) -> ClientLogoDecision:
+    """JJ-27: read the stored logo metadata and apply the placement rules."""
     getter = getattr(store, "get_client_logo", None)
-    if getter is None:
-        return None
-    try:
-        getter(opportunity_id=opportunity_id, user_id=user_id)
-    except Exception:
-        return None
-    return f"artifact:logos/{opportunity_id}"
+    metadata: dict[str, Any] | None = None
+    if getter is not None:
+        try:
+            metadata = getter(opportunity_id=opportunity_id, user_id=user_id)
+        except Exception:
+            metadata = None
+    return decide_client_logo(metadata, opportunity_id=opportunity_id)
 
 
 def build_gamma_request(
@@ -73,22 +60,25 @@ def build_gamma_request(
     store: Any,
     framework: dict[str, Any] | None = None,
     output_formats: tuple[str, ...] = ("pptx", "pdf"),
-) -> GammaGenerateRequest:
+) -> tuple[GammaGenerateRequest, ClientLogoDecision]:
     opportunity_id = opportunity["id"]
-    return GammaGenerateRequest(
+    logo = client_logo_decision_for_opportunity(
+        store,
+        opportunity_id=opportunity_id if isinstance(opportunity_id, UUID) else UUID(str(opportunity_id)),
+        user_id=user_id,
+    )
+    request = GammaGenerateRequest(
         template_id=LOCKED_BOREK_TEMPLATE_ID,
         template_version=LOCKED_BOREK_TEMPLATE_VERSION,
         opportunity_id=str(opportunity_id),
         presentation_version_id=str(presentation_version_id),
         output_formats=output_formats,  # type: ignore[arg-type]
-        slots=provisional_gamma_slots(opportunity=opportunity, framework=framework),
-        client_logo_ref=client_logo_ref_for_opportunity(
-            store,
-            opportunity_id=opportunity_id if isinstance(opportunity_id, UUID) else UUID(str(opportunity_id)),
-            user_id=user_id,
-        ),
+        slots=build_gamma_content_slots(opportunity=opportunity, framework=framework),
+        client_logo_ref=logo.reference,
+        client_logo_placement=logo.placement,
         timeout_seconds=settings.GAMMA_TIMEOUT_SECONDS,
     )
+    return request, logo
 
 
 def run_gamma_rendering_stage(
@@ -103,7 +93,7 @@ def run_gamma_rendering_stage(
     if not gamma_enabled():
         return {"skipped": True, "engine": "internal"}
 
-    request = build_gamma_request(
+    request, logo = build_gamma_request(
         opportunity=opportunity,
         presentation_version_id=presentation_version_id,
         user_id=user_id,
@@ -133,7 +123,28 @@ def run_gamma_rendering_stage(
             retry_count=retry_count,
             job_id=job_id,
             opportunity=opportunity,
+            logo=logo,
         )
+
+
+def _client_logo_metadata(
+    logo: ClientLogoDecision,
+    *,
+    provider_applied: bool,
+) -> dict[str, Any]:
+    """Record what the deck actually shows, not just what the rules allowed."""
+    metadata = logo.as_metadata()
+    if logo.applied and not provider_applied:
+        metadata.update(
+            applied=False,
+            reason="provider_could_not_fetch_reference",
+            detail=(
+                "The stored logo passed the placement rules but the reference is "
+                "private, so the deck falls back to the client name wordmark."
+            ),
+            fallback=FALLBACK_WORDMARK,
+        )
+    return metadata
 
 
 def _invoke_gamma(
@@ -145,6 +156,7 @@ def _invoke_gamma(
     retry_count: int,
     job_id: UUID,
     opportunity: dict[str, Any],
+    logo: ClientLogoDecision,
 ) -> dict[str, Any]:
     try:
         result = generate_with_egress_policy(
@@ -169,11 +181,20 @@ def _invoke_gamma(
             status="success",
             estimated_cost_eur=0.0,
         )
+        metadata = gamma_result_metadata(persisted)
         return {
             "skipped": False,
             "engine": "gamma",
             "execution_mode": settings.GAMMA_EXECUTION_MODE,
-            **gamma_result_metadata(persisted),
+            **metadata,
+            "slot_source_chapters": {
+                name: list(chapter_ids)
+                for name, chapter_ids in slot_chapter_provenance(request.slots).items()
+            },
+            "client_logo": _client_logo_metadata(
+                logo,
+                provider_applied=bool(metadata.get("client_logo_applied")),
+            ),
         }
     except GammaError as exc:
         log_llm_call(

@@ -7,7 +7,12 @@ from uuid import UUID
 
 from app.services.api_errors import conflict, not_found
 from app.services.data import DataStore
-from app.services.deck_assets import resolve_pdf_path, resolve_pptx_path, resolve_preview_image_path
+from app.services.deck_assets import (
+    resolve_gamma_artifact_path,
+    resolve_pdf_path,
+    resolve_pptx_path,
+    resolve_preview_image_path,
+)
 
 
 def build_deck_center_payload(
@@ -62,16 +67,51 @@ def resolve_deck_file_path(
     )
     _require_ready(version)
     version_id = version["id"]
+    if kind not in ("pptx", "pdf"):
+        raise not_found("DECK_FILE_NOT_FOUND", f"Unknown deck file type: {kind}")
+
+    # JJ-28: whichever engine produced the deck, it is downloaded from the same
+    # URL. A Gamma export supersedes the internal render for this version.
+    gamma_path = _resolve_gamma_deck_file(
+        store,
+        presentation_id=presentation_id,
+        user_id=user_id,
+        version_id=version_id,
+        kind=kind,
+    )
+    if gamma_path is not None:
+        return gamma_path
+
     if kind == "pptx":
         path = Path(version["pptx_storage_path"]) if version.get("pptx_storage_path") else resolve_pptx_path(version_id=version_id)
-    elif kind == "pdf":
-        path = Path(version["pdf_storage_path"]) if version.get("pdf_storage_path") else resolve_pdf_path(version_id=version_id)
     else:
-        raise not_found("DECK_FILE_NOT_FOUND", f"Unknown deck file type: {kind}")
+        path = Path(version["pdf_storage_path"]) if version.get("pdf_storage_path") else resolve_pdf_path(version_id=version_id)
 
     if not path.is_file():
         raise not_found("DECK_FILE_NOT_FOUND", f"Deck {kind} file is not available")
     return path
+
+
+def _resolve_gamma_deck_file(
+    store: DataStore,
+    *,
+    presentation_id: UUID,
+    user_id: UUID,
+    version_id: object,
+    kind: str,
+) -> Path | None:
+    try:
+        opportunity_id = store.get_presentation_opportunity_id(
+            presentation_id=presentation_id,
+            user_id=user_id,
+        )
+    except Exception:
+        return None
+    return resolve_gamma_artifact_path(
+        opportunity_id=opportunity_id,
+        version_id=version_id,
+        kind=kind,
+    )
 
 
 def resolve_deck_preview_image_path(

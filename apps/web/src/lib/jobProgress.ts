@@ -1,4 +1,5 @@
 import type { ActiveJobResponse, JobErrorDetail, JobResponse } from "./api";
+import { formatJobFailureMessage } from "./jobErrors";
 
 export type JobProgressPhase = "framework" | "planning" | "generation" | "slide";
 export type JobProgressStepState = "complete" | "current" | "upcoming" | "failed";
@@ -306,8 +307,9 @@ export function buildJobProgressView(input: JobProgressInput): JobProgressView |
       states[failedIndex] = "failed";
     }
     headline =
-      snapshot.error?.message ??
-      `Stopped at ${jobStageLabel(snapshot.error?.stage ?? snapshot.currentStage)}`;
+      snapshot.error?.message || snapshot.error?.code
+        ? formatJobFailureMessage(snapshot.error)
+        : `Stopped at ${jobStageLabel(snapshot.error?.stage ?? snapshot.currentStage)}`;
   } else if (snapshot.status === "COMPLETED") {
     const reached = profile.completesSequence ? states.length : startIndex + 1;
     for (let index = 0; index < reached; index += 1) {

@@ -64,3 +64,29 @@ def resolve_pptx_path(*, version_id: UUID) -> Path:
 
 def resolve_pdf_path(*, version_id: UUID) -> Path:
     return deck_assets_root() / str(version_id) / "deck.pdf"
+
+
+def resolve_gamma_artifact_path(
+    *,
+    opportunity_id: UUID | str,
+    version_id: UUID | str,
+    kind: str,
+) -> Path | None:
+    """JJ-28: locate a Gamma export for this version, if the Gamma stage ran.
+
+    Gamma artifacts are written by `services.gamma.artifacts` under
+    `gamma/{opportunity}/{version}/{generation}.{kind}`. The generation id is not
+    known here, so the newest matching export wins.
+    """
+    relative = Path("gamma") / str(opportunity_id) / str(version_id)
+    roots = {deck_assets_root(), Path(settings.ARTIFACT_ROOT)}
+    exports = [
+        path
+        for root in roots
+        if (directory := root / relative).is_dir()
+        for path in directory.glob(f"*.{kind}")
+        if path.is_file()
+    ]
+    if not exports:
+        return None
+    return max(exports, key=lambda path: path.stat().st_mtime)
