@@ -192,6 +192,14 @@ def _chapter_blocks(grounding: dict[str, Any] | None) -> dict[str, dict[str, Any
     }
 
 
+def format_company_fact_line(lookup: dict[str, Any]) -> str | None:
+    """Customer-facing line for one answered retrieve fact, including corpus citation."""
+    row = _row_for_lookup(lookup)
+    if row is None:
+        return None
+    return f"{row['label']}: {row['value']}"
+
+
 def _row_for_lookup(lookup: dict[str, Any]) -> dict[str, str] | None:
     kind = str(lookup.get("kind") or "")
     cite = _citation_text(lookup.get("sources") or [])

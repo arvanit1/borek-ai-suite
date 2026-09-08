@@ -45,6 +45,7 @@ LAYOUT_CHAPTER_ALLOWANCES = {
 
 def _framework(bodies: dict[str, str]) -> dict[str, object]:
     return {
+        "status": "confirmed",
         "chapters": [
             {"chapter_id": chapter_id, "title": f"Chapter {chapter_id}", "body": body}
             for chapter_id, body in bodies.items()
@@ -137,6 +138,7 @@ def test_slots_without_grounded_chapters_are_omitted_not_padded() -> None:
 
 def test_structured_chapter_bodies_are_flattened_to_text() -> None:
     framework = {
+        "status": "confirmed",
         "chapters": [
             {
                 "chapter_id": "10",
