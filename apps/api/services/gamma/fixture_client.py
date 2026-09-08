@@ -23,6 +23,7 @@ from services.gamma.contract import (
     GammaTemplateError,
     GammaTimeoutError,
 )
+from services.gamma.template import load_gamma_template
 
 FixtureFailure = Literal["timeout", "auth", "rate_limit", "provider"]
 
@@ -76,9 +77,35 @@ def validate_generate_request(request: GammaGenerateRequest) -> None:
                 "client_logo_ref must be an owned storage reference "
                 f"starting with {VALID_LOGO_PREFIXES}."
             )
+        _validate_client_logo_placement(request)
+    elif request.client_logo_placement is not None:
+        raise GammaPayloadError("client_logo_placement requires a client_logo_ref.")
 
     if request.timeout_seconds <= 0:
         raise GammaTimeoutError()
+
+
+def _validate_client_logo_placement(request: GammaGenerateRequest) -> None:
+    """JJ-27: a client logo may only occupy the co-branding area of the template."""
+    placement = request.client_logo_placement
+    if placement is None:
+        # An unspecified placement is the locked default, never a free choice.
+        return
+    rules = load_gamma_template().client_logo
+    if placement.position != rules.position:
+        raise GammaTemplateError(
+            f"Client logo position '{placement.position}' is locked to '{rules.position}'."
+        )
+    disallowed = [card for card in placement.cards if card not in rules.cards]
+    if disallowed:
+        raise GammaTemplateError(
+            f"The client logo may not appear on these cards: {disallowed}."
+        )
+    if placement.max_height_pct > rules.max_height_pct:
+        raise GammaTemplateError(
+            f"Client logo height {placement.max_height_pct}% exceeds the locked "
+            f"{rules.max_height_pct}% maximum."
+        )
 
 
 class FixtureGammaClient:

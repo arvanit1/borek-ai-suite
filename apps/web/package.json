@@ -21,7 +21,8 @@
     "test:ms26": "tsx src/components/ms26Ui.test.tsx",
     "test:bt25": "tsx src/lib/presentationPipeline.test.ts",
     "test:bt26": "tsx src/lib/jobProgress.test.ts && tsx src/components/LiveGenerationProgress.test.tsx",
-    "test:bt27": "tsx src/lib/jobStageContract.test.ts"
+    "test:bt27": "tsx src/lib/jobStageContract.test.ts",
+    "test:jj28": "tsx src/lib/readyScreenEngineNeutral.test.ts && tsx src/lib/jobErrors.test.ts && tsx src/lib/jobProgress.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.8",

@@ -1,0 +1,307 @@
+{
+  "schema_version": "1.0",
+  "description": "JJ-26: the single branded Borek Gamma template. Branding is locked in the template and never sent per request; only the named content slots below vary per client. Slot source chapters are a subset of the layout's allowed chapters in the internal renderer, so both engines cite the same Framework evidence.",
+  "template_id": "borek-branded-standard",
+  "template_version": "v1",
+  "branding": {
+    "locked": true,
+    "owner": "Borek CI sheet",
+    "ci_sheet": "docs/gamma/JJ26_BOREK_GAMMA_TEMPLATE.md#ci-sheet",
+    "theme_id_setting": "GAMMA_THEME_ID",
+    "template_id_setting": "GAMMA_TEMPLATE_ID",
+    "locked_keys": [
+      "brand_color",
+      "theme",
+      "font",
+      "logo_override",
+      "template_css",
+      "master_id"
+    ]
+  },
+  "client_logo": {
+    "slot": "cover.client_logo",
+    "rules_doc": "docs/gamma/JJ27_CLIENT_LOGO_PLACEMENT.md",
+    "cards": ["cover", "closing"],
+    "position": "bottom_right",
+    "max_height_pct": 6.0,
+    "min_clear_space_pct": 3.0,
+    "co_brand_with_borek_logo": true,
+    "quality_gate": {
+      "min_edge_px": 128,
+      "min_placement_area_px": 24576,
+      "max_aspect_ratio": 8.0,
+      "opaque_formats": ["image/jpeg"]
+    },
+    "fallbacks": {
+      "missing": "client_name_wordmark",
+      "poor_quality": "client_name_wordmark",
+      "opaque_on_dark_card": "white_plate"
+    },
+    "signed_url_prefixes": []
+  },
+  "cards": [
+    {
+      "card": 1,
+      "layout_id": "COVER_01",
+      "title": "Cover",
+      "slots": ["cover.title", "cover.client_name", "cover.subtitle"]
+    },
+    {
+      "card": 2,
+      "layout_id": "EXECUTIVE_SUMMARY_01",
+      "title": "Executive summary",
+      "slots": ["executive_summary.body"]
+    },
+    {
+      "card": 3,
+      "layout_id": "CONTEXT_01",
+      "title": "Context",
+      "slots": ["context.summary"]
+    },
+    {
+      "card": 4,
+      "layout_id": "PROBLEM_SOLUTION_01",
+      "title": "Problem and solution",
+      "slots": ["problem_solution.body"]
+    },
+    {
+      "card": 5,
+      "layout_id": "PROCESS_FLOW_01",
+      "title": "Process flow",
+      "slots": ["process_flow.body"]
+    },
+    {
+      "card": 6,
+      "layout_id": "SCOPE_01",
+      "title": "Scope",
+      "slots": ["scope.in_scope"]
+    },
+    {
+      "card": 7,
+      "layout_id": "REQUIREMENTS_MATRIX_01",
+      "title": "Requirements",
+      "slots": ["requirements.body"]
+    },
+    {
+      "card": 8,
+      "layout_id": "ARCHITECTURE_01",
+      "title": "Architecture",
+      "slots": ["architecture.body"]
+    },
+    {
+      "card": 9,
+      "layout_id": "COMPLIANCE_01",
+      "title": "Security and compliance",
+      "slots": ["compliance.body"]
+    },
+    {
+      "card": 10,
+      "layout_id": "TIMELINE_01",
+      "title": "Timeline",
+      "slots": ["timeline.body"]
+    },
+    {
+      "card": 11,
+      "layout_id": "MILESTONES_01",
+      "title": "Milestones",
+      "slots": ["milestones.body"]
+    },
+    {
+      "card": 12,
+      "layout_id": "TEAM_FTE_01",
+      "title": "Team",
+      "slots": ["team.body"]
+    },
+    {
+      "card": 13,
+      "layout_id": "SUCCESS_METRICS_01",
+      "title": "Success measures",
+      "slots": ["success_metrics.body"]
+    },
+    {
+      "card": 14,
+      "layout_id": "OPEN_QUESTIONS_01",
+      "title": "Open questions",
+      "slots": ["open_questions.body"]
+    },
+    {
+      "card": 15,
+      "layout_id": "NEXT_STEPS_01",
+      "title": "Next steps",
+      "slots": ["next_steps.body"]
+    }
+  ],
+  "slots": [
+    {
+      "name": "cover.title",
+      "label": "Deck title",
+      "layout_id": "COVER_01",
+      "source": "opportunity.opportunity_name",
+      "source_chapter_ids": [],
+      "required": true,
+      "max_chars": 90,
+      "classification": "internal"
+    },
+    {
+      "name": "cover.client_name",
+      "label": "Client name",
+      "layout_id": "COVER_01",
+      "source": "opportunity.client_name",
+      "source_chapter_ids": [],
+      "required": true,
+      "max_chars": 80,
+      "classification": "client_confidential"
+    },
+    {
+      "name": "cover.subtitle",
+      "label": "Cover subtitle",
+      "layout_id": "COVER_01",
+      "source": "framework_chapters",
+      "source_chapter_ids": ["1"],
+      "required": false,
+      "max_chars": 160,
+      "classification": "client_confidential"
+    },
+    {
+      "name": "executive_summary.body",
+      "label": "Executive summary",
+      "layout_id": "EXECUTIVE_SUMMARY_01",
+      "source": "framework_chapters",
+      "source_chapter_ids": ["1"],
+      "required": false,
+      "max_chars": 2400,
+      "classification": "client_confidential"
+    },
+    {
+      "name": "context.summary",
+      "label": "Context",
+      "layout_id": "CONTEXT_01",
+      "source": "framework_chapters",
+      "source_chapter_ids": ["1", "2"],
+      "required": false,
+      "max_chars": 2400,
+      "classification": "client_confidential"
+    },
+    {
+      "name": "problem_solution.body",
+      "label": "Problem and solution",
+      "layout_id": "PROBLEM_SOLUTION_01",
+      "source": "framework_chapters",
+      "source_chapter_ids": ["2", "4"],
+      "required": false,
+      "max_chars": 2400,
+      "classification": "client_confidential"
+    },
+    {
+      "name": "process_flow.body",
+      "label": "Process flow",
+      "layout_id": "PROCESS_FLOW_01",
+      "source": "framework_chapters",
+      "source_chapter_ids": ["2", "4"],
+      "required": false,
+      "max_chars": 2000,
+      "classification": "client_confidential"
+    },
+    {
+      "name": "scope.in_scope",
+      "label": "Scope",
+      "layout_id": "SCOPE_01",
+      "source": "framework_chapters",
+      "source_chapter_ids": ["3", "5"],
+      "required": false,
+      "max_chars": 2000,
+      "classification": "client_confidential"
+    },
+    {
+      "name": "requirements.body",
+      "label": "Requirements",
+      "layout_id": "REQUIREMENTS_MATRIX_01",
+      "source": "framework_chapters",
+      "source_chapter_ids": ["5"],
+      "required": false,
+      "max_chars": 2000,
+      "classification": "client_confidential"
+    },
+    {
+      "name": "architecture.body",
+      "label": "Architecture",
+      "layout_id": "ARCHITECTURE_01",
+      "source": "framework_chapters",
+      "source_chapter_ids": ["6", "7"],
+      "required": false,
+      "max_chars": 2000,
+      "classification": "client_confidential"
+    },
+    {
+      "name": "compliance.body",
+      "label": "Security and compliance",
+      "layout_id": "COMPLIANCE_01",
+      "source": "framework_chapters",
+      "source_chapter_ids": ["8"],
+      "required": false,
+      "max_chars": 2000,
+      "classification": "client_confidential"
+    },
+    {
+      "name": "timeline.body",
+      "label": "Timeline",
+      "layout_id": "TIMELINE_01",
+      "source": "framework_chapters",
+      "source_chapter_ids": ["10"],
+      "required": false,
+      "max_chars": 1600,
+      "classification": "client_confidential"
+    },
+    {
+      "name": "milestones.body",
+      "label": "Milestones",
+      "layout_id": "MILESTONES_01",
+      "source": "framework_chapters",
+      "source_chapter_ids": ["10"],
+      "required": false,
+      "max_chars": 1600,
+      "classification": "client_confidential"
+    },
+    {
+      "name": "team.body",
+      "label": "Team",
+      "layout_id": "TEAM_FTE_01",
+      "source": "framework_chapters",
+      "source_chapter_ids": ["10"],
+      "required": false,
+      "max_chars": 1600,
+      "classification": "client_confidential"
+    },
+    {
+      "name": "success_metrics.body",
+      "label": "Success measures",
+      "layout_id": "SUCCESS_METRICS_01",
+      "source": "framework_chapters",
+      "source_chapter_ids": ["3"],
+      "required": false,
+      "max_chars": 1600,
+      "classification": "client_confidential",
+      "notes": "Chapter 9 (Business case & ROI) is deliberately excluded. MS-14 forbids currency and ROI pricing on this layout and Gamma output is not screened by the SlideSpec validator."
+    },
+    {
+      "name": "open_questions.body",
+      "label": "Open questions",
+      "layout_id": "OPEN_QUESTIONS_01",
+      "source": "framework_chapters",
+      "source_chapter_ids": ["11"],
+      "required": false,
+      "max_chars": 1600,
+      "classification": "client_confidential"
+    },
+    {
+      "name": "next_steps.body",
+      "label": "Next steps",
+      "layout_id": "NEXT_STEPS_01",
+      "source": "framework_chapters",
+      "source_chapter_ids": ["13"],
+      "required": false,
+      "max_chars": 1600,
+      "classification": "client_confidential"
+    }
+  ]
+}

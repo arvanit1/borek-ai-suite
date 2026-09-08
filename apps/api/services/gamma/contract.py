@@ -1,13 +1,18 @@
 """Gamma provider contract (AT-60).
 
 The locked Borek template id is the Pitch Factory name. The live adapter maps
-it onto the workspace theme (and optional Gamma template id when JJ-26 lands).
+it onto the workspace theme and the Gamma template id. Template identity and
+the named content slots come from the JJ-26 contract in
+`packages/contracts/gamma_template.json`.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Literal, Protocol
+
+from services.gamma.client_logo import ClientLogoPlacement
+from services.gamma.template import load_gamma_template
 
 GammaOutputFormat = Literal["pptx", "pdf"]
 GammaErrorClass = Literal[
@@ -19,28 +24,19 @@ GammaErrorClass = Literal[
     "provider",
 ]
 
-LOCKED_BOREK_TEMPLATE_ID = "borek-branded-standard"
-LOCKED_BOREK_TEMPLATE_VERSION = "v1"
-ALLOWED_CONTENT_SLOTS = frozenset(
-    {
-        "cover.title",
-        "cover.client_name",
-        "context.summary",
-        "scope.in_scope",
-        "next_steps.body",
-    }
-)
-FORBIDDEN_BRANDING_KEYS = frozenset(
-    {
-        "brand_color",
-        "theme",
-        "font",
-        "logo_override",
-        "template_css",
-        "master_id",
-    }
-)
-VALID_LOGO_PREFIXES = ("artifact:logos/", "s3://borek-client-logos/")
+_TEMPLATE = load_gamma_template()
+
+LOCKED_BOREK_TEMPLATE_ID = _TEMPLATE.template_id
+LOCKED_BOREK_TEMPLATE_VERSION = _TEMPLATE.template_version
+ALLOWED_CONTENT_SLOTS = frozenset(_TEMPLATE.slot_names)
+FORBIDDEN_BRANDING_KEYS = _TEMPLATE.locked_keys
+# `artifact:` and `s3:` are owned but private, so the live provider cannot fetch
+# them. Only a signed URL under an owned host reaches Gamma, and those hosts are
+# configuration (`client_logo.signed_url_prefixes`), never an arbitrary URL.
+VALID_LOGO_PREFIXES = (
+    "artifact:logos/",
+    "s3://borek-client-logos/",
+) + _TEMPLATE.client_logo.signed_url_prefixes
 
 
 @dataclass(frozen=True)
@@ -58,6 +54,7 @@ class GammaGenerateRequest:
     output_formats: tuple[GammaOutputFormat, ...]
     slots: tuple[GammaContentSlot, ...]
     client_logo_ref: str | None = None
+    client_logo_placement: ClientLogoPlacement | None = None
     timeout_seconds: float = 30.0
 
 

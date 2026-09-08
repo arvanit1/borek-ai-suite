@@ -8,13 +8,10 @@ from pathlib import Path
 from app.config import settings
 from app.schemas.jobs import JOB_PIPELINE_STAGES, JobStage
 from app.services.data.memory_store import get_memory_store
-from app.services.gamma_stage import (
-    gamma_enabled,
-    provisional_gamma_slots,
-    run_gamma_rendering_stage,
-)
+from app.services.gamma_stage import gamma_enabled, run_gamma_rendering_stage
 from app.services.job_retry import is_transient_failure
 from services.gamma.contract import (
+    FORBIDDEN_BRANDING_KEYS,
     GammaAuthError,
     GammaPayloadError,
     GammaProviderError,
@@ -22,6 +19,7 @@ from services.gamma.contract import (
     GammaTemplateError,
     GammaTimeoutError,
 )
+from services.gamma.slot_mapping import build_gamma_content_slots
 from services.observability.llm_logger import get_llm_call_logs, reset_llm_call_logs
 
 
@@ -111,8 +109,9 @@ def test_gamma_fixture_stage_persists_artifacts_and_observability(
     assert durable[0]["provider"] == "gamma"
 
 
-def test_provisional_slots_are_named_content_only() -> None:
-    slots = provisional_gamma_slots(
+def test_slots_are_named_content_only() -> None:
+    """JJ-26 replaced the provisional mapping; branding still never ships."""
+    slots = build_gamma_content_slots(
         opportunity={
             "opportunity_name": "Invoice 3-way Match",
             "client_name": "Acme",
@@ -121,14 +120,8 @@ def test_provisional_slots_are_named_content_only() -> None:
         }
     )
     names = [slot.name for slot in slots]
-    assert names == [
-        "cover.title",
-        "cover.client_name",
-        "context.summary",
-        "scope.in_scope",
-        "next_steps.body",
-    ]
-    assert "brand_color" not in names
+    assert names == ["cover.title", "cover.client_name"]
+    assert not FORBIDDEN_BRANDING_KEYS & set(names)
     assert all(slot.value.strip() for slot in slots)
 
 

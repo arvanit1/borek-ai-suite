@@ -41,8 +41,8 @@ Do not treat the fixture client as evidence that Gamma will accept this payload 
 
 - Provider protocol `GammaProvider.generate(GammaGenerateRequest) -> GammaGenerateResult`.
 - Payload shape: named content slots only (`cover.title`, …). Layout/styling keys are rejected.
-- Template locking: only `borek-branded-standard` / `v1`; branding slots such as `brand_color` are rejected as template-locked.
-- Optional client logo as an owned storage reference (`artifact:logos/…` or `s3://borek-client-logos/…`), not an arbitrary URL.
+- Template locking: only `borek-branded-standard` / `v1`; branding slots such as `brand_color` are rejected as template-locked. The template, its named slots, and their Framework chapter feeds are now defined in [JJ-26](../gamma/JJ26_BOREK_GAMMA_TEMPLATE.md).
+- Optional client logo as an owned storage reference (`artifact:logos/…` or `s3://borek-client-logos/…`), not an arbitrary URL. Placement and the missing/poor-quality fallbacks are specified in [JJ-27](../gamma/JJ27_CLIENT_LOGO_PLACEMENT.md).
 - Artifact metadata for PPTX and PDF: content type, byte size, SHA-256, storage key.
 - Artifact ownership: `owner_opportunity_id`, `owner_presentation_version_id`, and storage key prefix `gamma/{opportunity}/{presentation_version}/`.
 - Error classification: `timeout`, `auth`, `template`, `payload`, `rate_limit`, `provider`, with retryable flags.
@@ -52,8 +52,8 @@ Do not treat the fixture client as evidence that Gamma will accept this payload 
 | Unknown | Status |
 |---|---|
 | Live authentication / token lifetime | BLOCKED |
-| Real Borek template id and slot names in Gamma | BLOCKED (JJ-26) |
-| Whether Gamma accepts a per-generation client logo | BLOCKED |
+| Real Borek template id and slot names in Gamma | Slot contract delivered by JJ-26 (`packages/contracts/gamma_template.json`); the Gamma-side `GAMMA_TEMPLATE_ID` still needs live access |
+| Whether Gamma accepts a per-generation client logo | Placement rules delivered by JJ-27; shipping the bytes needs a signed URL under an owned host |
 | Live request/response fidelity vs this contract | BLOCKED |
 | Rate limits | BLOCKED |
 | Latency and timeouts under load | BLOCKED |
