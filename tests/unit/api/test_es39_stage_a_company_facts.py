@@ -107,4 +107,4 @@ def test_live_mode_passes_company_facts_and_never_ingests(monkeypatch: object) -
     facts = seen["company_facts"]
     pricing = next(item for item in facts["lookups"] if item["kind"] == "pricing")
     assert pricing["payload"]["amount"] == "1250.00"
-    assert pricing["sources"][0]["document_id"] == "RC-DUMMY-2026-Q3"
+    assert pricing["sources"][0]["document_id"] == "RC-2026-Q3"

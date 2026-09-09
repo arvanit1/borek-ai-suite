@@ -10,7 +10,7 @@ from services.borek_rag.ingest import plan_ingest
 def test_corpus_is_versioned_and_contains_all_fact_kinds() -> None:
     corpus = default_corpus()
     kinds = {fact.kind for fact in corpus.facts}
-    assert corpus.corpus_id == "borek-internal-dummy"
+    assert corpus.corpus_id == "borek-internal"
     assert corpus.corpus_version == "2026.09.03"
     assert corpus.owner == "Commercial"
     assert kinds == {"pricing", "staffing", "service", "reference"}
@@ -32,7 +32,8 @@ def test_pricing_question_returns_cited_rate_card_fact() -> None:
     assert result.payload["indicative"] is True
     assert len(result.sources) == 1
     source = result.sources[0]
-    assert source.document_id == "RC-DUMMY-2026-Q3"
+    assert source.document_id == "RC-2026-Q3"
+    assert source.provenance_marker == "es39"
     assert source.document_type == "rate_card"
     assert source.document_version == "2026.Q3.1"
     assert source.fact_id == "price.invoice-3way.senior-consultant.day-rate"
@@ -51,7 +52,7 @@ def test_staffing_question_returns_cited_team_fact() -> None:
     assert result.payload["headcount"] == 4
     assert result.payload["total_fte"] == "2.6"
     source = result.sources[0]
-    assert source.document_id == "STAFF-DUMMY-INV3WAY-v1"
+    assert source.document_id == "STAFF-INV3WAY-v1"
     assert source.document_type == "staffing_profile"
     assert source.document_version == "1.0.0"
     assert source.fact_id == "staff.invoice-3way.core-team"
@@ -130,7 +131,7 @@ def test_ingest_plan_is_versioned_and_structured() -> None:
     from services.borek_rag.corpus import bundled_corpus_mapping
 
     plan = plan_ingest(bundled_corpus_mapping())
-    assert plan.corpus_key == "borek-internal-dummy"
+    assert plan.corpus_key == "borek-internal"
     assert plan.version == "2026.09.03"
     assert plan.owner == "Commercial"
     assert plan.fact_count == 4
@@ -143,7 +144,7 @@ def test_ingest_plan_is_versioned_and_structured() -> None:
     rate_card = next(
         document for document in plan.documents if document.document_type == "rate_card"
     )
-    assert rate_card.source_uri.startswith("corpus://borek-internal-dummy/")
+    assert rate_card.source_uri.startswith("corpus://borek-internal/")
     assert rate_card.facts[0].payload["amount"] == "1250.00"
 
 
@@ -182,3 +183,57 @@ def test_load_corpus_rejects_empty_documents(tmp_path) -> None:
         assert "at least one document" in str(exc)
     else:
         raise AssertionError("expected ValueError")
+
+
+def test_live_identity_and_retrieval_stage_are_frozen_for_consumers() -> None:
+    from services.borek_rag.identity import (
+        demo_corpus_id,
+        demo_provenance_marker,
+        live_corpus_id,
+        live_provenance_marker,
+        retrieval_stage_name,
+    )
+
+    assert live_corpus_id() == "borek-internal" == default_corpus().corpus_id
+    assert live_provenance_marker() == "es39"
+    assert demo_corpus_id() == "borek-demo"
+    assert demo_provenance_marker() == "demo"
+    assert retrieval_stage_name() == "BOREK_RETRIEVAL"
+    assert demo_corpus_id() != live_corpus_id()
+
+
+def test_demo_corpus_facts_are_not_returned_without_opt_in() -> None:
+    from dataclasses import replace
+
+    from services.borek_rag.identity import demo_corpus_id, demo_provenance_marker
+
+    live = default_corpus()
+    pricing = next(fact for fact in live.facts if fact.kind == "pricing")
+    demo_pricing = replace(
+        pricing,
+        source=replace(
+            pricing.source,
+            corpus_id=demo_corpus_id(),
+            provenance_marker=demo_provenance_marker(),
+        ),
+        payload={**pricing.payload, "amount": "9999.00"},
+        statement="Demo-only rate EUR 9999.00",
+    )
+    mixed = replace(
+        live,
+        facts=(demo_pricing, *tuple(fact for fact in live.facts if fact.kind != "pricing")),
+    )
+    query = RetrievalQuery(
+        text="",
+        query_key="pricing:invoice_3way_match:senior_consultant:day_rate",
+        kind="pricing",
+    )
+    blocked = retrieve(query, corpus=mixed)
+    assert blocked.status == "unknown"
+    assert blocked.payload is None
+
+    allowed = retrieve(replace(query, allow_demo=True), corpus=mixed)
+    assert allowed.status == "answered"
+    assert allowed.payload is not None
+    assert allowed.payload["amount"] == "9999.00"
+    assert allowed.sources[0].corpus_id == demo_corpus_id()

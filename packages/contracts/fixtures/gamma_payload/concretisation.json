@@ -1,0 +1,53 @@
+{
+  "schema_version": "1.0",
+  "template_id": "borek-branded-standard",
+  "template_version": "v1",
+  "stage": "concretisation",
+  "slots": [
+    { "name": "cover.title", "value": "Invoice 3-way Match" },
+    { "name": "cover.client_name", "value": "Acme" },
+    { "name": "cover.subtitle", "value": "Priced proposal for Acme." },
+    { "name": "executive_summary.body", "value": "Priced proposal for Acme." },
+    { "name": "team.body", "value": "Borek staffing: 4 people / 2.6 FTE. (corpus 2026.09.03, STAFF-INV3WAY-v1, staff.invoice-3way.core-team)" },
+    { "name": "next_steps.body", "value": "Confirm the indicative rate card." }
+  ],
+  "grounded_facts": [
+    {
+      "kind": "pricing",
+      "status": "answered",
+      "statement": "Senior Consultant day rate for Invoice 3-way Match is EUR 1250.00 (indicative).",
+      "payload": {
+        "role": "senior_consultant",
+        "unit": "day",
+        "amount": "1250.00",
+        "currency": "EUR",
+        "indicative": true
+      },
+      "provenance": {
+        "corpus_id": "borek-internal",
+        "corpus_version": "2026.09.03",
+        "document_id": "RC-2026-Q3",
+        "document_type": "rate_card",
+        "document_version": "2026.Q3.1",
+        "fact_id": "price.invoice-3way.senior-consultant.day-rate",
+        "marker": "es39"
+      }
+    },
+    {
+      "kind": "staffing",
+      "status": "answered",
+      "statement": "Invoice 3-way Match core team is 4 people / 2.6 FTE.",
+      "payload": { "headcount": 4, "total_fte": "2.6" },
+      "provenance": {
+        "corpus_id": "borek-internal",
+        "corpus_version": "2026.09.03",
+        "document_id": "STAFF-INV3WAY-v1",
+        "document_type": "staffing_profile",
+        "document_version": "1.0.0",
+        "fact_id": "staff.invoice-3way.core-team",
+        "marker": "es39"
+      }
+    }
+  ],
+  "client_logo_ref": "artifact:logos/acme.png"
+}

@@ -47,9 +47,11 @@ def test_retrieval_returns_versioned_price_source() -> None:
     assert body["status"] == "answered"
     assert body["payload"]["amount"] == "1250.00"
     assert body["payload"]["indicative"] is True
+    assert body["sources"][0]["corpus_id"] == "borek-internal"
     assert body["sources"][0]["corpus_version"] == "2026.09.03"
     assert body["sources"][0]["document_version"] == "2026.Q3.1"
     assert body["sources"][0]["fact_id"].startswith("price.")
+    assert body["sources"][0]["provenance_marker"] == "es39"
 
 
 def test_retrieval_covers_service_staffing_and_reference_kinds() -> None:
@@ -107,13 +109,14 @@ def test_unsupported_fact_returns_unknown_without_content() -> None:
     }
 
 
-def test_corpus_endpoint_reports_bundled_dummy_until_ingest() -> None:
+def test_corpus_endpoint_reports_bundled_live_until_ingest() -> None:
     with TestClient(create_app()) as client:
         response = client.get("/knowledge/corpus", headers=_headers())
 
     assert response.status_code == 200
     body = response.json()
-    assert body["source"] == "bundled_dummy"
+    assert body["source"] == "bundled"
+    assert body["corpus_key"] == "borek-internal"
     assert body["owner"] == "Commercial"
     assert body["version"] == "2026.09.03"
     assert set(body["fact_kinds"]) == {"pricing", "staffing", "service", "reference"}
@@ -244,3 +247,38 @@ def test_ingest_is_forbidden_on_supabase_backend(monkeypatch) -> None:
         response = client.post("/knowledge/ingest", headers=_headers(), json={})
     assert response.status_code == 403
     assert response.json()["error"]["code"] == "KNOWLEDGE_INGEST_FORBIDDEN"
+
+
+def test_demo_ingest_does_not_replace_live_retrieval() -> None:
+    from services.borek_rag.identity import demo_corpus_id
+
+    demo = copy.deepcopy(bundled_corpus_mapping())
+    demo["corpus_id"] = demo_corpus_id()
+    demo["corpus_version"] = "demo.1"
+    demo["documents"][0]["facts"][0]["payload"]["amount"] = "8888.00"
+
+    with TestClient(create_app()) as client:
+        ingested = client.post(
+            "/knowledge/ingest",
+            headers=_headers(),
+            json={"corpus": demo},
+        )
+        assert ingested.status_code == 200, ingested.text
+        assert ingested.json()["corpus_key"] == demo_corpus_id()
+
+        meta = client.get("/knowledge/corpus", headers=_headers())
+        assert meta.status_code == 200
+        assert meta.json()["corpus_key"] == "borek-internal"
+
+        retrieved = client.post(
+            "/knowledge/retrieve",
+            headers=_headers(),
+            json={
+                "kind": "pricing",
+                "query_key": "pricing:invoice_3way_match:senior_consultant:day_rate",
+            },
+        )
+        assert retrieved.status_code == 200
+        assert retrieved.json()["payload"]["amount"] == "1250.00"
+        assert retrieved.json()["sources"][0]["corpus_id"] == "borek-internal"
+        assert retrieved.json()["sources"][0]["provenance_marker"] == "es39"

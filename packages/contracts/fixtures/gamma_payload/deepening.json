@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.0",
+  "template_id": "borek-branded-standard",
+  "template_version": "v1",
+  "stage": "deepening",
+  "slots": [
+    { "name": "cover.title", "value": "Invoice 3-way Match" },
+    { "name": "cover.client_name", "value": "Acme" },
+    { "name": "cover.subtitle", "value": "Tailored pitch for Acme." },
+    { "name": "executive_summary.body", "value": "Tailored pitch for Acme." },
+    { "name": "problem_solution.body", "value": "Invoice 3-way Match matches invoices to POs." },
+    { "name": "team.body", "value": "Borek staffing: 4 people / 2.6 FTE. (corpus 2026.09.03, STAFF-INV3WAY-v1, staff.invoice-3way.core-team)" },
+    { "name": "next_steps.body", "value": "Confirm the pilot scope." }
+  ],
+  "grounded_facts": [
+    {
+      "kind": "service",
+      "status": "answered",
+      "statement": "Invoice 3-way Match matches invoices to POs.",
+      "payload": { "service_key": "invoice_3way_match" },
+      "provenance": {
+        "corpus_id": "borek-internal",
+        "corpus_version": "2026.09.03",
+        "document_id": "SVC-INV3WAY-v1",
+        "document_type": "service_definition",
+        "document_version": "1.0.0",
+        "fact_id": "service.invoice-3way.definition",
+        "marker": "es39"
+      }
+    },
+    {
+      "kind": "staffing",
+      "status": "answered",
+      "statement": "Invoice 3-way Match core team is 4 people / 2.6 FTE.",
+      "payload": { "headcount": 4, "total_fte": "2.6" },
+      "provenance": {
+        "corpus_id": "borek-internal",
+        "corpus_version": "2026.09.03",
+        "document_id": "STAFF-INV3WAY-v1",
+        "document_type": "staffing_profile",
+        "document_version": "1.0.0",
+        "fact_id": "staff.invoice-3way.core-team",
+        "marker": "es39"
+      }
+    }
+  ],
+  "client_logo_ref": "artifact:logos/acme.png"
+}

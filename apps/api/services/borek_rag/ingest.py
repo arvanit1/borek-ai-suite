@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from services.borek_rag.corpus import FACT_KINDS, corpus_from_mapping
+from services.borek_rag.identity import provenance_marker_for
 from services.borek_rag.models import Corpus, CorpusFact, FactKind, SourceCitation
 
 
@@ -135,8 +136,8 @@ def corpus_from_store_rows(rows: list[dict[str, Any]]) -> Corpus:
                 statement=str(row["statement"]),
                 payload=dict(row.get("payload") or {}),
                 source=SourceCitation(
-                    corpus_id=str(first["corpus_key"]),
-                    corpus_version=str(first["corpus_version"]),
+                    corpus_id=str(row.get("corpus_key") or first["corpus_key"]),
+                    corpus_version=str(row.get("corpus_version") or first["corpus_version"]),
                     document_id=str(row["document_key"]),
                     document_type=str(row["document_type"]),
                     document_version=str(row["document_version"]),
@@ -144,6 +145,9 @@ def corpus_from_store_rows(rows: list[dict[str, Any]]) -> Corpus:
                     classification=str(row.get("classification") or "internal"),
                     effective_from=str(row.get("effective_from") or ""),
                     effective_to=str(row.get("effective_to") or ""),
+                    provenance_marker=provenance_marker_for(
+                        str(row.get("corpus_key") or first["corpus_key"])
+                    ),
                 ),
             )
         )

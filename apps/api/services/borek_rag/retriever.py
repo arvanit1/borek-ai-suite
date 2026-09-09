@@ -1,8 +1,8 @@
-"""Deterministic retrieval over the dummy Borek corpus.
+"""Deterministic retrieval over the live Borek corpus.
 
-This is a production-shaped AT-59 spike: structured lookup with citations.
-It never interpolates, never invents amounts, and returns unknown when the
-corpus does not uniquely support the question.
+Structured lookup with citations. It never interpolates, never invents
+amounts, and returns unknown when the corpus does not uniquely support the
+question. Demo corpus facts (MS-30) are skipped unless the query opts in.
 """
 
 from __future__ import annotations
@@ -10,6 +10,7 @@ from __future__ import annotations
 import re
 
 from services.borek_rag.corpus import default_corpus, structured_pricing_payload
+from services.borek_rag.identity import is_demo_corpus
 from services.borek_rag.models import Corpus, CorpusFact, RetrievalQuery, RetrievalResult
 
 _TOKEN_RE = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*", re.IGNORECASE)
@@ -55,7 +56,12 @@ def retrieve(query: RetrievalQuery, *, corpus: Corpus | None = None) -> Retrieva
     blob = _normalize(query.text or "")
     if not blob.strip() and not query.query_key and not query.service_key:
         return _UNKNOWN
-    matches = [fact for fact in active.facts if _matches(fact, query, blob)]
+    matches = [
+        fact
+        for fact in active.facts
+        if (query.allow_demo or not is_demo_corpus(fact.source.corpus_id))
+        and _matches(fact, query, blob)
+    ]
 
     if len(matches) != 1:
         reason = "ambiguous_facts" if len(matches) > 1 else "no_supported_fact"

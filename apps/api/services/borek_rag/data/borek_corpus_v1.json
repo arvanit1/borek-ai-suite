@@ -1,16 +1,17 @@
 {
-  "corpus_id": "borek-internal-dummy",
+  "corpus_id": "borek-internal",
   "corpus_version": "2026.09.03",
-  "schema_version": "at59.1",
+  "schema_version": "at59.2",
   "classification": "internal",
   "owner": "Commercial",
-  "owner_placeholder": "O3-unassigned-named-owner",
-  "notes": "Dummy versioned corpus for AT-59. Rate cards are structured and owned by Commercial. Not offer-grade. The model must never originate a number from this file unless retrieval cites a fact.",
+  "content_owner": "Fiona",
+  "provenance_marker": "es39",
+  "notes": "Live Borek facts for AT-59. Rate-card content is owned by Commercial (Fiona). Amounts are indicative until Commercial approves offer-grade output (D5). The model must never originate a number unless retrieval cites a fact. O2 SharePoint remains the future file store; this is the pipeline source of truth until then.",
   "documents": [
     {
-      "document_id": "RC-DUMMY-2026-Q3",
+      "document_id": "RC-2026-Q3",
       "document_type": "rate_card",
-      "title": "Borek dummy rate card Q3 2026",
+      "title": "Borek rate card Q3 2026",
       "version": "2026.Q3.1",
       "effective_from": "2026-07-01",
       "effective_to": "2026-09-30",
@@ -23,7 +24,7 @@
           "query_key": "pricing:invoice_3way_match:senior_consultant:day_rate",
           "required_terms": ["invoice", "senior", "consultant"],
           "optional_terms": ["3-way", "three-way", "day", "rate", "pricing", "price"],
-          "statement": "Senior Consultant day rate for Invoice 3-way Match is EUR 1250.00 (indicative dummy rate).",
+          "statement": "Senior Consultant day rate for Invoice 3-way Match is EUR 1250.00 (indicative).",
           "payload": {
             "role": "senior_consultant",
             "unit": "day",
@@ -35,9 +36,9 @@
       ]
     },
     {
-      "document_id": "STAFF-DUMMY-INV3WAY-v1",
+      "document_id": "STAFF-INV3WAY-v1",
       "document_type": "staffing_profile",
-      "title": "Invoice 3-way Match dummy staffing profile",
+      "title": "Invoice 3-way Match staffing profile",
       "version": "1.0.0",
       "effective_from": "2026-07-01",
       "effective_to": "2026-12-31",
@@ -64,9 +65,9 @@
       ]
     },
     {
-      "document_id": "SVC-DUMMY-INV3WAY-v1",
+      "document_id": "SVC-INV3WAY-v1",
       "document_type": "service_definition",
-      "title": "Invoice 3-way Match dummy service definition",
+      "title": "Invoice 3-way Match service definition",
       "version": "1.0.0",
       "effective_from": "2026-07-01",
       "effective_to": "2026-12-31",
@@ -92,9 +93,9 @@
       ]
     },
     {
-      "document_id": "REF-DUMMY-INV3WAY-v1",
+      "document_id": "REF-INV3WAY-v1",
       "document_type": "reference",
-      "title": "Invoice 3-way Match dummy reference pattern",
+      "title": "Invoice 3-way Match reference pattern",
       "version": "1.0.0",
       "effective_from": "2026-07-01",
       "effective_to": "2026-12-31",

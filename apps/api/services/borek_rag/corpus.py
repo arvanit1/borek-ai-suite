@@ -1,4 +1,4 @@
-"""Load the dummy, versioned Borek corpus used by AT-59 retrieval."""
+"""Load the live, versioned Borek corpus used by AT-59 retrieval."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from services.borek_rag.identity import provenance_marker_for
 from services.borek_rag.models import Corpus, CorpusFact, FactKind, SourceCitation
 
 _DATA_PATH = Path(__file__).resolve().parent / "data" / "borek_corpus_v1.json"
@@ -154,6 +155,7 @@ def corpus_from_mapping(raw: dict[str, Any]) -> Corpus:
                 classification=document_class,
                 effective_from=effective_from,
                 effective_to=effective_to,
+                provenance_marker=provenance_marker_for(corpus_id),
             )
             facts.append(
                 CorpusFact(
