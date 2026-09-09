@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import uuid
-from dataclasses import replace
 
 import pytest
 
@@ -190,12 +189,11 @@ def test_a_private_reference_is_left_out_of_the_live_payload() -> None:
 
 def test_a_signed_url_from_an_owned_host_is_placed_bottom_right(monkeypatch) -> None:
     signed_url = "https://logos.borek.example/acme.png?sig=abc"
-    template = load_gamma_template()
-    owned = replace(template, client_logo=replace(
-        template.client_logo,
-        signed_url_prefixes=("https://logos.borek.example/",),
-    ))
-    monkeypatch.setattr(live_client, "load_gamma_template", lambda: owned)
+    monkeypatch.setattr(
+        live_client,
+        "owned_https_prefixes",
+        lambda: ("https://logos.borek.example/",),
+    )
 
     client = LiveGammaClient(api_key="k", theme_id="theme-1")
     decision = decide_client_logo(_logo(), opportunity_id=OPPORTUNITY_ID)
@@ -268,6 +266,8 @@ def test_the_stage_reports_a_placed_logo_from_the_stored_upload(monkeypatch, tmp
     monkeypatch.setattr(settings, "PRESENTATION_ENGINE", "gamma")
     monkeypatch.setattr(settings, "GAMMA_EXECUTION_MODE", "fixture")
     monkeypatch.setattr(settings, "ARTIFACT_ROOT", str(tmp_path))
+    monkeypatch.setattr(settings, "PUBLIC_API_BASE_URL", "https://api.borek.test")
+    monkeypatch.setattr(settings, "CLIENT_LOGO_SIGNING_SECRET", "jj27-logo-secret")
     store = get_memory_store()
     opportunity = _opportunity(store)
     store.upsert_client_logo(

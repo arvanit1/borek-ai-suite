@@ -21,9 +21,14 @@ import {
 interface ClientLogoUploadProps {
   accessToken: string;
   opportunityId: string;
+  clientName?: string | null;
 }
 
-export function ClientLogoUpload({ accessToken, opportunityId }: ClientLogoUploadProps) {
+export function ClientLogoUpload({
+  accessToken,
+  opportunityId,
+  clientName,
+}: ClientLogoUploadProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [metadata, setMetadata] = useState<ClientLogoMetadata | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -135,6 +140,8 @@ export function ClientLogoUpload({ accessToken, opportunityId }: ClientLogoUploa
     }
   }
 
+  const wordmark = (clientName ?? "").trim() || "Client name";
+
   return (
     <section className="client-logo-upload" aria-labelledby="client-logo-heading">
       <div className="client-logo-copy">
@@ -142,8 +149,8 @@ export function ClientLogoUpload({ accessToken, opportunityId }: ClientLogoUploa
           <h3 id="client-logo-heading">Client logo</h3>
           <span className="optional-label">Optional</span>
         </div>
-        <p>Add co-branding after creating the opportunity, or continue directly to transcripts.</p>
-        <p className="client-logo-requirements">PNG, JPEG, or WebP; 5 MiB maximum; 64-4096 px per edge.</p>
+        <p>Shown on the cover and closing, bottom-right, beside the Borek mark.</p>
+        <p className="client-logo-requirements">PNG, JPEG, or WebP. 5 MiB maximum.</p>
         {error ? <div className="alert alert-error">{error}</div> : null}
         {notice ? <p className="client-logo-notice" role="status">{notice}</p> : null}
         <div className="client-logo-actions">
@@ -173,14 +180,18 @@ export function ClientLogoUpload({ accessToken, opportunityId }: ClientLogoUploa
           ) : null}
         </div>
       </div>
-      <div className="client-logo-preview" data-testid="client-logo-preview">
-        {previewUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={previewUrl} alt="Client logo preview" />
-        ) : (
-          <span>No logo added</span>
-        )}
-        <small>{selectedFile?.name ?? metadata?.file_name ?? "Optional co-branding"}</small>
+      <div className="client-logo-card" data-testid="client-logo-preview">
+        <span className="client-logo-card-kicker">Cover</span>
+        <footer className="client-logo-card-footer">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className="client-logo-borek" src="/logo.webp" alt="Borek" />
+          {previewUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img className="client-logo-client" src={previewUrl} alt="Client logo preview" />
+          ) : (
+            <span className="client-logo-wordmark">{wordmark}</span>
+          )}
+        </footer>
       </div>
     </section>
   );

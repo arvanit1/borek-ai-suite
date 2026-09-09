@@ -367,6 +367,22 @@ class MemoryDataStore:
         row = self.get_client_logo(opportunity_id=opportunity_id, user_id=user_id)
         return bytes(row["content"])
 
+    def get_client_logo_for_signed_fetch(
+        self, *, opportunity_id: UUID
+    ) -> tuple[dict[str, Any], bytes]:
+        """JJ-29: HMAC-gated lookup. Ownership is the signature, not a user JWT."""
+        row = next(
+            (
+                item
+                for item in self.client_logos.values()
+                if item["opportunity_id"] == opportunity_id
+            ),
+            None,
+        )
+        if row is None:
+            raise not_found("CLIENT_LOGO_NOT_FOUND", "No client logo is stored for this opportunity")
+        return copy.deepcopy(row), bytes(row["content"])
+
     def delete_client_logo(self, *, opportunity_id: UUID, user_id: UUID) -> dict[str, Any]:
         row = self.get_client_logo(opportunity_id=opportunity_id, user_id=user_id)
         del self.client_logos[row["id"]]

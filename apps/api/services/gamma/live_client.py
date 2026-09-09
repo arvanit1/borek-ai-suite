@@ -24,6 +24,7 @@ from services.gamma.contract import (
     gamma_egress_reference,
 )
 from services.gamma.fixture_client import validate_generate_request
+from services.gamma.signed_logo import owned_https_prefixes
 from services.gamma.template import load_gamma_template
 
 _CONTENT_TYPES = {
@@ -260,7 +261,7 @@ def _fetchable_client_logo_url(request: GammaGenerateRequest) -> str | None:
     """
     return gamma_egress_reference(
         request.client_logo_ref,
-        owned_https_prefixes=load_gamma_template().client_logo.signed_url_prefixes,
+        owned_https_prefixes=owned_https_prefixes(),
     )
 
 

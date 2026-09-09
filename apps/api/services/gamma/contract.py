@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any, Literal, Protocol
 
 from services.gamma.client_logo import ClientLogoPlacement
+from services.gamma.signed_logo import owned_https_prefixes as configured_owned_https_prefixes
 from services.gamma.template import load_gamma_template
 
 GammaOutputFormat = Literal["pptx", "pdf"]
@@ -100,7 +101,7 @@ def public_gamma_error_specs() -> dict[str, GammaPublicErrorSpec]:
 def accepted_logo_prefixes() -> tuple[str, ...]:
     """Storage refs the request may carry. Private prefixes are never egressed."""
     policy = load_gamma_provider_contract().reference_policy
-    return policy.accepted_private_prefixes + load_gamma_template().client_logo.signed_url_prefixes
+    return policy.accepted_private_prefixes + configured_owned_https_prefixes()
 
 
 def is_private_storage_reference(ref: str) -> bool:
@@ -115,8 +116,8 @@ def gamma_egress_reference(
 ) -> str | None:
     """Return the reference only when Gamma may fetch it from an owned HTTPS host.
 
-    Empty `signed_url_prefixes` is a valid current state (JJ-29 has not landed).
-    Arbitrary `https://` is never enough on its own.
+    Empty owned prefixes (no PUBLIC_API_BASE_URL, empty JSON list) are valid and
+    block egress. Arbitrary `https://` is never enough on its own.
     """
     if ref is None or not ref.strip():
         return None
@@ -126,7 +127,7 @@ def gamma_egress_reference(
     prefixes = (
         owned_https_prefixes
         if owned_https_prefixes is not None
-        else load_gamma_template().client_logo.signed_url_prefixes
+        else configured_owned_https_prefixes()
     )
     if not prefixes:
         return None

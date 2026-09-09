@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 import { formatJobFailureMessage } from "./jobErrors.js";
 import { buildJobProgressView, jobStageLabel } from "./jobProgress.js";
@@ -89,5 +91,12 @@ const bareView = buildJobProgressView({
 });
 assert.ok(bareView);
 assert.match(bareView.headline, /Stopped at Rendering PowerPoint\/PDF/);
+
+const deckCenterPath = fileURLToPath(new URL("../components/DeckCenterPanel.tsx", import.meta.url));
+const deckCenter = readFileSync(deckCenterPath, "utf8");
+assert.doesNotMatch(deckCenter, /Details for diagnostics/);
+assert.doesNotMatch(deckCenter, /presentation-diagnostics/);
+assert.doesNotMatch(deckCenter, /\bGamma\b/);
+assert.match(deckCenter, /presentation-ready-actions/);
 
 console.log("readyScreenEngineNeutral tests passed");

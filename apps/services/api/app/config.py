@@ -100,6 +100,23 @@ class Settings(BaseSettings):
         ),
     )
     GAMMA_TIMEOUT_SECONDS: float = Field(default=180.0, gt=0)
+    PUBLIC_API_BASE_URL: str = Field(
+        default="",
+        description=(
+            "HTTPS origin Gamma can reach for JJ-29 signed logo fetches, e.g. "
+            "https://api.example.com. Empty means logos cannot be signed and the "
+            "deck falls back to the client-name wordmark."
+        ),
+    )
+    CLIENT_LOGO_SIGNING_SECRET: str = Field(
+        default="",
+        description="HMAC secret for JJ-29 signed logo URLs; SUPABASE_JWT_SECRET is used when empty",
+    )
+    CLIENT_LOGO_SIGNED_URL_TTL_SECONDS: int = Field(
+        default=900,
+        gt=0,
+        description="Lifetime of a JJ-29 signed logo URL in seconds",
+    )
     FILING_DESTINATION: Literal["fixture", "in_app", "live"] = Field(
         default="in_app",
         description="in_app stores under Borek control; live waits for the O2 repository",

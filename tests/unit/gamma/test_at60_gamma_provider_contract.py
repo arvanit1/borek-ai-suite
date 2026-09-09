@@ -106,7 +106,7 @@ def test_empty_owned_https_prefixes_are_valid_and_block_egress() -> None:
     policy = load_gamma_provider_contract().reference_policy
     assert policy.empty_owned_https_prefixes_valid is True
     assert load_gamma_template().client_logo.signed_url_prefixes == ()
-    assert policy.accepted_private_prefixes == accepted_logo_prefixes()
+    assert set(policy.accepted_private_prefixes) <= set(accepted_logo_prefixes())
     assert gamma_egress_reference("https://evil.example/logo.png") is None
     assert gamma_egress_reference("https://logos.borek.example/acme.png") is None
 

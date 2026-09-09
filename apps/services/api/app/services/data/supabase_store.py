@@ -582,6 +582,31 @@ class SupabaseDataStore:
             raise not_found("CLIENT_LOGO_NOT_FOUND", "Client logo bytes are not available")
         return response.content
 
+    def get_client_logo_for_signed_fetch(
+        self, *, opportunity_id: UUID
+    ) -> tuple[dict[str, Any], bytes]:
+        """JJ-29: HMAC-gated lookup via the service-role store. No caller JWT."""
+        response = self._request(
+            "GET",
+            "opportunity_client_logos",
+            params={"opportunity_id": f"eq.{opportunity_id}", "select": "*", "limit": "1"},
+        )
+        if response.status_code != 200 or not response.json():
+            raise not_found("CLIENT_LOGO_NOT_FOUND", "No client logo is stored for this opportunity")
+        row = _normalize_client_logo(response.json()[0])
+        headers = {
+            "apikey": self._headers["apikey"],
+            "Authorization": self._headers["Authorization"],
+        }
+        content = _request_with_retry(
+            "GET",
+            f"{self._base_url}/storage/v1/object/client-logos/{row['storage_path']}",
+            headers=headers,
+        )
+        if content.status_code != 200:
+            raise not_found("CLIENT_LOGO_NOT_FOUND", "Client logo bytes are not available")
+        return row, content.content
+
     def delete_client_logo(self, *, opportunity_id: UUID, user_id: UUID) -> dict[str, Any]:
         row = self.get_client_logo(opportunity_id=opportunity_id, user_id=user_id)
         response = self._request(

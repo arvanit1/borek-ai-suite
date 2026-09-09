@@ -3,9 +3,10 @@
 Phase 4. Owner: Jaya Joshi. Priority: P0.
 
 Follow-on from [JJ-27](JJ27_CLIENT_LOGO_PLACEMENT.md). Placement rules, the
-quality gate and the payload shape are in place. Gamma still cannot fetch
-`artifact:logos/…` or `s3://…` references, so the live adapter leaves the image
-out and falls back to the client-name wordmark.
+quality gate and the payload shape are in place. This ticket ships the bytes:
+a short-lived HTTPS URL on an owned host, so Gamma can fetch a logo that
+passed the gate. Private `artifact:` and `s3://` references are never sent
+as-is.
 
 ## What to deliver
 
@@ -29,6 +30,14 @@ co-branded deck with the wordmark.
 - Expired or unsignable ref → `provider_could_not_fetch_reference`, not
   `applied: true`.
 - Cover/closing only; Borek mark stays bottom-left.
+
+## Implementation
+
+`services/gamma/signed_logo.py` mints `GET /public/client-logos/{opportunity_id}?exp=&sig=`
+on `PUBLIC_API_BASE_URL` (HTTPS only). The Gamma stage replaces a private
+`artifact:` / `s3://` ref with that URL after the JJ-27 gate; if the URL cannot
+be minted the request carries no logo and the job records
+`provider_could_not_fetch_reference`.
 
 ## Depends on
 

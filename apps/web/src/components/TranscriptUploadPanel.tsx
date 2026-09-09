@@ -327,7 +327,11 @@ export function TranscriptUploadPanel({
                 onSubmit={handleCreateOpportunity}
               />
               {accessToken && opportunityId ? (
-                <ClientLogoUpload accessToken={accessToken} opportunityId={opportunityId} />
+                <ClientLogoUpload
+                  accessToken={accessToken}
+                  opportunityId={opportunityId}
+                  clientName={opportunity?.client_name}
+                />
               ) : null}
             </section>
 
