@@ -100,9 +100,9 @@ class Settings(BaseSettings):
         ),
     )
     GAMMA_TIMEOUT_SECONDS: float = Field(default=180.0, gt=0)
-    FILING_DESTINATION: Literal["fixture", "live"] = Field(
-        default="fixture",
-        description="fixture writes under ARTIFACT_ROOT/enterprise; live uses the O2 repository",
+    FILING_DESTINATION: Literal["fixture", "in_app", "live"] = Field(
+        default="in_app",
+        description="in_app stores under Borek control; live waits for the O2 repository",
     )
     ENTERPRISE_REPOSITORY_URL: str = Field(
         default="",

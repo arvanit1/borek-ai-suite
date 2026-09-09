@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.middleware.error_handler import register_error_handlers
 from app.routers import (
+    archive,
     frameworks,
     health,
     jobs,
@@ -67,6 +68,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(presentations.router, prefix="/presentations", tags=["presentations"])
     app.include_router(knowledge.router, prefix="/knowledge", tags=["knowledge"])
+    app.include_router(archive.router, prefix="/archive", tags=["archive"])
     app.include_router(jobs.router, prefix="/jobs", tags=["jobs"])
 
     return app

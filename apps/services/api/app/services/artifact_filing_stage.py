@@ -8,7 +8,13 @@ from typing import Any
 from uuid import UUID
 
 from app.config import settings
-from app.services.artifact_filing import ArtifactFilingError, ArtifactFilingRequest, file_artifact
+from app.services.artifact_filing import (
+    ArtifactFilingError,
+    ArtifactFilingRequest,
+    file_artifact,
+    filing_idempotency_key,
+)
+from app.services.audit import AuditAction, AuditObjectType, record_audit_event
 from app.services.deck_assets import deck_assets_root
 from app.services.enterprise_repository import build_enterprise_destination
 from app.services.knowledge_access import describe_active_corpus
@@ -96,7 +102,13 @@ def collect_artifact_candidates(
                 "provider": "gamma",
             }
         )
-    return candidates
+    canonical: dict[str, dict[str, Any]] = {}
+    for candidate in candidates:
+        kind = str(candidate["kind"])
+        current = canonical.get(kind)
+        if current is None or candidate["provider"] == "gamma":
+            canonical[kind] = candidate
+    return list(canonical.values())
 
 
 def _expected_artifacts_missing(
@@ -141,6 +153,7 @@ def run_artifact_filing_for_presentation(
         presentation_id=parsed_presentation,
         user_id=parsed_user,
     )
+    opportunity = store.get_opportunity(opportunity_id=_as_uuid(opportunity_id), user_id=parsed_user)
     presentation = store.get_presentation(
         presentation_id=parsed_presentation,
         user_id=parsed_user,
@@ -158,25 +171,37 @@ def run_artifact_filing_for_presentation(
     destination = build_enterprise_destination()
     records: list[dict[str, Any]] = []
     for item in existing:
-        records.append(
-            file_artifact(
-                ArtifactFilingRequest(
-                    opportunity_id=_as_uuid(opportunity_id),
-                    presentation_id=parsed_presentation,
-                    presentation_version_id=_as_uuid(version["id"]),
-                    artifact_kind=item["kind"],
-                    source_path=item["path"],
-                    content_type=item["content_type"],
-                    approved_by=approved_by,
-                    approved_at=approved_at,
-                    framework_version_id=_as_uuid(framework["id"]),
-                    corpus_versions=corpus_versions,
-                    provider=item["provider"],
-                ),
-                destination=destination,
-                metadata=store,
-            )
+        request = ArtifactFilingRequest(
+            opportunity_id=_as_uuid(opportunity_id),
+            presentation_id=parsed_presentation,
+            presentation_version_id=_as_uuid(version["id"]),
+            artifact_kind=item["kind"],
+            source_path=item["path"],
+            content_type=item["content_type"],
+            approved_by=approved_by,
+            approved_at=approved_at,
+            framework_version_id=_as_uuid(framework["id"]),
+            corpus_versions=corpus_versions,
+            provider=item["provider"],
+            journey_stage=version.get("journey_stage"),
+            prior_stage_presentation_version_id=(
+                _as_uuid(version["prior_stage_presentation_version_id"])
+                if version.get("prior_stage_presentation_version_id")
+                else None
+            ),
+            demo_marker=opportunity.get("demo_marker") or version.get("demo_marker"),
         )
+        prior_record = store.get_filing_record(filing_idempotency_key(request))
+        record = file_artifact(request, destination=destination, metadata=store)
+        records.append(record)
+        if record.get("id") and not (prior_record and prior_record.get("status") == "filed"):
+            record_audit_event(
+                store,
+                actor_id=approved_by,
+                action=AuditAction.ARTIFACT_FILE,
+                object_type=AuditObjectType.FILED_ARTIFACT,
+                object_id=_as_uuid(record["id"]),
+            )
     return {
         "skipped": False,
         "destination": settings.FILING_DESTINATION,

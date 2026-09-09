@@ -20,7 +20,7 @@ def test_health_runtime_reports_execution_modes() -> None:
     assert body["api_data_backend"] in {"memory", "supabase"}
     assert body["presentation_engine"] in {"internal", "gamma"}
     assert body["gamma_execution_mode"] in {"fixture", "live"}
-    assert body["filing_destination"] in {"fixture", "live"}
+    assert body["filing_destination"] in {"fixture", "in_app", "live"}
     assert isinstance(body["warnings"], list)
 
 

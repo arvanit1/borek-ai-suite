@@ -48,6 +48,17 @@ def test_demo_pack_is_idempotent_and_hidden_from_second_user(
     assert all(row["demo_marker"] == "demo" for row in filed.json())
     assert hidden_filed.status_code in {403, 404}
 
+    archive_a = client_user_a.get("/archive/artifacts?search=Northstar")
+    archive_b = client_user_b.get("/archive/artifacts?search=Northstar")
+    assert archive_a.status_code == 200, archive_a.text
+    assert len(archive_a.json()) == 6
+    assert archive_b.status_code == 200
+    assert archive_b.json() == []
+    download = client_user_a.get(archive_a.json()[0]["download_url"])
+    denied_download = client_user_b.get(archive_a.json()[0]["download_url"])
+    assert download.status_code == 200
+    assert denied_download.status_code == 404
+
     facts_a = SupabaseDataStore(token_a).list_approved_knowledge_facts()
     facts_b = SupabaseDataStore(token_b).list_approved_knowledge_facts()
     assert any(row["corpus_key"] == "borek-demo" for row in facts_a)

@@ -1545,16 +1545,16 @@ class SupabaseDataStore:
         record: dict[str, Any],
     ) -> dict[str, Any]:
         body = _json_safe_value({**record, "idempotency_key": idempotency_key})
-        existing = self.get_filing_record(idempotency_key)
-        if existing is None:
-            response = self._request("POST", "filed_artifacts", json_body=body)
-        else:
-            response = self._request(
-                "PATCH",
-                "filed_artifacts",
-                params={"idempotency_key": f"eq.{idempotency_key}"},
-                json_body=body,
-            )
+        response = _request_with_retry(
+            "POST",
+            f"{self._base_url}/rest/v1/filed_artifacts",
+            headers={
+                **self._headers,
+                "Prefer": "resolution=merge-duplicates,return=representation",
+            },
+            params={"on_conflict": "idempotency_key"},
+            json=body,
+        )
         if response.status_code not in (200, 201) or not response.json():
             raise bad_request("FILING_RECORD_WRITE_FAILED", response.text)
         return dict(response.json()[0])
@@ -1578,6 +1578,67 @@ class SupabaseDataStore:
         if response.status_code != 200:
             raise bad_request("FILING_RECORD_READ_FAILED", response.text)
         return [dict(row) for row in response.json()]
+
+    def list_user_filed_artifacts(self, *, user_id: UUID) -> list[dict[str, Any]]:
+        response = self._request(
+            "GET",
+            "filed_artifacts",
+            params={
+                "select": "*",
+                "status": "eq.filed",
+                "order": "filed_at.desc.nullslast,updated_at.desc",
+            },
+        )
+        if response.status_code != 200:
+            raise bad_request("FILING_RECORD_READ_FAILED", response.text)
+        opportunities: dict[str, dict[str, Any]] = {}
+        rows: list[dict[str, Any]] = []
+        for artifact in response.json():
+            opportunity_id = UUID(str(artifact["opportunity_id"]))
+            key = str(opportunity_id)
+            if key not in opportunities:
+                opportunities[key] = self.get_opportunity(
+                    opportunity_id=opportunity_id,
+                    user_id=user_id,
+                )
+            opportunity = opportunities[key]
+            rows.append(
+                {
+                    **artifact,
+                    "client_name": opportunity["client_name"],
+                    "opportunity_name": opportunity["opportunity_name"],
+                }
+            )
+        return rows
+
+    def get_user_filed_artifact(
+        self,
+        *,
+        artifact_id: UUID,
+        user_id: UUID,
+    ) -> dict[str, Any]:
+        response = self._request(
+            "GET",
+            "filed_artifacts",
+            params={
+                "select": "*",
+                "id": f"eq.{artifact_id}",
+                "status": "eq.filed",
+                "limit": "1",
+            },
+        )
+        if response.status_code != 200 or not response.json():
+            raise not_found("FILED_ARTIFACT_NOT_FOUND", "Filed artifact was not found")
+        row = dict(response.json()[0])
+        opportunity = self.get_opportunity(
+            opportunity_id=UUID(str(row["opportunity_id"])),
+            user_id=user_id,
+        )
+        return {
+            **row,
+            "client_name": opportunity["client_name"],
+            "opportunity_name": opportunity["opportunity_name"],
+        }
 
     def append_llm_call(self, record: Any) -> dict[str, Any]:
         from app.services.data.memory_store import _llm_call_row

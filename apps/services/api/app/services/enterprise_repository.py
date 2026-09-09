@@ -28,15 +28,40 @@ def _writable_path(path: Path) -> Path:
 class FixtureEnterpriseStore:
     """Local stand-in used until O2 names the real repository."""
 
-    def __init__(self, root: Path) -> None:
+    def __init__(self, root: Path, *, scheme: str = "fixture") -> None:
         self.root = root
+        self.scheme = scheme
+        self.backend = "fixture" if scheme == "fixture" else "in_app"
+
+    def _target(self, destination_path: str) -> Path:
+        root = self.root.resolve()
+        target = root.joinpath(*Path(destination_path).parts).resolve()
+        try:
+            target.relative_to(root)
+        except ValueError as exc:
+            raise ArtifactFilingError(
+                "INVALID_DESTINATION_PATH",
+                "Artifact destination must remain inside the repository root",
+                retryable=False,
+            ) from exc
+        return _writable_path(target)
 
     def put(self, *, destination_path: str, content: bytes, content_type: str) -> str:
         del content_type
-        target = _writable_path(self.root.joinpath(*Path(destination_path).parts))
+        target = self._target(destination_path)
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(content)
-        return f"fixture://enterprise/{destination_path}"
+        return f"{self.scheme}://enterprise/{destination_path}"
+
+    def get(self, *, destination_path: str) -> bytes:
+        target = self._target(destination_path)
+        if not target.is_file():
+            raise ArtifactFilingError(
+                "FILED_ARTIFACT_NOT_FOUND",
+                "The filed artifact is no longer available",
+                retryable=False,
+            )
+        return target.read_bytes()
 
 
 class LiveEnterpriseStore:
@@ -46,6 +71,7 @@ class LiveEnterpriseStore:
         self.base_url = base_url.rstrip("/")
         self.token = token
         self.timeout_seconds = timeout_seconds
+        self.backend = "live"
 
     def put(self, *, destination_path: str, content: bytes, content_type: str) -> str:
         if not self.base_url or not self.token:
@@ -101,10 +127,20 @@ class LiveEnterpriseStore:
         location = response.headers.get("Location") or url
         return str(location)
 
+    def get(self, *, destination_path: str) -> bytes:
+        del destination_path
+        raise ArtifactFilingError(
+            "ENTERPRISE_REPOSITORY_READ_NOT_CONFIGURED",
+            "External repository retrieval waits for the O2 adapter",
+            retryable=False,
+        )
 
-def build_enterprise_destination():
-    if settings.FILING_DESTINATION != "live":
-        return FixtureEnterpriseStore(deck_assets_root() / "enterprise")
+
+def build_enterprise_destination(mode: str | None = None):
+    selected = mode or settings.FILING_DESTINATION
+    if selected != "live":
+        scheme = "fixture" if selected == "fixture" else "in-app"
+        return FixtureEnterpriseStore(deck_assets_root() / "enterprise", scheme=scheme)
     return LiveEnterpriseStore(
         base_url=settings.ENTERPRISE_REPOSITORY_URL.strip(),
         token=settings.ENTERPRISE_REPOSITORY_TOKEN.strip(),

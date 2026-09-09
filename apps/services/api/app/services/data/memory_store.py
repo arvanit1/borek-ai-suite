@@ -149,9 +149,56 @@ class MemoryDataStore:
         rows = [
             copy.deepcopy(row)
             for row in self.filed_artifacts.values()
-            if str(row.get("opportunity_id")) == target
+            if str(row.get("opportunity_id")) == target and row.get("status") == "filed"
         ]
         return sorted(rows, key=lambda row: str(row.get("updated_at") or ""), reverse=True)
+
+    def list_user_filed_artifacts(self, *, user_id: UUID) -> list[dict[str, Any]]:
+        owned = {
+            str(row["id"]): row
+            for row in self.opportunities.values()
+            if row["created_by"] == user_id
+        }
+        rows = []
+        for artifact in self.filed_artifacts.values():
+            if artifact.get("status") != "filed":
+                continue
+            opportunity = owned.get(str(artifact.get("opportunity_id")))
+            if opportunity is not None:
+                rows.append(
+                    {
+                        **copy.deepcopy(artifact),
+                        "client_name": opportunity["client_name"],
+                        "opportunity_name": opportunity["opportunity_name"],
+                    }
+                )
+        return sorted(rows, key=lambda row: str(row.get("filed_at") or ""), reverse=True)
+
+    def get_user_filed_artifact(
+        self,
+        *,
+        artifact_id: UUID,
+        user_id: UUID,
+    ) -> dict[str, Any]:
+        row = next(
+            (
+                artifact
+                for artifact in self.filed_artifacts.values()
+                if str(artifact.get("id")) == str(artifact_id)
+            ),
+            None,
+        )
+        if row is None or row.get("status") != "filed":
+            raise not_found("FILED_ARTIFACT_NOT_FOUND", "Filed artifact was not found")
+        opportunity = self.get_opportunity(
+            opportunity_id=UUID(str(row["opportunity_id"])),
+            user_id=user_id,
+        )
+        return {
+            **copy.deepcopy(row),
+            "client_name": opportunity["client_name"],
+            "opportunity_name": opportunity["opportunity_name"],
+        }
 
     def create_generation_job(self, payload: dict[str, Any]) -> dict[str, Any]:
         row = copy.deepcopy(payload)

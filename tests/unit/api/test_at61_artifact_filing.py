@@ -17,11 +17,13 @@ from app.services.artifact_filing import (
     ArtifactFilingRequest,
     MemoryFilingMetadataStore,
     file_artifact,
+    filing_idempotency_key,
 )
 from app.services.artifact_filing_stage import run_artifact_filing_for_presentation
 from app.services.data.memory_store import get_memory_store
 from app.services.deck_assets import deck_assets_root
 from app.services.enterprise_repository import (
+    FixtureEnterpriseStore,
     LiveEnterpriseStore,
     build_enterprise_destination,
 )
@@ -144,6 +146,8 @@ def test_filing_is_idempotent_and_keeps_approval_and_provenance(tmp_path: Path) 
     assert first["corpus_versions"] == list(request.corpus_versions)
     assert first["provider"] == "gamma"
     assert first["repository_ref"].startswith("sharepoint://")
+    assert first["size_bytes"] == artifact.stat().st_size
+    assert len(first["sha256"]) == 64
 
 
 def test_transient_destination_failure_is_recorded_for_retry(tmp_path: Path) -> None:
@@ -201,6 +205,40 @@ def test_fixture_destination_persists_bytes(tmp_path: Path, monkeypatch: pytest.
     stored = tmp_path / "enterprise" / "opportunities" / "demo" / "deck.pptx"
     assert stored.read_bytes() == b"PK fixture"
     assert ref == "fixture://enterprise/opportunities/demo/deck.pptx"
+
+
+def test_in_app_destination_reads_the_exact_filed_bytes(tmp_path: Path) -> None:
+    destination = FixtureEnterpriseStore(tmp_path, scheme="in-app")
+    content = b"PK in-app deck"
+    ref = destination.put(
+        destination_path="opportunities/demo/deck.pptx",
+        content=content,
+        content_type="application/octet-stream",
+    )
+    assert ref == "in-app://enterprise/opportunities/demo/deck.pptx"
+    assert destination.get(destination_path="opportunities/demo/deck.pptx") == content
+
+    with pytest.raises(ArtifactFilingError) as raised:
+        destination.get(destination_path="../outside.txt")
+    assert raised.value.code == "INVALID_DESTINATION_PATH"
+
+
+def test_successful_retry_clears_stale_error_metadata(tmp_path: Path) -> None:
+    artifact = tmp_path / "deck.pdf"
+    artifact.write_bytes(b"%PDF retry")
+    request = _request(artifact)
+    metadata = MemoryFilingMetadataStore()
+    key = filing_idempotency_key(request)
+    metadata.save_filing_record(
+        key,
+        {"status": "failed", "error_code": "TIMEOUT", "error_retryable": True},
+    )
+
+    filed = file_artifact(request, destination=RecordingDestination(), metadata=metadata)
+
+    assert filed["status"] == "filed"
+    assert filed["error_code"] is None
+    assert filed["error_retryable"] is None
 
 
 def test_live_destination_is_fail_closed_without_o2_credentials() -> None:
@@ -293,9 +331,9 @@ def test_generate_files_every_artifact_with_workflow_provenance_and_approval() -
     assert all(row["approved_by"] == str(USER_A) for row in rows)
     assert all(row["approved_at"] for row in rows)
     assert all(row["corpus_versions"] == ["borek-internal@2026.09.03"] for row in rows)
-    assert all(str(row["repository_ref"]).startswith("fixture://enterprise/") for row in rows)
+    assert all(str(row["repository_ref"]).startswith("in-app://enterprise/") for row in rows)
     for row in rows:
-        relative = str(row["repository_ref"]).removeprefix("fixture://enterprise/")
+        relative = str(row["repository_ref"]).removeprefix("in-app://enterprise/")
         assert (deck_assets_root() / "enterprise" / Path(relative)).is_file()
 
     rerun = client.get(
@@ -309,6 +347,68 @@ def test_generate_files_every_artifact_with_workflow_provenance_and_approval() -
         headers=_headers(USER_B, "other@example.com"),
     )
     assert other.status_code == 404
+
+
+def test_in_app_archive_lists_searches_and_downloads_historical_bytes(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(settings, "ARTIFACT_ROOT", str(tmp_path))
+    monkeypatch.setattr(settings, "FILING_DESTINATION", "in_app")
+    client = _client()
+    opportunity_id = _create_opportunity(client)
+    generated = _generate_presentation(client, opportunity_id)
+
+    archive = client.get("/archive/artifacts", headers=_headers())
+    assert archive.status_code == 200, archive.text
+    rows = archive.json()
+    assert {row["artifact_kind"] for row in rows} == {"pptx", "pdf"}
+    assert all(row["client_name"] == "Acme Corp" for row in rows)
+    assert all(row["opportunity_name"] == "Invoice Automation" for row in rows)
+    assert all(row["download_url"].startswith("/archive/artifacts/") for row in rows)
+    assert all("provider" not in row for row in rows)
+    assert all("destination_path" not in row for row in rows)
+    assert all("repository_ref" not in row for row in rows)
+
+    searched = client.get("/archive/artifacts?search=invoice", headers=_headers())
+    missing = client.get("/archive/artifacts?search=does-not-exist", headers=_headers())
+    assert len(searched.json()) == 2
+    assert missing.json() == []
+
+    pptx = next(row for row in rows if row["artifact_kind"] == "pptx")
+    store = get_memory_store()
+    version = store.get_latest_presentation_version(
+        presentation_id=UUID(generated["presentation_id"]),
+        user_id=USER_A,
+    )
+    source = Path(version["pptx_storage_path"])
+    expected = source.read_bytes()
+    source.unlink()
+    downloaded = client.get(pptx["download_url"], headers=_headers())
+    assert downloaded.status_code == 200
+    assert downloaded.content == expected
+
+    filed_row = store.get_user_filed_artifact(
+        artifact_id=UUID(pptx["id"]),
+        user_id=USER_A,
+    )
+    FixtureEnterpriseStore(tmp_path / "enterprise", scheme="in-app").put(
+        destination_path=str(filed_row["destination_path"]),
+        content=b"corrupted",
+        content_type=str(filed_row["content_type"]),
+    )
+    integrity_failure = client.get(pptx["download_url"], headers=_headers())
+    assert integrity_failure.status_code == 404
+    assert integrity_failure.json()["error"]["code"] == "FILED_ARTIFACT_INTEGRITY_FAILED"
+
+    denied_list = client.get("/archive/artifacts", headers=_headers(USER_B, "other@example.com"))
+    denied_download = client.get(
+        pptx["download_url"],
+        headers=_headers(USER_B, "other@example.com"),
+    )
+    assert denied_list.status_code == 200
+    assert denied_list.json() == []
+    assert denied_download.status_code == 404
 
 
 def test_gamma_artifacts_are_filed_with_gamma_provenance(
@@ -330,10 +430,7 @@ def test_gamma_artifacts_are_filed_with_gamma_provenance(
     assert listed.status_code == 200
     rows = listed.json()
     providers = {(row["provider"], row["artifact_kind"]) for row in rows}
-    assert ("internal", "pptx") in providers
-    assert ("internal", "pdf") in providers
-    assert ("gamma", "pptx") in providers
-    assert ("gamma", "pdf") in providers
+    assert providers == {("gamma", "pptx"), ("gamma", "pdf")}
     assert all(row["status"] == "filed" for row in rows)
 
 
@@ -368,6 +465,10 @@ def test_filing_stage_is_idempotent_for_the_same_version(
     assert first["skipped"] is False
     assert first["filed"] == second["filed"]
     assert len(first["filed"]) == 2
+    artifact_audits = [
+        row for row in store.audit_logs.values() if row["action"] == "artifact.file"
+    ]
+    assert len(artifact_audits) == 2
 
 
 def test_filing_stage_skips_when_fixture_generate_has_no_files() -> None:

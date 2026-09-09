@@ -412,7 +412,15 @@ def install_demo_data(
                     "framework_version_id": str(framework_id),
                     "artifact_kind": kind,
                     "content_type": content_type,
+                    "file_name": f"{stage_id}.{suffix}",
+                    "size_bytes": Path(assets[stage_id][kind]).stat().st_size,
+                    "sha256": artifact_hashes[f"{stage_id}.{kind}"],
+                    "journey_stage": stage_id,
+                    "prior_stage_presentation_version_id": (
+                        str(previous_version_id) if previous_version_id else None
+                    ),
                     "provider": "fixture",
+                    "storage_backend": "fixture",
                     "destination_path": destination,
                     "repository_ref": f"fixture://enterprise/{destination}",
                     "status": "filed",
