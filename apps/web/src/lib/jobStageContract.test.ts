@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
+  BOREK_RETRIEVAL_STAGE,
   FRAMEWORK_PROGRESS_STAGES,
   JOB_STAGE_LABELS,
   PRESENTATION_PROGRESS_STAGES,
@@ -11,6 +12,7 @@ import {
   buildJobProgressView,
   jobProgressPhase,
   jobProgressStages,
+  jobStageLabel,
 } from "./jobProgress.js";
 
 /**
@@ -223,6 +225,43 @@ const JOB_TYPES = backendJobTypes();
       }
     }
   }
+}
+
+// 7. AT-59 retrieval is a reportable extension stage, not a backend JobStage.
+{
+  const corpus = JSON.parse(
+    readFileSync(path.join(REPO_ROOT, "packages", "contracts", "knowledge_corpus.json"), "utf8"),
+  ) as {
+    retrieval_stage: { stage: string; customer_facing_name: string; shown_when: string };
+  };
+  assert.equal(corpus.retrieval_stage.stage, BOREK_RETRIEVAL_STAGE);
+  assert.equal(corpus.retrieval_stage.shown_when, "reported");
+  assert.equal(jobStageLabel(corpus.retrieval_stage.stage), corpus.retrieval_stage.customer_facing_name);
+  assert.equal(Object.hasOwn(JOB_STAGE_LABELS, BOREK_RETRIEVAL_STAGE), false);
+  assert.equal(STAGES.includes(BOREK_RETRIEVAL_STAGE), false);
+  assert.equal(
+    (PRESENTATION_PROGRESS_STAGES as readonly string[]).includes(BOREK_RETRIEVAL_STAGE),
+    false,
+  );
+
+  const view = buildJobProgressView({
+    snapshot: {
+      jobId: "retrieval-job",
+      jobType: "presentation_generation",
+      status: "RUNNING",
+      currentStage: BOREK_RETRIEVAL_STAGE,
+      startedAt: "2026-09-02T10:00:00.000Z",
+      createdAt: "2026-09-02T10:00:00.000Z",
+      completedAt: null,
+      error: null,
+    },
+  });
+  assert.ok(view);
+  assert.equal(view.headline, corpus.retrieval_stage.customer_facing_name);
+  const rendered = [view.title, view.headline, ...view.steps.map((step) => step.label)].join(" ");
+  assert.doesNotMatch(rendered, /gamma|provider|template/i);
+  assert.doesNotMatch(rendered, /_/);
+  assert.doesNotMatch(rendered, /%/);
 }
 
 console.log("jobStageContract tests passed");

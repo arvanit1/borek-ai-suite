@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 
 import {
+  BOREK_RETRIEVAL_STAGE,
+  EXTENSION_STAGE_LABELS,
   JOB_STAGE_LABELS,
   buildJobProgressView,
   elapsedMsSince,
@@ -51,15 +53,18 @@ function labels(view: ReturnType<typeof buildJobProgressView>): string[] {
   assert.equal(jobStageLabel("SLIDE_GENERATING"), "Generating slide content");
   assert.equal(jobStageLabel("SLIDE_VALIDATING"), "Validating slides");
   assert.equal(jobStageLabel("PPTX_RENDERING"), "Rendering PowerPoint/PDF");
-  assert.equal(jobStageLabel("GAMMA_RENDERING"), "Building branded presentation");
+  assert.equal(jobStageLabel("GAMMA_RENDERING"), "Building your presentation");
+  assert.notEqual(jobStageLabel("GAMMA_RENDERING"), "Building branded presentation");
   assert.equal(jobStageLabel("ARTIFACT_FILING"), "Archiving generated files");
   assert.equal(jobStageLabel("PREVIEW_RENDERING"), "Preparing preview");
+  assert.equal(jobStageLabel(BOREK_RETRIEVAL_STAGE), "Retrieving Borek information");
   // No raw enum ever reaches the user, even for an unknown future stage.
   assert.equal(jobStageLabel("SOME_NEW_STAGE"), "Some new stage");
   assert.equal(jobStageLabel(null), "Waiting to start");
-  for (const label of Object.values(JOB_STAGE_LABELS)) {
+  for (const label of [...Object.values(JOB_STAGE_LABELS), ...Object.values(EXTENSION_STAGE_LABELS)]) {
     assert.doesNotMatch(label, /_/);
     assert.doesNotMatch(label, /%/);
+    assert.doesNotMatch(label, /gamma|provider|template id/i);
   }
 }
 
@@ -94,7 +99,7 @@ function labels(view: ReturnType<typeof buildJobProgressView>): string[] {
     ["SLIDE_GENERATING", "Generating slide content"],
     ["SLIDE_VALIDATING", "Validating slides"],
     ["PPTX_RENDERING", "Rendering PowerPoint/PDF"],
-    ["GAMMA_RENDERING", "Building branded presentation"],
+    ["GAMMA_RENDERING", "Building your presentation"],
     ["PREVIEW_RENDERING", "Preparing preview"],
   ];
   for (const [stage, headline] of expected) {
@@ -279,9 +284,10 @@ function labels(view: ReturnType<typeof buildJobProgressView>): string[] {
     snapshot: snapshot({ currentStage: "GAMMA_RENDERING" }),
   });
   assert.ok(gamma);
-  assert.equal(gamma.headline, "Building branded presentation");
+  assert.equal(gamma.headline, "Building your presentation");
   assert.equal(states(gamma).GAMMA_RENDERING, "current");
   assert.equal(states(gamma).PPTX_RENDERING, undefined);
+  assert.equal(states(gamma).BOREK_RETRIEVAL, undefined);
   assert.equal(states(gamma).ARTIFACT_FILING, undefined);
 
   const filingFailure = buildJobProgressView({
@@ -377,6 +383,113 @@ function labels(view: ReturnType<typeof buildJobProgressView>): string[] {
   assert.ok(view);
   // Metrics are telemetry, not progress.
   assert.doesNotMatch(JSON.stringify(view), /1234|total_tokens/);
+}
+
+// 14. BT-29: retrieval is optional and uses the AT-59 contract name.
+{
+  const internal = buildJobProgressView({
+    snapshot: snapshot({ currentStage: "SLIDE_VALIDATING" }),
+  });
+  assert.ok(internal);
+  assert.equal(states(internal).BOREK_RETRIEVAL, undefined);
+  assert.equal(states(internal).GAMMA_RENDERING, undefined);
+  assert.doesNotMatch(labels(internal).join(" "), /Retrieving Borek|Building your presentation|Gamma/i);
+
+  const retrieval = buildJobProgressView({
+    snapshot: snapshot({ currentStage: BOREK_RETRIEVAL_STAGE }),
+  });
+  assert.ok(retrieval);
+  assert.equal(retrieval.headline, "Retrieving Borek information");
+  assert.deepEqual(states(retrieval), {
+    PRESENTATION_PLANNING: "complete",
+    SLIDE_GENERATING: "complete",
+    SLIDE_VALIDATING: "complete",
+    BOREK_RETRIEVAL: "current",
+    PREVIEW_RENDERING: "upcoming",
+  });
+  assert.equal(states(retrieval).GAMMA_RENDERING, undefined);
+  assert.doesNotMatch(JSON.stringify(retrieval.steps.map((step) => step.label)), /gamma|_/i);
+
+  const bothReported = buildJobProgressView({
+    snapshot: snapshot({
+      status: "FAILED",
+      currentStage: "GAMMA_RENDERING",
+      error: {
+        code: "GAMMA_TIMEOUT",
+        message: "Gamma generation timed out.",
+        stage: BOREK_RETRIEVAL_STAGE,
+        retryable: true,
+      },
+    }),
+  });
+  assert.ok(bothReported);
+  assert.deepEqual(Object.keys(states(bothReported)), [
+    "PRESENTATION_PLANNING",
+    "SLIDE_GENERATING",
+    "SLIDE_VALIDATING",
+    "BOREK_RETRIEVAL",
+    "GAMMA_RENDERING",
+    "PREVIEW_RENDERING",
+  ]);
+  assert.equal(states(bothReported).BOREK_RETRIEVAL, "failed");
+  assert.equal(states(bothReported).GAMMA_RENDERING, "upcoming");
+  assert.doesNotMatch(bothReported.headline, /gamma/i);
+  assert.doesNotMatch(bothReported.headline, /timeout banner|%/i);
+
+  const retrievalFailure = buildJobProgressView({
+    snapshot: snapshot({
+      status: "FAILED",
+      currentStage: "FAILED",
+      error: {
+        code: "KNOWLEDGE_READ_FAILED",
+        message: "Borek information could not be retrieved.",
+        stage: BOREK_RETRIEVAL_STAGE,
+        retryable: true,
+      },
+    }),
+  });
+  assert.ok(retrievalFailure);
+  assert.equal(retrievalFailure.failed, true);
+  assert.equal(states(retrievalFailure).BOREK_RETRIEVAL, "failed");
+  assert.equal(retrievalFailure.headline, "Borek information could not be retrieved.");
+  assert.equal(states(retrievalFailure).GAMMA_RENDERING, undefined);
+
+  const gammaFailure = buildJobProgressView({
+    snapshot: snapshot({
+      status: "FAILED",
+      currentStage: "FAILED",
+      error: {
+        code: "GAMMA_TIMEOUT",
+        message: "Gamma generation timed out.",
+        stage: "GAMMA_RENDERING",
+        retryable: true,
+      },
+    }),
+  });
+  assert.ok(gammaFailure);
+  assert.equal(states(gammaFailure).GAMMA_RENDERING, "failed");
+  assert.equal(states(gammaFailure).BOREK_RETRIEVAL, undefined);
+  assert.doesNotMatch(gammaFailure.headline, /gamma/i);
+  assert.equal(
+    gammaFailure.headline,
+    "Building the branded presentation took too long. Try generating it again.",
+  );
+
+  const reconnected = buildJobProgressView({
+    snapshot: snapshotFromActiveJob({
+      job_id: "job-reconnect",
+      job_type: "presentation_generation",
+      status: "RUNNING",
+      current_stage: BOREK_RETRIEVAL_STAGE,
+      started_at: STARTED_AT,
+      error: null,
+    }),
+  });
+  assert.ok(reconnected);
+  assert.equal(reconnected.headline, "Retrieving Borek information");
+  assert.equal(states(reconnected).BOREK_RETRIEVAL, "current");
+  assert.equal(states(reconnected).GAMMA_RENDERING, undefined);
+  assert.equal(reconnected.failed, false);
 }
 
 console.log("jobProgress tests passed");
