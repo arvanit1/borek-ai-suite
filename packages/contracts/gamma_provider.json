@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "description": "AT-60A: frozen Gamma provider error contract and owned-host reference rule. JJ-29 and MS-28 build against this file. Live credentials are not required.",
+  "errors": [
+    {
+      "code": "GAMMA_TIMEOUT",
+      "classification": "timeout",
+      "retryable": true
+    },
+    {
+      "code": "GAMMA_AUTH",
+      "classification": "auth",
+      "retryable": false
+    },
+    {
+      "code": "GAMMA_TEMPLATE_LOCKED",
+      "classification": "template",
+      "retryable": false
+    },
+    {
+      "code": "GAMMA_PAYLOAD_INVALID",
+      "classification": "payload",
+      "retryable": false
+    },
+    {
+      "code": "GAMMA_RATE_LIMIT",
+      "classification": "rate_limit",
+      "retryable": true
+    },
+    {
+      "code": "GAMMA_PROVIDER_FAILED",
+      "classification": "provider",
+      "retryable": true
+    }
+  ],
+  "reference_policy": {
+    "never_egress_schemes": ["artifact:", "s3:"],
+    "accepted_private_prefixes": ["artifact:logos/", "s3://borek-client-logos/"],
+    "owned_https_prefixes_from": "gamma_template.client_logo.signed_url_prefixes",
+    "empty_owned_https_prefixes_valid": true,
+    "egress_requires_https": true,
+    "arbitrary_https_not_trusted": true,
+    "unfetchable_fallback": "provider_could_not_fetch_reference"
+  }
+}
