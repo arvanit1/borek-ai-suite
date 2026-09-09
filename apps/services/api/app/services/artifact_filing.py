@@ -24,6 +24,8 @@ class EnterpriseArtifactStore(Protocol):
         content_type: str,
     ) -> str: ...
 
+    def get(self, *, destination_path: str) -> bytes: ...
+
 
 class FilingMetadataStore(Protocol):
     def get_filing_record(self, idempotency_key: str) -> dict[str, Any] | None: ...
@@ -41,6 +43,10 @@ class FilingMetadataStore(Protocol):
         user_id: UUID,
     ) -> list[dict[str, Any]]: ...
 
+    def list_user_filed_artifacts(self, *, user_id: UUID) -> list[dict[str, Any]]: ...
+
+    def get_user_filed_artifact(self, *, artifact_id: UUID, user_id: UUID) -> dict[str, Any]: ...
+
 
 @dataclass(frozen=True)
 class ArtifactFilingRequest:
@@ -55,6 +61,9 @@ class ArtifactFilingRequest:
     framework_version_id: UUID
     corpus_versions: tuple[str, ...] = ()
     provider: str = "internal"
+    journey_stage: str | None = None
+    prior_stage_presentation_version_id: UUID | None = None
+    demo_marker: str | None = None
 
 
 class ArtifactFilingError(RuntimeError):
@@ -124,6 +133,7 @@ def file_artifact(
         )
 
     target = destination_path(request)
+    content = request.source_path.read_bytes()
     base_record: dict[str, Any] = {
         "idempotency_key": key,
         "opportunity_id": str(request.opportunity_id),
@@ -137,6 +147,17 @@ def file_artifact(
         "approved_at": request.approved_at.astimezone(UTC).isoformat(),
         "corpus_versions": list(request.corpus_versions),
         "provider": request.provider,
+        "file_name": request.source_path.name,
+        "size_bytes": len(content),
+        "sha256": hashlib.sha256(content).hexdigest(),
+        "journey_stage": request.journey_stage,
+        "prior_stage_presentation_version_id": (
+            str(request.prior_stage_presentation_version_id)
+            if request.prior_stage_presentation_version_id
+            else None
+        ),
+        "demo_marker": request.demo_marker,
+        "storage_backend": str(getattr(destination, "backend", "unknown")),
     }
 
     metadata.save_filing_record(
@@ -146,7 +167,7 @@ def file_artifact(
     try:
         repository_ref = destination.put(
             destination_path=target,
-            content=request.source_path.read_bytes(),
+            content=content,
             content_type=request.content_type,
         )
     except Exception as exc:
@@ -170,6 +191,8 @@ def file_artifact(
             **base_record,
             "status": "filed",
             "repository_ref": repository_ref,
+            "error_code": None,
+            "error_retryable": None,
             "filed_at": datetime.now(UTC).isoformat(),
             "updated_at": datetime.now(UTC).isoformat(),
         },

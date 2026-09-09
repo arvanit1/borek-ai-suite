@@ -29,6 +29,7 @@ class AuditAction(StrEnum):
     PRESENTATION_GENERATE = "presentation.generate"
     SLIDE_REGENERATE = "slide.regenerate"
     SLIDE_CHANGE_LAYOUT = "slide.change_layout"
+    ARTIFACT_FILE = "artifact.file"
 
 
 class AuditObjectType(StrEnum):
@@ -39,6 +40,7 @@ class AuditObjectType(StrEnum):
     PRESENTATION_PLAN = "presentation_plan"
     PRESENTATION = "presentation"
     SLIDE = "slide"
+    FILED_ARTIFACT = "filed_artifact"
 
 
 def record_audit_event(

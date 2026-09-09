@@ -190,3 +190,16 @@ def test_ms30_migration_scopes_demo_data_and_freezes_lineage() -> None:
     assert "REFERENCES presentation_versions(id) ON DELETE SET NULL" in content
     assert "owner_user_id = auth.uid()" in content
     assert "knowledge_corpus_versions_identity_idx" in content
+
+
+def test_at61_archive_migration_adds_retrieval_and_integrity_metadata() -> None:
+    content = (MIGRATIONS_DIR / "022_at61_in_app_archive.sql").read_text(encoding="utf-8")
+    for column in ("file_name", "size_bytes", "sha256", "journey_stage"):
+        assert f"ADD COLUMN IF NOT EXISTS {column}" in content
+    assert "prior_stage_presentation_version_id UUID" in content
+    assert "REFERENCES presentation_versions(id) ON DELETE SET NULL" in content
+    assert "filed_artifacts_sha256_format" in content
+    assert "ADD COLUMN IF NOT EXISTS storage_backend" in content
+    assert 'FOR SELECT' in content
+    assert 'users_read_own_filed_artifacts' in content
+    assert 'preserve_completed_filing_trigger' in content

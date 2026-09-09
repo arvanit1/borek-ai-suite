@@ -67,6 +67,12 @@ EXPECTED_COLUMNS = {
         "corpus_versions",
         "error_retryable",
         "demo_marker",
+        "file_name",
+        "size_bytes",
+        "sha256",
+        "journey_stage",
+        "prior_stage_presentation_version_id",
+        "storage_backend",
     ),
     "opportunity_client_logos": ("width_px", "height_px", "demo_marker"),
     "presentation_versions": (
@@ -100,6 +106,8 @@ EXPECTED_INDEXES = (
     "knowledge_facts_service_kind_idx",
     "presentation_versions_prior_stage_idx",
     "knowledge_corpus_versions_identity_idx",
+    "filed_artifacts_approved_at_idx",
+    "filed_artifacts_prior_stage_idx",
 )
 
 LOCAL_DB_HOSTS = {"localhost", "127.0.0.1", "::1"}
