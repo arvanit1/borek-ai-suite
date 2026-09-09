@@ -41,7 +41,7 @@ EXPECTED_TABLES = [
 ]
 
 EXPECTED_COLUMNS = {
-    "opportunities": ("pii_redaction_enabled", "additional_client_information"),
+    "opportunities": ("pii_redaction_enabled", "additional_client_information", "demo_marker"),
     "generation_jobs": (
         "llm_cost_eur",
         "error_retryable",
@@ -66,8 +66,15 @@ EXPECTED_COLUMNS = {
         "approved_at",
         "corpus_versions",
         "error_retryable",
+        "demo_marker",
     ),
-    "opportunity_client_logos": ("width_px", "height_px"),
+    "opportunity_client_logos": ("width_px", "height_px", "demo_marker"),
+    "presentation_versions": (
+        "journey_stage",
+        "prior_stage_presentation_version_id",
+        "demo_marker",
+    ),
+    "knowledge_corpus_versions": ("owner_user_id", "demo_marker"),
 }
 
 EXPECTED_FOREIGN_KEYS = {
@@ -91,6 +98,8 @@ EXPECTED_INDEXES = (
     "knowledge_documents_corpus_idx",
     "knowledge_facts_query_idx",
     "knowledge_facts_service_kind_idx",
+    "presentation_versions_prior_stage_idx",
+    "knowledge_corpus_versions_identity_idx",
 )
 
 LOCAL_DB_HOSTS = {"localhost", "127.0.0.1", "::1"}

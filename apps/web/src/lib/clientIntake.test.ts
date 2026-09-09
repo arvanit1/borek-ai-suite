@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 
 import {
+  additionalClientInformationError,
   CLIENT_LOGO_MAX_BYTES,
   compactAdditionalClientInformation,
   validateClientLogoFile,
@@ -50,6 +51,27 @@ assert.deepEqual(
     priorities: ["Accuracy"],
     notes: "Procurement pending.",
   },
+);
+
+assert.match(
+  additionalClientInformationError({
+    location_requirements: [],
+    constraints: [],
+    contacts: [{ name: "  ", role: "Sponsor", email: null, phone: null }],
+    priorities: [],
+    notes: null,
+  }) ?? "",
+  /name for each client contact/i,
+);
+assert.equal(
+  additionalClientInformationError({
+    location_requirements: [],
+    constraints: [],
+    contacts: [{ name: "  ", role: null, email: null, phone: null }],
+    priorities: [],
+    notes: null,
+  }),
+  undefined,
 );
 
 console.log("MS-27 client intake tests passed");

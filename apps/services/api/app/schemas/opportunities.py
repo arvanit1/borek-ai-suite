@@ -63,6 +63,7 @@ class OpportunityResponse(BaseModel):
     status: str
     pii_redaction_enabled: bool = True
     additional_client_information: AdditionalClientInformation | None = None
+    demo_marker: str | None = None
     created_by: UUID
     created_at: datetime
     updated_at: datetime
@@ -76,6 +77,7 @@ class ClientLogoMetadata(BaseModel):
     size_bytes: int
     width_px: int | None = None
     height_px: int | None = None
+    demo_marker: str | None = None
     uploaded_at: datetime
 
 
@@ -97,4 +99,5 @@ class FiledArtifactResponse(BaseModel):
     filed_at: datetime | None = None
     error_code: str | None = None
     error_retryable: bool | None = None
+    demo_marker: str | None = None
     updated_at: datetime | None = None

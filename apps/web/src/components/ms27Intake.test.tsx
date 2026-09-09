@@ -12,7 +12,7 @@ const formHtml = renderToStaticMarkup(
 );
 assert.match(formHtml, /Additional client information/);
 assert.match(formHtml, /Optional/);
-assert.match(formHtml, /Leave this section empty to keep the fast path/);
+assert.match(formHtml, /leave this section empty and continue directly to transcripts/i);
 assert.match(formHtml, /Location requirements/);
 assert.match(formHtml, /Client contacts/);
 assert.match(formHtml, /Create opportunity/);

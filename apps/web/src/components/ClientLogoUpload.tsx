@@ -32,6 +32,14 @@ export function ClientLogoUpload({ accessToken, opportunityId }: ClientLogoUploa
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
+    setSelectedFile(null);
+    setMetadata(null);
+    setPreviewUrl(null);
+    setError(null);
+    setNotice(null);
+  }, [accessToken, opportunityId]);
+
+  useEffect(() => {
     let active = true;
     let objectUrl: string | null = null;
 
@@ -41,16 +49,23 @@ export function ClientLogoUpload({ accessToken, opportunityId }: ClientLogoUploa
         objectUrl = URL.createObjectURL(selectedFile);
         if (active) {
           setPreviewUrl(objectUrl);
+        } else {
+          URL.revokeObjectURL(objectUrl);
+          objectUrl = null;
         }
         return;
       }
       try {
+        setMetadata(null);
         const currentMetadata = await getClientLogoMetadata(accessToken, opportunityId);
         const blob = await fetchClientLogoContent(accessToken, opportunityId);
         objectUrl = URL.createObjectURL(blob);
         if (active) {
           setMetadata(currentMetadata);
           setPreviewUrl(objectUrl);
+        } else {
+          URL.revokeObjectURL(objectUrl);
+          objectUrl = null;
         }
       } catch (loadError) {
         if (active && !isMissingClientLogoError(loadError)) {

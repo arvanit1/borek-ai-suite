@@ -221,17 +221,13 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
     const context = pipelineError.phase === "generation" ? "deck" : "plan";
     const recovered = recoveryNoticeFromError(pipelineError, context);
     setInfo(null);
-    setRetryJobId(null);
+    setRetryJobId(
+      recovered.action?.kind === "RETRY" && pipelineError.jobId ? pipelineError.jobId : null,
+    );
     setRecoveryTarget("presentation-pipeline");
-    const reconnectAction =
-      recovered.action?.kind === "RECONNECT" || recovered.action?.kind === "KEEP_CHECKING"
-        ? recovered.action
-        : null;
-    const validationAction =
-      recovered.category === "VALIDATION_NEEDS_REVIEW" ? recovered.action : null;
     setNotice({
       ...recovered,
-      action: reconnectAction ?? validationAction ??
+      action: recovered.action ??
         (pipelineError.phase === "generation"
           ? {
               kind: "REVIEW",
@@ -572,6 +568,10 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
         timeoutMs: FRAMEWORK_JOB_TIMEOUT_MS,
         onProgress: trackFrameworkJob,
       });
+      if (recoveryTarget === "presentation-pipeline" && frameworkVersion) {
+        await recoverConfirmedPresentation(frameworkVersion);
+        return;
+      }
       setFrameworkJobSnapshot(null);
       setNotice(null);
       await loadFramework();

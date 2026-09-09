@@ -97,6 +97,8 @@ def main() -> int:
     run(["npm", "run", "test:at57", "--workspace", "borek-web"], shell=True)
     run(["npm", "run", "test:bt27", "--workspace", "borek-web"], shell=True)
     run(["npm", "run", "test:jj28", "--workspace", "borek-web"], shell=True)
+    run(["npm", "run", "test:ms27", "--workspace", "borek-web"], shell=True)
+    run(["npm", "run", "test:ms28", "--workspace", "borek-web"], shell=True)
     run(["npm", "run", "test:at9", "--workspace", "borek-renderer"], shell=True)
     run(["npm", "run", "test:at10", "--workspace", "borek-renderer"], shell=True)
     run(["npm", "run", "test:at11", "--workspace", "borek-renderer"], shell=True)

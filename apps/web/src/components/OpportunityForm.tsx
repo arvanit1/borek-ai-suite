@@ -4,7 +4,10 @@ import React, { useEffect, useState } from "react";
 
 import type { AdditionalClientInformation, ClientContact, OpportunityCreatePayload } from "@/lib/api";
 import { opportunityErrorMessage } from "@/lib/apiErrors";
-import { compactAdditionalClientInformation } from "@/lib/clientIntake";
+import {
+  additionalClientInformationError,
+  compactAdditionalClientInformation,
+} from "@/lib/clientIntake";
 import {
   clearOpportunityDraft,
   loadOpportunityDraft,
@@ -123,6 +126,13 @@ export function OpportunityForm({
     setBusy(true);
     setError(null);
     try {
+      const clientInformationError = additionalClientInformationError(
+        values.additional_client_information,
+      );
+      if (clientInformationError) {
+        setError(clientInformationError);
+        return;
+      }
       const additionalClientInformation = compactAdditionalClientInformation(
         values.additional_client_information,
       );
@@ -234,7 +244,8 @@ export function OpportunityForm({
           <span className="optional-label">Optional</span>
         </summary>
         <p className="client-information-intro">
-          Add known context to personalize the Framework. Leave this section empty to keep the fast path.
+          Add known context to personalize the Framework. You can leave this section empty and continue
+          directly to transcripts.
         </p>
         <div className="client-information-grid">
           <div className="form-field">

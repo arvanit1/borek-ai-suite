@@ -180,3 +180,13 @@ def test_at59_migration_adds_read_only_versioned_knowledge_corpus() -> None:
     assert content.count("ENABLE ROW LEVEL SECURITY") == 3
     assert "authenticated_read_approved_knowledge_facts" in content
     assert "d.classification IN ('public', 'internal')" in content
+
+
+def test_ms30_migration_scopes_demo_data_and_freezes_lineage() -> None:
+    content = (MIGRATIONS_DIR / "021_ms30_demo_data.sql").read_text(encoding="utf-8")
+    assert content.count("ADD COLUMN IF NOT EXISTS demo_marker") == 11
+    assert "ADD COLUMN IF NOT EXISTS journey_stage TEXT" in content
+    assert "ADD COLUMN IF NOT EXISTS prior_stage_presentation_version_id UUID" in content
+    assert "REFERENCES presentation_versions(id) ON DELETE SET NULL" in content
+    assert "owner_user_id = auth.uid()" in content
+    assert "knowledge_corpus_versions_identity_idx" in content

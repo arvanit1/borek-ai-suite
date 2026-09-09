@@ -127,4 +127,44 @@ assert.equal(
   "/plan-preview?opportunityId=opportunity-1",
 );
 
+const gammaCases = [
+  ["GAMMA_TIMEOUT", true, "TERMINAL_FAILURE", "RETRY"],
+  ["GAMMA_AUTH", false, "TERMINAL_FAILURE", undefined],
+  ["GAMMA_TEMPLATE_LOCKED", false, "TERMINAL_FAILURE", undefined],
+  ["GAMMA_PAYLOAD_INVALID", false, "VALIDATION_NEEDS_REVIEW", "REVIEW"],
+  ["GAMMA_RATE_LIMIT", true, "TERMINAL_FAILURE", "RETRY"],
+  ["GAMMA_PROVIDER_FAILED", true, "TERMINAL_FAILURE", "RETRY"],
+] as const;
+
+for (const [code, retryable, category, action] of gammaCases) {
+  const notice = recoveryNoticeFromError(
+    new ApiRequestError("Provider details", 422, code, {
+      retryable,
+      jobId: "job-provider",
+      stage: "GAMMA_RENDERING",
+    }),
+    "deck",
+  );
+  assert.equal(notice.category, category, code);
+  assert.equal(notice.action?.kind, action, code);
+  assert.doesNotMatch(`${notice.title} ${notice.message} ${notice.action?.label ?? ""}`, /gamma/i);
+}
+
+const payloadRejected = recoveryNoticeFromError(
+  new ApiRequestError("Payload details", 422, "GAMMA_PAYLOAD_INVALID", {
+    retryable: false,
+    jobId: "job-payload",
+  }),
+  "deck",
+);
+assert.equal(payloadRejected.action?.target, "framework");
+
+const interruptedWhileRunning = recoveryNoticeFromError(
+  new TypeError("Failed to fetch"),
+  "deck",
+  { knownRunning: true },
+);
+assert.equal(interruptedWhileRunning.category, "STILL_RUNNING");
+assert.equal(interruptedWhileRunning.action?.kind, "KEEP_CHECKING");
+
 console.log("recoveryUx tests passed");
