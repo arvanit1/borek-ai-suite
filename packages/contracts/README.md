@@ -15,7 +15,9 @@ Single source of truth for all cross-service data contracts.
 | `chapter_layout_map.json` | BT-3 prep | Complete |
 | `slide_spec/group_*/*.schema.json` | BT/JJ/MS | Pending |
 | `knowledge_model.schema.json` | ES-5 (Endrit) | Complete |
+| `knowledge_corpus.json` | AT-59 / ES-39 | Complete |
 | `gamma_template.json` | JJ-26 | Complete |
+| `gamma_payload.schema.json` | ES-40 | Complete |
 | `gamma_provider.json` | AT-60A | Complete |
 
 ## Validation gate

@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""Ingest the bundled Borek corpus as the approved AT-59 version.
+"""Ingest a versioned Borek corpus as the approved AT-59 live source.
+
+Default path is the bundled live seed (`borek-internal`). Pass Fiona's rate-card
+JSON with --path. Demo packs belong on corpus id `borek-demo` (MS-30), never here.
 
 Usage:
-  py -3 scripts/ingest_borek_corpus.py
-  py -3 scripts/ingest_borek_corpus.py --path path/to/corpus.json
+  python scripts/ingest_borek_corpus.py
+  python scripts/ingest_borek_corpus.py --path path/to/corpus.json
 
 Uses the worker/service-role store so normal users stay read-only.
 """

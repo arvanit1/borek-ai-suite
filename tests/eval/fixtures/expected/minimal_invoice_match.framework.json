@@ -570,11 +570,11 @@
           "rows": [
             {
               "label": "Borek service",
-              "value": "Invoice 3-way Match matches supplier invoices to purchase orders and goods receipts before payment release. (corpus 2026.09.03, SVC-DUMMY-INV3WAY-v1, service.invoice-3way.definition)"
+              "value": "Invoice 3-way Match matches supplier invoices to purchase orders and goods receipts before payment release. (corpus 2026.09.03, SVC-INV3WAY-v1, service.invoice-3way.definition)"
             },
             {
               "label": "Borek reference",
-              "value": "Invoice 3-way Match is typically delivered as a structured finance-operations engagement with a named delivery lead. (corpus 2026.09.03, REF-DUMMY-INV3WAY-v1, reference.invoice-3way.delivery-pattern)"
+              "value": "Invoice 3-way Match is typically delivered as a structured finance-operations engagement with a named delivery lead. (corpus 2026.09.03, REF-INV3WAY-v1, reference.invoice-3way.delivery-pattern)"
             }
           ],
           "source_refs": [
@@ -1102,7 +1102,7 @@
           "rows": [
             {
               "label": "Borek rate card",
-              "value": "EUR 1250.00 / day (indicative). (corpus 2026.09.03, RC-DUMMY-2026-Q3, price.invoice-3way.senior-consultant.day-rate)"
+              "value": "EUR 1250.00 / day (indicative). (corpus 2026.09.03, RC-2026-Q3, price.invoice-3way.senior-consultant.day-rate)"
             }
           ],
           "source_refs": [
@@ -1215,7 +1215,7 @@
           "rows": [
             {
               "label": "Borek staffing",
-              "value": "4 people / 2.6 FTE. (corpus 2026.09.03, STAFF-DUMMY-INV3WAY-v1, staff.invoice-3way.core-team)"
+              "value": "4 people / 2.6 FTE. (corpus 2026.09.03, STAFF-INV3WAY-v1, staff.invoice-3way.core-team)"
             }
           ],
           "source_refs": [
@@ -1949,15 +1949,16 @@
           },
           "sources": [
             {
-              "corpus_id": "borek-internal-dummy",
+              "corpus_id": "borek-internal",
               "corpus_version": "2026.09.03",
-              "document_id": "SVC-DUMMY-INV3WAY-v1",
+              "document_id": "SVC-INV3WAY-v1",
               "document_type": "service_definition",
               "document_version": "1.0.0",
               "fact_id": "service.invoice-3way.definition",
               "classification": "internal",
               "effective_from": "2026-07-01",
-              "effective_to": "2026-12-31"
+              "effective_to": "2026-12-31",
+              "provenance_marker": "es39"
             }
           ],
           "query": {
@@ -1971,7 +1972,7 @@
           "kind": "pricing",
           "status": "answered",
           "reason": "supported_by_corpus",
-          "statement": "Senior Consultant day rate for Invoice 3-way Match is EUR 1250.00 (indicative dummy rate).",
+          "statement": "Senior Consultant day rate for Invoice 3-way Match is EUR 1250.00 (indicative).",
           "payload": {
             "role": "senior_consultant",
             "unit": "day",
@@ -1981,15 +1982,16 @@
           },
           "sources": [
             {
-              "corpus_id": "borek-internal-dummy",
+              "corpus_id": "borek-internal",
               "corpus_version": "2026.09.03",
-              "document_id": "RC-DUMMY-2026-Q3",
+              "document_id": "RC-2026-Q3",
               "document_type": "rate_card",
               "document_version": "2026.Q3.1",
               "fact_id": "price.invoice-3way.senior-consultant.day-rate",
               "classification": "internal",
               "effective_from": "2026-07-01",
-              "effective_to": "2026-09-30"
+              "effective_to": "2026-09-30",
+              "provenance_marker": "es39"
             }
           ],
           "query": {
@@ -2027,15 +2029,16 @@
           },
           "sources": [
             {
-              "corpus_id": "borek-internal-dummy",
+              "corpus_id": "borek-internal",
               "corpus_version": "2026.09.03",
-              "document_id": "STAFF-DUMMY-INV3WAY-v1",
+              "document_id": "STAFF-INV3WAY-v1",
               "document_type": "staffing_profile",
               "document_version": "1.0.0",
               "fact_id": "staff.invoice-3way.core-team",
               "classification": "internal",
               "effective_from": "2026-07-01",
-              "effective_to": "2026-12-31"
+              "effective_to": "2026-12-31",
+              "provenance_marker": "es39"
             }
           ],
           "query": {
@@ -2058,15 +2061,16 @@
           },
           "sources": [
             {
-              "corpus_id": "borek-internal-dummy",
+              "corpus_id": "borek-internal",
               "corpus_version": "2026.09.03",
-              "document_id": "REF-DUMMY-INV3WAY-v1",
+              "document_id": "REF-INV3WAY-v1",
               "document_type": "reference",
               "document_version": "1.0.0",
               "fact_id": "reference.invoice-3way.delivery-pattern",
               "classification": "internal",
               "effective_from": "2026-07-01",
-              "effective_to": "2026-12-31"
+              "effective_to": "2026-12-31",
+              "provenance_marker": "es39"
             }
           ],
           "query": {
@@ -2093,15 +2097,16 @@
           },
           "sources": [
             {
-              "corpus_id": "borek-internal-dummy",
+              "corpus_id": "borek-internal",
               "corpus_version": "2026.09.03",
-              "document_id": "SVC-DUMMY-INV3WAY-v1",
+              "document_id": "SVC-INV3WAY-v1",
               "document_type": "service_definition",
               "document_version": "1.0.0",
               "fact_id": "service.invoice-3way.definition",
               "classification": "internal",
               "effective_from": "2026-07-01",
-              "effective_to": "2026-12-31"
+              "effective_to": "2026-12-31",
+              "provenance_marker": "es39"
             }
           ],
           "query": {
@@ -2115,7 +2120,7 @@
           "kind": "pricing",
           "status": "answered",
           "reason": "supported_by_corpus",
-          "statement": "Senior Consultant day rate for Invoice 3-way Match is EUR 1250.00 (indicative dummy rate).",
+          "statement": "Senior Consultant day rate for Invoice 3-way Match is EUR 1250.00 (indicative).",
           "payload": {
             "role": "senior_consultant",
             "unit": "day",
@@ -2125,15 +2130,16 @@
           },
           "sources": [
             {
-              "corpus_id": "borek-internal-dummy",
+              "corpus_id": "borek-internal",
               "corpus_version": "2026.09.03",
-              "document_id": "RC-DUMMY-2026-Q3",
+              "document_id": "RC-2026-Q3",
               "document_type": "rate_card",
               "document_version": "2026.Q3.1",
               "fact_id": "price.invoice-3way.senior-consultant.day-rate",
               "classification": "internal",
               "effective_from": "2026-07-01",
-              "effective_to": "2026-09-30"
+              "effective_to": "2026-09-30",
+              "provenance_marker": "es39"
             }
           ],
           "query": {
@@ -2171,15 +2177,16 @@
           },
           "sources": [
             {
-              "corpus_id": "borek-internal-dummy",
+              "corpus_id": "borek-internal",
               "corpus_version": "2026.09.03",
-              "document_id": "STAFF-DUMMY-INV3WAY-v1",
+              "document_id": "STAFF-INV3WAY-v1",
               "document_type": "staffing_profile",
               "document_version": "1.0.0",
               "fact_id": "staff.invoice-3way.core-team",
               "classification": "internal",
               "effective_from": "2026-07-01",
-              "effective_to": "2026-12-31"
+              "effective_to": "2026-12-31",
+              "provenance_marker": "es39"
             }
           ],
           "query": {
@@ -2202,15 +2209,16 @@
           },
           "sources": [
             {
-              "corpus_id": "borek-internal-dummy",
+              "corpus_id": "borek-internal",
               "corpus_version": "2026.09.03",
-              "document_id": "REF-DUMMY-INV3WAY-v1",
+              "document_id": "REF-INV3WAY-v1",
               "document_type": "reference",
               "document_version": "1.0.0",
               "fact_id": "reference.invoice-3way.delivery-pattern",
               "classification": "internal",
               "effective_from": "2026-07-01",
-              "effective_to": "2026-12-31"
+              "effective_to": "2026-12-31",
+              "provenance_marker": "es39"
             }
           ],
           "query": {

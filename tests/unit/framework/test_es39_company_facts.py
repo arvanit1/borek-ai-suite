@@ -33,7 +33,7 @@ def test_invoice_retrieve_answers_dummy_rate_card_with_citations() -> None:
     assert pricing["payload"]["unit"] == "day"
     assert pricing["payload"]["indicative"] is True
     assert pricing["sources"][0]["corpus_version"] == "2026.09.03"
-    assert pricing["sources"][0]["document_id"] == "RC-DUMMY-2026-Q3"
+    assert pricing["sources"][0]["document_id"] == "RC-2026-Q3"
     assert pricing["sources"][0]["fact_id"] == "price.invoice-3way.senior-consultant.day-rate"
     assert staffing["payload"]["headcount"] == 4
     assert not grounding["unknown"]
@@ -98,7 +98,7 @@ def test_generate_framework_cites_answered_company_facts() -> None:
     chapter_text = json.dumps(framework["chapters"])
     assert "1250.00" in chapter_text
     assert "corpus 2026.09.03" in chapter_text
-    assert "RC-DUMMY-2026-Q3" in chapter_text
+    assert "RC-2026-Q3" in chapter_text
     assert "price.invoice-3way.senior-consultant.day-rate" in chapter_text
     assert "staff.invoice-3way.core-team" in chapter_text
     assert "service.invoice-3way.definition" in chapter_text
@@ -182,3 +182,64 @@ def test_synthesis_prompt_includes_company_facts_and_forbids_invention() -> None
     assert "Do not invent a Borek price" in seen["user"]
     assert "1250.00" in seen["user"]
     assert "corpus_version=2026.09.03" in seen["user"]
+
+
+def test_answered_price_carries_live_provenance_marker() -> None:
+    from services.borek_rag.identity import live_corpus_id, live_provenance_marker
+    from services.framework.company_facts import grounded_pricing_figures
+
+    grounding = ground_company_facts("Invoice 3-Way Match")
+    pricing = next(item for item in grounding["lookups"] if item["kind"] == "pricing")
+    assert pricing["sources"][0]["corpus_id"] == live_corpus_id()
+    assert pricing["sources"][0]["provenance_marker"] == live_provenance_marker()
+    figures = grounded_pricing_figures(grounding)
+    assert len(figures) == 1
+    assert figures[0]["amount"] == "1250.00"
+    assert figures[0]["indicative"] is True
+    assert figures[0]["provenance"]["marker"] == live_provenance_marker()
+    assert figures[0]["provenance"]["document_id"] == "RC-2026-Q3"
+
+
+def test_ungrounded_price_is_refused_not_softened() -> None:
+    from services.framework.company_facts import UngroundedPriceError, refuse_ungrounded_prices
+
+    grounding = ground_company_facts("Invoice 3-Way Match")
+    try:
+        refuse_ungrounded_prices(
+            text="Offer EUR 9999.00 per day, labelled indicative.",
+            grounding=grounding,
+            allow_prices=True,
+        )
+    except UngroundedPriceError as exc:
+        assert "9999" in str(exc)
+        assert "soft" not in str(exc).lower()
+    else:
+        raise AssertionError("expected UngroundedPriceError")
+
+    refuse_ungrounded_prices(
+        text="Senior Consultant day rate is EUR 1250.00 (indicative).",
+        grounding=grounding,
+        allow_prices=True,
+    )
+
+
+def test_demo_rate_is_not_live_provenance() -> None:
+    from services.borek_rag.identity import demo_corpus_id, demo_provenance_marker
+    from services.framework.company_facts import has_live_provenance, live_answered_lookups
+
+    lookup = {
+        "kind": "pricing",
+        "status": "answered",
+        "payload": {"amount": "50.00", "currency": "EUR", "unit": "day", "indicative": True},
+        "sources": [
+            {
+                "corpus_id": demo_corpus_id(),
+                "corpus_version": "demo.1",
+                "document_id": "RC-DEMO",
+                "fact_id": "price.demo",
+                "provenance_marker": demo_provenance_marker(),
+            }
+        ],
+    }
+    assert has_live_provenance(lookup) is False
+    assert live_answered_lookups({"answered": [lookup]}, kinds={"pricing"}) == []

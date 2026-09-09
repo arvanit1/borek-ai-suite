@@ -292,7 +292,7 @@ def test_generate_files_every_artifact_with_workflow_provenance_and_approval() -
     assert all(row["framework_version_id"] for row in rows)
     assert all(row["approved_by"] == str(USER_A) for row in rows)
     assert all(row["approved_at"] for row in rows)
-    assert all(row["corpus_versions"] == ["borek-internal-dummy@2026.09.03"] for row in rows)
+    assert all(row["corpus_versions"] == ["borek-internal@2026.09.03"] for row in rows)
     assert all(str(row["repository_ref"]).startswith("fixture://enterprise/") for row in rows)
     for row in rows:
         relative = str(row["repository_ref"]).removeprefix("fixture://enterprise/")

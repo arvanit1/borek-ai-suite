@@ -54,7 +54,7 @@ def test_chapter_nine_pricing_never_reaches_gamma_slots() -> None:
         framework=_confirmed(
             {
                 "1": "Summary.",
-                "9": "EUR 1250.00 / day (indicative). corpus 2026.09.03, RC-DUMMY-2026-Q3.",
+                "9": "EUR 1250.00 / day (indicative). corpus 2026.09.03, RC-2026-Q3.",
                 "10": "Likely 3 weeks.",
             },
             company_facts={
@@ -72,7 +72,7 @@ def test_chapter_nine_pricing_never_reaches_gamma_slots() -> None:
                         "sources": [
                             {
                                 "corpus_version": "2026.09.03",
-                                "document_id": "RC-DUMMY-2026-Q3",
+                                "document_id": "RC-2026-Q3",
                                 "fact_id": "price.invoice-3way.senior-consultant.day-rate",
                             }
                         ],
@@ -83,7 +83,7 @@ def test_chapter_nine_pricing_never_reaches_gamma_slots() -> None:
     )
     blob = " ".join(slot.value for slot in slots)
     assert "1250" not in blob
-    assert "RC-DUMMY-2026-Q3" not in blob
+    assert "RC-2026-Q3" not in blob
 
 
 def test_retrieved_staffing_and_service_facts_fill_allowed_slots() -> None:
@@ -100,7 +100,7 @@ def test_retrieved_staffing_and_service_facts_fill_allowed_slots() -> None:
                         "sources": [
                             {
                                 "corpus_version": "2026.09.03",
-                                "document_id": "STAFF-DUMMY-INV3WAY-v1",
+                                "document_id": "STAFF-INV3WAY-v1",
                                 "fact_id": "staff.invoice-3way.core-team",
                             }
                         ],
@@ -113,7 +113,7 @@ def test_retrieved_staffing_and_service_facts_fill_allowed_slots() -> None:
                         "sources": [
                             {
                                 "corpus_version": "2026.09.03",
-                                "document_id": "SVC-DUMMY-INV3WAY-v1",
+                                "document_id": "SVC-INV3WAY-v1",
                                 "fact_id": "service.invoice-3way.definition",
                             }
                         ],
@@ -190,3 +190,169 @@ def test_every_contract_slot_can_be_filled_from_confirmed_chapters() -> None:
         framework=_confirmed(bodies),
     )
     assert {slot.name for slot in slots} == set(load_gamma_template().slot_names)
+
+
+def _live_source(**overrides: object) -> dict:
+    source = {
+        "corpus_id": "borek-internal",
+        "corpus_version": "2026.09.03",
+        "document_id": "RC-2026-Q3",
+        "document_type": "rate_card",
+        "document_version": "2026.Q3.1",
+        "fact_id": "price.invoice-3way.senior-consultant.day-rate",
+        "provenance_marker": "es39",
+    }
+    source.update(overrides)
+    return source
+
+
+def _pricing_facts() -> dict:
+    return {
+        "answered": [
+            {
+                "kind": "pricing",
+                "status": "answered",
+                "statement": "Senior Consultant day rate is EUR 1250.00.",
+                "payload": {
+                    "amount": "1250.00",
+                    "currency": "EUR",
+                    "unit": "day",
+                    "indicative": True,
+                },
+                "sources": [_live_source()],
+            }
+        ]
+    }
+
+
+def test_unknown_stage_is_payload_invalid() -> None:
+    with pytest.raises(GammaPayloadError, match="Unknown journey stage"):
+        build_gamma_content_slots(
+            opportunity={"opportunity_name": "Invoice 3-way Match", "client_name": "Acme"},
+            framework=_confirmed({"1": "Summary."}),
+            stage="pitch_v4",
+        )
+
+
+def test_each_stage_profile_builds_a_schema_payload() -> None:
+    import jsonschema
+
+    from services.gamma.payload import build_gamma_content_payload, gamma_payload_schema
+
+    facts = {
+        "answered": [
+            {
+                "kind": "service",
+                "status": "answered",
+                "statement": "Invoice 3-way Match matches invoices to POs.",
+                "payload": {"service_key": "invoice_3way_match"},
+                "sources": [
+                    _live_source(
+                        document_id="SVC-INV3WAY-v1",
+                        document_type="service_definition",
+                        fact_id="service.invoice-3way.definition",
+                    )
+                ],
+            },
+            {
+                "kind": "staffing",
+                "status": "answered",
+                "payload": {"headcount": 4, "total_fte": "2.6"},
+                "sources": [
+                    _live_source(
+                        document_id="STAFF-INV3WAY-v1",
+                        document_type="staffing_profile",
+                        fact_id="staff.invoice-3way.core-team",
+                    )
+                ],
+            },
+            {
+                "kind": "pricing",
+                "status": "answered",
+                "statement": "Senior Consultant day rate is EUR 1250.00.",
+                "payload": {
+                    "amount": "1250.00",
+                    "currency": "EUR",
+                    "unit": "day",
+                    "indicative": True,
+                },
+                "sources": [_live_source()],
+            },
+        ]
+    }
+    framework = _confirmed(
+        {
+            "1": "Summary.",
+            "9": "EUR 1250.00 / day (indicative).",
+            "13": "Pilot next Tuesday.",
+        },
+        company_facts=facts,
+    )
+    opportunity = {"opportunity_name": "Invoice 3-way Match", "client_name": "Acme"}
+    schema = gamma_payload_schema()
+    for stage in ("first_contact", "deepening", "concretisation"):
+        payload = build_gamma_content_payload(
+            opportunity=opportunity,
+            framework=framework,
+            stage=stage,
+            client_logo_ref="artifact:logos/acme.png",
+        )
+        jsonschema.validate(instance=payload, schema=schema)
+        assert payload["stage"] == stage
+        names = {slot["name"] for slot in payload["slots"]}
+        blob = " ".join(slot["value"] for slot in payload["slots"])
+        assert "cover.title" in names
+        assert "brand_color" not in names
+        kinds = {item["kind"] for item in payload["grounded_facts"]}
+        if stage == "first_contact":
+            assert payload["client_logo_ref"] is None
+            assert "pricing" not in kinds
+            assert "1250" not in blob
+        elif stage == "deepening":
+            assert payload["client_logo_ref"] == "artifact:logos/acme.png"
+            assert "pricing" not in kinds
+            assert "staffing" in kinds
+            assert "1250" not in blob
+        else:
+            assert "pricing" in kinds
+            pricing = next(item for item in payload["grounded_facts"] if item["kind"] == "pricing")
+            assert pricing["provenance"]["marker"] == "es39"
+            assert pricing["provenance"]["document_id"] == "RC-2026-Q3"
+            assert pricing["payload"]["indicative"] is True
+            assert "1250" not in blob
+
+
+def test_concretisation_refuses_an_ungrounded_price() -> None:
+    from services.gamma.payload import build_gamma_content_payload
+
+    with pytest.raises(GammaPayloadError, match="Ungrounded price refused"):
+        build_gamma_content_payload(
+            opportunity={"opportunity_name": "Invoice 3-way Match", "client_name": "Acme"},
+            framework=_confirmed(
+                {"1": "Summary.", "9": "EUR 9999.00 / day (indicative)."},
+                company_facts=_pricing_facts(),
+            ),
+            stage="concretisation",
+        )
+
+
+def test_frozen_payload_fixtures_validate() -> None:
+    import json
+    from pathlib import Path
+
+    import jsonschema
+
+    from services.gamma.payload import gamma_payload_schema
+
+    fixtures = (
+        Path(__file__).resolve().parents[3]
+        / "packages"
+        / "contracts"
+        / "fixtures"
+        / "gamma_payload"
+    )
+    schema = gamma_payload_schema()
+    for name in ("first_contact.json", "deepening.json", "concretisation.json"):
+        payload = json.loads((fixtures / name).read_text(encoding="utf-8"))
+        jsonschema.validate(instance=payload, schema=schema)
+        assert payload["stage"] == name.removesuffix(".json")
