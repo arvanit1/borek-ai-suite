@@ -24,12 +24,17 @@ assert.match(logoHtml, /Client logo/);
 assert.match(logoHtml, /Optional/);
 assert.match(logoHtml, /PNG, JPEG, or WebP/);
 assert.match(logoHtml, /5 MiB maximum/);
-assert.match(logoHtml, /continue directly to transcripts/);
-assert.match(logoHtml, /No logo added/);
+assert.match(logoHtml, /cover and closing/);
+assert.match(logoHtml, /bottom-right/);
+assert.match(logoHtml, /Client name/);
+assert.match(logoHtml, /src="\/logo.webp"/);
+assert.doesNotMatch(logoHtml, /64-4096/);
+assert.doesNotMatch(logoHtml, /Gamma/i);
 
 const cssPath = fileURLToPath(new URL("../app/globals.css", import.meta.url));
 const css = readFileSync(cssPath, "utf8");
 assert.match(css, /\.client-logo-upload\s*\{[\s\S]*grid-template-columns:/);
+assert.match(css, /\.client-logo-card-footer\s*\{[\s\S]*justify-content:\s*space-between/);
 assert.match(css, /\.client-information-grid,[\s\S]*\.client-logo-upload\s*\{[\s\S]*grid-template-columns:\s*1fr/);
 
 console.log("MS-27 intake UI tests passed");

@@ -21,6 +21,7 @@ from services.gamma.contract import (
     GammaError,
     GammaGenerateRequest,
 )
+from services.gamma.signed_logo import mint_signed_client_logo_url
 from services.gamma.provider import build_gamma_provider
 from services.gamma.payload import build_gamma_content_payload, slots_from_payload
 from services.gamma.slot_mapping import DEFAULT_JOURNEY_STAGE, slot_chapter_provenance
@@ -60,6 +61,24 @@ def uses_internal_renderer() -> bool:
     return require_presentation_engine() == "internal"
 
 
+def _signed_logo_ref(
+    logo: ClientLogoDecision,
+    *,
+    opportunity_id: Any,
+    stage: str,
+) -> str | None:
+    """JJ-29: mint a fetchable URL only after the placement gate. Never send private refs."""
+    if not logo.applied or stage == "first_contact":
+        return None
+    ttl = max(int(settings.CLIENT_LOGO_SIGNED_URL_TTL_SECONDS), int(settings.GAMMA_TIMEOUT_SECONDS) + 60)
+    return mint_signed_client_logo_url(
+        opportunity_id,
+        public_api_base_url=settings.PUBLIC_API_BASE_URL,
+        secret=settings.CLIENT_LOGO_SIGNING_SECRET or settings.SUPABASE_JWT_SECRET,
+        ttl_seconds=ttl,
+    )
+
+
 def client_logo_decision_for_opportunity(
     store: Any,
     *,
@@ -93,11 +112,12 @@ def build_gamma_request(
         user_id=user_id,
     )
     stage = str(opportunity.get("journey_stage") or DEFAULT_JOURNEY_STAGE)
+    signed_ref = _signed_logo_ref(logo, opportunity_id=opportunity_id, stage=stage)
     content = build_gamma_content_payload(
         opportunity=opportunity,
         framework=framework,
         stage=stage,
-        client_logo_ref=logo.reference,
+        client_logo_ref=signed_ref,
     )
     request = GammaGenerateRequest(
         template_id=LOCKED_BOREK_TEMPLATE_ID,

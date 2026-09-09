@@ -651,12 +651,14 @@ export function DeckCenterPanel({
             {deck && presentation && accessToken ? (
               <>
                 <section className="upload-panel presentation-ready-panel" data-testid="presentation-ready">
-                  <header className="upload-panel-header">
+                  <header className="upload-panel-header presentation-ready-header">
                     <div>
                       <h2>{deck.presentation_name}</h2>
-                      <p className="upload-hint">{metaParts.join(" · ")}</p>
+                      {metaParts.length > 0 ? (
+                        <p className="presentation-ready-meta">{metaParts.join(" · ")}</p>
+                      ) : null}
                     </div>
-                    <div className="framework-toolbar-actions">
+                    <div className="presentation-ready-actions">
                       <button
                         type="button"
                         className="btn btn-primary"
@@ -701,35 +703,16 @@ export function DeckCenterPanel({
                     <p className="upload-hint">Slide previews aren’t available yet.</p>
                   )}
 
-                  <details className="framework-details-disclosure">
-                    <summary>Details for diagnostics</summary>
-                    <dl className="presentation-diagnostics">
-                      <div>
-                        <dt>Generation status</dt>
-                        <dd>{deck.status}</dd>
-                      </div>
-                      <div>
-                        <dt>Slides</dt>
-                        <dd>{slideTiles.length}</dd>
-                      </div>
-                      <div>
-                        <dt>PowerPoint</dt>
-                        <dd>{pptxAvailable ? "Available" : "Not available"}</dd>
-                      </div>
-                      <div>
-                        <dt>PDF</dt>
-                        <dd>{pdfAvailable ? "Available" : "Not available"}</dd>
-                      </div>
-                    </dl>
-                  </details>
-
                 </section>
 
                 <section className="upload-panel">
                   <header className="upload-panel-header">
                     <div>
                       <h2>Slide review</h2>
-                      <p>Open a slide to preview it. You can regenerate a slide or change its layout when another layout in the same family is available.</p>
+                  <p>
+                    Open a slide to preview it. You can regenerate a slide or change its layout when
+                    another layout in the same family is available.
+                  </p>
                     </div>
                   </header>
                   {slideTiles.length > 0 ? (
