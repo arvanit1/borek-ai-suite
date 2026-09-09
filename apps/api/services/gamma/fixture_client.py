@@ -11,7 +11,7 @@ from services.gamma.contract import (
     FORBIDDEN_BRANDING_KEYS,
     LOCKED_BOREK_TEMPLATE_ID,
     LOCKED_BOREK_TEMPLATE_VERSION,
-    VALID_LOGO_PREFIXES,
+    accepted_logo_prefixes,
     GammaArtifact,
     GammaAuthError,
     GammaError,
@@ -72,10 +72,11 @@ def validate_generate_request(request: GammaGenerateRequest) -> None:
         seen.add(slot.name)
 
     if request.client_logo_ref is not None:
-        if not request.client_logo_ref.startswith(VALID_LOGO_PREFIXES):
+        prefixes = accepted_logo_prefixes()
+        if not request.client_logo_ref.startswith(prefixes):
             raise GammaPayloadError(
                 "client_logo_ref must be an owned storage reference "
-                f"starting with {VALID_LOGO_PREFIXES}."
+                f"starting with {prefixes}."
             )
         _validate_client_logo_placement(request)
     elif request.client_logo_placement is not None:

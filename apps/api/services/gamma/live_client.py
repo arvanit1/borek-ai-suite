@@ -21,6 +21,7 @@ from services.gamma.contract import (
     GammaRateLimitError,
     GammaTemplateError,
     GammaTimeoutError,
+    gamma_egress_reference,
 )
 from services.gamma.fixture_client import validate_generate_request
 from services.gamma.template import load_gamma_template
@@ -257,11 +258,10 @@ def _fetchable_client_logo_url(request: GammaGenerateRequest) -> str | None:
     Private `artifact:` and `s3:` references stay behind our auth, so the deck
     falls back to the client name wordmark rather than a broken image (JJ-27).
     """
-    ref = request.client_logo_ref
-    prefixes = load_gamma_template().client_logo.signed_url_prefixes
-    if ref is None or not prefixes:
-        return None
-    return ref if ref.startswith(prefixes) else None
+    return gamma_egress_reference(
+        request.client_logo_ref,
+        owned_https_prefixes=load_gamma_template().client_logo.signed_url_prefixes,
+    )
 
 
 def raise_for_gamma_status(response: httpx.Response) -> None:
