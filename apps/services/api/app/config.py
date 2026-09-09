@@ -61,7 +61,11 @@ class Settings(BaseSettings):
     )
     PRESENTATION_ENGINE: Literal["internal", "gamma"] = Field(
         default="internal",
-        description="internal uses the existing renderer; gamma runs the AT-60 Gamma stage",
+        description=(
+            "Deployment-only renderer. internal is the Phase-1 PPTX/PDF path; "
+            "gamma is the deck-producing stage. Switching to internal restores "
+            "Phase 1. Users never choose an engine."
+        ),
     )
     GAMMA_EXECUTION_MODE: Literal["fixture", "live"] = Field(
         default="fixture",

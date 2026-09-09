@@ -95,6 +95,80 @@ def _stage_should_run(current_stage, target_stage) -> bool:
     )
 
 
+def _engine_render_stage():
+    """Stage the current PRESENTATION_ENGINE will actually enter."""
+    from app.schemas.jobs import JobStage
+    from app.services.gamma_stage import require_presentation_engine
+
+    if require_presentation_engine() == "internal":
+        return JobStage.PPTX_RENDERING
+    return JobStage.GAMMA_RENDERING
+
+
+def _run_configured_rendering(
+    *,
+    parsed_job_id,
+    resume_stage,
+    store,
+    version,
+    plan,
+    presentation_id: str,
+    user_id: str,
+    current_result_json: dict | None,
+    record_metrics: bool,
+):
+    """BT-28: one engine decision. Configuration fallback only — never silent switch."""
+    from time import monotonic
+
+    from app.schemas.jobs import JobStage
+    from app.services import job_service, presentation_generation
+    from app.services.gamma_stage import (
+        mark_version_ready_after_gamma,
+        require_presentation_engine,
+        run_gamma_stage_for_presentation,
+    )
+
+    engine = require_presentation_engine()
+    if engine == "internal":
+        stage = JobStage.PPTX_RENDERING
+        if _stage_should_run(resume_stage, stage):
+            job_service.ensure_stage(parsed_job_id, stage, repository=store)
+            render_started = monotonic()
+            version = presentation_generation.render_presentation_version(
+                store,
+                version=version,
+                plan=plan,
+            )
+            if record_metrics:
+                job_service.record_metrics(
+                    parsed_job_id,
+                    repository=store,
+                    render_duration_ms=int((monotonic() - render_started) * 1000),
+                    storage_size_bytes=int(version.get("storage_size_bytes") or 0),
+                )
+        return stage, version, {"skipped": True, "engine": "internal"}
+
+    stage = JobStage.GAMMA_RENDERING
+    if _stage_should_run(resume_stage, stage):
+        job_service.ensure_stage(parsed_job_id, stage, repository=store)
+        gamma_result = run_gamma_stage_for_presentation(
+            store,
+            job_id=parsed_job_id,
+            presentation_id=presentation_id,
+            user_id=user_id,
+            presentation_version_id=version["id"],
+        )
+        version = mark_version_ready_after_gamma(store, version, gamma_result)
+        job_service.record_result_checkpoint(
+            parsed_job_id,
+            {"gamma": gamma_result},
+            repository=store,
+        )
+    else:
+        gamma_result = dict((current_result_json or {}).get("gamma") or {})
+    return stage, version, gamma_result
+
+
 @celery_app.task(name="tasks.health_check")
 def health_check_task() -> dict[str, str]:
     """Wiring test task — replaced by real jobs in AT-36+."""
@@ -343,7 +417,6 @@ def run_presentation_generation_task(
     user_id: str,
 ) -> dict[str, str]:
     from uuid import UUID
-    from time import monotonic
 
     from app.schemas.jobs import JobStage
     from app.services import job_service, presentation_generation
@@ -355,6 +428,7 @@ def run_presentation_generation_task(
     try:
         def _run() -> dict[str, str]:
             nonlocal stage
+            stage = JobStage.SLIDE_GENERATING
             with _llm_observability_scope(store, parsed_job_id):
                 current = job_service.get_job(parsed_job_id, repository=store)
                 if current is None:
@@ -384,40 +458,18 @@ def run_presentation_generation_task(
                     )
                 stage = JobStage.SLIDE_VALIDATING
                 job_service.ensure_stage(parsed_job_id, stage, repository=store)
-                stage = JobStage.PPTX_RENDERING
-                if _stage_should_run(resume_stage, stage):
-                    job_service.ensure_stage(parsed_job_id, stage, repository=store)
-                    render_started = monotonic()
-                    version = presentation_generation.render_presentation_version(
-                        store,
-                        version=version,
-                        plan=plan,
-                    )
-                    job_service.record_metrics(
-                        parsed_job_id,
-                        repository=store,
-                        render_duration_ms=int((monotonic() - render_started) * 1000),
-                        storage_size_bytes=int(version.get("storage_size_bytes") or 0),
-                    )
-                stage = JobStage.GAMMA_RENDERING
-                if _stage_should_run(resume_stage, stage):
-                    job_service.ensure_stage(parsed_job_id, stage, repository=store)
-                    from app.services.gamma_stage import run_gamma_stage_for_presentation
-
-                    gamma_result = run_gamma_stage_for_presentation(
-                        store,
-                        job_id=parsed_job_id,
-                        presentation_id=presentation_id,
-                        user_id=user_id,
-                        presentation_version_id=version["id"],
-                    )
-                    job_service.record_result_checkpoint(
-                        parsed_job_id,
-                        {"gamma": gamma_result},
-                        repository=store,
-                    )
-                else:
-                    gamma_result = dict((current.result_json or {}).get("gamma") or {})
+                stage = _engine_render_stage()
+                stage, version, gamma_result = _run_configured_rendering(
+                    parsed_job_id=parsed_job_id,
+                    resume_stage=resume_stage,
+                    store=store,
+                    version=version,
+                    plan=plan,
+                    presentation_id=presentation_id,
+                    user_id=user_id,
+                    current_result_json=current.result_json,
+                    record_metrics=True,
+                )
                 stage = JobStage.ARTIFACT_FILING
                 if _stage_should_run(resume_stage, stage):
                     job_service.ensure_stage(parsed_job_id, stage, repository=store)
@@ -517,28 +569,17 @@ def _run_slide_task(
                     presentation_plan_id=presentation["presentation_plan_id"],
                     user_id=UUID(user_id),
                 )
-                stage = JobStage.PPTX_RENDERING
-                job_service.ensure_stage(parsed_job_id, stage, repository=store)
-                version = presentation_generation.render_presentation_version(
-                    store,
+                stage = _engine_render_stage()
+                stage, version, gamma_result = _run_configured_rendering(
+                    parsed_job_id=parsed_job_id,
+                    resume_stage=stage,
+                    store=store,
                     version=version,
                     plan=plan,
-                )
-                stage = JobStage.GAMMA_RENDERING
-                job_service.ensure_stage(parsed_job_id, stage, repository=store)
-                from app.services.gamma_stage import run_gamma_stage_for_presentation
-
-                gamma_result = run_gamma_stage_for_presentation(
-                    store,
-                    job_id=parsed_job_id,
                     presentation_id=presentation_id,
                     user_id=user_id,
-                    presentation_version_id=version["id"],
-                )
-                job_service.record_result_checkpoint(
-                    parsed_job_id,
-                    {"gamma": gamma_result},
-                    repository=store,
+                    current_result_json=None,
+                    record_metrics=False,
                 )
                 stage = JobStage.ARTIFACT_FILING
                 job_service.ensure_stage(parsed_job_id, stage, repository=store)

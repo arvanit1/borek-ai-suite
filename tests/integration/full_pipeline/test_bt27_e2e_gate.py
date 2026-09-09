@@ -51,7 +51,6 @@ EXPECTED_GENERATION_STAGES = (
     JobStage.SLIDE_GENERATING.value,
     JobStage.SLIDE_VALIDATING.value,
     JobStage.PPTX_RENDERING.value,
-    JobStage.GAMMA_RENDERING.value,
     JobStage.ARTIFACT_FILING.value,
     JobStage.PREVIEW_RENDERING.value,
 )

@@ -28,12 +28,36 @@ from services.observability.llm_logger import llm_observability_scope, log_llm_c
 from services.security.egress_policy import load_runtime_egress_policy, slot_classifications_from_policy
 
 
+KNOWN_PRESENTATION_ENGINES = frozenset({"internal", "gamma"})
+
+
+class PresentationEngineConfigError(RuntimeError):
+    """Invalid PRESENTATION_ENGINE. Fail closed; do not pick a renderer."""
+
+    code = "PRESENTATION_ENGINE_INVALID"
+    retryable = False
+
+
 def presentation_engine() -> str:
     return settings.PRESENTATION_ENGINE
 
 
+def require_presentation_engine() -> str:
+    engine = presentation_engine()
+    if engine not in KNOWN_PRESENTATION_ENGINES:
+        raise PresentationEngineConfigError(
+            f"PRESENTATION_ENGINE must be 'internal' or 'gamma'; got {engine!r}."
+        )
+    return engine
+
+
 def gamma_enabled() -> bool:
-    return presentation_engine() == "gamma"
+    return require_presentation_engine() == "gamma"
+
+
+def uses_internal_renderer() -> bool:
+    """BT-28: configuration fallback. Not an automatic provider-failure fallback."""
+    return require_presentation_engine() == "internal"
 
 
 def client_logo_decision_for_opportunity(
@@ -222,6 +246,33 @@ def _invoke_gamma(
             estimated_cost_eur=0.0,
         )
         raise
+
+
+def mark_version_ready_after_gamma(
+    store: Any,
+    version: dict[str, Any],
+    gamma_result: dict[str, Any],
+) -> dict[str, Any]:
+    """JJ-28 downloads require status=ready. Do not invent internal PPTX/PDF paths."""
+    if gamma_result.get("skipped") or not gamma_result.get("artifacts"):
+        return version
+    updater = getattr(store, "update_presentation_version_assets", None)
+    if updater is None:
+        version["status"] = "ready"
+        return version
+    try:
+        return updater(
+            presentation_version_id=version["id"],
+            assets={
+                "pptx_storage_path": version.get("pptx_storage_path"),
+                "pdf_storage_path": version.get("pdf_storage_path"),
+                "preview_image_paths": list(version.get("preview_image_paths") or []),
+            },
+            status="ready",
+        )
+    except Exception:
+        version["status"] = "ready"
+        return version
 
 
 def run_gamma_stage_for_presentation(
