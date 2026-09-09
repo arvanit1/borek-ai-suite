@@ -16,7 +16,7 @@ export const JOB_STAGE_LABELS: Record<string, string> = {
   SLIDE_GENERATING: "Generating slide content",
   SLIDE_VALIDATING: "Validating slides",
   PPTX_RENDERING: "Rendering PowerPoint/PDF",
-  GAMMA_RENDERING: "Building branded presentation",
+  GAMMA_RENDERING: "Building your presentation",
   ARTIFACT_FILING: "Archiving generated files",
   PREVIEW_RENDERING: "Preparing preview",
   COMPLETED: "Finished",
@@ -48,6 +48,13 @@ export const SLIDE_PROGRESS_STAGES = [
   "ARTIFACT_FILING",
   "PREVIEW_RENDERING",
 ] as const;
+
+/** AT-59 / BT-29: reportable extension stages that are not backend JobStage values. */
+export const BOREK_RETRIEVAL_STAGE = "BOREK_RETRIEVAL";
+
+export const EXTENSION_STAGE_LABELS: Record<string, string> = {
+  [BOREK_RETRIEVAL_STAGE]: "Retrieving Borek information",
+};
 
 interface JobTypeProfile {
   phase: JobProgressPhase;
@@ -174,7 +181,7 @@ export function jobStageLabel(stage: string | null | undefined): string {
   if (!stage) {
     return JOB_STAGE_LABELS.QUEUED;
   }
-  return JOB_STAGE_LABELS[stage] ?? humanizeStage(stage);
+  return JOB_STAGE_LABELS[stage] ?? EXTENSION_STAGE_LABELS[stage] ?? humanizeStage(stage);
 }
 
 export function jobProgressPhase(jobType: string): JobProgressPhase | null {
@@ -265,16 +272,46 @@ const OPTIONAL_EXTENSION_STAGES = new Set([
   "PPTX_RENDERING",
   "GAMMA_RENDERING",
   "ARTIFACT_FILING",
+  BOREK_RETRIEVAL_STAGE,
 ]);
+
+function reportedStages(snapshot: JobProgressSnapshot): Set<string> {
+  return new Set([snapshot.currentStage, snapshot.error?.stage].filter(Boolean) as string[]);
+}
 
 function visibleStages(
   stages: readonly string[],
   snapshot: JobProgressSnapshot,
 ): readonly string[] {
-  const observed = new Set([snapshot.currentStage, snapshot.error?.stage].filter(Boolean));
+  const observed = reportedStages(snapshot);
   // The job API does not expose runtime feature flags. Do not promise optional
   // extension stages unless the backend reports that one is actually running.
   return stages.filter((stage) => !OPTIONAL_EXTENSION_STAGES.has(stage) || observed.has(stage));
+}
+
+function insertReportedRetrieval(
+  stages: readonly string[],
+  snapshot: JobProgressSnapshot,
+): readonly string[] {
+  const observed = reportedStages(snapshot);
+  if (!observed.has(BOREK_RETRIEVAL_STAGE) || stages.includes(BOREK_RETRIEVAL_STAGE)) {
+    return stages;
+  }
+  // AT-59 retrieval feeds the ES-40 / Gamma payload, so it sits after slide
+  // work and before the render/filing/preview stages when those are visible.
+  const renderIndex = stages.findIndex((stage) =>
+    ["PPTX_RENDERING", "GAMMA_RENDERING", "ARTIFACT_FILING", "PREVIEW_RENDERING"].includes(
+      stage,
+    ),
+  );
+  const validationIndex = stages.indexOf("SLIDE_VALIDATING");
+  const insertAt =
+    validationIndex >= 0
+      ? validationIndex + 1
+      : renderIndex >= 0
+        ? renderIndex
+        : stages.length;
+  return [...stages.slice(0, insertAt), BOREK_RETRIEVAL_STAGE, ...stages.slice(insertAt)];
 }
 
 export function buildJobProgressView(input: JobProgressInput): JobProgressView | null {
@@ -287,7 +324,7 @@ export function buildJobProgressView(input: JobProgressInput): JobProgressView |
     return null;
   }
 
-  const stages = visibleStages(profile.stages, snapshot);
+  const stages = insertReportedRetrieval(visibleStages(profile.stages, snapshot), snapshot);
   const states: JobProgressStepState[] = stages.map(() => "upcoming");
   const startIndex = Math.max(0, stageIndex(stages, profile.startStage));
   // A generation job can only exist once planning persisted its plan.

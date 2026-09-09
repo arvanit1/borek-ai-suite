@@ -47,6 +47,8 @@ function render(
   assert.match(html, /Validating slides/);
   assert.doesNotMatch(html, /Rendering PowerPoint\/PDF/);
   assert.doesNotMatch(html, /Building branded presentation/);
+  assert.doesNotMatch(html, /Retrieving Borek information/);
+  assert.doesNotMatch(html, /data-step="BOREK_RETRIEVAL"/);
   assert.doesNotMatch(html, /Archiving generated files/);
   assert.match(html, /Preparing preview/);
   assert.match(html, /12 slides planned/);
@@ -63,9 +65,29 @@ function render(
 {
   const html = render({ snapshot: snapshot({ currentStage: "GAMMA_RENDERING" }) });
   assert.match(html, /data-step="GAMMA_RENDERING" data-state="current"/);
-  assert.match(html, /Building branded presentation/);
+  assert.match(html, /Building your presentation/);
+  assert.doesNotMatch(html, /Building branded presentation/);
   assert.doesNotMatch(html, /data-step="PPTX_RENDERING"/);
+  assert.doesNotMatch(html, /data-step="BOREK_RETRIEVAL"/);
   assert.doesNotMatch(html, /data-step="ARTIFACT_FILING"/);
+}
+
+// AT-59 retrieval appears only when the backend reports BOREK_RETRIEVAL.
+{
+  const html = render({ snapshot: snapshot({ currentStage: "BOREK_RETRIEVAL" }) });
+  assert.match(html, /data-step="BOREK_RETRIEVAL" data-state="current"/);
+  assert.match(html, /Retrieving Borek information/);
+  assert.doesNotMatch(html, /data-step="GAMMA_RENDERING"/);
+  assert.doesNotMatch(html, /Building branded presentation/);
+  assert.doesNotMatch(html, /%/);
+  assert.doesNotMatch(html, /remaining|minutes left|\bETA\b/i);
+}
+
+// Reconnect at retrieval keeps that step, without inventing Gamma.
+{
+  const html = render({ snapshot: snapshot({ currentStage: "BOREK_RETRIEVAL" }) });
+  assert.match(html, /data-testid="live-progress-headline">Retrieving Borek information</);
+  assert.doesNotMatch(html, /data-state="failed"/);
 }
 
 // Framework generation uses Framework stages only.
