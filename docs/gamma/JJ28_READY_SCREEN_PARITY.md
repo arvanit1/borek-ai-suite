@@ -45,5 +45,5 @@ internal renderer's version of the same content — same slides, same order, sam
 copy, different visual treatment.
 
 Closing this properly means rasterising the Gamma PDF during
-`PREVIEW_RENDERING`. There is no rasteriser in the pipeline yet, so this is
-recorded here rather than hidden.
+`PREVIEW_RENDERING`. There is no rasteriser in the pipeline yet; that work is
+[JJ-30](JJ30_GAMMA_PREVIEW_RASTER.md).

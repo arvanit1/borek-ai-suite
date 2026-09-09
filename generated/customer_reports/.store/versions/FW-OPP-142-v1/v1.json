@@ -2263,8 +2263,8 @@
   "change_log": [
     "Initial customer-report generation"
   ],
-  "created_at": "2026-09-08T05:28:15Z",
-  "updated_at": "2026-09-08T05:28:15Z",
+  "created_at": "2026-09-09T05:13:35Z",
+  "updated_at": "2026-09-09T05:13:35Z",
   "language_master": "en",
   "render_languages": [
     "de",
@@ -2955,7 +2955,7 @@
     "llm_model": "deterministic-builder",
     "prompt_version": "framework-synthesis:v1",
     "llm_used": false,
-    "generated_at": "2026-09-08T05:28:15Z",
+    "generated_at": "2026-09-09T05:13:35Z",
     "llm_job_log": [],
     "process_scope": null,
     "client_pack": {
@@ -4521,8 +4521,8 @@
     "change_log": [
       "Initial customer-report generation"
     ],
-    "created_at": "2026-09-08T05:28:15Z",
-    "updated_at": "2026-09-08T05:28:15Z",
+    "created_at": "2026-09-09T05:13:35Z",
+    "updated_at": "2026-09-09T05:13:35Z",
     "language_master": "en",
     "render_languages": [
       "de",
@@ -4747,7 +4747,7 @@
       "llm_model": "deterministic-builder",
       "prompt_version": "framework-synthesis:v1",
       "llm_used": false,
-      "generated_at": "2026-09-08T05:28:15Z",
+      "generated_at": "2026-09-09T05:13:35Z",
       "llm_job_log": [],
       "process_scope": null,
       "client_pack": {

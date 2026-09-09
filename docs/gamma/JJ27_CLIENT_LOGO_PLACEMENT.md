@@ -80,5 +80,5 @@ silently reported as applied.
 
 Only an `https://` reference is actually placed, via the template's bottom-right
 header/footer image slot. Issuing a short-lived signed URL for the stored logo
-is the remaining piece of work; the rules, the gate, and the payload shape are
-in place and exercised by the fixture client today.
+is tracked as [JJ-29](JJ29_SIGNED_LOGO_URL.md); the rules, the gate, and the
+payload shape are in place and exercised by the fixture client today.
