@@ -261,7 +261,11 @@ function stepsFor(
   }));
 }
 
-const OPTIONAL_EXTENSION_STAGES = new Set(["GAMMA_RENDERING", "ARTIFACT_FILING"]);
+const OPTIONAL_EXTENSION_STAGES = new Set([
+  "PPTX_RENDERING",
+  "GAMMA_RENDERING",
+  "ARTIFACT_FILING",
+]);
 
 function visibleStages(
   stages: readonly string[],

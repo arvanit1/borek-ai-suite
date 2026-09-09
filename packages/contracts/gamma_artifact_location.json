@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "ticket": "BT-28",
+  "consumer": "JJ-30",
+  "description": "Canonical location of the Gamma PPTX/PDF for a presentation version. JJ-30 rasterises the PDF found here. Do not invent a second path.",
+  "relative_directory": "gamma/{opportunity_id}/{presentation_version_id}/",
+  "filename_pattern": "{generation_id}.{format}",
+  "formats": ["pptx", "pdf"],
+  "storage_key_pattern": "gamma/{opportunity_id}/{presentation_version_id}/{generation_id}.{format}",
+  "lookup_rule": "When generation_id is unknown, the newest matching *.{format} under the directory wins.",
+  "search_roots": ["ARTIFACT_ROOT", "deck_assets_root"],
+  "notes": [
+    "BT-28 persists artifacts here and associates them with the presentation version.",
+    "JJ-30 owns preview rasterisation of the Gamma PDF. BT-28 does not rasterise.",
+    "Downloads resolve this location through the existing ready-screen deck URLs."
+  ]
+}

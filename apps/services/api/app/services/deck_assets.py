@@ -72,9 +72,9 @@ def resolve_gamma_artifact_path(
     version_id: UUID | str,
     kind: str,
 ) -> Path | None:
-    """JJ-28: locate a Gamma export for this version, if the Gamma stage ran.
+    """JJ-28 / BT-28: locate a Gamma export for this version, if the Gamma stage ran.
 
-    Gamma artifacts are written by `services.gamma.artifacts` under
+    Canonical location is `packages/contracts/gamma_artifact_location.json`:
     `gamma/{opportunity}/{version}/{generation}.{kind}`. The generation id is not
     known here, so the newest matching export wins.
     """

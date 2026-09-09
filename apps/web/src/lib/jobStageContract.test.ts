@@ -56,14 +56,26 @@ function backendJobTypes(): string[] {
   return [...types];
 }
 
-/** Stages a worker task really emits, in call order, duplicates collapsed. */
-function workerTaskStages(taskName: string): string[] {
+function workerFunctionBody(taskName: string): string {
   const lines = WORKER.split(/\r?\n/);
   const start = lines.findIndex((line) => line.startsWith(`def ${taskName}(`));
   assert.notEqual(start, -1, `could not locate def ${taskName} in app/worker.py`);
   const rest = lines.slice(start + 1);
   const end = rest.findIndex((line) => /^(def |@)/.test(line));
-  const body = (end === -1 ? rest : rest.slice(0, end)).join("\n");
+  return (end === -1 ? rest : rest.slice(0, end)).join("\n");
+}
+
+/** Stages a worker task really emits, in call order, duplicates collapsed. */
+function workerTaskStages(taskName: string): string[] {
+  let body = workerFunctionBody(taskName);
+  // BT-28: engine routing lives in a shared helper. Inline it so the contract
+  // still sees PPTX_RENDERING and GAMMA_RENDERING at the call site.
+  if (body.includes("_run_configured_rendering(")) {
+    body = body.replace(
+      /_run_configured_rendering\([\s\S]*?\n\s*\)/,
+      workerFunctionBody("_run_configured_rendering"),
+    );
+  }
   const stages: string[] = [];
   for (const match of body.matchAll(/JobStage\.([A-Z0-9_]+)/g)) {
     if (stages.at(-1) !== match[1]) {

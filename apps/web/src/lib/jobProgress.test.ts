@@ -78,14 +78,12 @@ function labels(view: ReturnType<typeof buildJobProgressView>): string[] {
     PRESENTATION_PLANNING: "current",
     SLIDE_GENERATING: "upcoming",
     SLIDE_VALIDATING: "upcoming",
-    PPTX_RENDERING: "upcoming",
     PREVIEW_RENDERING: "upcoming",
   });
   assert.deepEqual(labels(view), [
     "Preparing presentation structure",
     "Generating slide content",
     "Validating slides",
-    "Rendering PowerPoint/PDF",
     "Preparing preview",
   ]);
 }
@@ -96,6 +94,7 @@ function labels(view: ReturnType<typeof buildJobProgressView>): string[] {
     ["SLIDE_GENERATING", "Generating slide content"],
     ["SLIDE_VALIDATING", "Validating slides"],
     ["PPTX_RENDERING", "Rendering PowerPoint/PDF"],
+    ["GAMMA_RENDERING", "Building branded presentation"],
     ["PREVIEW_RENDERING", "Preparing preview"],
   ];
   for (const [stage, headline] of expected) {
@@ -116,7 +115,6 @@ function labels(view: ReturnType<typeof buildJobProgressView>): string[] {
     PRESENTATION_PLANNING: "complete",
     SLIDE_GENERATING: "complete",
     SLIDE_VALIDATING: "current",
-    PPTX_RENDERING: "upcoming",
     PREVIEW_RENDERING: "upcoming",
   });
 }
@@ -191,7 +189,6 @@ function labels(view: ReturnType<typeof buildJobProgressView>): string[] {
     PRESENTATION_PLANNING: "complete",
     SLIDE_GENERATING: "upcoming",
     SLIDE_VALIDATING: "upcoming",
-    PPTX_RENDERING: "upcoming",
     PREVIEW_RENDERING: "upcoming",
   });
 
@@ -272,7 +269,6 @@ function labels(view: ReturnType<typeof buildJobProgressView>): string[] {
   assert.deepEqual(Object.keys(states(view)), [
     "SLIDE_GENERATING",
     "SLIDE_VALIDATING",
-    "PPTX_RENDERING",
     "PREVIEW_RENDERING",
   ]);
 }
@@ -285,6 +281,7 @@ function labels(view: ReturnType<typeof buildJobProgressView>): string[] {
   assert.ok(gamma);
   assert.equal(gamma.headline, "Building branded presentation");
   assert.equal(states(gamma).GAMMA_RENDERING, "current");
+  assert.equal(states(gamma).PPTX_RENDERING, undefined);
   assert.equal(states(gamma).ARTIFACT_FILING, undefined);
 
   const filingFailure = buildJobProgressView({
