@@ -68,7 +68,7 @@ def test_files_numbered_001_through_011_with_no_gaps() -> None:
     assert (MIGRATIONS_DIR / "011_rls_policies.sql").is_file()
 
 
-def test_follow_on_migrations_014_through_020_are_idempotent() -> None:
+def test_follow_on_migrations_014_through_021_are_idempotent() -> None:
     llm_calls = (MIGRATIONS_DIR / "014_llm_calls.sql").read_text(encoding="utf-8")
     assert "CREATE TABLE IF NOT EXISTS llm_calls" in llm_calls
     assert "ADD COLUMN IF NOT EXISTS llm_cost_eur" in llm_calls
@@ -102,6 +102,12 @@ def test_follow_on_migrations_014_through_020_are_idempotent() -> None:
     assert "ADD COLUMN IF NOT EXISTS height_px" in logo_dims
     assert "opportunity_client_logos_width_px_range" in logo_dims
     assert "opportunity_client_logos_height_px_range" in logo_dims
+    demo = (MIGRATIONS_DIR / "021_ms30_demo_data.sql").read_text(encoding="utf-8")
+    assert "ADD COLUMN IF NOT EXISTS demo_marker" in demo
+    assert "ADD COLUMN IF NOT EXISTS journey_stage" in demo
+    assert "ADD COLUMN IF NOT EXISTS prior_stage_presentation_version_id" in demo
+    assert "ADD COLUMN IF NOT EXISTS owner_user_id" in demo
+    assert "owner_user_id = auth.uid()" in demo
 
 
 def test_verify_db_covers_llm_calls_table() -> None:
@@ -115,7 +121,7 @@ def test_verify_db_covers_llm_calls_table() -> None:
     assert "EXPECTED_INDEXES" in content
 
 
-def test_apply_migrations_script_covers_001_through_020() -> None:
+def test_apply_migrations_script_covers_001_through_021() -> None:
     assert APPLY_MIGRATIONS.is_file()
     content = APPLY_MIGRATIONS.read_text(encoding="utf-8")
     compile(content, str(APPLY_MIGRATIONS), "exec")
@@ -126,7 +132,7 @@ def test_apply_migrations_script_covers_001_through_020() -> None:
         for name in names
         if re.match(r"^\d{3}_", name)
     )
-    assert numbers == list(range(1, 21)), f"expected 001-020 with no gaps, got {numbers}"
+    assert numbers == list(range(1, 22)), f"expected 001-021 with no gaps, got {numbers}"
     assert names == sorted(names)
 
 

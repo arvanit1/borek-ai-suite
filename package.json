@@ -10,7 +10,8 @@
   "scripts": {
     "validate:contracts": "py -3 scripts/validate_all.py",
     "generate:python": "py -3 scripts/generate_pydantic.py",
-    "generate:typescript": "node scripts/generate_typescript.js"
+    "generate:typescript": "node scripts/generate_typescript.js",
+    "seed:demo": "py -3 scripts/seed_demo_data.py"
   },
   "engines": {
     "node": ">=20"

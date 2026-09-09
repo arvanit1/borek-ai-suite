@@ -14,6 +14,16 @@ export interface ClientLogoValidation {
   reason?: string;
 }
 
+export function additionalClientInformationError(
+  value: AdditionalClientInformation | null | undefined,
+): string | undefined {
+  const incompleteContact = value?.contacts.some((contact) =>
+    !contact.name.trim() &&
+    Boolean(contact.role?.trim() || contact.email?.trim() || contact.phone?.trim()),
+  );
+  return incompleteContact ? "Add a name for each client contact, or remove their other details." : undefined;
+}
+
 export function validateClientLogoFile(file: Pick<File, "name" | "size" | "type">): ClientLogoValidation {
   const mime = file.type.toLowerCase();
   const extension = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();

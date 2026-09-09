@@ -1,0 +1,123 @@
+{
+  "schema_version": "ms30.1",
+  "demo_marker": "demo",
+  "client": {
+    "name": "Northstar Demo GmbH",
+    "opportunity": "Demo service desk transformation",
+    "department": "IT Operations",
+    "language": "en"
+  },
+  "rich_client_pack": {
+    "location_requirements": ["EU-hosted delivery", "Workshops in Berlin"],
+    "constraints": ["Demo-only data", "Go-live date is not agreed"],
+    "contacts": [
+      {
+        "name": "Alex Example",
+        "role": "Demo sponsor",
+        "email": "alex@example.invalid",
+        "phone": "+49 000 000000"
+      }
+    ],
+    "priorities": ["Accuracy", "Auditability"],
+    "notes": "DEMO DATA - fictional client context, not a customer statement."
+  },
+  "bare_client": {
+    "name": "Bare Demo Client",
+    "opportunity": "Fast-path demonstration",
+    "department": "Operations",
+    "language": "en"
+  },
+  "stages": [
+    { "id": "first_contact", "label": "First contact" },
+    { "id": "deepening", "label": "Deepening" },
+    { "id": "concretisation", "label": "Concretisation" }
+  ],
+  "retrieval_examples": {
+    "hit": "demo invoice service",
+    "miss": "demo quantum logistics price",
+    "ambiguous": "demo ambiguous delivery"
+  },
+  "corpus": {
+    "corpus_id": "borek-demo",
+    "corpus_version": "ms30.1",
+    "schema_version": "at59.2",
+    "classification": "internal",
+    "owner": "Sales Ops",
+    "content_owner": "Demo fixture",
+    "provenance_marker": "demo",
+    "notes": "DEMO ONLY. Fictional and not commercially approved.",
+    "documents": [
+      {
+        "document_id": "DEMO-RATE-CARD-MS30",
+        "document_type": "rate_card",
+        "title": "DEMO ONLY - fictional rate card",
+        "version": "ms30.1",
+        "effective_from": "2026-01-01",
+        "effective_to": "2099-12-31",
+        "classification": "internal",
+        "facts": [
+          {
+            "fact_id": "demo.price.invoice.day-rate",
+            "kind": "pricing",
+            "service_key": "demo_invoice_service",
+            "query_key": "demo:pricing:invoice:day_rate",
+            "required_terms": ["demo", "invoice", "service"],
+            "optional_terms": ["day", "rate", "price"],
+            "statement": "DEMO ONLY - fictional indicative day rate of EUR 1234.56; not commercially approved.",
+            "payload": {
+              "role": "demo_consultant",
+              "unit": "day",
+              "amount": "1234.56",
+              "currency": "EUR",
+              "indicative": true,
+              "commercially_approved": false,
+              "demo": true
+            }
+          }
+        ]
+      },
+      {
+        "document_id": "DEMO-REFERENCE-A-MS30",
+        "document_type": "reference",
+        "title": "DEMO ONLY - delivery reference A",
+        "version": "ms30.1",
+        "effective_from": "2026-01-01",
+        "effective_to": "2099-12-31",
+        "classification": "internal",
+        "facts": [
+          {
+            "fact_id": "demo.reference.delivery.a",
+            "kind": "reference",
+            "service_key": "demo_delivery_a",
+            "query_key": "demo:reference:delivery:a",
+            "required_terms": ["demo", "ambiguous", "delivery"],
+            "optional_terms": ["reference"],
+            "statement": "DEMO ONLY - fictional delivery reference A.",
+            "payload": { "pattern": "demo_delivery_a", "demo": true }
+          }
+        ]
+      },
+      {
+        "document_id": "DEMO-REFERENCE-B-MS30",
+        "document_type": "reference",
+        "title": "DEMO ONLY - delivery reference B",
+        "version": "ms30.1",
+        "effective_from": "2026-01-01",
+        "effective_to": "2099-12-31",
+        "classification": "internal",
+        "facts": [
+          {
+            "fact_id": "demo.reference.delivery.b",
+            "kind": "reference",
+            "service_key": "demo_delivery_b",
+            "query_key": "demo:reference:delivery:b",
+            "required_terms": ["demo", "ambiguous", "delivery"],
+            "optional_terms": ["reference"],
+            "statement": "DEMO ONLY - fictional delivery reference B.",
+            "payload": { "pattern": "demo_delivery_b", "demo": true }
+          }
+        ]
+      }
+    ]
+  }
+}

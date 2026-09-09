@@ -23,6 +23,14 @@ class Settings(BaseSettings):
     )
 
     ANTHROPIC_API_KEY: str = Field(..., min_length=1)
+    RUNTIME_PROFILE: Literal["development", "test", "production"] = Field(
+        default="development",
+        description="Deployment safety profile; production refuses demo-data installation",
+    )
+    DEMO_DATA_ENABLED: bool = Field(
+        default=False,
+        description="Explicit opt-in for installing the MS-30 demo fixture pack",
+    )
     OPENAI_API_KEY: str = Field(
         default="",
         description="Required only when AI_EXECUTION_MODE=live",

@@ -330,6 +330,7 @@ export function DeckCenterPanel({
     setBusy(true);
     setInfo(null);
     setNotice(runningRecoveryNotice("deck"));
+    let monitoringJob = false;
     try {
       const job = await getActiveJob(accessToken, opportunityId, stageGroupForPage("deck"));
       const decision = inspectActiveJob(job, "deck");
@@ -339,6 +340,7 @@ export function DeckCenterPanel({
         return;
       }
       if (decision.action === "monitor") {
+        monitoringJob = true;
         setNotice(runningRecoveryNotice("deck", decision.jobId));
         setJobPolling(true);
         await waitForJob(accessToken, decision.jobId, {
@@ -350,7 +352,7 @@ export function DeckCenterPanel({
       await applyLatestPresentation();
       setNotice(null);
     } catch (reconnectError) {
-      setNotice(recoveryNoticeFromError(reconnectError, "deck"));
+      setNotice(recoveryNoticeFromError(reconnectError, "deck", { knownRunning: monitoringJob }));
       if (
         reconnectError instanceof ApiRequestError &&
         reconnectError.retryable &&

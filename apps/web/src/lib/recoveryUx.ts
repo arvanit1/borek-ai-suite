@@ -44,7 +44,10 @@ const VALIDATION_CODES = new Set([
   "PRESENTATION_PLAN_VALIDATION_FAILED",
   "RENDER_VALIDATION_FAILED",
   "VALIDATION_FAILED",
+  "GAMMA_PAYLOAD_INVALID",
 ]);
+
+const ADMIN_SETUP_CODES = new Set(["GAMMA_AUTH", "GAMMA_TEMPLATE_LOCKED"]);
 
 const INPUT_CODES = new Set([
   "FRAMEWORK_NOT_CONFIRMED",
@@ -203,7 +206,7 @@ export function jobFailureRecoveryNotice(
 export function recoveryNoticeFromError(
   error: unknown,
   context: RecoveryContext,
-  options: { connectionMessage?: string } = {},
+  options: { connectionMessage?: string; knownRunning?: boolean } = {},
 ): RecoveryNotice {
   const value = errorShape(error);
   const technical = supportDetails(error);
@@ -216,6 +219,12 @@ export function recoveryNoticeFromError(
   }
 
   if (isConnectionError(error)) {
+    if (options.knownRunning) {
+      return {
+        ...runningRecoveryNotice(context, value.jobId),
+        technical,
+      };
+    }
     return {
       category: "CONNECTION_LOST",
       title: "Connection interrupted",
@@ -234,12 +243,24 @@ export function recoveryNoticeFromError(
     };
   }
 
+  if (value.code != null && ADMIN_SETUP_CODES.has(value.code)) {
+    return {
+      category: "TERMINAL_FAILURE",
+      title: "Presentation setup needs attention",
+      message: "Ask an administrator to check the presentation service credentials and template setup.",
+      technical,
+    };
+  }
+
   if (isValidationError(value)) {
+    const payloadRejected = value.code === "GAMMA_PAYLOAD_INVALID";
     return {
       category: "VALIDATION_NEEDS_REVIEW",
       title: "Review is needed before continuing",
       message: `Some ${COPY[context].subject} content needs attention before generation can continue.`,
-      action: reviewAction(context),
+      action: payloadRejected
+        ? { kind: "REVIEW", label: "Review framework", target: "framework" }
+        : reviewAction(context),
       technical,
     };
   }

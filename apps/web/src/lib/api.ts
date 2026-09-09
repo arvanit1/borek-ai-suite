@@ -282,6 +282,7 @@ export interface ClientLogoMetadata {
   size_bytes: number;
   width_px: number | null;
   height_px: number | null;
+  demo_marker?: string | null;
   uploaded_at: string;
 }
 
@@ -294,6 +295,7 @@ export interface OpportunityResponse {
   status: string;
   pii_redaction_enabled?: boolean;
   additional_client_information?: AdditionalClientInformation | null;
+  demo_marker?: string | null;
 }
 
 export interface ListedOpportunityResponse extends OpportunityResponse {
