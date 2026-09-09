@@ -26,6 +26,7 @@ class KnowledgeSourceResponse(BaseModel):
     classification: str
     effective_from: str
     effective_to: str
+    provenance_marker: str = ""
 
 
 class KnowledgeRetrievalResponse(BaseModel):
@@ -41,7 +42,7 @@ class KnowledgeIngestRequest(BaseModel):
 
 
 class KnowledgeCorpusResponse(BaseModel):
-    source: Literal["store", "bundled_dummy"]
+    source: Literal["store", "bundled"]
     corpus_key: str
     version: str
     status: Literal["draft", "approved", "retired"]

@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://borek.ai/schemas/gamma_payload/v1.0",
+  "title": "GammaContentPayload",
+  "description": "ES-40: provider payload built from a confirmed Framework plus retrieved Borek facts. Content slots only — no layout, no styling, no branding keys. Freeze this so BT-28 can build against a fixture. Stage profiles (JJ-31) select which slots are populated; ungrounded prices are refused, never softened.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "template_id",
+    "template_version",
+    "stage",
+    "slots",
+    "grounded_facts"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "template_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "template_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "stage": {
+      "type": "string",
+      "enum": ["first_contact", "deepening", "concretisation"]
+    },
+    "slots": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "value"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Named JJ-26 content slot. Branding keys are forbidden."
+          },
+          "value": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "grounded_facts": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/GroundedFact" }
+    },
+    "client_logo_ref": {
+      "type": ["string", "null"]
+    }
+  },
+  "$defs": {
+    "GroundedFact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "status", "payload", "provenance"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["service", "pricing", "staffing", "reference"]
+        },
+        "status": {
+          "type": "string",
+          "const": "answered"
+        },
+        "statement": {
+          "type": ["string", "null"]
+        },
+        "payload": {
+          "type": "object"
+        },
+        "provenance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "corpus_id",
+            "corpus_version",
+            "document_id",
+            "document_type",
+            "fact_id",
+            "marker"
+          ],
+          "properties": {
+            "corpus_id": { "type": "string", "minLength": 1 },
+            "corpus_version": { "type": "string", "minLength": 1 },
+            "document_id": { "type": "string", "minLength": 1 },
+            "document_type": { "type": "string", "minLength": 1 },
+            "document_version": { "type": "string" },
+            "fact_id": { "type": "string", "minLength": 1 },
+            "marker": {
+              "type": "string",
+              "minLength": 1,
+              "description": "es39 for live rate-card facts; demo for MS-30 seed data."
+            }
+          }
+        }
+      }
+    }
+  }
+}

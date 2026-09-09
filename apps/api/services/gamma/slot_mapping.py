@@ -2,16 +2,26 @@
 
 Every chapter-fed slot reads only the chapters the template contract assigns to
 it. Retrieved Borek facts are included when those chapters are in the slot's
-allowance — never chapter 9 pricing (MS-14). Empty slots are omitted, not padded.
+allowance. Chapter 9 pricing never fills a JJ-26 slot (MS-14); ES-40 carries
+grounded prices on the payload for Concretisation instead. Empty slots are
+omitted, not padded.
 """
 
 from __future__ import annotations
 
 from typing import Any, Iterable
 
-from services.framework.company_facts import format_company_fact_line
+from services.framework.company_facts import (
+    UngroundedPriceError,
+    format_company_fact_line,
+    live_answered_lookups,
+    refuse_ungrounded_prices,
+)
 from services.gamma.contract import FORBIDDEN_BRANDING_KEYS, GammaContentSlot, GammaPayloadError
 from services.gamma.template import GammaSlotDefinition, GammaTemplate, load_gamma_template
+
+JOURNEY_STAGES = ("first_contact", "deepening", "concretisation")
+DEFAULT_JOURNEY_STAGE = "deepening"
 
 _PARAGRAPH_SEPARATOR = "\n\n"
 _SKIP_KEYS = frozenset(
@@ -38,13 +48,25 @@ _FACT_KINDS_FOR_CHAPTER = {
 }
 
 
+def resolve_journey_stage(stage: str | None) -> str:
+    value = str(stage or DEFAULT_JOURNEY_STAGE).strip()
+    if value not in JOURNEY_STAGES:
+        raise GammaPayloadError(
+            f"Unknown journey stage '{stage}'. "
+            f"Expected one of: {', '.join(JOURNEY_STAGES)}."
+        )
+    return value
+
+
 def build_gamma_content_slots(
     *,
     opportunity: dict[str, Any],
     framework: dict[str, Any] | None = None,
     template: GammaTemplate | None = None,
+    stage: str | None = None,
 ) -> tuple[GammaContentSlot, ...]:
     """Return the populated content slots for one client, in template card order."""
+    resolved_stage = resolve_journey_stage(stage)
     contract = template or load_gamma_template()
     payload = _framework_payload(framework)
     _require_confirmed(payload)
@@ -53,11 +75,14 @@ def build_gamma_content_slots(
     for definition in contract.slots:
         if definition.name in FORBIDDEN_BRANDING_KEYS or definition.name.startswith("brand."):
             continue
+        if resolved_stage == "first_contact" and definition.name == "cover.client_logo":
+            continue
         value = _slot_value(
             definition,
             opportunity=opportunity,
             chapters=chapters,
             framework=payload,
+            stage=resolved_stage,
         )
         if not value:
             if definition.required:
@@ -66,6 +91,22 @@ def build_gamma_content_slots(
                 )
             continue
         filled.append(GammaContentSlot(definition.name, _clamp(value, definition.max_chars)))
+    blob = " ".join(slot.value for slot in filled)
+    company_facts = ((payload or {}).get("generation_meta") or {}).get("company_facts")
+    try:
+        refuse_ungrounded_prices(
+            text=blob,
+            grounding=company_facts,
+            allow_prices=False,
+        )
+        if resolved_stage == "concretisation":
+            refuse_ungrounded_prices(
+                text=_chapter_body(chapters.get("9")),
+                grounding=company_facts,
+                allow_prices=True,
+            )
+    except UngroundedPriceError as exc:
+        raise GammaPayloadError(str(exc)) from exc
     return tuple(filled)
 
 
@@ -108,6 +149,7 @@ def _slot_value(
     opportunity: dict[str, Any],
     chapters: dict[str, Any],
     framework: dict[str, Any] | None,
+    stage: str,
 ) -> str:
     if definition.source.startswith("opportunity."):
         field = definition.source.split(".", 1)[1]
@@ -126,7 +168,7 @@ def _slot_value(
         for chapter_id in definition.source_chapter_ids
         if (body := _chapter_body(chapters.get(chapter_id)))
     ]
-    retrieved = _retrieved_facts_text(framework, definition.source_chapter_ids)
+    retrieved = _retrieved_facts_text(framework, definition.source_chapter_ids, stage=stage)
     if retrieved:
         blob = _PARAGRAPH_SEPARATOR.join(parts)
         extras = [line for line in retrieved.split("\n") if line and line not in blob]
@@ -135,7 +177,12 @@ def _slot_value(
     return _PARAGRAPH_SEPARATOR.join(part for part in parts if part)
 
 
-def _retrieved_facts_text(framework: dict[str, Any] | None, chapter_ids: tuple[str, ...]) -> str:
+def _retrieved_facts_text(
+    framework: dict[str, Any] | None,
+    chapter_ids: tuple[str, ...],
+    *,
+    stage: str,
+) -> str:
     kinds: set[str] = set()
     for chapter_id in chapter_ids:
         kinds.update(_FACT_KINDS_FOR_CHAPTER.get(chapter_id) or ())
@@ -143,11 +190,13 @@ def _retrieved_facts_text(framework: dict[str, Any] | None, chapter_ids: tuple[s
         return ""
     meta = ((framework or {}).get("generation_meta") or {}).get("company_facts") or {}
     lines: list[str] = []
-    for lookup in meta.get("answered") or meta.get("lookups") or []:
-        if str(lookup.get("status") or "") != "answered":
-            continue
+    for lookup in live_answered_lookups(
+        meta,
+        kinds=kinds,
+        include_pricing=stage == "concretisation",
+    ):
         kind = str(lookup.get("kind") or "")
-        if kind not in kinds or kind == "pricing":
+        if kind == "pricing":
             continue
         line = format_company_fact_line(lookup)
         if line:

@@ -33,14 +33,14 @@ below first, then both sides build in parallel against a fixture.
 
 | Handoff | Freeze this | So the consumer can |
 | --- | --- | --- |
-| ES-40 → BT-28 | Gamma payload schema in `packages/contracts/` | Build the stage against a fixture payload |
+| ES-40 → BT-28 | [`gamma_payload.schema.json`](../packages/contracts/gamma_payload.schema.json) and fixtures in [`fixtures/gamma_payload/`](../packages/contracts/fixtures/gamma_payload/) | Build the stage against a fixture payload |
 | JJ-31 → BT-31 | `stage_profiles` block and the stage enum | Enforce prerequisites against the enum |
 | JJ-31 → BT-32 | Slot list per stage profile | Classify slots before they exist |
 | AT-60 → JJ-29, MS-28 | Provider error contract and owned-host rule | Sign against a fixture host; map fixture errors |
 | BT-28 → JJ-30 | Where the Gamma PDF lands on the version | Rasterise a fixture PDF |
 | BT-31 → MS-31 | Eligibility response JSON | Render a fixture eligibility payload |
-| AT-59 → BT-29 | The stage name only | Ship the label behind "shown when reported" |
-| ES-39 → MS-30 | Demo corpus id and provenance marker | Seed against the marker |
+| AT-59 → BT-29 | Stage name `BOREK_RETRIEVAL` in [`knowledge_corpus.json`](../packages/contracts/knowledge_corpus.json) | Ship the label "Retrieving Borek information" behind "shown when reported" |
+| ES-39 → MS-30 | Demo corpus id `borek-demo`, marker `demo` (live marker `es39`) | Seed against the marker |
 
 BT-30 depends on everything by design — it is the acceptance gate and runs last.
 That is not a dependency to engineer away.

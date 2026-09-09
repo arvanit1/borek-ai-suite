@@ -22,7 +22,8 @@ from services.gamma.contract import (
     GammaGenerateRequest,
 )
 from services.gamma.provider import build_gamma_provider
-from services.gamma.slot_mapping import build_gamma_content_slots, slot_chapter_provenance
+from services.gamma.payload import build_gamma_content_payload, slots_from_payload
+from services.gamma.slot_mapping import DEFAULT_JOURNEY_STAGE, slot_chapter_provenance
 from services.observability.llm_logger import llm_observability_scope, log_llm_call
 from services.security.egress_policy import load_runtime_egress_policy, slot_classifications_from_policy
 
@@ -67,15 +68,22 @@ def build_gamma_request(
         opportunity_id=opportunity_id if isinstance(opportunity_id, UUID) else UUID(str(opportunity_id)),
         user_id=user_id,
     )
+    stage = str(opportunity.get("journey_stage") or DEFAULT_JOURNEY_STAGE)
+    content = build_gamma_content_payload(
+        opportunity=opportunity,
+        framework=framework,
+        stage=stage,
+        client_logo_ref=logo.reference,
+    )
     request = GammaGenerateRequest(
         template_id=LOCKED_BOREK_TEMPLATE_ID,
         template_version=LOCKED_BOREK_TEMPLATE_VERSION,
         opportunity_id=str(opportunity_id),
         presentation_version_id=str(presentation_version_id),
         output_formats=output_formats,  # type: ignore[arg-type]
-        slots=build_gamma_content_slots(opportunity=opportunity, framework=framework),
-        client_logo_ref=logo.reference,
-        client_logo_placement=logo.placement,
+        slots=slots_from_payload(content),
+        client_logo_ref=content.get("client_logo_ref"),
+        client_logo_placement=logo.placement if content.get("client_logo_ref") else None,
         timeout_seconds=settings.GAMMA_TIMEOUT_SECONDS,
     )
     return request, logo

@@ -1,4 +1,4 @@
-"""Versioned Borek corpus types for the Phase 2 RAG spike (AT-59 shape)."""
+"""Versioned Borek corpus types for AT-59 live retrieval."""
 
 from __future__ import annotations
 
@@ -20,6 +20,7 @@ class SourceCitation:
     classification: str
     effective_from: str
     effective_to: str
+    provenance_marker: str = ""
 
 
 @dataclass(frozen=True)
@@ -51,6 +52,7 @@ class RetrievalQuery:
     kind: FactKind | None = None
     query_key: str | None = None
     service_key: str | None = None
+    allow_demo: bool = False
 
 
 @dataclass(frozen=True)

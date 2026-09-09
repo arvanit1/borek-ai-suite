@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0",
+  "description": "AT-59 / ES-39 freeze: live Borek corpus identity, demo isolation for MS-30, and the retrieval stage name for BT-29. Rate-card content updates sit with Fiona; this file is the pipeline identity, not the commercial numbers.",
+  "live": {
+    "corpus_id": "borek-internal",
+    "bundled_file": "apps/api/services/borek_rag/data/borek_corpus_v1.json",
+    "provenance_marker": "es39",
+    "owner": "Commercial",
+    "content_owner": "Fiona",
+    "fact_kinds": ["service", "pricing", "staffing", "reference"]
+  },
+  "demo": {
+    "corpus_id": "borek-demo",
+    "provenance_marker": "demo",
+    "notes": "MS-30 seeds this id and marker. Never merged into borek-internal. A non-demo opportunity cannot retrieve demo facts."
+  },
+  "retrieval_stage": {
+    "stage": "BOREK_RETRIEVAL",
+    "customer_facing_name": "Retrieving Borek information",
+    "shown_when": "reported"
+  }
+}

@@ -3,9 +3,15 @@
 from __future__ import annotations
 
 import copy
+import re
 from typing import Any, Callable
 
 from services.borek_rag import RetrievalQuery, RetrievalResult, retrieve
+from services.borek_rag.identity import (
+    demo_provenance_marker,
+    is_demo_corpus,
+    live_provenance_marker,
+)
 from services.borek_rag.models import Corpus, SourceCitation
 
 FACT_KINDS = ("service", "pricing", "staffing", "reference")
@@ -25,6 +31,18 @@ _KIND_QUESTIONS = {
     "staffing": "What staffing and FTE do we have for {subject}?",
     "reference": "What reference delivery pattern do we use for {subject}?",
 }
+# Rate-card shaped figures only. Client savings such as "EUR 120,000 saved" are
+# conversation facts, not Borek prices the system originated.
+_RATE_CARD_AMOUNT_RE = re.compile(
+    r"(?:EUR|USD|GBP|CHF|€)\s*(\d[\d,]*(?:\.\d{1,2})?)\s*"
+    r"(?:/\s*(?:day|hour|month)|per\s+(?:day|hour|month)|day rate)"
+    r"|(?:day rate|list price)[^\d]{0,40}(?:EUR|USD|GBP|CHF|€)\s*(\d[\d,]*(?:\.\d{1,2})?)",
+    re.IGNORECASE,
+)
+
+
+class UngroundedPriceError(ValueError):
+    """A commercial figure appeared without ES-39 rate-card provenance."""
 
 
 def query_text_from_parts(*parts: Any) -> str:
@@ -63,6 +81,12 @@ def ground_company_facts(
         query = RetrievalQuery(text=text, kind=kind, service_key=service_key)
         result = runner(query, corpus=corpus)
         lookup = _serialize_lookup(kind=kind, query=query, result=result)
+        if kind == "pricing" and lookup["status"] == "answered" and not has_live_provenance(lookup):
+            lookup["status"] = "unknown"
+            lookup["reason"] = "missing_rate_card_provenance"
+            lookup["statement"] = None
+            lookup["payload"] = None
+            lookup["sources"] = []
         lookups.append(lookup)
         if kind == "service" and result.status == "answered":
             payload = result.payload or {}
@@ -243,6 +267,10 @@ def _citation_text(sources: list[Any]) -> str:
     if not sources or not isinstance(sources[0], dict):
         return ""
     source = sources[0]
+    if is_demo_corpus(str(source.get("corpus_id") or "")):
+        return ""
+    if str(source.get("provenance_marker") or "").strip() == demo_provenance_marker():
+        return ""
     corpus_version = str(source.get("corpus_version") or "").strip()
     document_id = str(source.get("document_id") or "").strip()
     fact_id = str(source.get("fact_id") or "").strip()
@@ -291,6 +319,7 @@ def _serialize_lookup(*, kind: str, query: RetrievalQuery, result: RetrievalResu
 
 
 def _serialize_source(source: SourceCitation) -> dict[str, str]:
+    marker = str(source.provenance_marker or "").strip() or live_provenance_marker()
     return {
         "corpus_id": source.corpus_id,
         "corpus_version": source.corpus_version,
@@ -301,6 +330,7 @@ def _serialize_source(source: SourceCitation) -> dict[str, str]:
         "classification": source.classification,
         "effective_from": source.effective_from,
         "effective_to": source.effective_to,
+        "provenance_marker": marker,
     }
 
 
@@ -334,3 +364,141 @@ def _unique_open_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
         seen.add(key)
         unique.append(item)
     return unique
+
+
+def has_live_provenance(lookup: dict[str, Any]) -> bool:
+    """True when an answered fact cites the live corpus, never the demo pack."""
+    if str(lookup.get("status") or "") != "answered":
+        return False
+    sources = lookup.get("sources") or []
+    if not sources or not isinstance(sources[0], dict):
+        return False
+    source = sources[0]
+    if is_demo_corpus(str(source.get("corpus_id") or "")):
+        return False
+    marker = str(source.get("provenance_marker") or "").strip()
+    if marker == demo_provenance_marker():
+        return False
+    return bool(
+        str(source.get("corpus_version") or "").strip()
+        and str(source.get("document_id") or "").strip()
+        and str(source.get("fact_id") or "").strip()
+        and (not marker or marker == live_provenance_marker())
+    )
+
+
+def live_answered_lookups(
+    grounding: dict[str, Any] | None,
+    *,
+    kinds: set[str] | None = None,
+    include_pricing: bool = True,
+) -> list[dict[str, Any]]:
+    answered: list[dict[str, Any]] = []
+    for lookup in (grounding or {}).get("answered") or (grounding or {}).get("lookups") or []:
+        kind = str(lookup.get("kind") or "")
+        if kinds is not None and kind not in kinds:
+            continue
+        if kind == "pricing" and not include_pricing:
+            continue
+        if not has_live_provenance(lookup):
+            continue
+        answered.append(lookup)
+    return answered
+
+
+def grounded_price_amounts(grounding: dict[str, Any] | None) -> set[str]:
+    amounts: set[str] = set()
+    for lookup in live_answered_lookups(grounding, kinds={"pricing"}):
+        payload = lookup.get("payload") or {}
+        amount = payload.get("amount")
+        if amount is None:
+            continue
+        amounts.add(_normalize_amount(amount))
+    return amounts
+
+
+def grounded_pricing_figures(grounding: dict[str, Any] | None) -> list[dict[str, Any]]:
+    """Every live price with its rate-card provenance. Missing provenance is omitted."""
+    figures: list[dict[str, Any]] = []
+    for lookup in live_answered_lookups(grounding, kinds={"pricing"}):
+        payload = lookup.get("payload") or {}
+        source = (lookup.get("sources") or [{}])[0]
+        amount = payload.get("amount")
+        currency = payload.get("currency")
+        unit = payload.get("unit")
+        if amount is None or not currency or not unit:
+            continue
+        if payload.get("indicative") is not True:
+            raise UngroundedPriceError(
+                "A retrieved price is missing the indicative label required by D5."
+            )
+        figures.append(
+            {
+                "amount": str(amount),
+                "currency": str(currency),
+                "unit": str(unit),
+                "indicative": True,
+                "statement": lookup.get("statement"),
+                "payload": copy.deepcopy(payload),
+                "provenance": {
+                    "corpus_id": source.get("corpus_id"),
+                    "corpus_version": source.get("corpus_version"),
+                    "document_id": source.get("document_id"),
+                    "document_type": source.get("document_type"),
+                    "document_version": source.get("document_version"),
+                    "fact_id": source.get("fact_id"),
+                    "marker": source.get("provenance_marker") or live_provenance_marker(),
+                },
+            }
+        )
+    return figures
+
+
+def rate_card_amounts_in_text(text: str) -> set[str]:
+    amounts: set[str] = set()
+    for match in _RATE_CARD_AMOUNT_RE.finditer(text or ""):
+        raw = next((group for group in match.groups() if group), None)
+        if raw:
+            amounts.add(_normalize_amount(raw))
+    return amounts
+
+
+def refuse_ungrounded_prices(
+    *,
+    text: str,
+    grounding: dict[str, Any] | None,
+    allow_prices: bool,
+) -> None:
+    """Refuse a Borek rate-card figure that retrieval did not cite. Never soften it."""
+    amounts = rate_card_amounts_in_text(text)
+    if not amounts:
+        return
+    if not allow_prices:
+        found = ", ".join(sorted(amounts))
+        raise UngroundedPriceError(
+            f"Prices are not permitted in this payload ({found}). "
+            "They are not labelled indicative as a workaround."
+        )
+    grounded = grounded_price_amounts(grounding)
+    missing = sorted(amount for amount in amounts if amount not in grounded)
+    if missing:
+        raise UngroundedPriceError(
+            "Ungrounded price refused: "
+            + ", ".join(missing)
+            + ". Every figure must carry ES-39 rate-card provenance."
+        )
+
+
+def _normalize_amount(value: Any) -> str:
+    token = str(value).replace(",", "").strip()
+    if token.endswith(".0"):
+        token = token[:-2]
+    if token.endswith(".00"):
+        token = token[:-3]
+    try:
+        number = float(token)
+    except ValueError:
+        return token
+    if number.is_integer():
+        return str(int(number))
+    return f"{number:.2f}".rstrip("0").rstrip(".")

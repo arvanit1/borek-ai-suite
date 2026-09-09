@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "template_id": "borek-branded-standard",
+  "template_version": "v1",
+  "stage": "first_contact",
+  "slots": [
+    { "name": "cover.title", "value": "Invoice 3-way Match" },
+    { "name": "cover.client_name", "value": "Acme" },
+    { "name": "cover.subtitle", "value": "Borek information pack." },
+    { "name": "executive_summary.body", "value": "Borek information pack." },
+    { "name": "next_steps.body", "value": "Book a deepening conversation." }
+  ],
+  "grounded_facts": [
+    {
+      "kind": "service",
+      "status": "answered",
+      "statement": "Invoice 3-way Match matches supplier invoices to purchase orders and goods receipts before payment release.",
+      "payload": { "service_key": "invoice_3way_match", "name": "Invoice 3-way Match" },
+      "provenance": {
+        "corpus_id": "borek-internal",
+        "corpus_version": "2026.09.03",
+        "document_id": "SVC-INV3WAY-v1",
+        "document_type": "service_definition",
+        "document_version": "1.0.0",
+        "fact_id": "service.invoice-3way.definition",
+        "marker": "es39"
+      }
+    }
+  ],
+  "client_logo_ref": null
+}
