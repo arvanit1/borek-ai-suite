@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "description": "JJ-26: the single branded Borek Gamma template. Branding is locked in the template and never sent per request; only the named content slots below vary per client. Slot source chapters are a subset of the layout's allowed chapters in the internal renderer, so both engines cite the same Framework evidence.",
+    "description": "JJ-26 / JJ-31: the branded Borek Gamma template. Branding is locked in the template and never sent per request; only the named content slots below vary per client. stage_profiles select which cards, logo, and pricing facts apply at each journey stage. Slot source chapters are a subset of the layout's allowed chapters in the internal renderer, so both engines cite the same Framework evidence.",
   "template_id": "borek-branded-standard",
   "template_version": "v1",
   "branding": {
@@ -38,6 +38,76 @@
       "opaque_on_dark_card": "white_plate"
     },
     "signed_url_prefixes": []
+  },
+  "stage_profiles": {
+    "first_contact": {
+      "label": "First contact",
+      "template_id": "borek-branded-standard",
+      "cards": [
+        "COVER_01",
+        "EXECUTIVE_SUMMARY_01",
+        "CONTEXT_01",
+        "PROBLEM_SOLUTION_01",
+        "NEXT_STEPS_01"
+      ],
+      "pricing_permitted": false,
+      "client_logo": false,
+      "fact_kinds": ["service"],
+      "slot_overrides": {
+        "context.summary": { "source_chapter_ids": ["1"] },
+        "problem_solution.body": { "source_chapter_ids": ["4"] }
+      }
+    },
+    "deepening": {
+      "label": "Deepening",
+      "template_id": "borek-branded-standard",
+      "cards": [
+        "COVER_01",
+        "EXECUTIVE_SUMMARY_01",
+        "CONTEXT_01",
+        "PROBLEM_SOLUTION_01",
+        "PROCESS_FLOW_01",
+        "SCOPE_01",
+        "REQUIREMENTS_MATRIX_01",
+        "ARCHITECTURE_01",
+        "COMPLIANCE_01",
+        "TIMELINE_01",
+        "MILESTONES_01",
+        "TEAM_FTE_01",
+        "SUCCESS_METRICS_01",
+        "OPEN_QUESTIONS_01",
+        "NEXT_STEPS_01"
+      ],
+      "pricing_permitted": false,
+      "client_logo": true,
+      "fact_kinds": ["service", "reference", "staffing"],
+      "slot_overrides": {}
+    },
+    "concretisation": {
+      "label": "Concretisation",
+      "template_id": "borek-branded-standard",
+      "cards": [
+        "COVER_01",
+        "EXECUTIVE_SUMMARY_01",
+        "CONTEXT_01",
+        "PROBLEM_SOLUTION_01",
+        "PROCESS_FLOW_01",
+        "SCOPE_01",
+        "REQUIREMENTS_MATRIX_01",
+        "ARCHITECTURE_01",
+        "COMPLIANCE_01",
+        "TIMELINE_01",
+        "MILESTONES_01",
+        "TEAM_FTE_01",
+        "SUCCESS_METRICS_01",
+        "OPEN_QUESTIONS_01",
+        "NEXT_STEPS_01"
+      ],
+      "pricing_permitted": true,
+      "client_logo": true,
+      "fact_kinds": ["service", "reference", "staffing", "pricing"],
+      "slot_overrides": {}
+    }
   },
   "cards": [
     {

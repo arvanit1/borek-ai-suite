@@ -159,7 +159,7 @@ export function ClientLogoUpload({
           </label>
           <input
             id="client_logo_file"
-            className="visually-hidden"
+            className="sr-only"
             type="file"
             accept={CLIENT_LOGO_ACCEPT}
             disabled={busy}

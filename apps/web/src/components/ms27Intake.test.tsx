@@ -13,9 +13,32 @@ const formHtml = renderToStaticMarkup(
 assert.match(formHtml, /Additional client information/);
 assert.match(formHtml, /Optional/);
 assert.match(formHtml, /leave this section empty and continue directly to transcripts/i);
+assert.match(formHtml, /Choose files/);
+assert.match(formHtml, /TXT, Markdown, CSV, or JSON/);
 assert.match(formHtml, /Location requirements/);
 assert.match(formHtml, /Client contacts/);
 assert.match(formHtml, /Create opportunity/);
+
+const existingHtml = renderToStaticMarkup(
+  <OpportunityForm
+    disabled={false}
+    existing={{
+      client_name: "Acme",
+      opportunity_name: "Rollout",
+      department: "Sales",
+      language: "en",
+      pii_redaction_enabled: true,
+      additional_client_information: null,
+    }}
+    onSubmit={async () => undefined}
+    onUpdateClientInformation={async () => undefined}
+  />,
+);
+assert.match(existingHtml, /Choose files/);
+assert.match(existingHtml, /Save client information/);
+assert.match(existingHtml, /id="client_name"[^>]*disabled/);
+assert.doesNotMatch(existingHtml, /id="location_requirements"[^>]*disabled/);
+assert.doesNotMatch(existingHtml, /id="client_notes"[^>]*disabled/);
 
 const logoHtml = renderToStaticMarkup(
   <ClientLogoUpload accessToken="token" opportunityId="opportunity" />,

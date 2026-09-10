@@ -317,12 +317,27 @@ export interface TranscriptUploadResponse {
   processing_status: string;
 }
 
+export interface OpportunityUpdatePayload {
+  additional_client_information?: AdditionalClientInformation | null;
+}
+
 export async function createOpportunity(
   accessToken: string,
   payload: OpportunityCreatePayload,
 ): Promise<OpportunityResponse> {
   return apiFetch<OpportunityResponse>("/opportunities", accessToken, {
     method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateOpportunity(
+  accessToken: string,
+  opportunityId: string,
+  payload: OpportunityUpdatePayload,
+): Promise<OpportunityResponse> {
+  return apiFetch<OpportunityResponse>(`/opportunities/${opportunityId}`, accessToken, {
+    method: "PATCH",
     body: JSON.stringify(payload),
   });
 }

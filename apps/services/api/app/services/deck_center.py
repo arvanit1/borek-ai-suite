@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from pathlib import Path
-from uuid import UUID
+from uuid import UUID, uuid5
 
 from app.services.api_errors import conflict, not_found
 from app.services.data import DataStore
 from app.services.deck_assets import (
+    list_preview_image_paths,
     resolve_gamma_artifact_path,
     resolve_pdf_path,
     resolve_pptx_path,
@@ -29,19 +30,38 @@ def build_deck_center_payload(
     _require_ready(version)
     slides = store.list_slides(presentation_id=presentation_id, user_id=user_id)
     presentation_id_str = str(presentation_id)
+    preview_paths = list_preview_image_paths(
+        version_id=version["id"],
+        stored_paths=list(version.get("preview_image_paths") or []),
+        slide_count=len(slides),
+    )
 
     slide_items: list[dict[str, object]] = []
-    for slide in slides:
-        slide_items.append(
-            {
-                "slide_id": slide["id"],
-                "slide_index": slide["slide_index"],
-                "layout_id": slide["layout_id"],
-                "preview_url": (
-                    f"/presentations/{presentation_id_str}/preview/slides/{slide['slide_index']}.png"
-                ),
-            }
-        )
+    if preview_paths:
+        for index, _path in enumerate(preview_paths):
+            slide = slides[index] if index < len(slides) else None
+            slide_items.append(
+                {
+                    "slide_id": slide["id"] if slide else _preview_placeholder_id(version["id"], index),
+                    "slide_index": index,
+                    "layout_id": slide["layout_id"] if slide else _fallback_layout_id(slides),
+                    "preview_url": (
+                        f"/presentations/{presentation_id_str}/preview/slides/{index}.png"
+                    ),
+                }
+            )
+    else:
+        for slide in slides:
+            slide_items.append(
+                {
+                    "slide_id": slide["id"],
+                    "slide_index": slide["slide_index"],
+                    "layout_id": slide["layout_id"],
+                    "preview_url": (
+                        f"/presentations/{presentation_id_str}/preview/slides/{slide['slide_index']}.png"
+                    ),
+                }
+            )
 
     return {
         "presentation_id": presentation_id,
@@ -126,7 +146,11 @@ def resolve_deck_preview_image_path(
         user_id=user_id,
     )
     _require_ready(version)
-    preview_paths = version.get("preview_image_paths") or []
+    preview_paths = list_preview_image_paths(
+        version_id=version["id"],
+        stored_paths=list(version.get("preview_image_paths") or []),
+        slide_count=len(version.get("preview_image_paths") or []) or 0,
+    )
     if slide_index < len(preview_paths):
         path = Path(str(preview_paths[slide_index]))
         if path.is_file():
@@ -139,6 +163,16 @@ def resolve_deck_preview_image_path(
             f"Preview image for slide {slide_index + 1} was not found",
         )
     return path
+
+
+def _fallback_layout_id(slides: list[dict]) -> str:
+    if slides:
+        return str(slides[-1]["layout_id"])
+    return "COVER_01"
+
+
+def _preview_placeholder_id(version_id: object, index: int) -> UUID:
+    return uuid5(UUID(str(version_id)), f"preview-page-{index}")
 
 
 def _require_ready(version: dict) -> None:

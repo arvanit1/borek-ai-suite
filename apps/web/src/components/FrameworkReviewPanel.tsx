@@ -1041,45 +1041,73 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
                   <div>
                     <h2>Generate the customer story</h2>
                     <p>
-                      After transcripts are uploaded, generate the 14-chapter customer report.
-                      Review the summary first, then inspect chapters and cited sources before you
-                      approve.
+                      Create the {EXPECTED_CHAPTER_COUNT}-chapter customer report from the
+                      transcripts attached to this opportunity.
                     </p>
                   </div>
                 </header>
                 <div className="pipeline-empty-body">
-                  <div className="pipeline-empty-icon" aria-hidden="true">
-                    14
+                  <div className="pipeline-empty-hero">
+                    <div className="pipeline-empty-visual" aria-hidden="true">
+                      <div className="pipeline-empty-icon">{EXPECTED_CHAPTER_COUNT}</div>
+                      <span className="pipeline-empty-icon-label">chapters</span>
+                    </div>
+                    {(transcriptCount ?? 0) === 0 ? (
+                      <>
+                        <div className="pipeline-empty-copy">
+                          <div className="pipeline-empty-status pipeline-empty-status-wait">
+                            <span className="pipeline-empty-dot pipeline-empty-dot-wait" />
+                            Transcripts needed
+                          </div>
+                          <p>
+                            Upload at least one discovery transcript, then generate the customer
+                            story from this page.
+                          </p>
+                          <ol className="pipeline-empty-steps">
+                            <li>Upload a transcript</li>
+                            <li>Generate the draft</li>
+                            <li>Review and approve</li>
+                          </ol>
+                        </div>
+                        <div className="pipeline-empty-cta">
+                          <Link
+                            href={pipelineHref("/upload", opportunityId)}
+                            className="btn btn-primary"
+                          >
+                            Back to upload
+                          </Link>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="pipeline-empty-copy">
+                          <div className="pipeline-empty-status pipeline-empty-status-ready">
+                            <span className="pipeline-empty-dot pipeline-empty-dot-ready" />
+                            {transcriptCount} transcript{transcriptCount === 1 ? "" : "s"} ready
+                          </div>
+                          <p>
+                            Generation usually takes a minute. Review the summary first, then
+                            inspect chapters and cited sources before you approve.
+                          </p>
+                          <ol className="pipeline-empty-steps">
+                            <li>Generate the draft</li>
+                            <li>Review the summary</li>
+                            <li>Inspect chapters and sources</li>
+                          </ol>
+                        </div>
+                        <div className="pipeline-empty-cta">
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            disabled={busy}
+                            onClick={() => void handleGenerate()}
+                          >
+                            Generate customer story
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
-                  {(transcriptCount ?? 0) === 0 ? (
-                    <>
-                      <p>
-                        No transcripts are attached to this opportunity yet. Upload at least one
-                        discovery transcript, then generate the customer story.
-                      </p>
-                      <Link
-                        href={pipelineHref("/upload", opportunityId)}
-                        className="btn btn-primary"
-                      >
-                        Back to upload
-                      </Link>
-                    </>
-                  ) : (
-                    <>
-                      <p>
-                        {transcriptCount} transcript{transcriptCount === 1 ? "" : "s"} ready.
-                        Generate the 14-chapter draft to review it here.
-                      </p>
-                      <button
-                        type="button"
-                        className="btn btn-primary"
-                        disabled={busy}
-                        onClick={() => void handleGenerate()}
-                      >
-                        Generate customer story
-                      </button>
-                    </>
-                  )}
                 </div>
               </section>
             ) : null}

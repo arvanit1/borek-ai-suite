@@ -35,9 +35,14 @@
   --color-rejected-bg: #fef3f2;
   --radius: 10px;
   --shadow: 0 8px 24px rgba(var(--borek-primary-rgb), 0.08);
-  --font-body: "Segoe UI", system-ui, -apple-system, sans-serif;
-  --font-heading: "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-body: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-heading: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --font: var(--font-body);
+  --font-weight-heading: 700;
+  --font-weight-label: 600;
+  --letter-spacing-heading: -0.02em;
+  --font-size-page-title: 1.7rem;
+  --font-size-section: 1.05rem;
   --app-shell-max: 1180px;
   --app-gutter: 1.75rem;
 }
@@ -48,14 +53,32 @@
   box-sizing: border-box;
 }
 
+html {
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 html,
 body {
   margin: 0;
   padding: 0;
   min-height: 100%;
-  font-family: var(--font);
   color: var(--color-text);
   background: var(--color-bg);
+}
+
+body {
+  font-family: inherit;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+/* Same family on every page — headings, controls, and chrome inherit the stack. */
+html *,
+html *::before,
+html *::after {
+  font-family: inherit;
 }
 
 a {
@@ -65,8 +88,55 @@ a {
 button,
 input,
 select,
-textarea {
+textarea,
+optgroup {
   font: inherit;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading);
+  font-weight: var(--font-weight-heading);
+}
+
+h1 {
+  font-size: var(--font-size-page-title);
+  letter-spacing: var(--letter-spacing-heading);
+  line-height: 1.2;
+}
+
+h2 {
+  font-size: var(--font-size-section);
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+}
+
+h3 {
+  font-size: 0.98rem;
+  line-height: 1.35;
+}
+
+code,
+kbd,
+pre,
+samp {
+  font-family: inherit;
+}
+
+.page-header h1,
+.app-page-header h1,
+.auth-main-header h1,
+.pipeline-empty-page h1 {
+  margin: 0 0 0.4rem;
+  font-size: var(--font-size-page-title);
+  font-weight: var(--font-weight-heading);
+  font-family: var(--font-heading);
+  letter-spacing: var(--letter-spacing-heading);
+  line-height: 1.2;
 }
 
 .app-shell {
@@ -80,11 +150,7 @@ textarea {
 }
 
 .page-header h1 {
-  margin: 0 0 0.35rem;
-  font-size: 1.75rem;
-  font-weight: 650;
-  font-family: var(--font-heading);
-  letter-spacing: -0.02em;
+  margin: 0 0 0.4rem;
 }
 
 .page-header p {
@@ -104,7 +170,6 @@ textarea {
 
 .card h2 {
   margin: 0 0 1rem;
-  font-size: 1.05rem;
 }
 
 .form-grid {
@@ -152,7 +217,8 @@ textarea {
   border-radius: 8px;
   border: 1px solid transparent;
   cursor: pointer;
-  font-weight: 600;
+  font-family: inherit;
+  font-weight: var(--font-weight-label);
   text-decoration: none;
 }
 
@@ -206,7 +272,7 @@ textarea {
   padding: 0.15rem 0.55rem;
   border-radius: 999px;
   font-size: 0.78rem;
-  font-weight: 650;
+  font-weight: 700;
   letter-spacing: 0.01em;
 }
 
@@ -369,6 +435,7 @@ textarea {
   z-index: 30;
   background: var(--borek-navy-header);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-family: var(--font);
 }
 
 .site-header-inner {
@@ -505,9 +572,9 @@ textarea {
 
 .auth-product-name {
   margin: 1rem 0 0;
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--borek-gold);
 }
@@ -531,10 +598,7 @@ textarea {
 }
 
 .auth-main-header h1 {
-  margin: 0 0 0.35rem;
-  font-size: 1.65rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  margin: 0 0 0.4rem;
 }
 
 .auth-main-header p {
@@ -662,8 +726,6 @@ textarea {
 
 .recent-card h2 {
   margin: 0.15rem 0 0.4rem;
-  font-size: 1.05rem;
-  line-height: 1.35;
 }
 
 .recent-client,
@@ -739,7 +801,7 @@ textarea {
 .recent-empty-kicker {
   margin: 0;
   color: var(--color-accent) !important;
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -782,8 +844,7 @@ textarea {
 }
 
 .pipeline-empty-page h1 {
-  margin: 0 0 0.35rem;
-  font-size: 1.65rem;
+  margin: 0 0 0.4rem;
 }
 
 .btn-block {
@@ -815,6 +876,12 @@ textarea {
 
 /* ——— App workspace (post-login pages) ——— */
 .app-workspace,
+.upload-page,
+.auth-page {
+  font-family: var(--font);
+}
+
+.app-workspace,
 .upload-page {
   min-height: 100vh;
   background:
@@ -845,11 +912,6 @@ textarea {
 
 .app-page-header h1 {
   margin: 0 0 0.4rem;
-  font-size: 1.7rem;
-  font-weight: 700;
-  font-family: var(--font-heading);
-  letter-spacing: -0.03em;
-  line-height: 1.2;
 }
 
 .app-page-lead,
@@ -999,7 +1061,8 @@ textarea {
 .framework-chapter,
 .framework-summary-card,
 .upload-banner,
-.live-progress-step {
+.live-progress-step,
+.pipeline-empty-hero {
   overflow-wrap: anywhere;
 }
 
@@ -1008,12 +1071,6 @@ textarea {
 .app-workspace textarea {
   box-sizing: border-box;
   max-width: 100%;
-}
-
-.opportunity-created-status {
-  margin: 0;
-  color: var(--color-success);
-  font-weight: 700;
 }
 
 .upload-panel {
@@ -1043,8 +1100,6 @@ textarea {
 
 .upload-panel-header h2 {
   margin: 0 0 0.25rem;
-  font-size: 1.05rem;
-  font-weight: 700;
 }
 
 .upload-panel-header p {
@@ -1136,7 +1191,7 @@ textarea {
 
 .upload-meta-title {
   margin: 0;
-  font-weight: 650;
+  font-weight: 700;
   font-size: 0.95rem;
   line-height: 1.4;
 }
@@ -1324,7 +1379,8 @@ textarea {
 
 .client-information-intro,
 .client-contacts-header p,
-.client-logo-copy > p {
+.client-logo-copy > p,
+.client-information-files > p {
   margin: 0.45rem 0 0;
   color: var(--color-muted);
   font-size: 0.88rem;
@@ -1336,6 +1392,37 @@ textarea {
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
   margin-top: 1rem;
+}
+
+.client-information-file-actions {
+  margin-top: 0.65rem;
+}
+
+.client-information-file-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.7rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.client-information-file-list li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 100%;
+  padding: 0.25rem 0.3rem 0.25rem 0.65rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: #f8fafc;
+  font-size: 0.82rem;
+}
+
+.client-information-file-list span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .client-contacts {
@@ -1923,7 +2010,7 @@ textarea {
 }
 
 .pipeline-empty-panel .upload-panel-header {
-  margin-bottom: 0;
+  margin-bottom: 1rem;
   border-bottom: none;
   padding-bottom: 0;
 }
@@ -1933,6 +2020,25 @@ textarea {
   justify-items: start;
   gap: 0.9rem;
   padding-top: 0.15rem;
+}
+
+.pipeline-empty-hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1.15rem 1.5rem;
+  width: 100%;
+  padding: 1.15rem 1.25rem;
+  border: 1px solid #edf1f5;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fafbfc 0%, #f6f8fb 100%);
+}
+
+.pipeline-empty-visual {
+  display: grid;
+  justify-items: center;
+  gap: 0.35rem;
+  min-width: 4.75rem;
 }
 
 .pipeline-empty-icon {
@@ -1946,6 +2052,149 @@ textarea {
   justify-content: center;
   font-weight: 700;
   font-size: 0.95rem;
+}
+
+.pipeline-empty-hero .pipeline-empty-icon {
+  width: 4.15rem;
+  height: 4.15rem;
+  border-radius: 16px;
+  border: 1px solid rgba(var(--borek-primary-rgb), 0.12);
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(13, 18, 64, 0.06);
+  font-size: 1.35rem;
+}
+
+.pipeline-empty-icon-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.pipeline-empty-copy {
+  display: grid;
+  justify-items: start;
+  gap: 0.7rem;
+  min-width: 0;
+}
+
+.pipeline-empty-copy > p {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.pipeline-empty-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.28rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: #fff;
+  color: var(--color-text);
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.pipeline-empty-status-ready {
+  background: #ecfdf3;
+  border-color: #bbf7d0;
+  color: var(--color-success);
+}
+
+.pipeline-empty-status-wait {
+  background: var(--borek-cream);
+  border-color: #f5d0c0;
+  color: var(--borek-accent);
+}
+
+.pipeline-empty-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--color-muted);
+  flex-shrink: 0;
+}
+
+.pipeline-empty-dot-ready {
+  background: var(--color-success);
+}
+
+.pipeline-empty-dot-wait {
+  background: var(--borek-accent);
+}
+
+.pipeline-empty-steps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.15rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: empty-step;
+}
+
+.pipeline-empty-steps li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--color-muted);
+  font-size: 0.82rem;
+  line-height: 1.3;
+}
+
+.pipeline-empty-steps li::before {
+  counter-increment: empty-step;
+  content: counter(empty-step);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.2rem;
+  height: 1.2rem;
+  border-radius: 999px;
+  background: var(--borek-primary-soft);
+  color: var(--color-primary);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.pipeline-empty-steps li:not(:last-child)::after {
+  content: "→";
+  margin: 0 0.45rem 0 0.2rem;
+  color: #c5ccd6;
+  font-size: 0.85rem;
+}
+
+.pipeline-empty-cta {
+  display: flex;
+  align-items: center;
+}
+
+@media (max-width: 900px) {
+  .pipeline-empty-hero {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .pipeline-empty-cta {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .pipeline-empty-hero {
+    grid-template-columns: 1fr;
+    justify-items: start;
+  }
+
+  .pipeline-empty-cta,
+  .pipeline-empty-cta .btn {
+    width: 100%;
+  }
 }
 
 .pipeline-panel-loading {
@@ -2228,7 +2477,7 @@ textarea {
 
 .framework-summary-card h3 {
   margin: 0 0 0.65rem;
-  font-size: 0.92rem;
+  font-size: 0.98rem;
 }
 
 .framework-summary-card ul,
@@ -2362,7 +2611,7 @@ textarea {
 .framework-details-disclosure > summary,
 .framework-evidence-disclosure > summary {
   cursor: pointer;
-  font-weight: 650;
+  font-weight: 700;
 }
 
 .framework-evidence-disclosure {

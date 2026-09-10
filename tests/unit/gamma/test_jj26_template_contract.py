@@ -203,3 +203,51 @@ def test_the_provider_accepts_a_full_contract_request() -> None:
     result = FixtureGammaClient().generate(request)
     assert result.branding_locked is True
     assert len(slots) == len(load_gamma_template().slots)
+
+
+def test_stage_profiles_declare_the_three_journey_outputs() -> None:
+    template = load_gamma_template()
+    assert tuple(template.stage_profiles) == ("first_contact", "deepening", "concretisation")
+    first = template.profile("first_contact")
+    deepening = template.profile("deepening")
+    concretisation = template.profile("concretisation")
+
+    assert first.client_logo is False
+    assert first.pricing_permitted is False
+    assert first.fact_kinds == frozenset({"service"})
+    assert "TEAM_FTE_01" not in first.cards
+    assert "SUCCESS_METRICS_01" not in first.cards
+    assert first.template_id == template.template_id
+
+    assert deepening.client_logo is True
+    assert deepening.pricing_permitted is False
+    assert "reference" in deepening.fact_kinds
+    assert "pricing" not in deepening.fact_kinds
+    assert set(deepening.cards) == {card.layout_id for card in template.cards}
+
+    assert concretisation.client_logo is True
+    assert concretisation.pricing_permitted is True
+    assert "pricing" in concretisation.fact_kinds
+    assert set(concretisation.cards) == {card.layout_id for card in template.cards}
+
+    first_slots = {slot.name for slot in template.slots_for_stage("first_contact")}
+    assert "team.body" not in first_slots
+    assert "success_metrics.body" not in first_slots
+    assert "cover.title" in first_slots
+    context = next(slot for slot in template.slots_for_stage("first_contact") if slot.name == "context.summary")
+    assert context.source_chapter_ids == ("1",)
+
+
+def test_every_profile_slot_is_classified_and_allow_listed() -> None:
+    policy = yaml.safe_load(EGRESS_POLICY_PATH.read_text(encoding="utf-8"))
+    classifications = policy["field_classifications"]
+    gamma_allowlist = set(policy["client_confidential_allowlist"]["gamma"])
+    template = load_gamma_template()
+    for stage, profile in template.stage_profiles.items():
+        for slot in template.slots_for_stage(stage):
+            path = f"/slots/{slot.name}"
+            assert classifications.get(path) == slot.classification, f"{stage}:{path}"
+            if slot.classification == "client_confidential":
+                assert path in gamma_allowlist, f"{stage}:{path}"
+            assert template.branding_locked is True
+            assert profile.template_id

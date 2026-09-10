@@ -1,15 +1,16 @@
-"""JJ-26: the Borek Gamma template contract.
+"""JJ-26 / JJ-31: the Borek Gamma template contract.
 
 `packages/contracts/gamma_template.json` is the single source of truth for the
-template id, its named content slots, and which Framework chapter feeds each
-slot. Branding lives in the Gamma template itself and is never part of a
+template id, its named content slots, which Framework chapter feeds each slot,
+and the `stage_profiles` that select cards, logo, and pricing per journey
+stage. Branding lives in the Gamma template itself and is never part of a
 request, so nothing here describes colours, fonts, or masters.
 """
 
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -64,6 +65,24 @@ class GammaLogoRules:
 
 
 @dataclass(frozen=True)
+class GammaSlotOverride:
+    source_chapter_ids: tuple[str, ...] | None = None
+    max_chars: int | None = None
+
+
+@dataclass(frozen=True)
+class GammaStageProfile:
+    stage: str
+    label: str
+    template_id: str
+    cards: tuple[str, ...]
+    pricing_permitted: bool
+    client_logo: bool
+    fact_kinds: frozenset[str]
+    slot_overrides: dict[str, GammaSlotOverride]
+
+
+@dataclass(frozen=True)
 class GammaTemplate:
     template_id: str
     template_version: str
@@ -72,6 +91,7 @@ class GammaTemplate:
     cards: tuple[GammaCardDefinition, ...]
     slots: tuple[GammaSlotDefinition, ...]
     client_logo: GammaLogoRules
+    stage_profiles: dict[str, GammaStageProfile]
 
     @property
     def slot_names(self) -> tuple[str, ...]:
@@ -82,6 +102,43 @@ class GammaTemplate:
             if definition.name == name:
                 return definition
         raise GammaTemplateContractError(f"'{name}' is not a named slot of the Borek template.")
+
+    def profile(self, stage: str) -> GammaStageProfile:
+        profile = self.stage_profiles.get(stage)
+        if profile is None:
+            raise GammaTemplateContractError(f"No stage profile named '{stage}'.")
+        return profile
+
+    def slots_for_stage(self, stage: str) -> tuple[GammaSlotDefinition, ...]:
+        """Named slots enabled by the stage profile, in card order. Excluded cards emit nothing."""
+        profile = self.profile(stage)
+        included_names: list[str] = []
+        seen: set[str] = set()
+        allowed_cards = set(profile.cards)
+        for card in self.cards:
+            if card.layout_id not in allowed_cards:
+                continue
+            for name in card.slots:
+                if name in seen:
+                    continue
+                seen.add(name)
+                included_names.append(name)
+        return tuple(self._apply_slot_override(self.slot(name), profile) for name in included_names)
+
+    def _apply_slot_override(
+        self,
+        definition: GammaSlotDefinition,
+        profile: GammaStageProfile,
+    ) -> GammaSlotDefinition:
+        override = profile.slot_overrides.get(definition.name)
+        if override is None:
+            return definition
+        updates: dict[str, Any] = {}
+        if override.source_chapter_ids is not None:
+            updates["source_chapter_ids"] = override.source_chapter_ids
+        if override.max_chars is not None:
+            updates["max_chars"] = override.max_chars
+        return replace(definition, **updates) if updates else definition
 
 
 @lru_cache(maxsize=1)
@@ -118,6 +175,8 @@ def _parse_template(raw: dict[str, Any]) -> GammaTemplate:
             raise GammaTemplateContractError(
                 f"Card {card.card} references undeclared slots: {unknown}."
             )
+    layout_ids = {card.layout_id for card in cards}
+    profiles = _parse_stage_profiles(raw.get("stage_profiles") or {}, layout_ids, declared)
     return GammaTemplate(
         template_id=str(raw["template_id"]),
         template_version=str(raw["template_version"]),
@@ -126,6 +185,7 @@ def _parse_template(raw: dict[str, Any]) -> GammaTemplate:
         cards=cards,
         slots=slots,
         client_logo=_parse_logo_rules(raw.get("client_logo") or {}),
+        stage_profiles=profiles,
     )
 
 
@@ -161,3 +221,86 @@ def _parse_logo_rules(raw: dict[str, Any]) -> GammaLogoRules:
         fallbacks={str(key): str(value) for key, value in (raw.get("fallbacks") or {}).items()},
         signed_url_prefixes=tuple(str(value) for value in raw.get("signed_url_prefixes") or ()),
     )
+
+
+_REQUIRED_STAGE_PROFILES = ("first_contact", "deepening", "concretisation")
+_KNOWN_FACT_KINDS = frozenset({"service", "reference", "staffing", "pricing"})
+
+
+def _parse_stage_profiles(
+    raw: dict[str, Any],
+    layout_ids: set[str],
+    declared_slots: set[str],
+) -> dict[str, GammaStageProfile]:
+    if not raw:
+        raise GammaTemplateContractError("The Borek template defines no stage_profiles.")
+    missing = [stage for stage in _REQUIRED_STAGE_PROFILES if stage not in raw]
+    if missing:
+        raise GammaTemplateContractError(
+            f"stage_profiles is missing required stages: {missing}."
+        )
+    profiles: dict[str, GammaStageProfile] = {}
+    for stage, item in raw.items():
+        if not isinstance(item, dict):
+            raise GammaTemplateContractError(f"stage_profiles.{stage} must be an object.")
+        cards = tuple(str(value) for value in item.get("cards") or ())
+        unknown_cards = [layout_id for layout_id in cards if layout_id not in layout_ids]
+        if unknown_cards:
+            raise GammaTemplateContractError(
+                f"stage_profiles.{stage} references unknown cards: {unknown_cards}."
+            )
+        if not cards:
+            raise GammaTemplateContractError(f"stage_profiles.{stage} declares no cards.")
+        fact_kinds = frozenset(str(value) for value in item.get("fact_kinds") or ())
+        unknown_kinds = fact_kinds - _KNOWN_FACT_KINDS
+        if unknown_kinds:
+            raise GammaTemplateContractError(
+                f"stage_profiles.{stage} has unknown fact_kinds: {sorted(unknown_kinds)}."
+            )
+        pricing_permitted = bool(item.get("pricing_permitted"))
+        if pricing_permitted and "pricing" not in fact_kinds:
+            raise GammaTemplateContractError(
+                f"stage_profiles.{stage} permits pricing but does not list the pricing fact kind."
+            )
+        if not pricing_permitted and "pricing" in fact_kinds:
+            raise GammaTemplateContractError(
+                f"stage_profiles.{stage} lists pricing facts while pricing_permitted is false."
+            )
+        overrides = _parse_slot_overrides(item.get("slot_overrides") or {}, declared_slots, stage)
+        profiles[str(stage)] = GammaStageProfile(
+            stage=str(stage),
+            label=str(item.get("label") or stage),
+            template_id=str(item.get("template_id") or ""),
+            cards=cards,
+            pricing_permitted=pricing_permitted,
+            client_logo=bool(item.get("client_logo")),
+            fact_kinds=fact_kinds,
+            slot_overrides=overrides,
+        )
+    return profiles
+
+
+def _parse_slot_overrides(
+    raw: dict[str, Any],
+    declared_slots: set[str],
+    stage: str,
+) -> dict[str, GammaSlotOverride]:
+    overrides: dict[str, GammaSlotOverride] = {}
+    for name, item in raw.items():
+        if name not in declared_slots:
+            raise GammaTemplateContractError(
+                f"stage_profiles.{stage} overrides unknown slot '{name}'."
+            )
+        if not isinstance(item, dict):
+            raise GammaTemplateContractError(
+                f"stage_profiles.{stage} override '{name}' must be an object."
+            )
+        chapter_ids = item.get("source_chapter_ids")
+        max_chars = item.get("max_chars")
+        overrides[str(name)] = GammaSlotOverride(
+            source_chapter_ids=tuple(str(value) for value in chapter_ids)
+            if chapter_ids is not None
+            else None,
+            max_chars=int(max_chars) if max_chars is not None else None,
+        )
+    return overrides

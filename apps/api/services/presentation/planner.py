@@ -82,29 +82,41 @@ def plan_presentation(
         "targetSchema": planning_target_schema(),
     }
     client = planner if planner is not None else LlmClient()
+    last_validation_error: PresentationPlanValidationError | None = None
 
-    try:
-        raw_plan = client.complete_planning(
-            planning_input=planning_input,
-            prompt_version=PROMPT_VERSION,
-            retry_count=0,
-        )
-    except Exception as exc:
-        raise PresentationPlanningCallError(
-            f"Presentation planning call failed: {exc}"
-        ) from exc
+    for attempt in range(3):
+        try:
+            raw_plan = client.complete_planning(
+                planning_input=planning_input,
+                prompt_version=PROMPT_VERSION,
+                retry_count=attempt,
+            )
+        except Exception as exc:
+            raise PresentationPlanningCallError(
+                f"Presentation planning call failed: {exc}"
+            ) from exc
 
-    try:
-        plan = consume_presentation_plan(copy.deepcopy(raw_plan))
-        validated_payload = plan.model_dump(mode="json")
-        validate_presentation_plan_business_rules(validated_payload)
-        validate_registry_layout_selection(validated_payload)
-        _validate_unique_layout_ids(validated_payload)
-    except (SchemaVersionMismatchError, ValidationError, ContractValidationError) as exc:
-        raise PresentationPlanValidationError(
-            f"Invalid PresentationPlan: {exc}"
-        ) from exc
-    return plan
+        try:
+            plan = consume_presentation_plan(copy.deepcopy(raw_plan))
+            validated_payload = plan.model_dump(mode="json")
+            validate_presentation_plan_business_rules(validated_payload)
+            validate_registry_layout_selection(validated_payload)
+            _validate_unique_layout_ids(validated_payload)
+            return plan
+        except (SchemaVersionMismatchError, ValidationError, ContractValidationError) as exc:
+            last_validation_error = PresentationPlanValidationError(
+                f"Invalid PresentationPlan: {exc}"
+            )
+            if not _is_duplicate_layout_error(exc) or attempt == 2:
+                raise last_validation_error from exc
+
+    raise last_validation_error or PresentationPlanValidationError(
+        "Invalid PresentationPlan: planning retries exhausted"
+    )
+
+
+def _is_duplicate_layout_error(exc: BaseException) -> bool:
+    return "layoutId values must be unique" in str(exc)
 
 
 def _validate_unique_layout_ids(plan: dict[str, Any]) -> None:

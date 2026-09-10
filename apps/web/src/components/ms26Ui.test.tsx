@@ -38,4 +38,17 @@ assert.match(css, /grid-template-columns:\s*repeat\(auto-fill, minmax\(min\(100%
 assert.match(css, /\.site-user[\s\S]*?display:\s*none;/);
 assert.match(css, /overflow-wrap:\s*anywhere;/);
 
+assert.match(css, /--font-body:\s*"Segoe UI"/);
+assert.match(css, /--font-heading:\s*"Segoe UI"/);
+assert.match(css, /html \*,\s*html \*::before,\s*html \*::after\s*\{[\s\S]*?font-family:\s*inherit;/);
+assert.match(
+  css,
+  /h1,\s*h2,\s*h3,\s*h4,\s*h5,\s*h6\s*\{[\s\S]*?font-family:\s*var\(--font-heading\);/,
+);
+assert.match(
+  css,
+  /\.page-header h1,\s*\.app-page-header h1,\s*\.auth-main-header h1,\s*\.pipeline-empty-page h1/,
+);
+assert.doesNotMatch(css, /font-weight:\s*650/);
+
 console.log("MS-26 responsive UI tests passed");

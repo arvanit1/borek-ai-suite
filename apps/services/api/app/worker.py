@@ -491,6 +491,14 @@ def run_presentation_generation_task(
                     )
                 stage = JobStage.PREVIEW_RENDERING
                 job_service.ensure_stage(parsed_job_id, stage, repository=store)
+                from app.services.gamma_preview import apply_gamma_preview_raster
+
+                apply_gamma_preview_raster(
+                    store,
+                    presentation_id=presentation_id,
+                    user_id=user_id,
+                    version=version,
+                )
                 job_service.complete_job(
                     parsed_job_id,
                     repository=store,
@@ -602,6 +610,14 @@ def _run_slide_task(
                 )
                 stage = JobStage.PREVIEW_RENDERING
                 job_service.ensure_stage(parsed_job_id, stage, repository=store)
+                from app.services.gamma_preview import apply_gamma_preview_raster
+
+                apply_gamma_preview_raster(
+                    store,
+                    presentation_id=presentation_id,
+                    user_id=user_id,
+                    version=version,
+                )
                 job_service.complete_job(
                     parsed_job_id,
                     repository=store,

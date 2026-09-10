@@ -56,32 +56,42 @@ def build_gamma_content_payload(
     template: GammaTemplate | None = None,
     stage: str | None = None,
     client_logo_ref: str | None = None,
+    prior_stage_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Named content slots plus grounded-fact provenance. No layout or styling."""
     resolved = resolve_journey_stage(stage)
+    contract = template or load_gamma_template()
+    profile = contract.profile(resolved)
     slots = build_gamma_content_slots(
         opportunity=opportunity,
         framework=framework,
-        template=template or load_gamma_template(),
+        template=contract,
         stage=resolved,
+        prior_stage_context=prior_stage_context,
     )
     grounding = _company_facts(framework)
-    include_pricing = resolved == "concretisation"
+    include_pricing = profile.pricing_permitted
     grounded = [
         _grounded_fact(lookup)
         for lookup in live_answered_lookups(
             grounding,
+            kinds=set(profile.fact_kinds),
             include_pricing=include_pricing,
         )
     ]
+    grounded = _merge_prior_facts(
+        grounded,
+        prior_stage_context=prior_stage_context,
+        fact_kinds=profile.fact_kinds,
+    )
     if include_pricing:
         _require_concretisation_pricing(framework, grounding)
     elif any(item["kind"] == "pricing" for item in grounded):
         raise GammaPayloadError("Pricing facts are only permitted on a Concretisation payload.")
-    logo = None if resolved == "first_contact" else client_logo_ref
+    logo = client_logo_ref if profile.client_logo else None
     payload = {
         "schema_version": "1.0",
-        "template_id": LOCKED_BOREK_TEMPLATE_ID,
+        "template_id": profile.template_id or LOCKED_BOREK_TEMPLATE_ID,
         "template_version": LOCKED_BOREK_TEMPLATE_VERSION,
         "stage": resolved,
         "slots": [{"name": slot.name, "value": slot.value} for slot in slots],
@@ -165,6 +175,33 @@ def _chapter_nine_text(framework: dict[str, Any] | None) -> str:
                 return body
             return json.dumps(body)
     return ""
+
+
+def _merge_prior_facts(
+    grounded: list[dict[str, Any]],
+    *,
+    prior_stage_context: dict[str, Any] | None,
+    fact_kinds: frozenset[str],
+) -> list[dict[str, Any]]:
+    if not prior_stage_context:
+        return grounded
+    seen = {
+        (item.get("kind"), (item.get("provenance") or {}).get("fact_id"))
+        for item in grounded
+    }
+    merged = list(grounded)
+    for item in prior_stage_context.get("grounded_facts") or []:
+        if not isinstance(item, dict):
+            continue
+        kind = str(item.get("kind") or "")
+        if kind not in fact_kinds:
+            continue
+        key = (kind, (item.get("provenance") or {}).get("fact_id"))
+        if key in seen:
+            continue
+        merged.append(item)
+        seen.add(key)
+    return merged
 
 
 # Re-export so BT-28 can import the frozen stage names from one module.

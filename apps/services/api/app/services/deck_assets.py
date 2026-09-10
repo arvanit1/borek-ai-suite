@@ -19,6 +19,10 @@ _MINIMAL_PNG = bytes.fromhex(
 
 _MINIMAL_PDF = b"%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n"
 
+# Ready-screen rasters of the downloaded PDF live here, not under the internal
+# slide-00N.png names, so a failed raster never overwrites the internal previews.
+EXPORT_PREVIEW_DIRNAME = "export-preview"
+
 
 def deck_assets_root() -> Path:
     configured = Path(settings.ARTIFACT_ROOT)
@@ -56,6 +60,37 @@ def materialize_fixture_deck_assets(*, version_id: UUID, slide_count: int) -> di
 
 def resolve_preview_image_path(*, version_id: UUID, slide_index: int) -> Path:
     return deck_assets_root() / str(version_id) / f"slide-{slide_index + 1:03d}.png"
+
+
+def export_preview_dir(*, version_id: UUID | str) -> Path:
+    return deck_assets_root() / str(version_id) / EXPORT_PREVIEW_DIRNAME
+
+
+def list_preview_image_paths(
+    *,
+    version_id: UUID | str,
+    stored_paths: list[str] | None = None,
+    slide_count: int = 0,
+) -> list[str]:
+    """Prefer PDF-page rasters when they exist; otherwise the stored or internal PNGs."""
+    raster_dir = export_preview_dir(version_id=version_id)
+    if raster_dir.is_dir():
+        rasters = sorted(
+            path for path in raster_dir.glob("slide-*.png") if path.is_file()
+        )
+        if rasters:
+            return [str(path.resolve()) for path in rasters]
+    existing = [
+        str(Path(str(path)).resolve())
+        for path in (stored_paths or [])
+        if Path(str(path)).is_file()
+    ]
+    if existing:
+        return existing
+    return [
+        str(resolve_preview_image_path(version_id=UUID(str(version_id)), slide_index=index).resolve())
+        for index in range(max(slide_count, 0))
+    ]
 
 
 def resolve_pptx_path(*, version_id: UUID) -> Path:

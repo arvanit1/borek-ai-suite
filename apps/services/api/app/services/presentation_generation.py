@@ -202,13 +202,22 @@ def enqueue_presentation_plan_generate(
     )
     from app.worker import run_presentation_planning_task
 
-    _dispatch_task(
-        run_presentation_planning_task,
-        str(job.id),
-        str(framework["id"]),
-        str(user_id),
-        str(plan_id),
-    )
+    try:
+        _dispatch_task(
+            run_presentation_planning_task,
+            str(job.id),
+            str(framework["id"]),
+            str(user_id),
+            str(plan_id),
+        )
+    except Exception:
+        # Eager memory-backend runs fail the job in-process; the HTTP handler
+        # should still return the queued job so the UI can poll/retry.
+        if settings.API_DATA_BACKEND != "memory":
+            raise
+        refreshed = job_service.get_job(job.id, repository=store)
+        if refreshed is not None:
+            job = refreshed
     return {"id": plan_id}, job, False
 
 
