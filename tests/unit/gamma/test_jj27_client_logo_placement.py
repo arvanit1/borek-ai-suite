@@ -222,6 +222,7 @@ def _run_stage(store, opportunity) -> dict:
         opportunity=opportunity,
         presentation_version_id=uuid.uuid4(),
         user_id=USER_ID,
+        stage="deepening",
     )
 
 

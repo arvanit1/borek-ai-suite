@@ -145,6 +145,7 @@ def test_stage_sends_the_signed_url_instead_of_the_private_ref(monkeypatch, tmp_
         presentation_version_id=uuid.uuid4(),
         user_id=USER_ID,
         store=store,
+        stage="deepening",
     )
 
     assert logo.applied is True
@@ -191,6 +192,7 @@ def test_unsignable_logo_falls_back_to_the_wordmark(monkeypatch, tmp_path) -> No
         presentation_version_id=uuid.uuid4(),
         user_id=USER_ID,
         store=store,
+        stage="deepening",
     )
     assert logo.applied is True
     assert request.client_logo_ref is None

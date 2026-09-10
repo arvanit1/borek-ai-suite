@@ -89,6 +89,7 @@ def test_gamma_fixture_stage_persists_artifacts_and_observability(
         opportunity=opportunity,
         presentation_version_id=version_id,
         user_id=USER,
+        stage="first_contact",
     )
     assert result["skipped"] is False
     assert result["engine"] == "gamma"

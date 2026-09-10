@@ -20,6 +20,7 @@ Single source of truth for all cross-service data contracts.
 | `gamma_payload.schema.json` | ES-40 | Complete |
 | `gamma_provider.json` | AT-60A | Complete |
 | `gamma_artifact_location.json` | BT-28 | Complete |
+| `journey_stage_eligibility.schema.json` | BT-31 | Complete |
 
 ## Validation gate
 

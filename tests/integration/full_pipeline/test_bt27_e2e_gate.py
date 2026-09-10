@@ -374,12 +374,12 @@ def test_bt27_planning_failure_does_not_start_generation(
         raise RuntimeError("BT-27 induced planning failure")
 
     monkeypatch.setattr(presentation_generation, "execute_presentation_planning", _fail)
-    with pytest.raises(RuntimeError, match="BT-27 induced planning failure"):
-        client.post(
-            f"/opportunities/{opportunity_id}/presentation-plan/generate",
-            headers=headers,
-            json={"framework_version_id": framework_version_id, "auto_continue": True},
-        )
+    response = client.post(
+        f"/opportunities/{opportunity_id}/presentation-plan/generate",
+        headers=headers,
+        json={"framework_version_id": framework_version_id, "auto_continue": True},
+    )
+    assert response.status_code == 202, response.text
 
     planning_jobs = jobs_for(opportunity_id, "presentation_planning")
     assert len(planning_jobs) == 1
@@ -416,12 +416,12 @@ def test_bt27_generation_failure_preserves_framework_and_plan(
         raise RuntimeError("BT-27 induced generation failure")
 
     monkeypatch.setattr(presentation_generation, "execute_presentation_generation", _fail)
-    with pytest.raises(RuntimeError, match="BT-27 induced generation failure"):
-        client.post(
-            f"/opportunities/{opportunity_id}/presentation-plan/generate",
-            headers=headers,
-            json={"framework_version_id": framework_version_id, "auto_continue": True},
-        )
+    response = client.post(
+        f"/opportunities/{opportunity_id}/presentation-plan/generate",
+        headers=headers,
+        json={"framework_version_id": framework_version_id, "auto_continue": True},
+    )
+    assert response.status_code == 202, response.text
 
     planning_jobs = jobs_for(opportunity_id, "presentation_planning")
     assert len(planning_jobs) == 1

@@ -437,10 +437,16 @@ def run_presentation_generation_task(
 
                 if _stage_should_run(resume_stage, stage):
                     job_service.ensure_stage(parsed_job_id, stage, repository=store)
+                    enqueue = dict((current.result_json or {}).get("_enqueue") or {})
+                    prior_id = enqueue.get("prior_stage_presentation_version_id")
                     version, plan = presentation_generation.execute_presentation_generation(
                         store,
                         presentation_id=UUID(presentation_id),
                         user_id=UUID(user_id),
+                        journey_stage=enqueue.get("journey_stage"),
+                        prior_stage_presentation_version_id=(
+                            UUID(str(prior_id)) if prior_id else None
+                        ),
                     )
                     job_service.record_result_checkpoint(
                         parsed_job_id,

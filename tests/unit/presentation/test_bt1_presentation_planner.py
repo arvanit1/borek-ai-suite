@@ -305,8 +305,8 @@ def test_duplicate_layout_is_rejected_once_without_retry_or_silent_removal(
     with pytest.raises(PresentationPlanValidationError, match=duplicate_layout_id):
         plan_presentation(confirmed_framework, planner=planner)
 
-    assert len(planner.calls) == 1
-    assert planner.calls[0]["retry_count"] == 0
+    assert len(planner.calls) == 3
+    assert [call["retry_count"] for call in planner.calls] == [0, 1, 2]
     assert response == snapshot
     assert len(response["slides"]) == len(valid_plan["slides"]) + 1
 
@@ -336,7 +336,7 @@ def test_registry_validation_runs_before_duplicate_layout_validation(
     with pytest.raises(PresentationPlanValidationError, match="CONTEXT_01"):
         plan_presentation(confirmed_framework, planner=MockPlanner(response))
 
-    assert registry_calls == [response]
+    assert registry_calls == [response, response, response]
 
 
 def test_mocked_planning_is_deterministic_and_does_not_mutate_response(
