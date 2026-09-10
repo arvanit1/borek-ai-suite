@@ -134,6 +134,20 @@ class LiveGammaClient:
 
     def _generation_payload(self, request: GammaGenerateRequest) -> dict[str, Any]:
         input_text = "\n\n".join(f"{slot.name}: {slot.value}" for slot in request.slots)
+        title = next((slot.value for slot in request.slots if slot.name == "cover.title"), None)
+        if self._template_id:
+            # POST /v1.0/generations/from-template requires prompt + gammaId.
+            # inputText/textMode/format/cardOptions are generate-from-scratch fields.
+            payload: dict[str, Any] = {
+                "prompt": input_text,
+                "gammaId": self._template_id,
+                "themeId": self._theme_id,
+                "exportAs": request.output_formats[0],
+            }
+            if title:
+                payload["title"] = title
+            return payload
+
         header_footer: dict[str, Any] = {
             "bottomLeft": {"type": "image", "source": "themeLogo"},
         }
@@ -145,7 +159,7 @@ class LiveGammaClient:
                 "source": client_logo_url,
                 "maxHeightPercent": placement.max_height_pct,
             }
-        payload: dict[str, Any] = {
+        payload = {
             "inputText": input_text,
             "textMode": "preserve",
             "format": "presentation",
@@ -153,9 +167,6 @@ class LiveGammaClient:
             "exportAs": request.output_formats[0],
             "cardOptions": {"headerFooter": header_footer},
         }
-        if self._template_id:
-            payload["gammaId"] = self._template_id
-        title = next((slot.value for slot in request.slots if slot.name == "cover.title"), None)
         if title:
             payload["title"] = title
         return payload
@@ -183,7 +194,7 @@ class LiveGammaClient:
         created = self._request(
             "POST",
             f"/v1.0/gammas/{gamma_id}/export",
-            json_body={"format": output_format},
+            json_body={"exportAs": output_format},
             deadline=deadline,
         )
         export_id = str(created.get("exportId") or created.get("id") or "")

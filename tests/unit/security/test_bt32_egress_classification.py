@@ -202,8 +202,9 @@ def test_live_http_keys_stay_within_the_known_classified_surface() -> None:
     assert set(payload) <= GAMMA_LIVE_HTTP_KEYS
     assert "grounded_facts" not in payload
     assert "prior_stage_context" not in payload
-    assert "inputText" in payload
-    assert SECRET_MARKER in payload["inputText"]
+    assert payload["gammaId"] == "tpl-1"
+    assert "prompt" in payload
+    assert SECRET_MARKER in payload["prompt"]
 
 
 def test_non_slot_provider_field_without_policy_fails_closed() -> None:

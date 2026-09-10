@@ -16,6 +16,7 @@ from services.gamma.signed_logo import owned_https_prefixes
 GAMMA_LIVE_HTTP_KEYS = frozenset(
     {
         "inputText",
+        "prompt",
         "title",
         "textMode",
         "format",
@@ -60,12 +61,13 @@ def gamma_live_technical_inventory(
 ) -> dict[str, Any]:
     provider: dict[str, str] = {
         "themeId": theme_id,
-        "textMode": "preserve",
-        "format": "presentation",
         "exportAs": output_format,
     }
     if template_id:
         provider["gammaId"] = template_id
+    else:
+        provider["textMode"] = "preserve"
+        provider["format"] = "presentation"
     return {"provider": provider}
 
 
