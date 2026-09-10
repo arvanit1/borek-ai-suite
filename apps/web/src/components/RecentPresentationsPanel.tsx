@@ -230,9 +230,14 @@ export function RecentPresentationsPanel() {
             title="Recent presentations"
             lead="Continue active work or return to a completed customer presentation."
           />
-          <Link href="/upload?new=1" className="btn btn-primary">
-            Create presentation
-          </Link>
+          <div className="archive-heading-actions">
+            <Link href="/archive" className="btn btn-secondary">
+              Archive
+            </Link>
+            <Link href="/upload?new=1" className="btn btn-primary">
+              Create presentation
+            </Link>
+          </div>
         </div>
 
         {error ? (

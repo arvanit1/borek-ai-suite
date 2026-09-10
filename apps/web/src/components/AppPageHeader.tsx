@@ -1,3 +1,5 @@
+import React from "react";
+
 interface AppPageHeaderProps {
   kicker?: string;
   title: string;
