@@ -16,7 +16,6 @@ from services.gamma.client_logo import (
     decide_client_logo,
 )
 from services.gamma.contract import (
-    LOCKED_BOREK_TEMPLATE_ID,
     LOCKED_BOREK_TEMPLATE_VERSION,
     GammaError,
     GammaGenerateRequest,
@@ -24,7 +23,8 @@ from services.gamma.contract import (
 from services.gamma.signed_logo import mint_signed_client_logo_url
 from services.gamma.provider import build_gamma_provider
 from services.gamma.payload import build_gamma_content_payload, slots_from_payload
-from services.gamma.slot_mapping import DEFAULT_JOURNEY_STAGE, slot_chapter_provenance
+from services.gamma.slot_mapping import DEFAULT_JOURNEY_STAGE, resolve_journey_stage, slot_chapter_provenance
+from services.gamma.template import load_gamma_template
 from services.observability.llm_logger import llm_observability_scope, log_llm_call
 from services.security.egress_policy import load_runtime_egress_policy, slot_classifications_from_policy
 
@@ -68,7 +68,8 @@ def _signed_logo_ref(
     stage: str,
 ) -> str | None:
     """JJ-29: mint a fetchable URL only after the placement gate. Never send private refs."""
-    if not logo.applied or stage == "first_contact":
+    profile = load_gamma_template().profile(stage)
+    if not logo.applied or not profile.client_logo:
         return None
     ttl = max(int(settings.CLIENT_LOGO_SIGNED_URL_TTL_SECONDS), int(settings.GAMMA_TIMEOUT_SECONDS) + 60)
     return mint_signed_client_logo_url(
@@ -111,16 +112,17 @@ def build_gamma_request(
         opportunity_id=opportunity_id if isinstance(opportunity_id, UUID) else UUID(str(opportunity_id)),
         user_id=user_id,
     )
-    stage = str(opportunity.get("journey_stage") or DEFAULT_JOURNEY_STAGE)
+    stage = resolve_journey_stage(opportunity.get("journey_stage") or DEFAULT_JOURNEY_STAGE)
     signed_ref = _signed_logo_ref(logo, opportunity_id=opportunity_id, stage=stage)
     content = build_gamma_content_payload(
         opportunity=opportunity,
         framework=framework,
         stage=stage,
         client_logo_ref=signed_ref,
+        prior_stage_context=opportunity.get("prior_stage_context"),
     )
     request = GammaGenerateRequest(
-        template_id=LOCKED_BOREK_TEMPLATE_ID,
+        template_id=content["template_id"],
         template_version=LOCKED_BOREK_TEMPLATE_VERSION,
         opportunity_id=str(opportunity_id),
         presentation_version_id=str(presentation_version_id),
@@ -241,7 +243,12 @@ def _invoke_gamma(
             **metadata,
             "slot_source_chapters": {
                 name: list(chapter_ids)
-                for name, chapter_ids in slot_chapter_provenance(request.slots).items()
+                for name, chapter_ids in slot_chapter_provenance(
+                    request.slots,
+                    stage=resolve_journey_stage(
+                        opportunity.get("journey_stage") or DEFAULT_JOURNEY_STAGE
+                    ),
+                ).items()
             },
             "client_logo": _client_logo_metadata(
                 logo,

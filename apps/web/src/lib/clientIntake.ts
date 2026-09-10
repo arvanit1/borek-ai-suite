@@ -2,6 +2,11 @@ import type { AdditionalClientInformation, ClientContact } from "./api";
 
 export const CLIENT_LOGO_MAX_BYTES = 5 * 1024 * 1024;
 export const CLIENT_LOGO_ACCEPT = ".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp";
+export const CLIENT_INFORMATION_FILE_MAX_BYTES = 5 * 1024 * 1024;
+export const CLIENT_INFORMATION_NOTES_MAX = 20_000;
+export const CLIENT_INFORMATION_FILE_ACCEPT =
+  ".txt,.md,.csv,.json,text/plain,text/markdown,text/csv,application/json";
+const CLIENT_INFORMATION_FILE_EXTENSIONS = [".txt", ".md", ".csv", ".json"] as const;
 
 const LOGO_EXTENSIONS: Record<string, readonly string[]> = {
   "image/png": [".png"],
@@ -37,6 +42,62 @@ export function validateClientLogoFile(file: Pick<File, "name" | "size" | "type"
     return { ok: false, reason: "The client logo must be 5 MiB or smaller." };
   }
   return { ok: true };
+}
+
+export function validateClientInformationFile(
+  file: Pick<File, "name" | "size">,
+): ClientLogoValidation {
+  const extension = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+  if (!(CLIENT_INFORMATION_FILE_EXTENSIONS as readonly string[]).includes(extension)) {
+    return { ok: false, reason: "Use a TXT, Markdown, CSV, or JSON file." };
+  }
+  if (file.size === 0) {
+    return { ok: false, reason: "This file is empty. Choose another file." };
+  }
+  if (file.size > CLIENT_INFORMATION_FILE_MAX_BYTES) {
+    return { ok: false, reason: "Each file must be 5 MiB or smaller." };
+  }
+  return { ok: true };
+}
+
+function fileNoteHeader(fileName: string): string {
+  return `--- ${fileName} ---`;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+export function removeClientInformationFileNote(
+  notes: string | null | undefined,
+  fileName: string,
+): string | null {
+  if (!notes) {
+    return null;
+  }
+  const header = escapeRegExp(fileNoteHeader(fileName));
+  const next = notes
+    .replace(new RegExp(`(?:^|\\n\\n)${header}\\n[\\s\\S]*?(?=\\n--- |$)`), "")
+    .trim();
+  return next || null;
+}
+
+export function appendClientInformationFileNote(
+  notes: string | null | undefined,
+  fileName: string,
+  content: string,
+): { notes: string; error?: string } {
+  const body = content.replace(/\s+$/u, "");
+  const block = `${fileNoteHeader(fileName)}\n${body}\n`;
+  const remainder = removeClientInformationFileNote(notes, fileName);
+  const next = remainder ? `${remainder}\n\n${block}` : block;
+  if (next.length > CLIENT_INFORMATION_NOTES_MAX) {
+    return {
+      notes: notes?.trim() || "",
+      error: "Notes cannot exceed 20,000 characters. Choose a shorter file or trim the notes field.",
+    };
+  }
+  return { notes: next };
 }
 
 function cleanList(values: readonly string[] | undefined): string[] {

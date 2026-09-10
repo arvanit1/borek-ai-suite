@@ -2,8 +2,12 @@ import assert from "node:assert/strict";
 
 import {
   additionalClientInformationError,
+  appendClientInformationFileNote,
+  CLIENT_INFORMATION_FILE_MAX_BYTES,
   CLIENT_LOGO_MAX_BYTES,
   compactAdditionalClientInformation,
+  removeClientInformationFileNote,
+  validateClientInformationFile,
   validateClientLogoFile,
 } from "./clientIntake.js";
 
@@ -73,5 +77,21 @@ assert.equal(
   }),
   undefined,
 );
+
+assert.equal(validateClientInformationFile({ name: "brief.txt", size: 12 }).ok, true);
+assert.equal(validateClientInformationFile({ name: "brief.md", size: 12 }).ok, true);
+assert.equal(validateClientInformationFile({ name: "brief.pdf", size: 12 }).ok, false);
+assert.equal(validateClientInformationFile({ name: "brief.txt", size: 0 }).ok, false);
+assert.equal(
+  validateClientInformationFile({ name: "brief.txt", size: CLIENT_INFORMATION_FILE_MAX_BYTES + 1 }).ok,
+  false,
+);
+
+const imported = appendClientInformationFileNote("Manual note.", "brief.txt", "EU hosting required.");
+assert.equal(imported.error, undefined);
+assert.match(imported.notes, /Manual note/);
+assert.match(imported.notes, /--- brief.txt ---/);
+assert.match(imported.notes, /EU hosting required/);
+assert.equal(removeClientInformationFileNote(imported.notes, "brief.txt"), "Manual note.");
 
 console.log("MS-27 client intake tests passed");

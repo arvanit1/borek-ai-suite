@@ -1,10 +1,11 @@
-"""JJ-26 slots filled by ES-40: confirmed Framework plus retrieved facts, content only.
+"""JJ-26 slots filled by ES-40 / JJ-31: confirmed Framework plus retrieved facts.
 
-Every chapter-fed slot reads only the chapters the template contract assigns to
+Every chapter-fed slot reads only the chapters the stage profile assigns to
 it. Retrieved Borek facts are included when those chapters are in the slot's
-allowance. Chapter 9 pricing never fills a JJ-26 slot (MS-14); ES-40 carries
-grounded prices on the payload for Concretisation instead. Empty slots are
-omitted, not padded.
+allowance and the profile lists that fact kind. Chapter 9 pricing never fills
+a layout slot (MS-14); ES-40 carries grounded prices on the payload for
+Concretisation instead. Empty slots are omitted, not padded — except when a
+later stage reuses confirmed copy from the stage before it.
 """
 
 from __future__ import annotations
@@ -19,6 +20,9 @@ from services.framework.company_facts import (
 )
 from services.gamma.contract import FORBIDDEN_BRANDING_KEYS, GammaContentSlot, GammaPayloadError
 from services.gamma.template import GammaSlotDefinition, GammaTemplate, load_gamma_template
+
+JOURNEY_STAGES = ("first_contact", "deepening", "concretisation")
+DEFAULT_JOURNEY_STAGE = "deepening"
 
 JOURNEY_STAGES = ("first_contact", "deepening", "concretisation")
 DEFAULT_JOURNEY_STAGE = "deepening"
@@ -49,11 +53,17 @@ _FACT_KINDS_FOR_CHAPTER = {
 
 
 def resolve_journey_stage(stage: str | None) -> str:
-    value = str(stage or DEFAULT_JOURNEY_STAGE).strip()
-    if value not in JOURNEY_STAGES:
+    allowed = tuple(load_gamma_template().stage_profiles) or JOURNEY_STAGES
+    value = str(stage or "").strip()
+    if not value:
+        raise GammaPayloadError(
+            "Journey stage is required. "
+            f"Expected one of: {', '.join(allowed)}."
+        )
+    if value not in allowed:
         raise GammaPayloadError(
             f"Unknown journey stage '{stage}'. "
-            f"Expected one of: {', '.join(JOURNEY_STAGES)}."
+            f"Expected one of: {', '.join(allowed)}."
         )
     return value
 
@@ -63,34 +73,48 @@ def build_gamma_content_slots(
     opportunity: dict[str, Any],
     framework: dict[str, Any] | None = None,
     template: GammaTemplate | None = None,
-    stage: str | None = None,
+    stage: str = DEFAULT_JOURNEY_STAGE,
+    prior_stage_context: dict[str, Any] | None = None,
 ) -> tuple[GammaContentSlot, ...]:
     """Return the populated content slots for one client, in template card order."""
     resolved_stage = resolve_journey_stage(stage)
     contract = template or load_gamma_template()
+    profile = contract.profile(resolved_stage)
     payload = _framework_payload(framework)
     _require_confirmed(payload)
     chapters = _chapters_by_id(payload)
-    filled: list[GammaContentSlot] = []
-    for definition in contract.slots:
+    stage_slots = contract.slots_for_stage(resolved_stage)
+    filled_by_name: dict[str, GammaContentSlot] = {}
+    for definition in stage_slots:
         if definition.name in FORBIDDEN_BRANDING_KEYS or definition.name.startswith("brand."):
-            continue
-        if resolved_stage == "first_contact" and definition.name == "cover.client_logo":
             continue
         value = _slot_value(
             definition,
             opportunity=opportunity,
             chapters=chapters,
             framework=payload,
-            stage=resolved_stage,
+            profile_fact_kinds=profile.fact_kinds,
+            pricing_permitted=profile.pricing_permitted,
         )
-        if not value:
-            if definition.required:
-                raise GammaPayloadError(
-                    f"Required Borek template slot '{definition.name}' has no content."
-                )
+        if value:
+            filled_by_name[definition.name] = GammaContentSlot(
+                definition.name, _clamp(value, definition.max_chars)
+            )
+    _carry_forward_slots(
+        filled_by_name,
+        stage_slots=stage_slots,
+        prior_stage_context=prior_stage_context,
+    )
+    filled: list[GammaContentSlot] = []
+    for definition in stage_slots:
+        slot = filled_by_name.get(definition.name)
+        if slot is not None:
+            filled.append(slot)
             continue
-        filled.append(GammaContentSlot(definition.name, _clamp(value, definition.max_chars)))
+        if definition.required:
+            raise GammaPayloadError(
+                f"Required Borek template slot '{definition.name}' has no content."
+            )
     blob = " ".join(slot.value for slot in filled)
     company_facts = ((payload or {}).get("generation_meta") or {}).get("company_facts")
     try:
@@ -99,7 +123,7 @@ def build_gamma_content_slots(
             grounding=company_facts,
             allow_prices=False,
         )
-        if resolved_stage == "concretisation":
+        if profile.pricing_permitted:
             refuse_ungrounded_prices(
                 text=_chapter_body(chapters.get("9")),
                 grounding=company_facts,
@@ -114,10 +138,18 @@ def slot_chapter_provenance(
     slots: Iterable[GammaContentSlot],
     *,
     template: GammaTemplate | None = None,
+    stage: str = DEFAULT_JOURNEY_STAGE,
 ) -> dict[str, tuple[str, ...]]:
     """Which Framework chapters each sent slot was allowed to draw from."""
     contract = template or load_gamma_template()
-    return {slot.name: contract.slot(slot.name).source_chapter_ids for slot in slots}
+    resolved = resolve_journey_stage(stage)
+    definitions = {definition.name: definition for definition in contract.slots_for_stage(resolved)}
+    return {
+        slot.name: definitions[slot.name].source_chapter_ids
+        if slot.name in definitions
+        else contract.slot(slot.name).source_chapter_ids
+        for slot in slots
+    }
 
 
 def _framework_payload(framework: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -149,7 +181,8 @@ def _slot_value(
     opportunity: dict[str, Any],
     chapters: dict[str, Any],
     framework: dict[str, Any] | None,
-    stage: str,
+    profile_fact_kinds: frozenset[str],
+    pricing_permitted: bool,
 ) -> str:
     if definition.source.startswith("opportunity."):
         field = definition.source.split(".", 1)[1]
@@ -168,7 +201,12 @@ def _slot_value(
         for chapter_id in definition.source_chapter_ids
         if (body := _chapter_body(chapters.get(chapter_id)))
     ]
-    retrieved = _retrieved_facts_text(framework, definition.source_chapter_ids, stage=stage)
+    retrieved = _retrieved_facts_text(
+        framework,
+        definition.source_chapter_ids,
+        profile_fact_kinds=profile_fact_kinds,
+        pricing_permitted=pricing_permitted,
+    )
     if retrieved:
         blob = _PARAGRAPH_SEPARATOR.join(parts)
         extras = [line for line in retrieved.split("\n") if line and line not in blob]
@@ -181,11 +219,13 @@ def _retrieved_facts_text(
     framework: dict[str, Any] | None,
     chapter_ids: tuple[str, ...],
     *,
-    stage: str,
+    profile_fact_kinds: frozenset[str],
+    pricing_permitted: bool,
 ) -> str:
     kinds: set[str] = set()
     for chapter_id in chapter_ids:
         kinds.update(_FACT_KINDS_FOR_CHAPTER.get(chapter_id) or ())
+    kinds &= set(profile_fact_kinds)
     if not kinds:
         return ""
     meta = ((framework or {}).get("generation_meta") or {}).get("company_facts") or {}
@@ -193,7 +233,7 @@ def _retrieved_facts_text(
     for lookup in live_answered_lookups(
         meta,
         kinds=kinds,
-        include_pricing=stage == "concretisation",
+        include_pricing=pricing_permitted,
     ):
         kind = str(lookup.get("kind") or "")
         if kind == "pricing":
@@ -202,6 +242,33 @@ def _retrieved_facts_text(
         if line:
             lines.append(line)
     return "\n".join(lines)
+
+
+def _carry_forward_slots(
+    filled_by_name: dict[str, GammaContentSlot],
+    *,
+    stage_slots: tuple[GammaSlotDefinition, ...],
+    prior_stage_context: dict[str, Any] | None,
+) -> None:
+    """BT-31 handoff: fill profile slots the current Framework left empty from the prior stage."""
+    if not prior_stage_context:
+        return
+    prior_values = {
+        str(item.get("name")): str(item.get("value") or "").strip()
+        for item in (prior_stage_context.get("slots") or [])
+        if isinstance(item, dict) and item.get("name") and str(item.get("value") or "").strip()
+    }
+    if not prior_values:
+        return
+    for definition in stage_slots:
+        if definition.name in filled_by_name:
+            continue
+        prior = prior_values.get(definition.name)
+        if not prior:
+            continue
+        filled_by_name[definition.name] = GammaContentSlot(
+            definition.name, _clamp(prior, definition.max_chars)
+        )
 
 
 def _chapters_by_id(framework: dict[str, Any] | None) -> dict[str, Any]:

@@ -6,7 +6,11 @@ import type { AdditionalClientInformation, ClientContact, OpportunityCreatePaylo
 import { opportunityErrorMessage } from "@/lib/apiErrors";
 import {
   additionalClientInformationError,
+  appendClientInformationFileNote,
+  CLIENT_INFORMATION_FILE_ACCEPT,
   compactAdditionalClientInformation,
+  removeClientInformationFileNote,
+  validateClientInformationFile,
 } from "@/lib/clientIntake";
 import {
   clearOpportunityDraft,
@@ -44,40 +48,65 @@ interface OpportunityFormProps {
   disabled?: boolean;
   existing?: OpportunityFormValues | null;
   onSubmit: (values: OpportunityCreatePayload) => Promise<void>;
+  onUpdateClientInformation?: (
+    value: AdditionalClientInformation | null,
+  ) => Promise<void>;
 }
 
 export function OpportunityForm({
   disabled = false,
   existing = null,
   onSubmit,
+  onUpdateClientInformation,
 }: OpportunityFormProps) {
   const [values, setValues] = useState<OpportunityFormValues>(existing ?? DEFAULT_VALUES);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [packNotice, setPackNotice] = useState<string | null>(null);
   const [createdLabel, setCreatedLabel] = useState<string | null>(
     existing ? `${existing.client_name} — ${existing.opportunity_name}` : null,
   );
-  const locked = Boolean(existing) || Boolean(createdLabel);
+  const [importedFiles, setImportedFiles] = useState<string[]>([]);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const identityLocked = Boolean(existing) || Boolean(createdLabel);
+  const packDisabled = disabled || busy;
+  const existingPack = existing?.additional_client_information ?? null;
+  const existingIdentity = existing
+    ? [
+        existing.client_name,
+        existing.opportunity_name,
+        existing.department,
+        existing.language,
+        String(existing.pii_redaction_enabled !== false),
+      ].join("\0")
+    : null;
 
   useEffect(() => {
-    if (existing) {
-      setValues({
-        ...DEFAULT_VALUES,
-        ...existing,
-        pii_redaction_enabled: existing.pii_redaction_enabled !== false,
-      });
-      setCreatedLabel(`${existing.client_name} — ${existing.opportunity_name}`);
+    if (!existingIdentity) {
+      const draft = loadOpportunityDraft();
+      if (draft) {
+        setValues({
+          ...DEFAULT_VALUES,
+          ...draft,
+          pii_redaction_enabled: draft.pii_redaction_enabled !== false,
+        });
+      }
       return;
     }
-    const draft = loadOpportunityDraft();
-    if (draft) {
-      setValues({
-        ...DEFAULT_VALUES,
-        ...draft,
-        pii_redaction_enabled: draft.pii_redaction_enabled !== false,
-      });
-    }
-  }, [existing]);
+    const [clientName, opportunityName, department, language, piiEnabled] =
+      existingIdentity.split("\0");
+    setValues({
+      ...DEFAULT_VALUES,
+      client_name: clientName,
+      opportunity_name: opportunityName,
+      department,
+      language,
+      pii_redaction_enabled: piiEnabled === "true",
+      additional_client_information: existingPack,
+    });
+    setCreatedLabel(`${clientName} — ${opportunityName}`);
+    setFileError(null);
+  }, [existingIdentity, existingPack]);
 
   function updateField<K extends keyof OpportunityFormValues>(
     key: K,
@@ -100,7 +129,9 @@ export function OpportunityForm({
           current.additional_client_information ?? EMPTY_CLIENT_INFORMATION,
         ),
       };
-      saveOpportunityDraft(next);
+      if (!identityLocked) {
+        saveOpportunityDraft(next);
+      }
       return next;
     });
   }
@@ -119,6 +150,70 @@ export function OpportunityForm({
         contactIndex === index ? { ...contact, [key]: value } : contact,
       ),
     }));
+  }
+
+  async function chooseClientInformationFiles(fileList: FileList | null) {
+    if (!fileList || fileList.length === 0) {
+      return;
+    }
+    setFileError(null);
+    let nextNotes = values.additional_client_information?.notes ?? "";
+    const nextNames = [...importedFiles];
+    for (const file of Array.from(fileList)) {
+      const validation = validateClientInformationFile(file);
+      if (!validation.ok) {
+        setFileError(validation.reason ?? "Choose another file.");
+        continue;
+      }
+      const result = appendClientInformationFileNote(nextNotes, file.name, await file.text());
+      if (result.error) {
+        setFileError(result.error);
+        continue;
+      }
+      nextNotes = result.notes;
+      if (!nextNames.includes(file.name)) {
+        nextNames.push(file.name);
+      }
+    }
+    if (nextNotes !== (values.additional_client_information?.notes ?? "")) {
+      updateClientInformation((current) => ({ ...current, notes: nextNotes || null }));
+    }
+    setImportedFiles(nextNames);
+  }
+
+  function removeImportedFile(fileName: string) {
+    setFileError(null);
+    setImportedFiles((current) => current.filter((name) => name !== fileName));
+    updateClientInformation((current) => ({
+      ...current,
+      notes: removeClientInformationFileNote(current.notes, fileName),
+    }));
+  }
+
+  async function persistClientInformation() {
+    setBusy(true);
+    setError(null);
+    setPackNotice(null);
+    try {
+      const clientInformationError = additionalClientInformationError(
+        values.additional_client_information,
+      );
+      if (clientInformationError) {
+        setError(clientInformationError);
+        return;
+      }
+      if (!onUpdateClientInformation) {
+        return;
+      }
+      await onUpdateClientInformation(
+        compactAdditionalClientInformation(values.additional_client_information) ?? null,
+      );
+      setPackNotice("Client information saved.");
+    } catch (submitError) {
+      setError(opportunityErrorMessage(submitError));
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function handleSubmit(event: React.FormEvent) {
@@ -164,8 +259,23 @@ export function OpportunityForm({
   }
 
   return (
-    <form className="opportunity-form" onSubmit={handleSubmit}>
+    <form
+      className="opportunity-form"
+      onSubmit={(event) => {
+        if (identityLocked) {
+          event.preventDefault();
+          void persistClientInformation();
+          return;
+        }
+        void handleSubmit(event);
+      }}
+    >
       {error ? <div className="alert alert-error">{error}</div> : null}
+      {packNotice ? (
+        <p className="client-logo-notice" role="status">
+          {packNotice}
+        </p>
+      ) : null}
       {createdLabel ? (
         <div className="upload-inline-success">
           <span className="upload-inline-success-icon" aria-hidden="true">
@@ -185,7 +295,7 @@ export function OpportunityForm({
             id="client_name"
             placeholder="e.g. Acme Corporation"
             value={values.client_name}
-            disabled={disabled || busy || locked}
+            disabled={disabled || busy || identityLocked}
             onChange={(event) => updateField("client_name", event.target.value)}
             required
           />
@@ -196,7 +306,7 @@ export function OpportunityForm({
             id="opportunity_name"
             placeholder="e.g. Q3 automation rollout"
             value={values.opportunity_name}
-            disabled={disabled || busy || locked}
+            disabled={disabled || busy || identityLocked}
             onChange={(event) => updateField("opportunity_name", event.target.value)}
             required
           />
@@ -207,7 +317,7 @@ export function OpportunityForm({
             id="department"
             placeholder="e.g. Sales Engineering"
             value={values.department}
-            disabled={disabled || busy || locked}
+            disabled={disabled || busy || identityLocked}
             onChange={(event) => updateField("department", event.target.value)}
             required
           />
@@ -217,7 +327,7 @@ export function OpportunityForm({
           <select
             id="language"
             value={values.language}
-            disabled={disabled || busy || locked}
+            disabled={disabled || busy || identityLocked}
             onChange={(event) => updateField("language", event.target.value)}
           >
             <option value="en">English</option>
@@ -231,7 +341,7 @@ export function OpportunityForm({
               id="pii_redaction_enabled"
               type="checkbox"
               checked={values.pii_redaction_enabled}
-              disabled={disabled || busy || locked}
+              disabled={disabled || busy || identityLocked}
               onChange={(event) => updateField("pii_redaction_enabled", event.target.checked)}
             />
             Redact personal data before AI processing
@@ -255,6 +365,44 @@ export function OpportunityForm({
           Add known context to personalize the Framework. You can leave this section empty and continue
           directly to transcripts.
         </p>
+        <div className="client-information-files">
+            <p>Upload briefing files to fill Notes. TXT, Markdown, CSV, or JSON. 5 MiB maximum.</p>
+            {fileError ? <div className="alert alert-error">{fileError}</div> : null}
+            <div className="client-logo-actions client-information-file-actions">
+              <label className="btn btn-secondary" htmlFor="client_information_files">
+                {importedFiles.length > 0 ? "Choose more files" : "Choose files"}
+              </label>
+              <input
+                id="client_information_files"
+                className="sr-only"
+                type="file"
+                multiple
+                accept={CLIENT_INFORMATION_FILE_ACCEPT}
+                disabled={packDisabled}
+                onChange={(event) => {
+                  void chooseClientInformationFiles(event.target.files);
+                  event.target.value = "";
+                }}
+              />
+            </div>
+            {importedFiles.length > 0 ? (
+              <ul className="client-information-file-list">
+                {importedFiles.map((fileName) => (
+                  <li key={fileName}>
+                    <span>{fileName}</span>
+                    <button
+                      type="button"
+                      className="btn btn-quiet"
+                      disabled={packDisabled}
+                      onClick={() => removeImportedFile(fileName)}
+                    >
+                      Remove
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
         <div className="client-information-grid">
           <div className="form-field">
             <label htmlFor="location_requirements">Location requirements</label>
@@ -263,7 +411,7 @@ export function OpportunityForm({
               rows={3}
               placeholder={"One requirement per line\ne.g. Data must stay in the EU"}
               value={(values.additional_client_information?.location_requirements ?? []).join("\n")}
-              disabled={disabled || busy || locked}
+              disabled={packDisabled}
               onChange={(event) => updateListField("location_requirements", event.target.value)}
             />
           </div>
@@ -274,7 +422,7 @@ export function OpportunityForm({
               rows={3}
               placeholder={"One constraint per line\ne.g. Go-live before Q4"}
               value={(values.additional_client_information?.constraints ?? []).join("\n")}
-              disabled={disabled || busy || locked}
+              disabled={packDisabled}
               onChange={(event) => updateListField("constraints", event.target.value)}
             />
           </div>
@@ -285,7 +433,7 @@ export function OpportunityForm({
               rows={3}
               placeholder={"One priority per line\ne.g. Reduce manual review"}
               value={(values.additional_client_information?.priorities ?? []).join("\n")}
-              disabled={disabled || busy || locked}
+              disabled={packDisabled}
               onChange={(event) => updateListField("priorities", event.target.value)}
             />
           </div>
@@ -297,7 +445,7 @@ export function OpportunityForm({
               maxLength={20_000}
               placeholder="Other confirmed client context"
               value={values.additional_client_information?.notes ?? ""}
-              disabled={disabled || busy || locked}
+              disabled={packDisabled}
               onChange={(event) =>
                 updateClientInformation((current) => ({ ...current, notes: event.target.value }))
               }
@@ -306,12 +454,12 @@ export function OpportunityForm({
         </div>
 
         {contacts.length === 0 ? (
-          locked ? null : (
+          identityLocked && !onUpdateClientInformation ? null : (
             <div className="client-contacts-empty">
               <button
                 type="button"
                 className="btn btn-secondary"
-                disabled={disabled || busy}
+                disabled={packDisabled}
                 onClick={addContact}
               >
                 Add contact
@@ -325,11 +473,11 @@ export function OpportunityForm({
               <strong>Client contacts</strong>
               <p>Add only contacts relevant to this opportunity.</p>
             </div>
-            {!locked ? (
+            {!packDisabled && (!identityLocked || onUpdateClientInformation) ? (
               <button
                 type="button"
                 className="btn btn-secondary"
-                disabled={disabled || busy}
+                disabled={packDisabled}
                 onClick={addContact}
               >
                 Add contact
@@ -345,7 +493,7 @@ export function OpportunityForm({
                   value={contact.name}
                   maxLength={200}
                   required
-                  disabled={disabled || busy || locked}
+                  disabled={packDisabled}
                   onChange={(event) => updateContact(index, "name", event.target.value)}
                 />
               </div>
@@ -355,7 +503,7 @@ export function OpportunityForm({
                   id={`contact_role_${index}`}
                   value={contact.role ?? ""}
                   maxLength={200}
-                  disabled={disabled || busy || locked}
+                  disabled={packDisabled}
                   onChange={(event) => updateContact(index, "role", event.target.value)}
                 />
               </div>
@@ -366,7 +514,7 @@ export function OpportunityForm({
                   type="email"
                   value={contact.email ?? ""}
                   maxLength={320}
-                  disabled={disabled || busy || locked}
+                  disabled={packDisabled}
                   onChange={(event) => updateContact(index, "email", event.target.value)}
                 />
               </div>
@@ -377,15 +525,15 @@ export function OpportunityForm({
                   type="tel"
                   value={contact.phone ?? ""}
                   maxLength={100}
-                  disabled={disabled || busy || locked}
+                  disabled={packDisabled}
                   onChange={(event) => updateContact(index, "phone", event.target.value)}
                 />
               </div>
-              {!locked ? (
+              {!packDisabled && (!identityLocked || onUpdateClientInformation) ? (
                 <button
                   type="button"
                   className="btn btn-quiet client-contact-remove"
-                  disabled={disabled || busy}
+                  disabled={packDisabled}
                   onClick={() =>
                     updateClientInformation((current) => ({
                       ...current,
@@ -403,8 +551,15 @@ export function OpportunityForm({
       </details>
 
       <div className="opportunity-form-actions">
-        {locked ? (
-          <p className="opportunity-created-status" role="status">Opportunity created</p>
+        {identityLocked ? (
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={packDisabled || !onUpdateClientInformation}
+            onClick={() => void persistClientInformation()}
+          >
+            {busy ? "Saving…" : "Save client information"}
+          </button>
         ) : (
           <button type="submit" className="btn btn-primary" disabled={disabled || busy}>
             {busy ? "Creating…" : "Create opportunity"}

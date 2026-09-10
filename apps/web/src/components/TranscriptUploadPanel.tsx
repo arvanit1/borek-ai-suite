@@ -16,7 +16,9 @@ import {
   createOpportunity,
   getOpportunity,
   listTranscripts,
+  updateOpportunity,
   uploadTranscript,
+  type AdditionalClientInformation,
   type OpportunityCreatePayload,
   type OpportunityResponse,
 } from "@/lib/api";
@@ -218,6 +220,26 @@ export function TranscriptUploadPanel({
     router.replace(pipelineHref("/upload", created.id));
   }
 
+  async function handleUpdateClientInformation(
+    additionalClientInformation: AdditionalClientInformation | null,
+  ) {
+    if (!accessToken || !opportunityId) {
+      throw new Error("Create an opportunity before saving client information.");
+    }
+    const updated = await updateOpportunity(accessToken, opportunityId, {
+      additional_client_information: additionalClientInformation,
+    });
+    const stored = storedFromResponse(updated);
+    setOpportunity(updated);
+    setOpportunityLabelText(opportunityLabel(stored));
+    saveActiveOpportunity(stored);
+    rememberUploadSession({
+      opportunity: stored,
+      queue: queueItems,
+      summary: uploadSummary,
+    });
+  }
+
   async function handleUploadBatch(batch: TranscriptQueueItem[]) {
     if (!accessToken || !opportunityId || !contextMatchesRequest || startFresh) {
       throw new Error("Create an opportunity before uploading.");
@@ -325,6 +347,7 @@ export function TranscriptUploadPanel({
                     : null
                 }
                 onSubmit={handleCreateOpportunity}
+                onUpdateClientInformation={handleUpdateClientInformation}
               />
               {accessToken && opportunityId ? (
                 <ClientLogoUpload

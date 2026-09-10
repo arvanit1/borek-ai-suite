@@ -23,10 +23,10 @@ from app.services.stage_b_orchestration import (
     planned_slides_with_generators,
 )
 from app.services.deck_assets import (
+    list_preview_image_paths,
     materialize_fixture_deck_assets,
     resolve_pdf_path,
     resolve_pptx_path,
-    resolve_preview_image_path,
 )
 from app.services.framework_status import require_reviewable_framework
 from app.services.framework_stub_template import load_framework_stub_template
@@ -1543,10 +1543,11 @@ class SupabaseDataStore:
             version["pptx_storage_path"] = str(resolve_pptx_path(version_id=version_id).resolve())
         if not version.get("pdf_storage_path"):
             version["pdf_storage_path"] = str(resolve_pdf_path(version_id=version_id).resolve())
-        version["preview_image_paths"] = [
-            str(resolve_preview_image_path(version_id=version_id, slide_index=index).resolve())
-            for index in range(slide_count)
-        ]
+        version["preview_image_paths"] = list_preview_image_paths(
+            version_id=version_id,
+            stored_paths=list(version.get("preview_image_paths") or []),
+            slide_count=slide_count,
+        )
         return version
 
     def get_filing_record(self, idempotency_key: str) -> dict[str, Any] | None:
