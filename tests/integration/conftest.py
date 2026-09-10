@@ -41,6 +41,8 @@ _TEST_ENV = {
     "REDIS_URL": "redis://localhost:6379/0",
     "DATABASE_URL": "postgresql://postgres:postgres@localhost:5432/borek",
     "RENDERER_URL": "http://localhost:4000",
+    "PRESENTATION_ENGINE": "internal",
+    "GAMMA_EXECUTION_MODE": "fixture",
 }
 
 for key, value in _TEST_ENV.items():

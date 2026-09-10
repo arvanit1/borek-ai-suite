@@ -19,6 +19,8 @@ _TEST_ENV = {
     "DATABASE_URL": "postgresql://postgres:postgres@localhost:5432/borek",
     "RENDERER_URL": "http://localhost:4000",
     "RENDERER_EXECUTION_MODE": "fixture",
+    "PRESENTATION_ENGINE": "internal",
+    "GAMMA_EXECUTION_MODE": "fixture",
 }
 
 for key, value in _TEST_ENV.items():
