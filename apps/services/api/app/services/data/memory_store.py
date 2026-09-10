@@ -49,6 +49,10 @@ def _now() -> datetime:
     return datetime.now(UTC)
 
 
+def _version_lineage_sort(row: dict[str, Any]) -> tuple:
+    return (str(row.get("created_at") or ""), int(row.get("version_number") or 0))
+
+
 def _optional_uuid(value: Any) -> UUID | None:
     if value is None or value == "":
         return None
@@ -838,6 +842,8 @@ class MemoryDataStore:
         presentation_id: UUID,
         user_id: UUID,
         plan_json: dict[str, Any],
+        journey_stage: str | None = None,
+        prior_stage_presentation_version_id: UUID | None = None,
     ) -> dict[str, Any]:
         presentation = self.get_presentation(presentation_id=presentation_id, user_id=user_id)
         plan = self.get_presentation_plan(
@@ -859,6 +865,8 @@ class MemoryDataStore:
             "pptx_storage_path": None,
             "pdf_storage_path": None,
             "status": "generating",
+            "journey_stage": journey_stage,
+            "prior_stage_presentation_version_id": prior_stage_presentation_version_id,
             "created_at": _now(),
         }
         self.presentation_versions[presentation_version_id] = version_row
@@ -1026,6 +1034,10 @@ class MemoryDataStore:
             "pptx_storage_path": None,
             "pdf_storage_path": None,
             "status": "generating",
+            "journey_stage": previous.get("journey_stage"),
+            "prior_stage_presentation_version_id": previous.get(
+                "prior_stage_presentation_version_id"
+            ),
             "created_at": _now(),
         }
         self.presentation_versions[version_id] = version
@@ -1095,12 +1107,12 @@ class MemoryDataStore:
         ]
         return sorted(rows, key=lambda row: row["slide_index"])
 
-    def get_latest_presentation_for_opportunity(
+    def list_presentations_for_opportunity(
         self,
         *,
         opportunity_id: UUID,
         user_id: UUID,
-    ) -> dict[str, Any]:
+    ) -> list[dict[str, Any]]:
         accessible_plan_ids = {
             plan_id
             for plan_id, plan in self.presentation_plans.items()
@@ -1113,12 +1125,59 @@ class MemoryDataStore:
             for row in self.presentations.values()
             if row["presentation_plan_id"] in accessible_plan_ids
         ]
+        return sorted(rows, key=lambda row: row["created_at"], reverse=True)
+
+    def get_latest_presentation_for_opportunity(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+    ) -> dict[str, Any]:
+        rows = self.list_presentations_for_opportunity(
+            opportunity_id=opportunity_id,
+            user_id=user_id,
+        )
         if not rows:
             raise not_found(
                 "PRESENTATION_NOT_FOUND",
                 f"No presentation exists for opportunity {opportunity_id}",
             )
-        return max(rows, key=lambda row: row["created_at"])
+        return rows[0]
+
+    def get_presentation_version(
+        self,
+        *,
+        presentation_version_id: UUID,
+        user_id: UUID,
+    ) -> dict[str, Any]:
+        row = self.presentation_versions.get(presentation_version_id)
+        if row is None:
+            raise not_found(
+                "PRESENTATION_VERSION_NOT_FOUND",
+                f"Presentation version {presentation_version_id} was not found",
+            )
+        self.get_presentation(presentation_id=row["presentation_id"], user_id=user_id)
+        return copy.deepcopy(row)
+
+    def list_presentation_versions_for_opportunity(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+    ) -> list[dict[str, Any]]:
+        presentation_ids = {
+            row["id"]
+            for row in self.list_presentations_for_opportunity(
+                opportunity_id=opportunity_id,
+                user_id=user_id,
+            )
+        }
+        rows = [
+            copy.deepcopy(row)
+            for row in self.presentation_versions.values()
+            if row["presentation_id"] in presentation_ids
+        ]
+        return sorted(rows, key=_version_lineage_sort, reverse=True)
 
     def get_presentation_version_assets(
         self,

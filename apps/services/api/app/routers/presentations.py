@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse
 
 from app.auth import get_current_user
 from app.dependencies import AuthUserDep, DataStoreDep
+from app.schemas.journey_stage import JourneyStageEligibilityResponse
 from app.schemas.presentations import (
     ChangeSlideLayoutRequest,
     DeckCenterResponse,
@@ -22,6 +23,7 @@ from app.schemas.presentations import (
 )
 from app.schemas.jobs import JobEnqueueResponse
 from app.services import deck_center, job_service, presentation_generation
+from app.services import journey_stage as journey_stage_eligibility
 from app.services.audit import AuditAction, AuditObjectType, record_audit_event
 from app.services.renderer_client import RendererClientError
 
@@ -103,6 +105,25 @@ def get_latest_presentation_plan(
     return _plan_response(row)
 
 
+@opportunity_router.get(
+    "/{opportunity_id}/journey-stage-eligibility",
+    response_model=JourneyStageEligibilityResponse,
+)
+def get_journey_stage_eligibility(
+    opportunity_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+    journey_stage: str | None = None,
+) -> JourneyStageEligibilityResponse:
+    payload = journey_stage_eligibility.evaluate_opportunity_eligibility(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user.id,
+        requested_journey_stage=journey_stage,
+    )
+    return journey_stage_eligibility.eligibility_response(payload)
+
+
 @opportunity_router.post(
     "/{opportunity_id}/presentation-plan/generate",
     response_model=PresentationPlanGenerateResponse,
@@ -120,6 +141,7 @@ def generate_presentation_plan(
         user_id=user.id,
         framework_version_id=body.framework_version_id,
         auto_continue=body.auto_continue,
+        journey_stage=body.journey_stage,
     )
     record_audit_event(
         store,
@@ -155,6 +177,7 @@ def generate_presentation(
             framework_version_id=body.framework_version_id,
             presentation_plan_id=body.presentation_plan_id,
             name=body.name,
+            journey_stage=body.journey_stage,
         )
     except RendererClientError as exc:
         status_code = 503 if exc.retryable else 422

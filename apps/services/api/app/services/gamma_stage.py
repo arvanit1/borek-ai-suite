@@ -23,7 +23,7 @@ from services.gamma.contract import (
 from services.gamma.signed_logo import mint_signed_client_logo_url
 from services.gamma.provider import build_gamma_provider
 from services.gamma.payload import build_gamma_content_payload, slots_from_payload
-from services.gamma.slot_mapping import DEFAULT_JOURNEY_STAGE, resolve_journey_stage, slot_chapter_provenance
+from services.gamma.slot_mapping import resolve_journey_stage, slot_chapter_provenance
 from services.gamma.template import load_gamma_template
 from services.observability.llm_logger import llm_observability_scope, log_llm_call
 from services.security.egress_policy import load_runtime_egress_policy, slot_classifications_from_policy
@@ -105,6 +105,8 @@ def build_gamma_request(
     store: Any,
     framework: dict[str, Any] | None = None,
     output_formats: tuple[str, ...] = ("pptx", "pdf"),
+    stage: str | None = None,
+    prior_stage_context: dict[str, Any] | None = None,
 ) -> tuple[GammaGenerateRequest, ClientLogoDecision]:
     opportunity_id = opportunity["id"]
     logo = client_logo_decision_for_opportunity(
@@ -112,14 +114,19 @@ def build_gamma_request(
         opportunity_id=opportunity_id if isinstance(opportunity_id, UUID) else UUID(str(opportunity_id)),
         user_id=user_id,
     )
-    stage = resolve_journey_stage(opportunity.get("journey_stage") or DEFAULT_JOURNEY_STAGE)
-    signed_ref = _signed_logo_ref(logo, opportunity_id=opportunity_id, stage=stage)
+    resolved_stage = resolve_journey_stage(
+        stage
+        or opportunity.get("journey_stage")
+        or opportunity.get("requested_journey_stage")
+    )
+    opportunity["journey_stage"] = resolved_stage
+    signed_ref = _signed_logo_ref(logo, opportunity_id=opportunity_id, stage=resolved_stage)
     content = build_gamma_content_payload(
         opportunity=opportunity,
         framework=framework,
-        stage=stage,
+        stage=resolved_stage,
         client_logo_ref=signed_ref,
-        prior_stage_context=opportunity.get("prior_stage_context"),
+        prior_stage_context=prior_stage_context or opportunity.get("prior_stage_context"),
     )
     request = GammaGenerateRequest(
         template_id=content["template_id"],
@@ -143,6 +150,8 @@ def run_gamma_rendering_stage(
     presentation_version_id: UUID | str,
     user_id: UUID,
     framework: dict[str, Any] | None = None,
+    stage: str | None = None,
+    prior_stage_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     if not gamma_enabled():
         return {"skipped": True, "engine": "internal"}
@@ -153,6 +162,8 @@ def run_gamma_rendering_stage(
         user_id=user_id,
         store=store,
         framework=framework,
+        stage=stage,
+        prior_stage_context=prior_stage_context,
     )
     provider = build_gamma_provider(
         execution_mode=settings.GAMMA_EXECUTION_MODE,
@@ -245,9 +256,7 @@ def _invoke_gamma(
                 name: list(chapter_ids)
                 for name, chapter_ids in slot_chapter_provenance(
                     request.slots,
-                    stage=resolve_journey_stage(
-                        opportunity.get("journey_stage") or DEFAULT_JOURNEY_STAGE
-                    ),
+                    stage=resolve_journey_stage(opportunity.get("journey_stage")),
                 ).items()
             },
             "client_logo": _client_logo_metadata(
@@ -329,6 +338,32 @@ def run_gamma_stage_for_presentation(
         opportunity_id=opportunity_id,
         user_id=parsed_user,
     )
+    version = None
+    version_getter = getattr(store, "get_presentation_version", None)
+    if version_getter is not None:
+        parsed_version_id = (
+            presentation_version_id
+            if isinstance(presentation_version_id, UUID)
+            else UUID(str(presentation_version_id))
+        )
+        try:
+            version = version_getter(
+                presentation_version_id=parsed_version_id,
+                user_id=parsed_user,
+            )
+        except Exception:
+            version = None
+    stage = (version or {}).get("journey_stage") or opportunity.get("journey_stage")
+    prior_stage_context = None
+    if version is not None:
+        from app.services.journey_stage import load_prior_stage_context_for_version
+
+        prior_stage_context = load_prior_stage_context_for_version(
+            store,
+            opportunity=opportunity,
+            version=version,
+            user_id=parsed_user,
+        )
     framework = None
     getter = getattr(store, "get_latest_framework", None)
     if getter is not None:
@@ -346,4 +381,6 @@ def run_gamma_stage_for_presentation(
         presentation_version_id=presentation_version_id,
         user_id=parsed_user,
         framework=framework,
+        stage=stage,
+        prior_stage_context=prior_stage_context,
     )

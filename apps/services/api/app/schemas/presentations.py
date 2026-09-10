@@ -25,12 +25,14 @@ VALID_LAYOUT_IDS = frozenset(LAYOUT_REGISTRY.keys())
 class GeneratePresentationPlanRequest(BaseModel):
     framework_version_id: UUID | None = None
     auto_continue: bool = False
+    journey_stage: str | None = None
 
 
 class GeneratePresentationRequest(BaseModel):
     framework_version_id: UUID | None = None
     presentation_plan_id: UUID | None = None
     name: str | None = Field(default=None, min_length=1, max_length=200)
+    journey_stage: str | None = None
 
 
 class PresentationPlanResponse(BaseModel):

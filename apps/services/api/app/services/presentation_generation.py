@@ -20,6 +20,7 @@ from app.schemas.presentations import LAYOUT_REGISTRY, VALID_LAYOUT_IDS
 from app.services import job_service
 from app.services.api_errors import bad_request, not_found
 from app.services.data import DataStore
+from app.services.journey_stage import require_startable_journey_stage
 from app.services.renderer_client import render_deck_assets
 from app.services.stage_b_orchestration import plan_json_from_confirmed_framework
 from app.services.stage_b_providers import install_runtime_stage_b_providers
@@ -170,13 +171,8 @@ def enqueue_presentation_plan_generate(
     user_id: UUID,
     framework_version_id: UUID | None,
     auto_continue: bool = False,
+    journey_stage: str | None = None,
 ):
-    framework = _require_confirmed_framework(
-        store,
-        opportunity_id=opportunity_id,
-        user_id=user_id,
-        framework_version_id=framework_version_id,
-    )
     existing = job_service.reuse_active_generation_job(
         store,
         opportunity_id,
@@ -188,6 +184,19 @@ def enqueue_presentation_plan_generate(
             existing = _enable_auto_continue_on_reused_job(store, existing)
         return _existing_plan_payload(existing), existing, True
 
+    eligibility = require_startable_journey_stage(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user_id,
+        journey_stage=journey_stage,
+    )
+    framework = _require_confirmed_framework(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user_id,
+        framework_version_id=framework_version_id,
+    )
+
     plan_id = uuid.uuid4()
     job = job_service.create_job(
         opportunity_id=opportunity_id,
@@ -197,6 +206,12 @@ def enqueue_presentation_plan_generate(
             "framework_version_id": str(framework["id"]),
             "user_id": str(user_id),
             "presentation_plan_id": str(plan_id),
+            "journey_stage": eligibility["requested_journey_stage"],
+            "prior_stage_presentation_version_id": (
+                str(eligibility["prior_stage_presentation_version_id"])
+                if eligibility["prior_stage_presentation_version_id"]
+                else None
+            ),
         },
         repository=store,
     )
@@ -275,6 +290,7 @@ def enqueue_presentation_generate(
     framework_version_id: UUID | None,
     presentation_plan_id: UUID | None,
     name: str | None,
+    journey_stage: str | None = None,
 ):
     store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
     existing = job_service.reuse_active_generation_job(
@@ -290,6 +306,12 @@ def enqueue_presentation_generate(
         )
         return presentation, plan, existing, True
 
+    eligibility = require_startable_journey_stage(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user_id,
+        journey_stage=journey_stage,
+    )
     framework = _require_confirmed_framework(
         store,
         opportunity_id=opportunity_id,
@@ -317,6 +339,12 @@ def enqueue_presentation_generate(
         enqueue={
             "user_id": str(user_id),
             "presentation_id": str(presentation["id"]),
+            "journey_stage": eligibility["requested_journey_stage"],
+            "prior_stage_presentation_version_id": (
+                str(eligibility["prior_stage_presentation_version_id"])
+                if eligibility["prior_stage_presentation_version_id"]
+                else None
+            ),
         },
         repository=store,
     )
@@ -336,6 +364,8 @@ def execute_presentation_generation(
     *,
     presentation_id: UUID,
     user_id: UUID,
+    journey_stage: str | None = None,
+    prior_stage_presentation_version_id: UUID | None = None,
 ) -> tuple[dict, dict]:
     install_runtime_stage_b_providers()
     presentation = store.get_presentation(presentation_id=presentation_id, user_id=user_id)
@@ -349,6 +379,8 @@ def execute_presentation_generation(
         presentation_id=presentation_id,
         user_id=user_id,
         plan_json=plan["plan_json"],
+        journey_stage=journey_stage,
+        prior_stage_presentation_version_id=prior_stage_presentation_version_id,
     )
     return version, plan
 

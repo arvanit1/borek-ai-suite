@@ -57,6 +57,7 @@ def continue_after_planning(
             framework_version_id=framework_version_id,
             presentation_plan_id=presentation_plan_id,
             name=None,
+            journey_stage=context.get("journey_stage"),
         )
     )
     record_audit_event(

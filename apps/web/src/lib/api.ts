@@ -566,11 +566,58 @@ export async function getLatestPresentationPlan(
   );
 }
 
+export type JourneyStageName = "first_contact" | "deepening" | "concretisation";
+
+export interface JourneyStageEligibilityItem {
+  journey_stage: JourneyStageName;
+  startable: boolean;
+  prerequisite_stage: "first_contact" | "deepening" | null;
+  prior_stage_presentation_version_id: string | null;
+  reason:
+    | "NO_COMPLETED_PREREQUISITE"
+    | "PREREQUISITE_INCOMPLETE"
+    | "PREREQUISITE_SUPERSEDED"
+    | "PRIOR_FRAMEWORK_UNAVAILABLE"
+    | "JOURNEY_STAGE_UNKNOWN"
+    | null;
+  next_action:
+    | "complete_first_contact"
+    | "complete_deepening"
+    | "regenerate_prior_stage"
+    | "select_journey_stage"
+    | null;
+}
+
+export interface JourneyStageEligibilityResponse {
+  schema_version: "1.0";
+  opportunity_id: string;
+  requested_journey_stage: JourneyStageName | null;
+  startable: boolean;
+  prerequisite_stage: "first_contact" | "deepening" | null;
+  prior_stage_presentation_version_id: string | null;
+  reason: JourneyStageEligibilityItem["reason"];
+  next_action: JourneyStageEligibilityItem["next_action"];
+  stages: JourneyStageEligibilityItem[];
+}
+
+export async function getJourneyStageEligibility(
+  accessToken: string,
+  opportunityId: string,
+  journeyStage?: JourneyStageName,
+): Promise<JourneyStageEligibilityResponse> {
+  const query = journeyStage ? `?journey_stage=${encodeURIComponent(journeyStage)}` : "";
+  return apiFetch<JourneyStageEligibilityResponse>(
+    `/opportunities/${opportunityId}/journey-stage-eligibility${query}`,
+    accessToken,
+  );
+}
+
 export async function generatePresentationPlan(
   accessToken: string,
   opportunityId: string,
   frameworkVersionId?: string,
   autoContinue = false,
+  journeyStage?: JourneyStageName,
 ): Promise<PresentationPlanGenerateResponse> {
   return apiFetch<PresentationPlanGenerateResponse>(
     `/opportunities/${opportunityId}/presentation-plan/generate`,
@@ -580,6 +627,7 @@ export async function generatePresentationPlan(
       body: JSON.stringify({
         ...(frameworkVersionId ? { framework_version_id: frameworkVersionId } : {}),
         ...(autoContinue ? { auto_continue: true } : {}),
+        ...(journeyStage ? { journey_stage: journeyStage } : {}),
       }),
     },
   );
@@ -625,15 +673,17 @@ export async function generatePresentation(
   accessToken: string,
   opportunityId: string,
   presentationPlanId?: string,
+  journeyStage?: JourneyStageName,
 ): Promise<PresentationGenerateResponse> {
   return apiFetch<PresentationGenerateResponse>(
     `/opportunities/${opportunityId}/presentation/generate`,
     accessToken,
     {
       method: "POST",
-      body: JSON.stringify(
-        presentationPlanId ? { presentation_plan_id: presentationPlanId } : {},
-      ),
+      body: JSON.stringify({
+        ...(presentationPlanId ? { presentation_plan_id: presentationPlanId } : {}),
+        ...(journeyStage ? { journey_stage: journeyStage } : {}),
+      }),
     },
   );
 }

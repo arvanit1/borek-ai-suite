@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "opportunity_id": "00000000-0000-4000-8000-000000000001",
+  "requested_journey_stage": "first_contact",
+  "startable": true,
+  "prerequisite_stage": null,
+  "prior_stage_presentation_version_id": null,
+  "reason": null,
+  "next_action": null,
+  "stages": [
+    {
+      "journey_stage": "first_contact",
+      "startable": true,
+      "prerequisite_stage": null,
+      "prior_stage_presentation_version_id": null,
+      "reason": null,
+      "next_action": null
+    },
+    {
+      "journey_stage": "deepening",
+      "startable": false,
+      "prerequisite_stage": "first_contact",
+      "prior_stage_presentation_version_id": null,
+      "reason": "NO_COMPLETED_PREREQUISITE",
+      "next_action": "complete_first_contact"
+    },
+    {
+      "journey_stage": "concretisation",
+      "startable": false,
+      "prerequisite_stage": "deepening",
+      "prior_stage_presentation_version_id": null,
+      "reason": "NO_COMPLETED_PREREQUISITE",
+      "next_action": "complete_deepening"
+    }
+  ]
+}

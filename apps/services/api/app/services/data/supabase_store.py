@@ -193,10 +193,12 @@ def _normalize_presentation(row: dict[str, Any]) -> dict[str, Any]:
 
 
 def _normalize_presentation_version(row: dict[str, Any]) -> dict[str, Any]:
+    prior = row.get("prior_stage_presentation_version_id")
     return {
         **row,
         "id": UUID(str(row["id"])),
         "presentation_id": UUID(str(row["presentation_id"])),
+        "prior_stage_presentation_version_id": UUID(str(prior)) if prior else None,
         "created_at": _parse_timestamp(row["created_at"]),
     }
 
@@ -1193,6 +1195,8 @@ class SupabaseDataStore:
         presentation_id: UUID,
         user_id: UUID,
         plan_json: dict[str, Any],
+        journey_stage: str | None = None,
+        prior_stage_presentation_version_id: UUID | None = None,
     ) -> dict[str, Any]:
         self.get_presentation(presentation_id=presentation_id, user_id=user_id)
         latest = self._request(
@@ -1214,6 +1218,12 @@ class SupabaseDataStore:
             "version_number": version_number,
             "slides_json": [],
             "status": "generating",
+            "journey_stage": journey_stage,
+            "prior_stage_presentation_version_id": (
+                str(prior_stage_presentation_version_id)
+                if prior_stage_presentation_version_id
+                else None
+            ),
         }
         version_response = self._request(
             "POST",
@@ -1412,6 +1422,12 @@ class SupabaseDataStore:
                 "version_number": int(previous["version_number"]) + 1,
                 "slides_json": [],
                 "status": "generating",
+                "journey_stage": previous.get("journey_stage"),
+                "prior_stage_presentation_version_id": (
+                    str(previous["prior_stage_presentation_version_id"])
+                    if previous.get("prior_stage_presentation_version_id")
+                    else None
+                ),
             },
         )
         if version_response.status_code not in (200, 201):
@@ -1500,12 +1516,12 @@ class SupabaseDataStore:
             raise bad_request("SLIDE_LIST_FAILED", response.text)
         return [_normalize_slide(row) for row in response.json()]
 
-    def get_latest_presentation_for_opportunity(
+    def list_presentations_for_opportunity(
         self,
         *,
         opportunity_id: UUID,
         user_id: UUID,
-    ) -> dict[str, Any]:
+    ) -> list[dict[str, Any]]:
         rows = [
             row
             for row in self.list_presentations(user_id=user_id)
@@ -1515,12 +1531,75 @@ class SupabaseDataStore:
             )
             == opportunity_id
         ]
+        return sorted(rows, key=lambda row: row["created_at"], reverse=True)
+
+    def get_latest_presentation_for_opportunity(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+    ) -> dict[str, Any]:
+        rows = self.list_presentations_for_opportunity(
+            opportunity_id=opportunity_id,
+            user_id=user_id,
+        )
         if not rows:
             raise not_found(
                 "PRESENTATION_NOT_FOUND",
                 f"No presentation exists for opportunity {opportunity_id}",
             )
-        return max(rows, key=lambda row: row["created_at"])
+        return rows[0]
+
+    def get_presentation_version(
+        self,
+        *,
+        presentation_version_id: UUID,
+        user_id: UUID,
+    ) -> dict[str, Any]:
+        response = self._request(
+            "GET",
+            "presentation_versions",
+            params={
+                "select": "*",
+                "id": f"eq.{presentation_version_id}",
+                "limit": "1",
+            },
+        )
+        if response.status_code != 200 or not response.json():
+            raise not_found(
+                "PRESENTATION_VERSION_NOT_FOUND",
+                f"Presentation version {presentation_version_id} was not found",
+            )
+        row = _normalize_presentation_version(response.json()[0])
+        self.get_presentation(presentation_id=row["presentation_id"], user_id=user_id)
+        return row
+
+    def list_presentation_versions_for_opportunity(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+    ) -> list[dict[str, Any]]:
+        versions: list[dict[str, Any]] = []
+        for presentation in self.list_presentations_for_opportunity(
+            opportunity_id=opportunity_id,
+            user_id=user_id,
+        ):
+            response = self._request(
+                "GET",
+                "presentation_versions",
+                params={
+                    "select": "*",
+                    "presentation_id": f"eq.{presentation['id']}",
+                    "order": "created_at.desc",
+                },
+            )
+            if response.status_code != 200:
+                raise bad_request("PRESENTATION_VERSION_LIST_FAILED", response.text)
+            versions.extend(
+                _normalize_presentation_version(row) for row in response.json()
+            )
+        return versions
 
     def get_presentation_version_assets(
         self,

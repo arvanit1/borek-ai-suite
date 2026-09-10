@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://borek.ai/schemas/journey_stage_eligibility/v1.0",
+  "title": "JourneyStageEligibility",
+  "description": "BT-31: machine-readable journey-stage eligibility for MS-31. The API decides which stages may start; the UI renders this payload and does not recompute the rule.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "opportunity_id",
+    "requested_journey_stage",
+    "startable",
+    "prerequisite_stage",
+    "prior_stage_presentation_version_id",
+    "reason",
+    "next_action",
+    "stages"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "opportunity_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "requested_journey_stage": {
+      "type": ["string", "null"],
+      "enum": ["first_contact", "deepening", "concretisation", null]
+    },
+    "startable": {
+      "type": "boolean",
+      "description": "Whether the requested stage can start. True when no stage is requested and First contact is startable."
+    },
+    "prerequisite_stage": {
+      "type": ["string", "null"],
+      "enum": ["first_contact", "deepening", null]
+    },
+    "prior_stage_presentation_version_id": {
+      "type": ["string", "null"]
+    },
+    "reason": {
+      "type": ["string", "null"],
+      "enum": [
+        null,
+        "NO_COMPLETED_PREREQUISITE",
+        "PREREQUISITE_INCOMPLETE",
+        "PREREQUISITE_SUPERSEDED",
+        "PRIOR_FRAMEWORK_UNAVAILABLE",
+        "JOURNEY_STAGE_UNKNOWN"
+      ]
+    },
+    "next_action": {
+      "type": ["string", "null"],
+      "enum": [
+        null,
+        "complete_first_contact",
+        "complete_deepening",
+        "regenerate_prior_stage",
+        "select_journey_stage"
+      ]
+    },
+    "stages": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": { "$ref": "#/$defs/StageEligibility" }
+    }
+  },
+  "$defs": {
+    "StageEligibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "journey_stage",
+        "startable",
+        "prerequisite_stage",
+        "prior_stage_presentation_version_id",
+        "reason",
+        "next_action"
+      ],
+      "properties": {
+        "journey_stage": {
+          "type": "string",
+          "enum": ["first_contact", "deepening", "concretisation"]
+        },
+        "startable": {
+          "type": "boolean"
+        },
+        "prerequisite_stage": {
+          "type": ["string", "null"],
+          "enum": ["first_contact", "deepening", null]
+        },
+        "prior_stage_presentation_version_id": {
+          "type": ["string", "null"]
+        },
+        "reason": {
+          "type": ["string", "null"],
+          "enum": [
+            null,
+            "NO_COMPLETED_PREREQUISITE",
+            "PREREQUISITE_INCOMPLETE",
+            "PREREQUISITE_SUPERSEDED",
+            "PRIOR_FRAMEWORK_UNAVAILABLE",
+            "JOURNEY_STAGE_UNKNOWN"
+          ]
+        },
+        "next_action": {
+          "type": ["string", "null"],
+          "enum": [
+            null,
+            "complete_first_contact",
+            "complete_deepening",
+            "regenerate_prior_stage",
+            "select_journey_stage"
+          ]
+        }
+      }
+    }
+  }
+}
