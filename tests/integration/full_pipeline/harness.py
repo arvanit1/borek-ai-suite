@@ -153,6 +153,7 @@ def _wait_for_job(
     headers: dict[str, str],
     job_id: str,
     timeout_seconds: float = 30,
+    allow_failed: bool = False,
 ) -> dict:
     deadline = monotonic() + timeout_seconds
     while monotonic() < deadline:
@@ -163,6 +164,8 @@ def _wait_for_job(
         if job["status"] == "COMPLETED":
             return job
         if job["status"] == "FAILED":
+            if allow_failed:
+                return job
             raise AssertionError(f"generation job failed: {job['error']}")
         sleep(0.05)
     raise AssertionError(f"generation job {job_id} did not complete")
@@ -285,16 +288,21 @@ def create_opportunity_with_transcript(
     transcript_path: Path = DEFAULT_FIXTURE_TRANSCRIPT,
     client_name: str = "Pipeline Test Corp",
     opportunity_name: str = "Automated Pipeline Harness",
+    language: str = "en",
+    additional_client_information: dict | None = None,
 ) -> tuple[str, str]:
+    payload: dict[str, object] = {
+        "client_name": client_name,
+        "opportunity_name": opportunity_name,
+        "department": "Finance",
+        "language": language,
+    }
+    if additional_client_information is not None:
+        payload["additional_client_information"] = additional_client_information
     opportunity = client.post(
         "/opportunities",
         headers=headers,
-        json={
-            "client_name": client_name,
-            "opportunity_name": opportunity_name,
-            "department": "Finance",
-            "language": "en",
-        },
+        json=payload,
     )
     if opportunity.status_code != 201:
         raise AssertionError(f"create opportunity failed: {opportunity.status_code} {opportunity.text}")
@@ -346,6 +354,11 @@ def run_automated_pipeline(
     *,
     headers: dict[str, str],
     transcript_path: Path = DEFAULT_FIXTURE_TRANSCRIPT,
+    language: str = "en",
+    journey_stage: str | None = None,
+    additional_client_information: dict | None = None,
+    client_name: str = "Pipeline Test Corp",
+    opportunity_name: str = "Automated Pipeline Harness",
 ) -> AutomatedPipelineResult:
     """BT-27: upload → framework → human approval → automated deck.
 
@@ -357,6 +370,10 @@ def run_automated_pipeline(
         client,
         headers=headers,
         transcript_path=transcript_path,
+        language=language,
+        additional_client_information=additional_client_information,
+        client_name=client_name,
+        opportunity_name=opportunity_name,
     )
     framework_version_id, framework_job_id, framework_stages = generate_and_confirm_framework(
         client,
@@ -365,13 +382,16 @@ def run_automated_pipeline(
     )
 
     with record_job_stages() as recorded:
+        plan_body: dict[str, object] = {
+            "framework_version_id": framework_version_id,
+            "auto_continue": True,
+        }
+        if journey_stage is not None:
+            plan_body["journey_stage"] = journey_stage
         plan = client.post(
             f"/opportunities/{opportunity_id}/presentation-plan/generate",
             headers=headers,
-            json={
-                "framework_version_id": framework_version_id,
-                "auto_continue": True,
-            },
+            json=plan_body,
         )
         if plan.status_code != 202:
             raise AssertionError(f"plan generate failed: {plan.status_code} {plan.text}")
