@@ -24,6 +24,7 @@ from services.gamma.contract import (
     gamma_egress_reference,
 )
 from services.gamma.fixture_client import validate_generate_request
+from services.gamma.provider_egress import gamma_live_egress_inventory
 from services.gamma.signed_logo import owned_https_prefixes
 from services.gamma.template import load_gamma_template
 
@@ -103,7 +104,11 @@ class LiveGammaClient:
 
         try:
             safe = enforce_external_egress(
-                {"slots": {slot.name: slot.value for slot in request.slots}},
+                gamma_live_egress_inventory(
+                    request,
+                    theme_id=self._theme_id,
+                    template_id=self._template_id,
+                ),
                 provider="gamma",
                 stage="gamma_live",
             )
@@ -112,11 +117,14 @@ class LiveGammaClient:
         slots = safe.get("slots") if isinstance(safe, dict) else {}
         if not isinstance(slots, dict):
             raise GammaPayloadError("Gamma payload contains blocked or unclassified fields.")
+        logo_allowed = isinstance(safe, dict) and "client_logo_url" in safe
         return replace(
             request,
             slots=tuple(
                 GammaContentSlot(name=name, value=value) for name, value in slots.items()
             ),
+            client_logo_ref=request.client_logo_ref if logo_allowed else None,
+            client_logo_placement=request.client_logo_placement if logo_allowed else None,
         )
 
     def _generation_path(self) -> str:
@@ -254,11 +262,7 @@ class LiveGammaClient:
 
 
 def _fetchable_client_logo_url(request: GammaGenerateRequest) -> str | None:
-    """Gamma renders the client logo only from a reference it can retrieve.
-
-    Private `artifact:` and `s3:` references stay behind our auth, so the deck
-    falls back to the client name wordmark rather than a broken image (JJ-27).
-    """
+    """Use this module's owned_https_prefixes so existing tests can patch it."""
     return gamma_egress_reference(
         request.client_logo_ref,
         owned_https_prefixes=owned_https_prefixes(),

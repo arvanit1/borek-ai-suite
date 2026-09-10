@@ -1814,6 +1814,64 @@ class SupabaseDataStore:
             "timestamp": _parse_timestamp(row["timestamp"]),
         }
 
+    def append_egress_audit(
+        self,
+        *,
+        opportunity_id: UUID | str,
+        presentation_version_id: UUID | str,
+        journey_stage: str,
+        provider: str,
+        pipeline_stage: str,
+        decision: str,
+        fields: list[dict[str, str]],
+        attempt: int = 1,
+    ) -> dict[str, Any]:
+        payload = {
+            "opportunity_id": str(opportunity_id),
+            "presentation_version_id": str(presentation_version_id),
+            "journey_stage": journey_stage,
+            "provider": provider,
+            "pipeline_stage": pipeline_stage,
+            "decision": decision,
+            "fields": list(fields),
+            "attempt": int(attempt),
+        }
+        response = self._request("POST", "egress_audit", json_body=payload)
+        if response.status_code not in (200, 201):
+            raise bad_request("EGRESS_AUDIT_WRITE_FAILED", response.text)
+        row = response.json()[0]
+        return {
+            "id": UUID(str(row["id"])),
+            "opportunity_id": str(row["opportunity_id"]),
+            "presentation_version_id": str(row["presentation_version_id"]),
+            "journey_stage": row["journey_stage"],
+            "provider": row["provider"],
+            "pipeline_stage": row["pipeline_stage"],
+            "decision": row["decision"],
+            "fields": list(row.get("fields") or []),
+            "attempt": int(row.get("attempt") or 1),
+            "created_at": _parse_timestamp(row["created_at"]),
+        }
+
+    def list_egress_audits(
+        self,
+        *,
+        opportunity_id: UUID | str | None = None,
+        presentation_version_id: UUID | str | None = None,
+    ) -> list[dict[str, Any]]:
+        params: dict[str, str] = {
+            "select": "*",
+            "order": "created_at.asc",
+        }
+        if opportunity_id is not None:
+            params["opportunity_id"] = f"eq.{opportunity_id}"
+        if presentation_version_id is not None:
+            params["presentation_version_id"] = f"eq.{presentation_version_id}"
+        response = self._request("GET", "egress_audit", params=params)
+        if response.status_code != 200:
+            raise bad_request("EGRESS_AUDIT_LIST_FAILED", response.text)
+        return list(response.json())
+
     def ingest_approved_corpus(self, raw: dict[str, Any]) -> dict[str, Any]:
         from services.borek_rag.ingest import ingest_summary, plan_ingest
 
