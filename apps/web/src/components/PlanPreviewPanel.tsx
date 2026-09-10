@@ -34,6 +34,7 @@ import {
   stageGroupForPage,
 } from "@/lib/jobReconnect";
 import { startPipelineParallelLoad } from "@/lib/pipelineParallelLoad";
+import { journeyStageForGenerate } from "@/lib/journeyStageSelection";
 import { pipelineHref } from "@/lib/pipelineContext";
 import { extractSlidePreviewRows, formatLayoutLabel } from "@/lib/planPreview";
 import type { PresentationPlanResponse } from "@/lib/planTypes";
@@ -228,6 +229,8 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
         accessToken,
         opportunityId,
         frameworkVersionId ?? undefined,
+        false,
+        journeyStageForGenerate(opportunityId),
       );
       setInfo(generationProgressMessage("plan", Boolean(generated.is_existing_job)));
       setNotice(runningRecoveryNotice("plan", generated.job_id));

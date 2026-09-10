@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { AppPageHeader } from "@/components/AppPageHeader";
+import { JourneyStartPanel } from "@/components/JourneyStartPanel";
 import { SiteHeader } from "@/components/SiteHeader";
 import { useAuth } from "@/components/AuthProvider";
 import {
@@ -234,11 +235,13 @@ export function RecentPresentationsPanel() {
             <Link href="/archive" className="btn btn-secondary">
               Archive
             </Link>
-            <Link href="/upload?new=1" className="btn btn-primary">
+            <a href="#journey-start" className="btn btn-primary">
               Create presentation
-            </Link>
+            </a>
           </div>
         </div>
+
+        <JourneyStartPanel />
 
         {error ? (
           <div className="alert alert-error recent-error" role="alert">
@@ -260,9 +263,9 @@ export function RecentPresentationsPanel() {
             <p className="recent-empty-kicker">No presentations yet</p>
             <h2>Build your first customer presentation</h2>
             <p>Start with the opportunity details, then upload one or more discovery transcripts.</p>
-            <Link href="/upload?new=1" className="btn btn-primary">
-              Create presentation
-            </Link>
+            <a href="#journey-start" className="btn btn-primary">
+              Choose an output
+            </a>
           </section>
         ) : null}
 
