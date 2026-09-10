@@ -250,6 +250,14 @@ export function OpportunityForm({
     }
   }
 
+  const contacts = values.additional_client_information?.contacts ?? [];
+  function addContact() {
+    updateClientInformation((current) => ({
+      ...current,
+      contacts: [...current.contacts, { name: "", role: null, email: null, phone: null }],
+    }));
+  }
+
   return (
     <form
       className="opportunity-form"
@@ -445,29 +453,38 @@ export function OpportunityForm({
           </div>
         </div>
 
+        {contacts.length === 0 ? (
+          identityLocked && !onUpdateClientInformation ? null : (
+            <div className="client-contacts-empty">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={packDisabled}
+                onClick={addContact}
+              >
+                Add contact
+              </button>
+            </div>
+          )
+        ) : (
         <div className="client-contacts">
           <div className="client-contacts-header">
             <div>
               <strong>Client contacts</strong>
               <p>Add only contacts relevant to this opportunity.</p>
             </div>
-            {!packDisabled ? (
+            {!packDisabled && (!identityLocked || onUpdateClientInformation) ? (
               <button
                 type="button"
                 className="btn btn-secondary"
                 disabled={packDisabled}
-                onClick={() =>
-                  updateClientInformation((current) => ({
-                    ...current,
-                    contacts: [...current.contacts, { name: "", role: null, email: null, phone: null }],
-                  }))
-                }
+                onClick={addContact}
               >
                 Add contact
               </button>
             ) : null}
           </div>
-          {(values.additional_client_information?.contacts ?? []).map((contact, index) => (
+          {contacts.map((contact, index) => (
             <div className="client-contact-row" key={index}>
               <div className="form-field">
                 <label htmlFor={`contact_name_${index}`}>Name</label>
@@ -512,7 +529,7 @@ export function OpportunityForm({
                   onChange={(event) => updateContact(index, "phone", event.target.value)}
                 />
               </div>
-              {!packDisabled ? (
+              {!packDisabled && (!identityLocked || onUpdateClientInformation) ? (
                 <button
                   type="button"
                   className="btn btn-quiet client-contact-remove"
@@ -530,6 +547,7 @@ export function OpportunityForm({
             </div>
           ))}
         </div>
+        )}
       </details>
 
       <div className="opportunity-form-actions">

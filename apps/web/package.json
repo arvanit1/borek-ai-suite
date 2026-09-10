@@ -17,14 +17,15 @@
     "test:at56": "tsx src/lib/jobReconnect.test.ts && tsx src/lib/jobErrors.test.ts && tsx src/lib/apiErrors.test.ts && tsx src/lib/pipelineParallelLoad.test.ts",
     "test:at57": "tsx src/lib/jobReconnect.test.ts",
     "test:ms24": "tsx src/lib/recentPresentations.test.ts && tsx src/lib/recentPresentationsIsolation.test.ts",
-    "test:ms25": "tsx src/lib/recoveryUx.test.ts && tsx src/components/RecoveryBanner.test.tsx && tsx src/lib/pipelineParallelLoad.test.ts",
+    "test:ms25": "tsx src/lib/recoveryUx.test.ts && tsx src/components/RecoveryBanner.test.tsx && tsx src/lib/pipelineParallelLoad.test.ts && tsx src/components/FrameworkChapterView.test.tsx",
     "test:ms26": "tsx src/components/ms26Ui.test.tsx",
     "test:bt25": "tsx src/lib/presentationPipeline.test.ts",
     "test:bt26": "tsx src/lib/jobProgress.test.ts && tsx src/components/LiveGenerationProgress.test.tsx",
     "test:bt27": "tsx src/lib/jobStageContract.test.ts",
     "test:jj28": "tsx src/lib/readyScreenEngineNeutral.test.ts && tsx src/lib/jobErrors.test.ts && tsx src/lib/jobProgress.test.ts",
     "test:ms27": "tsx src/lib/clientIntake.test.ts && tsx src/lib/apiErrors.test.ts && tsx src/components/ms27Intake.test.tsx",
-    "test:ms28": "tsx src/lib/recoveryUx.test.ts && tsx src/components/RecoveryBanner.test.tsx"
+    "test:ms28": "tsx src/lib/recoveryUx.test.ts && tsx src/components/RecoveryBanner.test.tsx",
+    "test:ms29": "tsx src/lib/archiveHistory.test.ts && tsx src/components/ArchiveHistoryView.test.tsx"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.8",

@@ -97,6 +97,35 @@ const terminalFailure = recoveryNoticeFromError(
 assert.equal(terminalFailure.category, "TERMINAL_FAILURE");
 assert.equal(terminalFailure.action?.kind, "RECENT");
 
+const frameworkGenerateFailed = recoveryNoticeFromError(
+  new ApiRequestError(
+    "ch.4 today_vs_agent: Chapter 4 must compare today vs with the agent.",
+    422,
+    "FRAMEWORK_GENERATION_FAILED",
+    { retryable: false, jobId: "job-fw", stage: "FRAMEWORK_SYNTHESIZING" },
+  ),
+  "framework",
+);
+assert.equal(frameworkGenerateFailed.category, "TERMINAL_FAILURE");
+assert.equal(frameworkGenerateFailed.action?.kind, "GENERATE");
+assert.equal(frameworkGenerateFailed.action?.label, "Generate again");
+assert.equal(frameworkGenerateFailed.action?.href, undefined);
+assert.doesNotMatch(frameworkGenerateFailed.message, /chapter 4|today_vs_agent|contact support/i);
+assert.equal(
+  frameworkGenerateFailed.technical?.message,
+  "ch.4 today_vs_agent: Chapter 4 must compare today vs with the agent.",
+);
+assert.equal(recoveryActionHref(frameworkGenerateFailed, "opportunity-1"), undefined);
+
+const extractionFailed = recoveryNoticeFromError(
+  new ApiRequestError("Extraction failed", 422, "KNOWLEDGE_EXTRACTION_FAILED", {
+    retryable: false,
+    jobId: "job-extract",
+  }),
+  "framework",
+);
+assert.equal(extractionFailed.action?.kind, "GENERATE");
+
 const frameworkInput = recoveryNoticeFromError(
   new ApiRequestError("Framework must be confirmed", 409, "FRAMEWORK_NOT_CONFIRMED"),
   "deck",

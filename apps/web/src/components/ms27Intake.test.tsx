@@ -16,7 +16,8 @@ assert.match(formHtml, /leave this section empty and continue directly to transc
 assert.match(formHtml, /Choose files/);
 assert.match(formHtml, /TXT, Markdown, CSV, or JSON/);
 assert.match(formHtml, /Location requirements/);
-assert.match(formHtml, /Client contacts/);
+assert.match(formHtml, /Add contact/);
+assert.doesNotMatch(formHtml, /Client contacts/);
 assert.match(formHtml, /Create opportunity/);
 
 const existingHtml = renderToStaticMarkup(
@@ -39,6 +40,46 @@ assert.match(existingHtml, /Save client information/);
 assert.match(existingHtml, /id="client_name"[^>]*disabled/);
 assert.doesNotMatch(existingHtml, /id="location_requirements"[^>]*disabled/);
 assert.doesNotMatch(existingHtml, /id="client_notes"[^>]*disabled/);
+assert.match(existingHtml, /Add contact/);
+assert.doesNotMatch(existingHtml, /Client contacts/);
+
+const createdWithoutContacts = renderToStaticMarkup(
+  <OpportunityForm
+    existing={{
+      client_name: "Acme Corporation",
+      opportunity_name: "Automation rollout",
+      department: "Sales",
+      language: "en",
+      pii_redaction_enabled: true,
+      additional_client_information: null,
+    }}
+    onSubmit={async () => undefined}
+  />,
+);
+assert.doesNotMatch(createdWithoutContacts, /Client contacts/);
+assert.doesNotMatch(createdWithoutContacts, /Add contact/);
+
+const createdWithContacts = renderToStaticMarkup(
+  <OpportunityForm
+    existing={{
+      client_name: "Acme Corporation",
+      opportunity_name: "Automation rollout",
+      department: "Sales",
+      language: "en",
+      pii_redaction_enabled: true,
+      additional_client_information: {
+        location_requirements: [],
+        constraints: [],
+        contacts: [{ name: "Ada Lovelace", role: "Sponsor", email: null, phone: null }],
+        priorities: [],
+        notes: null,
+      },
+    }}
+    onSubmit={async () => undefined}
+  />,
+);
+assert.match(createdWithContacts, /Client contacts/);
+assert.match(createdWithContacts, /Ada Lovelace/);
 
 const logoHtml = renderToStaticMarkup(
   <ClientLogoUpload accessToken="token" opportunityId="opportunity" />,
