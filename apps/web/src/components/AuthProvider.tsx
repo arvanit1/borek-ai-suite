@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 
+import { syncPipelineOwner } from "@/lib/pipelineContext";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 
 interface AuthContextValue {
@@ -31,6 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     void client.auth.getSession().then(({ data }) => {
+      syncPipelineOwner(data.session?.user.id ?? null);
       setSession(data.session);
       setLoading(false);
     });
@@ -38,6 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = client.auth.onAuthStateChange((_event, nextSession) => {
+      syncPipelineOwner(nextSession?.user.id ?? null);
       setSession(nextSession);
       setLoading(false);
     });

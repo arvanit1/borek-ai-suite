@@ -453,6 +453,42 @@ async function main() {
 }
 
 {
+  let waited = 0;
+  const recovery = await recoverPresentationPipeline({
+    frameworkVersionId: FRAMEWORK_ID,
+    api: successfulApi([], {
+      async getActivePresentationJob() {
+        return activeJob("presentation_generation", "COMPLETED");
+      },
+      async waitForJob() {
+        waited += 1;
+        return completedJob("presentation_generation");
+      },
+    }),
+  });
+  assert.deepEqual(recovery, { state: "idle" });
+  assert.equal(waited, 0, "finished jobs must not auto-open the deck from Framework review");
+}
+
+{
+  let waited = 0;
+  const recovery = await recoverPresentationPipeline({
+    frameworkVersionId: FRAMEWORK_ID,
+    api: successfulApi([], {
+      async getActivePresentationJob() {
+        return activeJob("presentation_planning", "COMPLETED");
+      },
+      async waitForJob() {
+        waited += 1;
+        return completedJob("presentation_planning");
+      },
+    }),
+  });
+  assert.deepEqual(recovery, { state: "idle" });
+  assert.equal(waited, 0, "a finished plan must leave Framework review in place");
+}
+
+{
   let planningCalls = 0;
   const result = await buildPresentationPipeline({
     frameworkVersionId: FRAMEWORK_ID,

@@ -5,6 +5,7 @@ import {
   snapshotFromJob,
   type JobProgressSnapshot,
 } from "./jobProgress";
+import { isMonitorableJobStatus } from "./jobReconnect";
 import type {
   PresentationPlanGenerateResponse,
   PresentationPlanResponse,
@@ -466,6 +467,11 @@ export async function recoverPresentationPipeline(
     throw errorFor("generation", error);
   }
   if (!active) {
+    return { state: "idle" };
+  }
+  // Latest presentation jobs stay visible after they finish. Reconnecting those
+  // would yank the user off Framework review (e.g. Back from Plan) into Deck.
+  if (!isMonitorableJobStatus(active.status)) {
     return { state: "idle" };
   }
   if (active.job_type === "presentation_planning") {

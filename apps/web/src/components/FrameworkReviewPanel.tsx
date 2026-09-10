@@ -311,12 +311,14 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       presentationPipelineRunningRef.current = true;
       setRecoveryTarget("presentation-pipeline");
       setBusy(true);
-      setPipelineActive(true);
       try {
         const recovery = await recoverPresentationPipeline({
           frameworkVersionId: framework.id,
           api: presentationPipelineApi(accessToken),
-          onProgress: reportPresentationProgress,
+          onProgress: (progress) => {
+            setPipelineActive(true);
+            reportPresentationProgress(progress);
+          },
         });
         if (recovery.state === "completed") {
           setNotice(null);
