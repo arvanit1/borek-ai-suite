@@ -808,6 +808,101 @@ samp {
   margin: 0.35rem 0 0.65rem;
 }
 
+.journey-start-panel,
+.journey-upload-choice {
+  display: grid;
+  gap: 1rem;
+  margin: 0 0 1.5rem;
+  padding: 1.25rem 1.35rem;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-surface);
+}
+
+.journey-start-kicker {
+  margin: 0;
+  color: var(--color-accent);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.journey-start-copy h2,
+.journey-upload-choice h3 {
+  margin: 0.2rem 0 0.45rem;
+}
+
+.journey-start-copy p,
+.journey-start-loading,
+.journey-stage-choice,
+.journey-stage-option-description,
+.journey-stage-option-lock {
+  margin: 0;
+  color: var(--color-muted);
+}
+
+.journey-start-client {
+  max-width: 28rem;
+}
+
+.journey-stage-options {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.journey-stage-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: flex-start;
+  margin: 0;
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.journey-stage-option.is-selected {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+
+.journey-stage-option.is-locked {
+  background: var(--borek-primary-soft);
+  opacity: 0.92;
+}
+
+.journey-stage-option input {
+  margin-top: 0.2rem;
+}
+
+.journey-stage-option-body {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.journey-stage-option-label {
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.journey-stage-option-lock {
+  color: var(--color-text);
+  font-size: 0.9rem;
+}
+
+.journey-start-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.journey-stage-choice {
+  margin: 0 0 1rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
 .recent-empty-kicker {
   margin: 0;
   color: var(--color-accent) !important;

@@ -8,17 +8,21 @@ import { AppPageHeader } from "@/components/AppPageHeader";
 import { useAuth } from "@/components/AuthProvider";
 import { ClientLogoUpload } from "@/components/ClientLogoUpload";
 import { FileUploadQueue } from "@/components/FileUploadQueue";
+import { JourneyStageChoice, JourneyStageSelector } from "@/components/JourneyStageSelector";
 import { OpportunityForm } from "@/components/OpportunityForm";
 import { PipelineStepper } from "@/components/PipelineStepper";
 import { SiteHeader } from "@/components/SiteHeader";
 import { UploadStepper } from "@/components/UploadStepper";
 import {
   createOpportunity,
+  getJourneyStageEligibility,
   getOpportunity,
   listTranscripts,
   updateOpportunity,
   uploadTranscript,
   type AdditionalClientInformation,
+  type JourneyStageEligibilityResponse,
+  type JourneyStageName,
   type OpportunityCreatePayload,
   type OpportunityResponse,
 } from "@/lib/api";
@@ -34,6 +38,18 @@ import {
   saveActiveOpportunity,
   scopeUploadSession,
 } from "@/lib/pipelineContext";
+import {
+  NEW_CLIENT_ELIGIBILITY,
+  canSubmitJourneyStage,
+  defaultStartableStage,
+  eligibilityForOpportunity,
+} from "@/lib/journeyStageEligibility";
+import {
+  bindSelectedJourneyStage,
+  journeyStageForGenerate,
+  loadSelectedJourneyStage,
+  saveSelectedJourneyStage,
+} from "@/lib/journeyStageSelection";
 import { countByStatus } from "@/lib/uploadQueue";
 import type { TranscriptQueueItem } from "@/lib/uploadQueue";
 import { createRestoredQueueItem, updateQueueItem } from "@/lib/uploadQueue";
@@ -91,6 +107,11 @@ export function TranscriptUploadPanel({
   );
   const [queueItems, setQueueItems] = useState<TranscriptQueueItem[]>(cached.queue);
   const [uploadSummary, setUploadSummary] = useState<string | null>(cached.summary);
+  const [eligibility, setEligibility] =
+    useState<JourneyStageEligibilityResponse>(NEW_CLIENT_ELIGIBILITY);
+  const [journeyStage, setJourneyStage] = useState<JourneyStageName | null>(
+    () => loadSelectedJourneyStage()?.journeyStage ?? defaultStartableStage(NEW_CLIENT_ELIGIBILITY),
+  );
 
   const contextMatchesRequest = !initialOpportunityId || opportunityId === initialOpportunityId;
   const canUpload =
@@ -128,6 +149,49 @@ export function TranscriptUploadPanel({
       summary: uploadSummary,
     });
   }, [opportunity, queueItems, uploadSummary]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadEligibility() {
+      if (!accessToken || !opportunityId || startFresh) {
+        setEligibility(NEW_CLIENT_ELIGIBILITY);
+        const stored = loadSelectedJourneyStage()?.journeyStage;
+        setJourneyStage(stored ?? defaultStartableStage(NEW_CLIENT_ELIGIBILITY));
+        return;
+      }
+      try {
+        const payload = eligibilityForOpportunity(
+          await getJourneyStageEligibility(accessToken, opportunityId),
+          opportunityId,
+        );
+        if (cancelled) {
+          return;
+        }
+        setEligibility(payload);
+        const stored = journeyStageForGenerate(opportunityId);
+        setJourneyStage(
+          stored && canSubmitJourneyStage(payload, stored)
+            ? stored
+            : defaultStartableStage(payload),
+        );
+      } catch {
+        if (!cancelled) {
+          setEligibility(NEW_CLIENT_ELIGIBILITY);
+        }
+      }
+    }
+
+    void loadEligibility();
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, opportunityId, startFresh]);
+
+  function handleJourneyStageChange(stage: JourneyStageName) {
+    setJourneyStage(stage);
+    saveSelectedJourneyStage(stage, opportunityId);
+  }
 
   useEffect(() => {
     if (!accessToken) {
@@ -211,6 +275,10 @@ export function TranscriptUploadPanel({
     setOpportunityLabelText(opportunityLabel(stored));
     setUploadSummary(null);
     saveActiveOpportunity(stored);
+    bindSelectedJourneyStage(created.id);
+    if (journeyStage) {
+      saveSelectedJourneyStage(journeyStage, created.id);
+    }
     clearOpportunityDraft();
     rememberUploadSession({
       opportunity: stored,
@@ -332,6 +400,16 @@ export function TranscriptUploadPanel({
                   <p>Every upload is scoped to a sales opportunity record.</p>
                 </div>
               </header>
+              <div className="journey-upload-choice">
+                <h3>Presentation output</h3>
+                <JourneyStageChoice stage={journeyStage} />
+                <JourneyStageSelector
+                  eligibility={eligibility}
+                  selected={journeyStage}
+                  onSelect={handleJourneyStageChange}
+                  disabled={!isAuthenticated || loading}
+                />
+              </div>
               <OpportunityForm
                 disabled={!isAuthenticated || loading}
                 existing={

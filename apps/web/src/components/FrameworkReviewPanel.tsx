@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppPageHeader } from "@/components/AppPageHeader";
 import { useAuth } from "@/components/AuthProvider";
 import { FrameworkChapterView } from "@/components/FrameworkChapterView";
+import { JourneyStageChoice } from "@/components/JourneyStageSelector";
 import { FrameworkReviewSummary } from "@/components/FrameworkReviewSummary";
 import { FrameworkRootFieldsPanel } from "@/components/FrameworkRootFieldsPanel";
 import { LiveGenerationProgress } from "@/components/LiveGenerationProgress";
@@ -66,6 +67,7 @@ import {
   reviewPayloadFromUnknown,
   type FrameworkReviewPayload,
 } from "@/lib/frameworkReview";
+import { journeyStageForGenerate } from "@/lib/journeyStageSelection";
 import { pipelineHref } from "@/lib/pipelineContext";
 import type { FrameworkObject, FrameworkVersionResponse } from "@/lib/frameworkTypes";
 import {
@@ -154,7 +156,13 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       getJob: (jobId) => getJob(token, jobId),
       waitForJob: (jobId, onJobUpdate) => waitForJob(token, jobId, { onProgress: onJobUpdate }),
       generatePresentationPlan: (frameworkVersionId, autoContinue) =>
-        generatePresentationPlan(token, opportunityId, frameworkVersionId, autoContinue),
+        generatePresentationPlan(
+          token,
+          opportunityId,
+          frameworkVersionId,
+          autoContinue,
+          journeyStageForGenerate(opportunityId),
+        ),
       getLatestPresentationPlan: () => getLatestPresentationPlan(token, opportunityId),
       getPresentationPlan: (presentationPlanId) =>
         getPresentationPlan(token, presentationPlanId),
@@ -965,6 +973,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
           title="Review the customer story"
           lead="Start with the summary, resolve anything that needs attention, then approve to build the presentation. All 14 chapters stay available below for review and editing."
         />
+        <JourneyStageChoice stage={journeyStageForGenerate(opportunityId) ?? null} />
 
         <div className="upload-layout">
           <aside className="upload-sidebar">
