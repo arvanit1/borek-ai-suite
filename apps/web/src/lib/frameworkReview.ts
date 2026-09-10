@@ -50,6 +50,7 @@ export interface ReviewSummary {
   language?: string | null;
   headline?: string | null;
   executive_summary?: string | null;
+  executive_summary_points?: string[];
   key_pain_points?: string[];
   key_requirements?: string[];
   target_outcomes?: string[];
@@ -152,6 +153,43 @@ export function canApproveAndBuild(options: {
 
 export function openItemText(item: ReviewOpenItem): string {
   return String(item.description ?? "").trim();
+}
+
+const MIN_EXECUTIVE_SUMMARY_POINTS = 3;
+
+function uniqueNonempty(values: string[]): string[] {
+  const seen = new Set<string>();
+  const unique: string[] = [];
+  for (const value of values) {
+    const normalized = value.trim();
+    if (!normalized || seen.has(normalized)) {
+      continue;
+    }
+    seen.add(normalized);
+    unique.push(normalized);
+  }
+  return unique;
+}
+
+function splitExecutiveSummary(text: string): string[] {
+  return text
+    .split(/(?<=[.!?])\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+export function executiveSummaryPoints(summary: ReviewSummary, min = MIN_EXECUTIVE_SUMMARY_POINTS): string[] {
+  const fromPoints = uniqueNonempty(summary.executive_summary_points ?? []);
+  if (fromPoints.length >= min) {
+    return fromPoints.slice(0, 6);
+  }
+  const fromText = summary.executive_summary?.trim() ? splitExecutiveSummary(summary.executive_summary) : [];
+  const extras = [
+    ...(summary.key_pain_points ?? []),
+    ...(summary.key_requirements ?? []),
+    ...(summary.target_outcomes ?? []),
+  ];
+  return uniqueNonempty([...fromPoints, ...fromText, ...extras]).slice(0, 6);
 }
 
 export function evidenceWarningText(warning: ReviewEvidenceWarning): string {

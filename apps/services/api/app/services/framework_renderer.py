@@ -306,11 +306,16 @@ def _review_summary(framework: dict[str, Any]) -> dict[str, Any]:
 
 def _add_executive_overview(doc: Document, framework: dict[str, Any], labels: dict[str, str]) -> None:
     summary = _review_summary(framework)
+    points = [item for item in (summary.get("executive_summary_points") or []) if _text(item)]
     overview = _text(summary.get("executive_summary"))
-    if not overview:
+    if not points and not overview:
         return
     doc.add_heading(labels["overview"], level=1)
-    doc.add_paragraph(overview)
+    if points:
+        for item in points[:6]:
+            doc.add_paragraph(_text(item), style="List Bullet")
+    else:
+        doc.add_paragraph(overview)
     for key, heading in (
         ("key_pain_points", labels["key_pain_points"]),
         ("key_requirements", labels["key_requirements"]),
@@ -613,10 +618,15 @@ def _html_cover_meta(framework: dict[str, Any], labels: dict[str, str], language
 
 def _html_overview(framework: dict[str, Any], labels: dict[str, str]) -> str:
     summary = _review_summary(framework)
+    points = [item for item in (summary.get("executive_summary_points") or []) if _text(item)]
     overview = _text(summary.get("executive_summary"))
-    if not overview:
+    if not points and not overview:
         return ""
-    return f"<h2>{html.escape(labels['overview'])}</h2><p>{html.escape(overview)}</p>"
+    heading = f"<h2>{html.escape(labels['overview'])}</h2>"
+    if points:
+        items = "".join(f"<li>{html.escape(_text(item))}</li>" for item in points[:6])
+        return f"{heading}<ul>{items}</ul>"
+    return f"{heading}<p>{html.escape(overview)}</p>"
 
 
 def _html_warnings(framework: dict[str, Any], labels: dict[str, str]) -> str:

@@ -119,7 +119,7 @@
     {
       "card": 2,
       "layout_id": "EXECUTIVE_SUMMARY_01",
-      "title": "Executive summary",
+      "title": "Executive Smmary",
       "slots": ["executive_summary.body"]
     },
     {
@@ -234,7 +234,7 @@
     },
     {
       "name": "executive_summary.body",
-      "label": "Executive summary",
+      "label": "Executive Summary",
       "layout_id": "EXECUTIVE_SUMMARY_01",
       "source": "framework_chapters",
       "source_chapter_ids": ["1"],

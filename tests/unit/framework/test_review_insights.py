@@ -49,13 +49,16 @@ def test_es36_review_summary_contains_required_fields() -> None:
         )
     )
     summary = framework["review_summary"]
-    assert summary["executive_summary"] == "Automate invoice matching with human control."
+    assert summary["executive_summary_points"][0] == "Automate invoice matching with human control."
+    assert len(summary["executive_summary_points"]) >= 3
+    assert summary["executive_summary"].startswith("Automate invoice matching with human control.")
     assert summary["key_requirements"]
     assert summary["target_outcomes"]
     assert summary["assumptions"]
     assert summary["readiness"]["build_readiness"] == 58
     for field in (
         "executive_summary",
+        "executive_summary_points",
         "key_pain_points",
         "key_requirements",
         "target_outcomes",
@@ -201,6 +204,37 @@ def test_es36_review_summary_respects_framework_language() -> None:
     }
     summary = build_review_summary(framework)
     assert summary["language"] == "de"
+
+
+def test_executive_summary_is_at_least_three_bullet_points() -> None:
+    summary = build_review_summary(
+        _framework(
+            render={"allowed": True, "assumptions_banner": False, "band": "ready_to_build"},
+            kpis=[{"name": "Processing time", "target": "Under 2 days"}],
+            access_needs=[{"category": "ERP access", "specifically": "Read-only AP role"}],
+            chapters=[
+                {
+                    "chapter_id": "1",
+                    "title": "Management summary",
+                    "body": [
+                        {
+                            "summary": (
+                                "Accounts Payable matches around 3,000 invoices per month. "
+                                "Matching is still done by hand against purchase orders. "
+                                "The team wants automation with human control."
+                            )
+                        }
+                    ],
+                    "source_refs": [{"conversation_id": "C1", "excerpt_pointer": "turn:1"}],
+                }
+            ]
+            + _framework()["chapters"][2:],
+        )
+    )
+    points = summary["executive_summary_points"]
+    assert len(points) >= 3
+    assert points[0].startswith("Accounts Payable matches around 3,000 invoices per month")
+    assert all(isinstance(point, str) and point.strip() for point in points)
 
 
 def test_docx_export_renders_zip_magic_bytes() -> None:

@@ -12,6 +12,7 @@ export interface OpportunityDraft {
 
 const ACTIVE_KEY = "borek.activeOpportunity";
 const DRAFT_KEY = "borek.opportunityDraft";
+const AUTH_USER_KEY = "borek.authUserId";
 
 export interface StoredOpportunity {
   id: string;
@@ -163,6 +164,20 @@ export function clearPipelineContext(): void {
   const storage = getSessionStorage();
   storage?.removeItem(ACTIVE_KEY);
   storage?.removeItem(DRAFT_KEY);
+}
+
+export function syncPipelineOwner(userId: string | null): void {
+  const storage = getSessionStorage();
+  const previous = storage?.getItem(AUTH_USER_KEY) ?? null;
+  if (previous && previous !== userId) {
+    clearPipelineContext();
+  }
+  if (!userId) {
+    storage?.removeItem(AUTH_USER_KEY);
+    clearPipelineContext();
+    return;
+  }
+  storage?.setItem(AUTH_USER_KEY, userId);
 }
 
 export function rememberUploadSession(session: CachedUploadSession): void {

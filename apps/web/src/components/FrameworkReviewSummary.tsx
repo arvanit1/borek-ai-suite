@@ -7,6 +7,7 @@ import {
   blockingSignals,
   canApproveAndBuild,
   evidenceWarningText,
+  executiveSummaryPoints,
   isApprovalBlocked,
   openItemText,
   reviewStateLabel,
@@ -119,7 +120,7 @@ export function FrameworkReviewSummary({
   });
   const warningSignals = signals.filter((signal) => !isApprovalBlocked({ attention_signals: [signal], review_summary: {} }) && signal.severity !== "info");
   const headline = summary.headline?.trim();
-  const executiveSummary = summary.executive_summary?.trim() ?? "";
+  const executiveSummaryItems = executiveSummaryPoints(summary);
   const assumptions = openItemLines(summary.assumptions);
   const openQuestions = openItemLines(summary.open_questions);
   const evidenceWarnings = (summary.evidence_warnings ?? []).map(evidenceWarningText);
@@ -174,8 +175,16 @@ export function FrameworkReviewSummary({
       {headline ? <p className="framework-summary-headline">{headline}</p> : null}
 
       <section className="framework-summary-card framework-summary-card-lead" data-testid="framework-executive-summary">
-        <h3>Executive summary</h3>
-        {executiveSummary ? <p>{executiveSummary}</p> : <p className="upload-hint">No executive summary is available yet.</p>}
+        <h3>Executive Summary</h3>
+        {executiveSummaryItems.length > 0 ? (
+          <ul>
+            {executiveSummaryItems.map((item, index) => (
+              <li key={`executive-summary-${index}`}>{item}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="upload-hint">No executive summary is available yet.</p>
+        )}
       </section>
 
       <div className="framework-summary-grid">

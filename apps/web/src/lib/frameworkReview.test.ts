@@ -11,6 +11,7 @@ import {
   blockingSignals,
   canApproveAndBuild,
   evidenceWarningText,
+  executiveSummaryPoints,
   isApprovalBlocked,
   isBlockingSignal,
   openItemText,
@@ -132,6 +133,36 @@ const fromFrameworkJson = reviewPayloadFromUnknown({
 assert.equal(fromFrameworkJson?.review_summary.headline, "Nested");
 assert.equal(fromFrameworkJson?.review_state, REVIEW_STATE_RECOMMENDED);
 assert.equal(reviewPayloadFromUnknown({ title: "No summary" }), null);
+
+assert.deepEqual(
+  executiveSummaryPoints({
+    executive_summary_points: [
+      "Accounts Payable matches around 3,000 invoices per month.",
+      "Matching is still done by hand.",
+      "The team wants automation with human control.",
+    ],
+  }),
+  [
+    "Accounts Payable matches around 3,000 invoices per month.",
+    "Matching is still done by hand.",
+    "The team wants automation with human control.",
+  ],
+);
+assert.deepEqual(
+  executiveSummaryPoints({
+    executive_summary: "Match invoices by hand. Errors delay payment. The team wants automation.",
+  }).length >= 3,
+  true,
+);
+assert.equal(
+  executiveSummaryPoints({
+    executive_summary: "Automate invoice matching.",
+    key_pain_points: ["Manual matching"],
+    key_requirements: ["ERP access"],
+    target_outcomes: ["Under 2 days"],
+  }).length,
+  4,
+);
 
 assert.equal(customerFieldLabel("source_refs"), "Cited sources");
 assert.equal(customerFieldLabel("used_for"), "AI is used for");

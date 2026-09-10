@@ -14,6 +14,7 @@ import {
   saveOpportunityDraft,
   scopeUploadSession,
   clearActiveOpportunity,
+  syncPipelineOwner,
 } from "./pipelineContext.js";
 
 assert.equal(pipelineHref("/upload"), "/upload");
@@ -98,5 +99,21 @@ assert.deepEqual(scopeUploadSession(cachedForFirst, "opp-2"), {
   queue: [],
   summary: null,
 });
+
+saveActiveOpportunity({
+  id: "opp-owned-by-a",
+  client_name: "Acme",
+  opportunity_name: "Q3 rollout",
+  department: "Finance",
+  language: "en",
+});
+syncPipelineOwner("user-a");
+assert.equal(loadActiveOpportunity()?.id, "opp-owned-by-a");
+syncPipelineOwner("user-a");
+assert.equal(loadActiveOpportunity()?.id, "opp-owned-by-a");
+syncPipelineOwner("user-b");
+assert.equal(loadActiveOpportunity(), null);
+syncPipelineOwner(null);
+assert.equal(loadActiveOpportunity(), null);
 
 console.log("pipelineContext tests passed");

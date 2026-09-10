@@ -2613,6 +2613,10 @@ samp {
   line-height: 1.5;
 }
 
+.framework-summary-card-lead ul {
+  line-height: 1.5;
+}
+
 .framework-summary-card-prominent {
   background: #fff7e6;
   border-color: #f5d48a;

@@ -387,7 +387,7 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
               <h3>Active opportunity</h3>
               <p className="upload-meta-empty">Confirm the slide order before generating the deck.</p>
               <Link
-                href={`/framework-review?opportunityId=${opportunityId}`}
+                href={pipelineHref("/framework-review", opportunityId)}
                 className="btn btn-secondary btn-block"
               >
                 Back to framework
