@@ -705,6 +705,10 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
   }
 
   function handleRecoveryAction() {
+    if (notice?.action?.kind === "GENERATE") {
+      void handleGenerate();
+      return;
+    }
     if (notice?.action?.kind === "RETRY") {
       void handleRetry();
       return;
@@ -813,6 +817,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
     setRegeneratingChapterId(chapterId);
     setNotice(null);
     setInfo(null);
+    jumpToChapter(chapterId);
     try {
       if (dirty && frameworkJson) {
         await persistFramework(accessToken, opportunityId, frameworkJson);

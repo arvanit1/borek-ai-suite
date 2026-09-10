@@ -1,5 +1,7 @@
 "use client";
 
+import React from "react";
+
 import { FrameworkNestedValue } from "@/components/FrameworkNestedValue";
 import { SourceRefBadge } from "@/components/SourceRefBadge";
 import {
@@ -71,8 +73,15 @@ export function FrameworkChapterView({
 }: FrameworkChapterViewProps) {
   const bodyBlocks = Array.isArray(chapter.body) ? chapter.body : null;
 
+  const chapterEditable = editable && !regenerating;
+
   return (
-    <section className="framework-chapter">
+    <section
+      className={`framework-chapter${regenerating ? " framework-chapter-regenerating" : ""}`}
+      aria-busy={regenerating}
+      data-testid="framework-chapter"
+      data-regenerating={regenerating ? "true" : "false"}
+    >
       <header className="framework-chapter-header">
         <div>
           <p className="framework-chapter-id">Chapter {chapter.chapter_id}</p>
@@ -85,10 +94,32 @@ export function FrameworkChapterView({
             disabled={!editable || regenerating}
             onClick={onRegenerate}
           >
-            {regenerating ? "Regenerating…" : "Regenerate chapter"}
+            {regenerating ? "Updating…" : "Regenerate chapter"}
           </button>
         ) : null}
       </header>
+      {onRegenerate && regenerating ? (
+        <div
+          className="framework-chapter-progress"
+          role="status"
+          aria-live="polite"
+          data-testid="framework-chapter-progress"
+        >
+          <span className="framework-chapter-progress-mark" aria-hidden="true" />
+          <div>
+            <strong>Updating this chapter</strong>
+            <p>
+              Only this chapter is being rewritten from the transcripts. The text below stays
+              until the update finishes. Other chapters are not changed. This can take several
+              minutes.
+            </p>
+          </div>
+        </div>
+      ) : onRegenerate && editable ? (
+        <p className="framework-chapter-regen-hint">
+          Regenerate rewrites this chapter from the transcripts. Other chapters stay as they are.
+        </p>
+      ) : null}
 
       <div className="framework-chapter-body">
         {bodyBlocks ? (
@@ -118,7 +149,7 @@ export function FrameworkChapterView({
                           id={`${chapter.chapter_id}-${blockIndex}-${fieldKey}`}
                           label={customerFieldLabel(fieldKey)}
                           value={fieldValue}
-                          editable={editable}
+                          editable={chapterEditable}
                           onChange={(next) =>
                             onChange(updateChapterBodyValue(chapter, blockIndex, fieldKey, next))
                           }
@@ -143,7 +174,7 @@ export function FrameworkChapterView({
               id={`${chapter.chapter_id}-body`}
               rows={8}
               value={typeof chapter.body === "string" ? chapter.body : ""}
-              disabled={!editable}
+              disabled={!chapterEditable}
               onChange={(event) => onChange(updateChapterStringBody(chapter, event.target.value))}
             />
             <ChapterSourceRefs chapter={chapter} />

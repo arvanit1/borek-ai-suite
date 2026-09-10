@@ -11,7 +11,7 @@ export type RecoveryCategory =
 export type RecoveryContext = "framework" | "plan" | "deck";
 
 export interface RecoveryAction {
-  kind: "RECONNECT" | "KEEP_CHECKING" | "REVIEW" | "RETRY" | "RECENT" | "UPLOAD";
+  kind: "RECONNECT" | "KEEP_CHECKING" | "REVIEW" | "RETRY" | "GENERATE" | "RECENT" | "UPLOAD";
   label: string;
   href?: string;
   target?: "framework" | "plan";
@@ -48,6 +48,11 @@ const VALIDATION_CODES = new Set([
 ]);
 
 const ADMIN_SETUP_CODES = new Set(["GAMMA_AUTH", "GAMMA_TEMPLATE_LOCKED"]);
+
+const FRAMEWORK_REGENERATE_CODES = new Set([
+  "FRAMEWORK_GENERATION_FAILED",
+  "KNOWLEDGE_EXTRACTION_FAILED",
+]);
 
 const INPUT_CODES = new Set([
   "FRAMEWORK_NOT_CONFIRMED",
@@ -239,6 +244,17 @@ export function recoveryNoticeFromError(
   if (value.code != null && INPUT_CODES.has(value.code)) {
     return {
       ...inputRequiredRecoveryNotice(context),
+      technical,
+    };
+  }
+
+  if (context === "framework" && value.code != null && FRAMEWORK_REGENERATE_CODES.has(value.code)) {
+    return {
+      category: "TERMINAL_FAILURE",
+      title: "We could not complete your framework",
+      message:
+        "The customer story could not be finished. You can generate it again from the same transcripts.",
+      action: { kind: "GENERATE", label: "Generate again" },
       technical,
     };
   }

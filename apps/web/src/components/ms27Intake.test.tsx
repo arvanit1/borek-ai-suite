@@ -14,8 +14,47 @@ assert.match(formHtml, /Additional client information/);
 assert.match(formHtml, /Optional/);
 assert.match(formHtml, /leave this section empty and continue directly to transcripts/i);
 assert.match(formHtml, /Location requirements/);
-assert.match(formHtml, /Client contacts/);
+assert.match(formHtml, /Add contact/);
+assert.doesNotMatch(formHtml, /Client contacts/);
 assert.match(formHtml, /Create opportunity/);
+
+const createdWithoutContacts = renderToStaticMarkup(
+  <OpportunityForm
+    existing={{
+      client_name: "Acme Corporation",
+      opportunity_name: "Automation rollout",
+      department: "Sales",
+      language: "en",
+      pii_redaction_enabled: true,
+      additional_client_information: null,
+    }}
+    onSubmit={async () => undefined}
+  />,
+);
+assert.doesNotMatch(createdWithoutContacts, /Client contacts/);
+assert.doesNotMatch(createdWithoutContacts, /Add contact/);
+
+const createdWithContacts = renderToStaticMarkup(
+  <OpportunityForm
+    existing={{
+      client_name: "Acme Corporation",
+      opportunity_name: "Automation rollout",
+      department: "Sales",
+      language: "en",
+      pii_redaction_enabled: true,
+      additional_client_information: {
+        location_requirements: [],
+        constraints: [],
+        contacts: [{ name: "Ada Lovelace", role: "Sponsor", email: null, phone: null }],
+        priorities: [],
+        notes: null,
+      },
+    }}
+    onSubmit={async () => undefined}
+  />,
+);
+assert.match(createdWithContacts, /Client contacts/);
+assert.match(createdWithContacts, /Ada Lovelace/);
 
 const logoHtml = renderToStaticMarkup(
   <ClientLogoUpload accessToken="token" opportunityId="opportunity" />,
