@@ -44,9 +44,11 @@ class _ScriptedClient:
     def __init__(self, scripted: list[httpx.Response]) -> None:
         self._scripted = list(scripted)
         self.calls: list[tuple[str, str]] = []
+        self.json_bodies: list[object] = []
 
-    def request(self, method: str, url: str, **_kwargs: object) -> httpx.Response:
+    def request(self, method: str, url: str, **kwargs: object) -> httpx.Response:
         self.calls.append((method, url))
+        self.json_bodies.append(kwargs.get("json"))
         return self._scripted.pop(0)
 
     def get(self, url: str, **kwargs: object) -> httpx.Response:
@@ -114,6 +116,47 @@ def test_live_client_creates_polls_and_stores_owned_bytes(tmp_path: Path) -> Non
     assert artifact.storage_key.startswith("gamma/opp-142/pv-9/")
     assert artifact.content == b""
     assert any(path.endswith("/v1.0/generations") for _method, path in http.calls)
+
+
+def test_live_client_second_format_export_sends_export_as() -> None:
+    pptx_url = "https://exports.example/deck.pptx"
+    pdf_url = "https://exports.example/deck.pdf"
+    http = _ScriptedClient(
+        [
+            _json_response(200, {"generationId": "gen-1"}),
+            _json_response(
+                200,
+                {"status": "completed", "gammaId": "gamma-1", "exportUrl": pptx_url},
+                url="https://public-api.gamma.app/v1.0/generations/gen-1",
+            ),
+            _bytes_response(b"PPTX-BYTES", pptx_url),
+            _json_response(
+                200,
+                {"exportId": "exp-1"},
+                url="https://public-api.gamma.app/v1.0/gammas/gamma-1/export",
+            ),
+            _json_response(
+                200,
+                {"status": "completed", "exportUrl": pdf_url},
+                url="https://public-api.gamma.app/v1.0/exports/exp-1",
+            ),
+            _bytes_response(b"PDF-BYTES", pdf_url),
+        ]
+    )
+    client = LiveGammaClient(
+        api_key="sk-gamma-test",
+        theme_id="4kv51cbpy4xonmj",
+        http_client=http,  # type: ignore[arg-type]
+    )
+    with patch("services.gamma.live_client.time.sleep"):
+        result = client.generate(_request(output_formats=("pptx", "pdf")))
+    assert [artifact.format for artifact in result.artifacts] == ["pptx", "pdf"]
+    export_bodies = [
+        body
+        for (_method, path), body in zip(http.calls, http.json_bodies)
+        if path.endswith("/v1.0/gammas/gamma-1/export")
+    ]
+    assert export_bodies == [{"exportAs": "pdf"}]
 
 
 @pytest.mark.parametrize(
