@@ -1,5 +1,6 @@
 const DEFAULT_API_URL = "http://localhost:8000";
 
+import { buildArchiveListPath } from "./archiveHistory";
 import { formatJobFailureMessage } from "./jobErrors";
 import { getSupabaseBrowserClient } from "./supabase";
 import type { FrameworkObject, FrameworkVersionResponse } from "./frameworkTypes";
@@ -381,6 +382,41 @@ export async function listOpportunities(
   accessToken: string,
 ): Promise<ListedOpportunityResponse[]> {
   return apiFetch<ListedOpportunityResponse[]>("/opportunities", accessToken);
+}
+
+export interface ArchiveArtifactResponse {
+  id: string;
+  opportunity_id: string;
+  presentation_id: string;
+  presentation_version_id: string;
+  artifact_kind: string;
+  content_type: string;
+  file_name: string;
+  size_bytes: number;
+  sha256: string;
+  status: string;
+  client_name: string;
+  opportunity_name: string;
+  approved_by: string;
+  approved_at: string;
+  filed_at: string | null;
+  journey_stage: string | null;
+  prior_stage_presentation_version_id: string | null;
+  demo_marker: string | null;
+  download_url: string | null;
+}
+
+export interface ArchiveListQuery {
+  search?: string;
+  fromDate?: string;
+  toDate?: string;
+}
+
+export async function listArchiveArtifacts(
+  accessToken: string,
+  query: ArchiveListQuery = {},
+): Promise<ArchiveArtifactResponse[]> {
+  return apiFetch<ArchiveArtifactResponse[]>(buildArchiveListPath(query), accessToken);
 }
 
 export async function listTranscripts(

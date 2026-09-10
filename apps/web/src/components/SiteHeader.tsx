@@ -23,6 +23,7 @@ export function SiteHeader({ signedInEmail }: SiteHeaderProps) {
           {email ? (
             <>
               <Link href="/" className="site-nav-recent">Recent</Link>
+              <Link href="/archive" className="site-nav-archive">Archive</Link>
               <Link href="/upload?new=1" className="site-nav-new">
                 <span className="site-nav-new-full">New presentation</span>
                 <span className="site-nav-new-short">New</span>
