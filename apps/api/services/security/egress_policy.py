@@ -47,6 +47,15 @@ def load_field_classifications() -> dict[str, str]:
     return {str(path): str(value) for path, value in raw.items()}
 
 
+def load_egress_approval() -> dict[str, Any]:
+    raw = _raw_policy().get("approval") or {}
+    return {
+        "status": str(raw.get("status") or "pending"),
+        "signed_off": bool(raw.get("signed_off")),
+        "scheme": str(raw.get("scheme") or "working_default"),
+    }
+
+
 def load_runtime_egress_policy() -> EgressPolicy:
     raw = _raw_policy()
     allowlist = {
@@ -77,6 +86,13 @@ def enforce_external_egress(
     provider: str,
     stage: str,
     extra_classifications: dict[str, str] | None = None,
+    journey_stage: str | None = None,
+    opportunity_id: str | None = None,
+    presentation_version_id: str | None = None,
+    attempt: int = 1,
+    store: Any | None = None,
+    actor_id: Any | None = None,
+    policy: EgressPolicy | None = None,
 ) -> Any:
     """Filter a structured payload and refuse the send if any leaf is blocked."""
     classifications: dict[str, Classification | str] = dict(load_field_classifications())
@@ -86,13 +102,26 @@ def enforce_external_egress(
         payload,
         provider=provider,
         classifications=classifications,
-        policy=load_runtime_egress_policy(),
+        policy=policy or load_runtime_egress_policy(),
     )
+    from services.security.egress_audit import field_decisions_for
+
     record_egress_decision(
         provider=provider,
         stage=stage,
         allowed_paths=decision.allowed_paths,
         blocked_paths=decision.blocked_paths,
+        journey_stage=journey_stage,
+        opportunity_id=opportunity_id,
+        presentation_version_id=presentation_version_id,
+        fields=field_decisions_for(
+            allowed_paths=decision.allowed_paths,
+            blocked_paths=decision.blocked_paths,
+            classifications=classifications,
+        ),
+        attempt=attempt,
+        store=store,
+        actor_id=actor_id,
     )
     if decision.blocked_paths:
         raise EgressBlockedError(provider, decision.blocked_paths)

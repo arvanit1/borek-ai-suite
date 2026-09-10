@@ -121,6 +121,7 @@ class MemoryDataStore:
     slides: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     generation_jobs: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     audit_logs: dict[UUID, dict[str, Any]] = field(default_factory=dict)
+    egress_audits: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     llm_calls: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     filed_artifacts: dict[str, dict[str, Any]] = field(default_factory=dict)
     knowledge_corpus_versions: dict[UUID, dict[str, Any]] = field(default_factory=dict)
@@ -1232,6 +1233,49 @@ class MemoryDataStore:
         if actor_id is not None:
             rows = [row for row in rows if row["actor_id"] == actor_id]
         return sorted(rows, key=lambda row: row["timestamp"])
+
+    def append_egress_audit(
+        self,
+        *,
+        opportunity_id: UUID | str,
+        presentation_version_id: UUID | str,
+        journey_stage: str,
+        provider: str,
+        pipeline_stage: str,
+        decision: str,
+        fields: list[dict[str, str]],
+        attempt: int = 1,
+    ) -> dict[str, Any]:
+        entry_id = uuid.uuid4()
+        row = {
+            "id": entry_id,
+            "opportunity_id": str(opportunity_id),
+            "presentation_version_id": str(presentation_version_id),
+            "journey_stage": journey_stage,
+            "provider": provider,
+            "pipeline_stage": pipeline_stage,
+            "decision": decision,
+            "fields": list(fields),
+            "attempt": int(attempt),
+            "created_at": _now(),
+        }
+        self.egress_audits[entry_id] = row
+        return copy.deepcopy(row)
+
+    def list_egress_audits(
+        self,
+        *,
+        opportunity_id: UUID | str | None = None,
+        presentation_version_id: UUID | str | None = None,
+    ) -> list[dict[str, Any]]:
+        rows = list(self.egress_audits.values())
+        if opportunity_id is not None:
+            target = str(opportunity_id)
+            rows = [row for row in rows if str(row["opportunity_id"]) == target]
+        if presentation_version_id is not None:
+            target = str(presentation_version_id)
+            rows = [row for row in rows if str(row["presentation_version_id"]) == target]
+        return [copy.deepcopy(row) for row in sorted(rows, key=lambda item: item["created_at"])]
 
     def ingest_approved_corpus(self, raw: dict[str, Any]) -> dict[str, Any]:
         from services.borek_rag.ingest import ingest_summary, plan_ingest

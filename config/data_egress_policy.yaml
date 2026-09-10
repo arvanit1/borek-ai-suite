@@ -1,6 +1,13 @@
 version: "1.0"
 default: deny
 
+# BT-32: the classification scheme is an approved working default (O4, 3 Sep 2026).
+# This field map is NOT production-signed. Do not treat approval_status as granted.
+approval:
+  status: pending
+  signed_off: false
+  scheme: working_default
+
 classifications:
   - public
   - internal
@@ -56,6 +63,15 @@ field_classifications:
   "/slots/success_metrics.body": client_confidential
   "/slots/open_questions.body": client_confidential
   "/slots/next_steps.body": client_confidential
+  # Client logo HTTPS URL on the live Gamma request (not a named slots[] entry).
+  "/client_logo_url": client_confidential
+  # Live Gamma technical/provider metadata. Not customer content.
+  "/provider/themeId": internal
+  "/provider/gammaId": internal
+  "/provider/textMode": internal
+  "/provider/format": internal
+  "/provider/exportAs": internal
+  # Raw prior-stage / grounded-fact objects must never leave. Unlisted = deny.
 
 # Client-confidential leaves require an exact or prefix allow-list entry per provider.
 # These are the structured fields current live pipelines already send after PII redaction.
@@ -83,6 +99,7 @@ client_confidential_allowlist:
     - "/slots/success_metrics.body"
     - "/slots/open_questions.body"
     - "/slots/next_steps.body"
+    - "/client_logo_url"
 
 requirements:
   unclassified_fields: deny

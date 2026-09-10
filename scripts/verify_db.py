@@ -38,6 +38,7 @@ EXPECTED_TABLES = [
     "knowledge_corpus_versions",
     "knowledge_documents",
     "knowledge_facts",
+    "egress_audit",
 ]
 
 EXPECTED_COLUMNS = {
@@ -81,6 +82,16 @@ EXPECTED_COLUMNS = {
         "demo_marker",
     ),
     "knowledge_corpus_versions": ("owner_user_id", "demo_marker"),
+    "egress_audit": (
+        "opportunity_id",
+        "presentation_version_id",
+        "journey_stage",
+        "provider",
+        "pipeline_stage",
+        "decision",
+        "fields",
+        "attempt",
+    ),
 }
 
 EXPECTED_FOREIGN_KEYS = {
@@ -94,6 +105,7 @@ EXPECTED_FOREIGN_KEYS = {
     "filed_artifacts": "presentation_versions",
     "knowledge_documents": "knowledge_corpus_versions",
     "knowledge_facts": "knowledge_documents",
+    "egress_audit": "presentation_versions",
 }
 
 EXPECTED_INDEXES = (
@@ -108,6 +120,8 @@ EXPECTED_INDEXES = (
     "knowledge_corpus_versions_identity_idx",
     "filed_artifacts_approved_at_idx",
     "filed_artifacts_prior_stage_idx",
+    "egress_audit_opportunity_idx",
+    "egress_audit_version_stage_idx",
 )
 
 LOCAL_DB_HOSTS = {"localhost", "127.0.0.1", "::1"}

@@ -189,6 +189,9 @@ def run_gamma_rendering_stage(
             job_id=job_id,
             opportunity=opportunity,
             logo=logo,
+            store=store,
+            actor_id=user_id,
+            journey_stage=resolve_journey_stage(opportunity.get("journey_stage")),
         )
 
 
@@ -222,6 +225,9 @@ def _invoke_gamma(
     job_id: UUID,
     opportunity: dict[str, Any],
     logo: ClientLogoDecision,
+    store: Any,
+    actor_id: UUID,
+    journey_stage: str,
 ) -> dict[str, Any]:
     try:
         result = generate_with_egress_policy(
@@ -229,6 +235,10 @@ def _invoke_gamma(
             provider=provider,
             policy=load_runtime_egress_policy(),
             slot_classifications=classifications,
+            store=store,
+            actor_id=actor_id,
+            journey_stage=journey_stage,
+            attempt=retry_count + 1,
         )
         persisted = persist_gamma_result(result, artifact_root=settings.ARTIFACT_ROOT)
         log_llm_call(

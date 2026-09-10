@@ -68,7 +68,7 @@ def test_files_numbered_001_through_011_with_no_gaps() -> None:
     assert (MIGRATIONS_DIR / "011_rls_policies.sql").is_file()
 
 
-def test_follow_on_migrations_014_through_022_are_idempotent() -> None:
+def test_follow_on_migrations_014_through_023_are_idempotent() -> None:
     llm_calls = (MIGRATIONS_DIR / "014_llm_calls.sql").read_text(encoding="utf-8")
     assert "CREATE TABLE IF NOT EXISTS llm_calls" in llm_calls
     assert "ADD COLUMN IF NOT EXISTS llm_cost_eur" in llm_calls
@@ -114,6 +114,11 @@ def test_follow_on_migrations_014_through_022_are_idempotent() -> None:
     assert "ADD COLUMN IF NOT EXISTS sha256" in archive
     assert "ADD COLUMN IF NOT EXISTS storage_backend" in archive
     assert "CREATE INDEX IF NOT EXISTS filed_artifacts_approved_at_idx" in archive
+    egress = (MIGRATIONS_DIR / "023_egress_audit.sql").read_text(encoding="utf-8")
+    assert "CREATE TABLE IF NOT EXISTS egress_audit" in egress
+    assert "ENABLE ROW LEVEL SECURITY" in egress
+    assert "CREATE INDEX IF NOT EXISTS egress_audit_opportunity_idx" in egress
+    assert "fields JSONB NOT NULL" in egress
 
 
 def test_verify_db_covers_llm_calls_table() -> None:
@@ -125,9 +130,10 @@ def test_verify_db_covers_llm_calls_table() -> None:
     assert "height_px" in content
     assert "EXPECTED_FOREIGN_KEYS" in content
     assert "EXPECTED_INDEXES" in content
+    assert '"egress_audit"' in content
 
 
-def test_apply_migrations_script_covers_001_through_022() -> None:
+def test_apply_migrations_script_covers_001_through_023() -> None:
     assert APPLY_MIGRATIONS.is_file()
     content = APPLY_MIGRATIONS.read_text(encoding="utf-8")
     compile(content, str(APPLY_MIGRATIONS), "exec")
@@ -138,7 +144,7 @@ def test_apply_migrations_script_covers_001_through_022() -> None:
         for name in names
         if re.match(r"^\d{3}_", name)
     )
-    assert numbers == list(range(1, 23)), f"expected 001-022 with no gaps, got {numbers}"
+    assert numbers == list(range(1, 24)), f"expected 001-023 with no gaps, got {numbers}"
     assert names == sorted(names)
 
 
