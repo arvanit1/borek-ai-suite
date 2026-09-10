@@ -4,7 +4,7 @@ export const LAYOUT_CATALOG: ReadonlyArray<{
   category: string;
 }> = [
   { id: "COVER_01", label: "Cover", category: "cover" },
-  { id: "EXECUTIVE_SUMMARY_01", label: "Executive summary", category: "summary" },
+  { id: "EXECUTIVE_SUMMARY_01", label: "Executive Summary",category: "summary" },
   { id: "CONTEXT_01", label: "Context", category: "context" },
   { id: "PROBLEM_SOLUTION_01", label: "Problem and solution", category: "problem_solution" },
   { id: "SCOPE_01", label: "Scope", category: "scope" },

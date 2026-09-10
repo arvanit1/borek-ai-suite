@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "layoutId": "EXECUTIVE_SUMMARY_01",
-  "title": "Executive summary",
+  "title": "Executive Summary",
   "sourceChapterIds": ["1"],
   "fieldProvenance": [
     { "path": "title", "sourceChapterIds": ["1"] },

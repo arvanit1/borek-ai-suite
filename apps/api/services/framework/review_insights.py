@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +20,9 @@ REVIEW_STATE_RECOMMENDED = "REVIEW_RECOMMENDED"
 REVIEW_STATE_BLOCKING = "BLOCKING_CONTRADICTION"
 REVIEW_STATE_MISSING = "MISSING_REQUIRED_INFORMATION"
 REVIEW_STATE_WEAK_EVIDENCE = "WEAK_EVIDENCE"
+
+MIN_EXECUTIVE_SUMMARY_POINTS = 3
+MAX_EXECUTIVE_SUMMARY_POINTS = 6
 
 
 def attach_review_insights(
@@ -89,11 +93,13 @@ def build_review_summary(framework: dict[str, Any]) -> dict[str, Any]:
     contradictions = [_open_item_summary(item) for item in open_items if item.get("item_type") == "conflict"]
     evidence_warnings = _evidence_warnings(framework.get("chapters") or [])
     blocking_items = _blocking_items(framework, confirm_check, render)
+    executive_points = _executive_summary_points(view, framework)
 
     return {
         "language": lang,
         "headline": str(view.get("title") or framework.get("title") or "").strip(),
-        "executive_summary": _executive_summary(view, framework),
+        "executive_summary": " ".join(executive_points),
+        "executive_summary_points": executive_points,
         "key_pain_points": _key_pain_points(framework, view),
         "key_requirements": _key_requirements(framework, view),
         "target_outcomes": _target_outcomes(framework, view),
@@ -205,7 +211,7 @@ def build_attention_signals(framework: dict[str, Any]) -> list[dict[str, Any]]:
             )
         )
 
-    if not _executive_summary(resolve_customer_view(framework, lang=_framework_language(framework)), framework):
+    if not _executive_summary_points(resolve_customer_view(framework, lang=_framework_language(framework)), framework):
         signals.append(
             _signal(
                 REVIEW_STATE_MISSING,
@@ -303,18 +309,51 @@ def _framework_language(framework: dict[str, Any]) -> str:
     )
 
 
-def _executive_summary(view: dict[str, Any], framework: dict[str, Any]) -> str:
+def _executive_summary_points(view: dict[str, Any], framework: dict[str, Any]) -> list[str]:
+    points = _chapter_1_summary_parts(view, framework)
+    if len(points) < MIN_EXECUTIVE_SUMMARY_POINTS:
+        for extra in (
+            *_key_pain_points(framework, view),
+            *_key_requirements(framework, view),
+            *_target_outcomes(framework, view),
+        ):
+            normalized = extra.strip()
+            if not normalized or normalized in points:
+                continue
+            points.append(normalized)
+            if len(points) >= MIN_EXECUTIVE_SUMMARY_POINTS:
+                break
+    return _unique_nonempty(points, limit=MAX_EXECUTIVE_SUMMARY_POINTS)
+
+
+def _chapter_1_summary_parts(view: dict[str, Any], framework: dict[str, Any]) -> list[str]:
     for chapter in view.get("chapters") or []:
         if str(chapter.get("chapter_id")) != "1":
             continue
         body = chapter.get("body")
         if isinstance(body, str) and body.strip():
-            return body.strip()
+            return _split_summary_sentences(body)
         if isinstance(body, list):
-            parts = _block_text_parts(body)
+            parts: list[str] = []
+            for block in body:
+                if not isinstance(block, dict):
+                    continue
+                if block.get("block") == "bullets":
+                    parts.extend(str(item).strip() for item in block.get("items") or [] if str(item).strip())
+                else:
+                    parts.extend(_split_summary_sentences(" ".join(_block_text_parts([block]))))
             if parts:
-                return " ".join(parts).strip()
-    return _management_summary_excerpt(framework)
+                return parts
+    excerpt = _management_summary_excerpt(framework)
+    return _split_summary_sentences(excerpt) if excerpt else []
+
+
+def _split_summary_sentences(text: str) -> list[str]:
+    raw = text.strip()
+    if not raw:
+        return []
+    parts = re.split(r"(?<=[.!?])\s+", raw)
+    return [part.strip() for part in parts if part.strip()]
 
 
 def _key_pain_points(framework: dict[str, Any], view: dict[str, Any]) -> list[str]:
