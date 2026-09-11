@@ -5,6 +5,7 @@ import {
   formatRecentDate,
   latestActivityAt,
   selectRecentWorkJob,
+  snapshotsFromRecentWorkApi,
   type RecentWorkSnapshot,
 } from "./recentPresentations.js";
 
@@ -316,5 +317,24 @@ assert.equal(
 
 assert.equal(formatRecentDate("2026-09-01T23:30:00-05:00"), "2 Sep 2026");
 assert.equal(formatRecentDate("invalid"), "Date unavailable");
+
+const mapped = snapshotsFromRecentWorkApi([
+  {
+    opportunity: snapshot("mapped", "2026-09-02T10:00:00Z").opportunity,
+    transcript_count: 2,
+    framework_status: "draft",
+    has_plan: true,
+    presentation_id: "pres-1",
+    presentation_name: "Customer proposal",
+    deck: { pptx_download_url: "/presentations/pres-1/download/pptx" },
+    resource_load_failed: false,
+    activity_at: "2026-09-02T11:00:00Z",
+    job: { job_type: "framework_generation", status: "COMPLETED", current_stage: "COMPLETED" },
+  },
+])[0]!;
+assert.equal(mapped.transcriptCount, 2);
+assert.equal(mapped.hasPlan, true);
+assert.equal(mapped.presentationId, "pres-1");
+assert.equal(mapped.activityAt, "2026-09-02T11:00:00Z");
 
 console.log("MS-24 recent presentations tests passed");

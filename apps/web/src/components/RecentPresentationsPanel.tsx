@@ -7,143 +7,14 @@ import { AppPageHeader } from "@/components/AppPageHeader";
 import { JourneyStartPanel } from "@/components/JourneyStartPanel";
 import { SiteHeader } from "@/components/SiteHeader";
 import { useAuth } from "@/components/AuthProvider";
-import {
-  downloadPresentationFile,
-  getActiveJob,
-  getDeckCenter,
-  getJob,
-  getLatestFramework,
-  getLatestOpportunityJob,
-  getLatestPresentation,
-  getLatestPresentationPlan,
-  listOpportunities,
-  listTranscripts,
-  type ListedOpportunityResponse,
-} from "@/lib/api";
-import {
-  isMissingFrameworkError,
-  isMissingPresentationError,
-  isMissingPresentationPlanError,
-  isPresentationNotReadyError,
-} from "@/lib/apiErrors";
+import { downloadPresentationFile, listRecentWork } from "@/lib/api";
 import { buildDownloadFilename } from "@/lib/deckCenter";
 import {
   buildRecentWorkItems,
   formatRecentDate,
-  latestActivityAt,
-  selectRecentWorkJob,
+  snapshotsFromRecentWorkApi,
   type RecentWorkItem,
-  type RecentWorkSnapshot,
 } from "@/lib/recentPresentations";
-
-async function loadResource<T>(
-  request: Promise<T>,
-  fallback: T,
-  isMissing?: (error: unknown) => boolean,
-): Promise<{ value: T; failed: boolean }> {
-  try {
-    return { value: await request, failed: false };
-  } catch (error) {
-    if (isMissing?.(error)) {
-      return { value: fallback, failed: false };
-    }
-    return { value: fallback, failed: true };
-  }
-}
-
-async function loadSnapshot(
-  accessToken: string,
-  opportunity: ListedOpportunityResponse,
-): Promise<RecentWorkSnapshot> {
-  const [transcriptsResult, frameworkResult, planResult, presentationResult, latestJobResult,
-    frameworkJobResult, presentationJobResult] = await Promise.all([
-    loadResource(listTranscripts(accessToken, opportunity.id), []),
-    loadResource(getLatestFramework(accessToken, opportunity.id), null, isMissingFrameworkError),
-    loadResource(
-      getLatestPresentationPlan(accessToken, opportunity.id),
-      null,
-      isMissingPresentationPlanError,
-    ),
-    loadResource(
-      getLatestPresentation(accessToken, opportunity.id),
-      null,
-      isMissingPresentationError,
-    ),
-    loadResource(getLatestOpportunityJob(accessToken, opportunity.id), null),
-    loadResource(getActiveJob(accessToken, opportunity.id, "framework"), null),
-    loadResource(getActiveJob(accessToken, opportunity.id, "presentation"), null),
-  ]);
-  const transcripts = transcriptsResult.value;
-  const framework = frameworkResult.value;
-  const plan = planResult.value;
-  const presentation = presentationResult.value;
-  const latestJob = latestJobResult.value;
-  const workflowJob = selectRecentWorkJob([
-    frameworkJobResult.value,
-    presentationJobResult.value,
-    latestJob,
-  ]);
-  let resourceLoadFailed = [
-    transcriptsResult,
-    frameworkResult,
-    planResult,
-    presentationResult,
-    latestJobResult,
-    frameworkJobResult,
-    presentationJobResult,
-  ].some((result) => result.failed);
-  let jobDetails = workflowJob?.job_id === latestJob?.job_id ? latestJob : null;
-  if (workflowJob?.job_type === "presentation_planning" && !jobDetails) {
-    const jobResult = await loadResource(getJob(accessToken, workflowJob.job_id), null);
-    jobDetails = jobResult.value;
-    resourceLoadFailed ||= jobResult.failed;
-  }
-  const enqueue = jobDetails?.result._enqueue;
-  const autoContinue = Boolean(
-    enqueue &&
-      typeof enqueue === "object" &&
-      (enqueue as Record<string, unknown>).auto_continue === true,
-  );
-  const deckResult = presentation
-    ? await loadResource(
-        getDeckCenter(accessToken, presentation.id),
-        null,
-        isPresentationNotReadyError,
-      )
-    : { value: null, failed: false };
-  const deck = deckResult.value;
-  resourceLoadFailed ||= deckResult.failed;
-
-  return {
-    opportunity,
-    transcriptCount: transcripts.length,
-    frameworkStatus: framework?.status,
-    hasPlan: Boolean(plan),
-    presentationId: presentation?.id,
-    presentationName: deck?.presentation_name ?? presentation?.name,
-    deck: deck ? { pptx_download_url: deck.pptx_download_url } : undefined,
-    resourceLoadFailed,
-    activityAt: latestActivityAt(
-      opportunity.updated_at,
-      opportunity.created_at,
-      ...transcripts.map((transcript) => transcript.created_at),
-      framework?.created_at,
-      framework?.framework_json.updated_at,
-      plan?.created_at,
-      presentation?.created_at,
-      latestJob?.completed_at,
-      workflowJob?.started_at,
-    ),
-    job: workflowJob
-      ? {
-          job_type: workflowJob.job_type,
-          status: workflowJob.status,
-          current_stage: workflowJob.current_stage,
-          auto_continue: autoContinue,
-        }
-      : undefined,
-  };
-}
 
 export function RecentPresentationsPanel() {
   const { accessToken, session } = useAuth();
@@ -168,19 +39,10 @@ export function RecentPresentationsPanel() {
     setLoading(true);
     setError(null);
     try {
-      const opportunities = await listOpportunities(accessToken);
-      const snapshotResults = await Promise.allSettled(
-        opportunities.map((opportunity) => loadSnapshot(accessToken, opportunity)),
-      );
+      const snapshots = snapshotsFromRecentWorkApi(await listRecentWork(accessToken));
       if (requestId === loadRequestId.current) {
-        const snapshots = snapshotResults.flatMap((result) =>
-          result.status === "fulfilled" ? [result.value] : [],
-        );
         setItems(buildRecentWorkItems(snapshots, currentUserId));
         setItemsAuthScope(authScope);
-        if (snapshotResults.some((result) => result.status === "rejected")) {
-          setError("Some recent presentations could not be loaded. Please try again.");
-        }
       }
     } catch {
       if (requestId === loadRequestId.current) {

@@ -39,7 +39,12 @@ async def upload_transcript(
     except TranscriptIngestionError as exc:
         raise bad_request("INVALID_TRANSCRIPT_CONTENT", exc.user_message) from exc
 
-    existing = store.list_transcripts(opportunity_id=opportunity_id, user_id=user.id)
+    store.get_opportunity(opportunity_id=opportunity_id, user_id=user.id)
+    existing = store.list_transcripts(
+        opportunity_id=opportunity_id,
+        user_id=user.id,
+        verify_owner=False,
+    )
     conversation_id = next_conversation_id(
         [str(row.get("conversation_id") or "") for row in existing]
     )
@@ -62,6 +67,7 @@ async def upload_transcript(
         conversation_id=conversation_id,
         content=content,
         sections=sections,
+        verify_owner=False,
     )
     record_audit_event(
         store,

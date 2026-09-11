@@ -81,6 +81,39 @@ class ClientLogoMetadata(BaseModel):
     uploaded_at: datetime
 
 
+class RecentWorkJob(BaseModel):
+    job_type: str
+    status: str
+    current_stage: str | None = None
+    auto_continue: bool = False
+
+
+class RecentWorkDeck(BaseModel):
+    pptx_download_url: str
+
+
+class RecentWorkOpportunity(BaseModel):
+    id: UUID
+    client_name: str
+    opportunity_name: str
+    created_by: UUID
+    created_at: datetime
+    updated_at: datetime
+
+
+class RecentWorkSnapshot(BaseModel):
+    opportunity: RecentWorkOpportunity
+    transcript_count: int
+    framework_status: str | None = None
+    has_plan: bool = False
+    presentation_id: UUID | None = None
+    presentation_name: str | None = None
+    deck: RecentWorkDeck | None = None
+    resource_load_failed: bool = False
+    activity_at: datetime | str | None = None
+    job: RecentWorkJob | None = None
+
+
 class FiledArtifactResponse(BaseModel):
     idempotency_key: str
     opportunity_id: UUID

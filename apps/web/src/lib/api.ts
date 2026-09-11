@@ -399,6 +399,30 @@ export async function listOpportunities(
   return apiFetch<ListedOpportunityResponse[]>("/opportunities", accessToken);
 }
 
+export interface RecentWorkApiSnapshot {
+  opportunity: ListedOpportunityResponse;
+  transcript_count: number;
+  framework_status?: string | null;
+  has_plan: boolean;
+  presentation_id?: string | null;
+  presentation_name?: string | null;
+  deck?: { pptx_download_url: string } | null;
+  resource_load_failed?: boolean;
+  activity_at?: string | null;
+  job?: {
+    job_type: string;
+    status: "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED";
+    current_stage: string;
+    auto_continue?: boolean;
+  } | null;
+}
+
+export async function listRecentWork(
+  accessToken: string,
+): Promise<RecentWorkApiSnapshot[]> {
+  return apiFetch<RecentWorkApiSnapshot[]>("/opportunities/recent-work", accessToken);
+}
+
 export interface ArchiveArtifactResponse {
   id: string;
   opportunity_id: string;
