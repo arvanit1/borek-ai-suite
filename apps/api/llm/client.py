@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable
 
 from services.observability.llm_logger import LlmStage, invoke_llm
+from services.validation.compression_retry import compression_target_length
 
 if TYPE_CHECKING:
     from services.slides.content_generation.group_a.common import (
@@ -166,6 +167,8 @@ class LlmClient:
             "its max_length limit. Return a JSON object mapping the same paths to "
             "shortened strings. Do not add paths, invent facts, or change meaning."
         )
+        field_attempts: dict[str, int] = {}
+        previous_targets: dict[str, int] = {}
 
         def compress_fields(
             offending_values: dict[str, str],
@@ -173,21 +176,57 @@ class LlmClient:
         ) -> dict[str, str]:
             if not offending_values:
                 return {}
+            attempt_by_path: dict[str, int] = {}
+            for path in offending_values:
+                field_attempts[path] = field_attempts.get(path, 0) + 1
+                attempt_by_path[path] = field_attempts[path]
+            attempt = max(attempt_by_path.values())
             limits = _max_length_by_path(violations)
+            targets: dict[str, int] = {}
+            for path in offending_values:
+                if path not in limits:
+                    continue
+                target = compression_target_length(
+                    limits[path],
+                    len(offending_values[path]),
+                    attempt_by_path[path],
+                )
+                prior = previous_targets.get(path)
+                if prior is not None:
+                    target = min(target, max(1, prior - 1))
+                previous_targets[path] = target
+                targets[path] = target
             properties = {
-                path: _compression_string_schema(path, limits.get(path))
+                path: _compression_string_schema(
+                    path,
+                    limits.get(path),
+                    targets.get(path),
+                )
                 for path in offending_values
             }
-            limit_lines = [
-                f"- {path}: at most {limits[path]} characters (currently {len(offending_values[path])})"
-                for path in offending_values
-                if path in limits
-            ]
+            limit_lines = []
+            for path in offending_values:
+                if path not in limits:
+                    continue
+                target = targets[path]
+                limit_lines.append(
+                    f"- {path}: at most {limits[path]} characters "
+                    f"(currently {len(offending_values[path])}); "
+                    f"compression target {target} characters — stay comfortably "
+                    f"below the maximum"
+                )
             bound_instructions = f"{prompt_instructions}\n\n{_COMPRESSION_NUMBER_RULE}"
+            if any(item >= 2 for item in attempt_by_path.values()):
+                bound_instructions = (
+                    f"{bound_instructions}\n\nThe previous rewrite still exceeded "
+                    "the contract. Rewrite substantially shorter and stay "
+                    "comfortably below the maximum."
+                )
             if limit_lines:
                 bound_instructions = (
                     f"{bound_instructions}\n\nHard limits:\n" + "\n".join(limit_lines)
                 )
+            observed_retry = max(retry_count, attempt - 1)
             payload = self._filter_external_request(
                 {
                     "instructions": bound_instructions,
@@ -206,13 +245,13 @@ class LlmClient:
                 stage=LlmStage.COMPRESSION,
                 model=self._model,
                 prompt_version=prompt_version,
-                retry_count=retry_count,
+                retry_count=observed_retry,
                 call=lambda: _invoke_executor(
                     self._executor,
                     LlmStage.COMPRESSION,
                     "compression",
                     prompt_version,
-                    retry_count,
+                    observed_retry,
                     request=payload,
                 ),
                 input_tokens=lambda value: value.input_tokens,
@@ -325,11 +364,23 @@ def _max_length_by_path(violations: list[Any]) -> dict[str, int]:
     return limits
 
 
-def _compression_string_schema(path: str, limit: int | None) -> dict[str, Any]:
+def _compression_string_schema(
+    path: str,
+    limit: int | None,
+    target: int | None = None,
+) -> dict[str, Any]:
     schema: dict[str, Any] = {"type": "string"}
     if limit is not None:
+        # Schema maxLength stays on the real contract. The lower target is
+        # prompt-only headroom so AT-7 does not become a tighter cap.
         schema["maxLength"] = limit
-        schema["description"] = f"{path} must be at most {limit} characters."
+        if target is not None and target < limit:
+            schema["description"] = (
+                f"{path} contract maximum is {limit} characters; write at most "
+                f"{target} characters and stay comfortably below the maximum."
+            )
+        else:
+            schema["description"] = f"{path} must be at most {limit} characters."
     return schema
 
 

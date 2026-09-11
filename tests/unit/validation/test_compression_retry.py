@@ -10,6 +10,7 @@ from services.validation.compression_retry import (
     CONTENT_CONSTRAINT_EXCEEDED,
     MAX_COMPRESSION_ATTEMPTS,
     CompressionResult,
+    compression_target_length,
     get_value_at_path,
     is_compressible_violation,
     set_value_at_path,
@@ -532,6 +533,21 @@ def test_at8_ai_compression_is_called_not_clipper(registry: LayoutConstraintRegi
     assert result.slide_spec is None
     assert received == [over_limit, over_limit]
     assert all(len(value) == 29 for value in received)
+
+
+def test_compression_target_stays_below_contract_and_tightens_on_retry() -> None:
+    context_first = compression_target_length(32, 39, 1)
+    context_second = compression_target_length(32, 39, 2)
+    architecture_first = compression_target_length(100, 102, 1)
+    architecture_second = compression_target_length(100, 102, 2)
+
+    assert MAX_COMPRESSION_ATTEMPTS == 2
+    assert context_first < 32
+    assert context_second < context_first
+    assert architecture_first < 100
+    assert architecture_second < architecture_first
+    assert compression_target_length(32, 39, 1) == 32 - 7 - 1
+    assert compression_target_length(100, 102, 1) == 100 - 2 - 1
 
 
 def test_at8_path_helpers_round_trip_nested_fields() -> None:
