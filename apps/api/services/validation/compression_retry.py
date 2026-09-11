@@ -19,6 +19,28 @@ COMPRESSIBLE_VIOLATION_CODES = frozenset({"max_length"})
 CompressFn = Callable[[dict[str, Any], list[ConstraintViolation]], dict[str, Any]]
 
 
+def compression_target_length(
+    limit: int,
+    current_length: int,
+    attempt: int,
+) -> int:
+    """Internal generation target strictly below the AT-7 contract ``limit``.
+
+    AT-7 must keep validating against ``limit``. This value is only a model
+    headroom target so a slight overshoot of the asked length can still pass.
+    Later attempts ask for a lower target when the same field is still long.
+    """
+    if not isinstance(limit, int) or limit <= 0:
+        return 1
+    attempt_number = max(1, int(attempt))
+    measured = max(0, int(current_length))
+    overshoot = max(0, measured - limit)
+    # Ask low enough that repeating the current miss, plus extra tightening
+    # on retry, still lands under the unchanged contract.
+    headroom = overshoot + attempt_number
+    return max(1, limit - headroom)
+
+
 @dataclass(frozen=True)
 class CompressionResult:
     status: Literal["VALID", "VALIDATION_FAILED"]
