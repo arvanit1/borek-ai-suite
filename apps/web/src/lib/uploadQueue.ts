@@ -80,6 +80,14 @@ export function removeQueueItem(items: TranscriptQueueItem[], id: string): Trans
   return items.filter((item) => item.id !== id);
 }
 
+export function retryQueueItem(items: TranscriptQueueItem[], id: string): TranscriptQueueItem[] {
+  return updateQueueItem(items, id, {
+    status: "pending",
+    errorMessage: undefined,
+    transcriptId: undefined,
+  });
+}
+
 export function statusLabel(status: FileUploadStatus): string {
   switch (status) {
     case "rejected":

@@ -15,6 +15,7 @@ export interface ArchiveHistoryViewProps {
   items: ArchiveCard[];
   loading: boolean;
   error: string | null;
+  filterError: string | null;
   query: ArchiveSearchQuery;
   searchDraft: string;
   fromDateDraft: string;
@@ -38,6 +39,7 @@ export function ArchiveHistoryView({
   items,
   loading,
   error,
+  filterError,
   query,
   searchDraft,
   fromDateDraft,
@@ -57,21 +59,11 @@ export function ArchiveHistoryView({
 
   return (
     <div className="archive-page">
-      <div className="recent-heading-row">
-        <AppPageHeader
-          kicker="Your workspace"
-          title="Archive"
-          lead="Find a previously filed presentation by client, date, or opportunity name."
-        />
-        <div className="archive-heading-actions">
-          <Link href="/" className="btn btn-secondary">
-            Recent presentations
-          </Link>
-          <Link href="/upload?new=1" className="btn btn-primary">
-            Create presentation
-          </Link>
-        </div>
-      </div>
+      <AppPageHeader
+        kicker="Your workspace"
+        title="Archive"
+        lead="Find a previously filed presentation by client, date, or opportunity name."
+      />
 
       <p className="archive-o2-note">{ARCHIVE_O2_NOTE}</p>
 
@@ -120,6 +112,12 @@ export function ArchiveHistoryView({
         </div>
       </form>
 
+      {filterError ? (
+        <p className="alert alert-error" role="alert">
+          {filterError}
+        </p>
+      ) : null}
+
       {error ? (
         <div className="alert alert-error recent-error" role="alert">
           <span>{error}</span>
@@ -155,7 +153,11 @@ export function ArchiveHistoryView({
               <div className="recent-card-main">
                 <div className="recent-card-copy">
                   <p className="recent-client">{item.clientName}</p>
-                  <h2>{item.opportunityName}</h2>
+                  <h2>
+                    <Link href={item.openHref} className="archive-card-link">
+                      {item.opportunityName}
+                    </Link>
+                  </h2>
                   <p className="recent-date">
                     Filed {formatArchiveDate(item.filedAt)}
                     {item.journeyLabel ? ` · ${item.journeyLabel}` : ""}
@@ -165,11 +167,34 @@ export function ArchiveHistoryView({
                   {item.statusLabel}
                 </span>
               </div>
-              <div className="recent-card-actions">
-                <Link href={item.openHref} className="btn btn-secondary">
-                  Open
-                </Link>
-                {item.pptx ? (
+              {item.pptx || item.pdf ? <div className="recent-card-actions">
+                {item.pptx && item.pdf ? (
+                  <details className="archive-download-menu">
+                    <summary className="btn btn-secondary">Download</summary>
+                    <div className="archive-download-options">
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        disabled={downloadingKey === downloadKey(item, "pptx")}
+                        onClick={() => onDownload(item, item.pptx!)}
+                      >
+                        {downloadingKey === downloadKey(item, "pptx")
+                          ? "Downloading..."
+                          : "PowerPoint"}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        disabled={downloadingKey === downloadKey(item, "pdf")}
+                        onClick={() => onDownload(item, item.pdf!)}
+                      >
+                        {downloadingKey === downloadKey(item, "pdf")
+                          ? "Downloading..."
+                          : "PDF"}
+                      </button>
+                    </div>
+                  </details>
+                ) : item.pptx ? (
                   <button
                     type="button"
                     className="btn btn-secondary"
@@ -180,8 +205,7 @@ export function ArchiveHistoryView({
                       ? "Downloading..."
                       : "Download PowerPoint"}
                   </button>
-                ) : null}
-                {item.pdf ? (
+                ) : item.pdf ? (
                   <button
                     type="button"
                     className="btn btn-secondary"
@@ -193,7 +217,7 @@ export function ArchiveHistoryView({
                       : "Download PDF"}
                   </button>
                 ) : null}
-              </div>
+              </div> : null}
             </article>
           ))}
         </section>

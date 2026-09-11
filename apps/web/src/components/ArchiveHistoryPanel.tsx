@@ -7,6 +7,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { useAuth } from "@/components/AuthProvider";
 import { downloadPresentationFile, listArchiveArtifacts } from "@/lib/api";
 import {
+  archiveDateRangeError,
   buildArchiveCards,
   hasActiveArchiveFilters,
   type ArchiveCard,
@@ -24,6 +25,7 @@ export function ArchiveHistoryPanel() {
   const [searchDraft, setSearchDraft] = useState("");
   const [fromDateDraft, setFromDateDraft] = useState("");
   const [toDateDraft, setToDateDraft] = useState("");
+  const [filterError, setFilterError] = useState<string | null>(null);
   const [downloadingKey, setDownloadingKey] = useState<string | null>(null);
   const loadRequestId = useRef(0);
   const currentUserId = session?.user.id;
@@ -66,6 +68,12 @@ export function ArchiveHistoryPanel() {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const dateError = archiveDateRangeError(fromDateDraft, toDateDraft);
+    if (dateError) {
+      setFilterError(dateError);
+      return;
+    }
+    setFilterError(null);
     setQuery({
       search: searchDraft.trim() || undefined,
       fromDate: fromDateDraft || undefined,
@@ -77,6 +85,7 @@ export function ArchiveHistoryPanel() {
     setSearchDraft("");
     setFromDateDraft("");
     setToDateDraft("");
+    setFilterError(null);
     setQuery({});
   }
 
@@ -114,6 +123,7 @@ export function ArchiveHistoryPanel() {
           items={visibleItems}
           loading={loading}
           error={error}
+          filterError={filterError}
           query={query}
           searchDraft={searchDraft}
           fromDateDraft={fromDateDraft}
@@ -121,8 +131,14 @@ export function ArchiveHistoryPanel() {
           hasActiveFilters={hasActiveArchiveFilters(query)}
           downloadingKey={downloadingKey}
           onSearchChange={setSearchDraft}
-          onFromDateChange={setFromDateDraft}
-          onToDateChange={setToDateDraft}
+          onFromDateChange={(value) => {
+            setFromDateDraft(value);
+            setFilterError(null);
+          }}
+          onToDateChange={(value) => {
+            setToDateDraft(value);
+            setFilterError(null);
+          }}
           onSubmit={handleSubmit}
           onClear={handleClear}
           onRetry={() => void loadArchive(query)}

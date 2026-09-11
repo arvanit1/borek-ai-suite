@@ -2,6 +2,11 @@
 
 Phase 3. Owner: Mayank Somwani. Priority: P1.
 
+**Status: closed 11 Sep 2026** for the Mayank deliverable. Seed, production
+refusal, ES-39 demo-corpus boundary (unit), live seed-twice, and live SQL RLS
+are done. Product-route `borek-demo` opt-in stays Jaya. HTTP two-login pytest
+stays optional.
+
 Several tickets cannot be demonstrated because their inputs do not exist yet.
 MS-29 needs filed artifacts, MS-31 needs already-generated decks before a later
 journey stage can unlock, BT-29 only shows "Retrieving Borek information" when
@@ -58,3 +63,17 @@ AT-58 (intake persistence), AT-61 (filing metadata shape — same owner, so the
 shape is settled in one head), MS-27, MS-29, MS-31. From ES-39 it needs only
 the demo corpus id and provenance marker, frozen up front. Real rate cards stay
 with AT-59 and Fiona; this ticket never claims to be that source.
+
+## Closed — 11 Sep 2026
+
+| Proof | Evidence |
+|---|---|
+| Seed twice, no duplicates | `npm run seed:demo` twice on 10 Sep → `2 opportunities, 3 stage decks, 31 records`. Unit: `test_seed_is_idempotent_complete_and_owner_scoped` |
+| Production refuses | `test_production_profile_refuses_before_writes` |
+| Demo corpus + non-demo cannot retrieve | `test_manifest_uses_frozen_demo_identity_and_valid_retrieval_examples` (`allow_demo=True` hit/miss/ambiguous; blocked without opt-in) |
+| RLS second user sees none | Live SQL 10 Sep: owner `b919a044…` sees 2/6/3/3; other uid sees 0 |
+| Archive + selector can read the seed | MS-29 `/archive` and MS-31 selector on `main` consume filed artifacts / lineage. No hand-edit of the database |
+
+Re-ran 11 Sep: `py -3 -m pytest tests/unit/api/test_ms30_demo_data.py` plus the MS-30 migration test — 5 passed.
+
+**Not our close gate:** Jaya still owns turning `borek-demo` on in the product retrieval route (MS-28 / BT-29). HTTP two-login pytest is optional (no `RLS_TEST_USER_*`).

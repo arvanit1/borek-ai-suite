@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 
 import {
   ARCHIVE_O2_NOTE,
+  archiveDateRangeError,
   archiveEmptyCopy,
   buildArchiveCards,
   buildArchiveListPath,
@@ -90,6 +91,8 @@ assert.equal(hasActiveArchiveFilters({}), false);
 assert.equal(hasActiveArchiveFilters({ search: "  " }), false);
 assert.equal(hasActiveArchiveFilters({ search: "Northstar" }), true);
 assert.equal(hasActiveArchiveFilters({ fromDate: "2026-09-01" }), true);
+assert.equal(archiveDateRangeError("2026-09-10", "2026-09-01"), "The From date must be on or before the To date.");
+assert.equal(archiveDateRangeError("2026-09-01", "2026-09-10"), null);
 
 assert.equal(journeyStageLabel("concretisation"), "Concretisation");
 assert.equal(journeyStageLabel("unknown"), undefined);

@@ -42,6 +42,7 @@ function renderView(overrides: Partial<React.ComponentProps<typeof ArchiveHistor
       items={[]}
       loading={false}
       error={null}
+      filterError={null}
       query={{}}
       searchDraft=""
       fromDateDraft=""
@@ -82,9 +83,10 @@ assert.match(listHtml, /Service desk triage/);
 assert.match(listHtml, /Filed 1 Sep 2026/);
 assert.match(listHtml, /First contact/);
 assert.match(listHtml, />Filed</);
-assert.match(listHtml, /Download PowerPoint/);
-assert.match(listHtml, /Download PDF/);
-assert.match(listHtml, /Open/);
+assert.match(listHtml, />Download</);
+assert.match(listHtml, />PowerPoint</);
+assert.match(listHtml, />PDF</);
+assert.ok(listHtml.includes(`href="${filed.openHref.replaceAll("&", "&amp;")}"`));
 assert.doesNotMatch(listHtml, forbidden);
 assert.doesNotMatch(listHtml, />22222222-2222-4222-8222-222222222222</);
 

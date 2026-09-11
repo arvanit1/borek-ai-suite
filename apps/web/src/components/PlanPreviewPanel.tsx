@@ -389,20 +389,22 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
             <div className="upload-meta-card">
               <h3>Active opportunity</h3>
               <p className="upload-meta-empty">Confirm the slide order before generating the deck.</p>
-              <Link
-                href={pipelineHref("/framework-review", opportunityId)}
-                className="btn btn-secondary btn-block"
-              >
-                Back to framework
-              </Link>
-              {plan ? (
+              <div className="upload-meta-actions">
                 <Link
-                  href={pipelineHref("/deck-center", opportunityId)}
-                  className="btn btn-primary btn-block"
+                  href={pipelineHref("/framework-review", opportunityId)}
+                  className="btn btn-secondary"
                 >
-                  Open presentation
+                  Back to framework
                 </Link>
-              ) : null}
+                {plan ? (
+                  <Link
+                    href={pipelineHref("/deck-center", opportunityId)}
+                    className="btn btn-primary"
+                  >
+                    Open presentation
+                  </Link>
+                ) : null}
+              </div>
             </div>
           </aside>
 

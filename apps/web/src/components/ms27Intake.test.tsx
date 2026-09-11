@@ -10,11 +10,10 @@ import { OpportunityForm } from "./OpportunityForm.js";
 const formHtml = renderToStaticMarkup(
   <OpportunityForm disabled={false} onSubmit={async () => undefined} />,
 );
-assert.match(formHtml, /Additional client information/);
+assert.match(formHtml, /Personalise this presentation/);
 assert.match(formHtml, /Optional/);
 assert.match(formHtml, /leave this section empty and continue directly to transcripts/i);
-assert.match(formHtml, /Choose files/);
-assert.match(formHtml, /TXT, Markdown, CSV, or JSON/);
+assert.doesNotMatch(formHtml, /client_information_files/);
 assert.match(formHtml, /Location requirements/);
 assert.match(formHtml, /Add contact/);
 assert.doesNotMatch(formHtml, /Client contacts/);
@@ -35,9 +34,8 @@ const existingHtml = renderToStaticMarkup(
     onUpdateClientInformation={async () => undefined}
   />,
 );
-assert.match(existingHtml, /Choose files/);
-assert.match(existingHtml, /Save client information/);
-assert.match(existingHtml, /id="client_name"[^>]*disabled/);
+assert.match(existingHtml, /Save personalisation/);
+assert.doesNotMatch(existingHtml, /id="client_name"/);
 assert.doesNotMatch(existingHtml, /id="location_requirements"[^>]*disabled/);
 assert.doesNotMatch(existingHtml, /id="client_notes"[^>]*disabled/);
 assert.match(existingHtml, /Add contact/);
@@ -94,6 +92,16 @@ assert.match(logoHtml, /Client name/);
 assert.match(logoHtml, /src="\/logo.webp"/);
 assert.doesNotMatch(logoHtml, /64-4096/);
 assert.doesNotMatch(logoHtml, /Gamma/i);
+
+const uploadPanelSource = readFileSync(
+  fileURLToPath(new URL("./TranscriptUploadPanel.tsx", import.meta.url)),
+  "utf8",
+);
+assert.doesNotMatch(uploadPanelSource, /PipelineStepper|UploadStepper/);
+assert.match(uploadPanelSource, /Selected for this presentation/);
+assert.match(uploadPanelSource, /Change output/);
+assert.match(uploadPanelSource, /Continue to customer story/);
+assert.match(uploadPanelSource, /journeyStage !== "first_contact"/);
 
 const cssPath = fileURLToPath(new URL("../app/globals.css", import.meta.url));
 const css = readFileSync(cssPath, "utf8");
