@@ -44,6 +44,11 @@ def check_eligibility(
 
 
 def render_decision(readiness_score: int, open_items: list[dict[str, Any]]) -> dict[str, Any]:
+    """Customer-report PDF/DOCX gate (ES-11). Not a presentation-approval lock.
+
+    Presentation approval is ES-37. A score below 60 still holds the customer
+    report; it must not be reused as ``render.allowed`` blocking the pitch deck.
+    """
     cfg = scoring_config()["build_readiness"]["bands"]
     not_ready = int(cfg["not_ready"])
     ready_with_assumptions = int(cfg["ready_with_assumptions"])

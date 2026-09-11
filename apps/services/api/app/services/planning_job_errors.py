@@ -17,6 +17,15 @@ def format_presentation_planning_failure(exc: BaseException) -> tuple[str, str, 
     """Return (error_code, message, retryable) for a planning worker failure."""
     if isinstance(exc, PresentationPlanValidationError):
         return _validation_failure(str(exc))
+    from fastapi import HTTPException
+
+    from app.services.api_errors import error_fields_from_exception
+
+    if isinstance(exc, HTTPException):
+        code, message, retryable = error_fields_from_exception(exc)
+        if code == "JOB_FAILED":
+            code = "PRESENTATION_PLANNING_FAILED"
+        return code, message, retryable
     current: BaseException | None = exc
     seen: set[int] = set()
     while current is not None and id(current) not in seen:

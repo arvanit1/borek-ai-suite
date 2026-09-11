@@ -448,3 +448,38 @@ def test_derived_automation_rate_survives_customer_guardrails() -> None:
     sensitivity = next(block for block in ch9["body"] if block.get("block") == "sensitivity")
     assert "Auto-match" not in str(sensitivity)
     assert "Automation rate" in str(sensitivity)
+
+
+def test_question_shaped_unknowns_become_dependencies_not_assumptions() -> None:
+    from services.framework.assembly import assemble_from_knowledge, classify_unknown_open_item
+
+    how_type, how_owner, _ = classify_unknown_open_item("How to measure matching quality?")
+    assert how_type == "dependency"
+    assert how_owner == "Client"
+    gap_type, gap_owner, _ = classify_unknown_open_item(
+        "Formal ERP write-access approval date is not in the transcript.",
+        origin="OPEN_QUESTION",
+    )
+    assert gap_type == "assumption"
+    assert gap_owner == "Business"
+
+    model = json.loads((FIXTURES / "knowledge_model.invoice_3way.json").read_text(encoding="utf-8"))
+    model["unknowns"] = list(model.get("unknowns") or []) + [
+        {
+            "statement": "How to measure matching quality?",
+            "origin": "OPEN_QUESTION",
+            "confidence": "medium",
+            "source_refs": [{"conversation_id": "C7", "speaker_role": "IT", "excerpt_pointer": "turn:7"}],
+        },
+        {
+            "statement": "Whether the mailbox is shared or personal",
+            "origin": "OPEN_QUESTION",
+            "confidence": "medium",
+            "source_refs": [{"conversation_id": "C7", "speaker_role": "IT", "excerpt_pointer": "turn:8"}],
+        },
+    ]
+    skeleton = assemble_from_knowledge([model], opportunity_id="OPP-142")
+    by_description = {item["description"]: item for item in skeleton["open_items"]}
+    assert by_description["How to measure matching quality?"]["item_type"] == "dependency"
+    assert by_description["Whether the mailbox is shared or personal"]["item_type"] == "dependency"
+    assert by_description["Formal ERP write-access approval date is not in the transcript."]["item_type"] == "assumption"

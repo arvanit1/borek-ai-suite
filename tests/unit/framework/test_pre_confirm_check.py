@@ -251,3 +251,23 @@ def test_flow_metadata_cannot_create_a_false_ai_contradiction() -> None:
 
     confirmed = confirm_customer_report(framework)
     assert confirmed["status"] == "confirmed"
+
+
+def test_used_and_not_used_generic_domain_overlap_does_not_block() -> None:
+    """Shared words such as matching/invoice are not a chapter-6 contradiction."""
+    framework = _framework()
+    split = _ai_split(framework)
+    split["used_for"] = ["Matching invoices against purchase orders"]
+    split["not_used_for"] = ["Matching exceptions that go to a person"]
+    confirmed = confirm_customer_report(framework)
+    assert confirmed["status"] == "confirmed"
+
+
+def test_near_duplicate_used_and_not_used_still_blocks() -> None:
+    framework = _framework()
+    split = _ai_split(framework)
+    split["used_for"] = ["Deciding whether a case matches"]
+    split["not_used_for"] = ["The agent decides whether a case matches"]
+    with pytest.raises(PreConfirmError) as exc_info:
+        confirm_customer_report(framework)
+    assert "contradicts" in exc_info.value.user_message.lower()

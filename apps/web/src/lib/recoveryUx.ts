@@ -216,7 +216,7 @@ export function recoveryNoticeFromError(
   const value = errorShape(error);
   const technical = supportDetails(error);
 
-  if (value.code === "JOB_TIMEOUT") {
+  if (value.code === "JOB_TIMEOUT" || value.code === "PRESENTATION_PIPELINE_HANDOFF_MISSING") {
     return {
       ...runningRecoveryNotice(context, value.jobId),
       technical,

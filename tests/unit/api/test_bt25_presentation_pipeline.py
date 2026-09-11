@@ -510,3 +510,107 @@ def test_upgrade_of_already_completed_planning_job_starts_generation(
     assert refreshed.auto_continue is True
     assert len(_jobs(store, "presentation_generation")) == 1
     assert len(dispatched) == 1
+
+
+def test_continuation_http_error_records_failed_generation_job(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from fastapi import HTTPException
+
+    from app.services.api_errors import bad_request
+
+    store, opportunity, framework = _store_with_confirmed_framework()
+    plan = _persist_plan(store, framework)
+    planning_job = _completed_planning_job(
+        store,
+        opportunity,
+        framework,
+        plan,
+        auto_continue=True,
+    )
+
+    def _fail_enqueue(*_args, **_kwargs):
+        raise bad_request(
+            "PRESENTATION_PLAN_NOT_GENERATABLE",
+            "Approved plan includes unimplemented layouts (COVER_99)",
+        )
+
+    monkeypatch.setattr(
+        presentation_generation,
+        "enqueue_presentation_generate",
+        _fail_enqueue,
+    )
+
+    with pytest.raises(HTTPException) as raised:
+        continue_after_planning(store, planning_job_id=planning_job.id)
+
+    assert raised.value.detail["code"] == "PRESENTATION_PLAN_NOT_GENERATABLE"
+    generation_jobs = _jobs(store, "presentation_generation")
+    assert len(generation_jobs) == 1
+    failed = job_service.get_job(generation_jobs[0]["id"], repository=store)
+    assert failed is not None
+    assert failed.status == JobStatus.FAILED
+    assert failed.error_code == "PRESENTATION_PLAN_NOT_GENERATABLE"
+    assert failed.failed_stage == JobStage.SLIDE_GENERATING
+
+
+def test_worker_continuation_failure_keeps_planning_completed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.services.api_errors import bad_request
+
+    store, opportunity, framework = _store_with_confirmed_framework()
+    plan_id = uuid4()
+    planning_job = job_service.create_job(
+        opportunity["id"],
+        "presentation_planning",
+        auto_continue=True,
+        enqueue={
+            "framework_version_id": str(framework["id"]),
+            "user_id": str(USER_ID),
+            "presentation_plan_id": str(plan_id),
+        },
+        repository=store,
+    )
+    monkeypatch.setattr("app.services.data.build_worker_data_store", lambda: store)
+    monkeypatch.setattr(
+        presentation_generation,
+        "execute_presentation_planning",
+        lambda current_store, **kwargs: _persist_plan(
+            current_store,
+            framework,
+            plan_id=kwargs["presentation_plan_id"],
+        ),
+    )
+
+    def _fail_enqueue(*_args, **_kwargs):
+        raise bad_request(
+            "PRESENTATION_PLAN_NOT_GENERATABLE",
+            "Approved plan includes unimplemented layouts (COVER_99)",
+        )
+
+    monkeypatch.setattr(
+        presentation_generation,
+        "enqueue_presentation_generate",
+        _fail_enqueue,
+    )
+
+    from app.worker import run_presentation_planning_task
+
+    result = run_presentation_planning_task.run(
+        str(planning_job.id),
+        str(framework["id"]),
+        str(USER_ID),
+        str(plan_id),
+    )
+
+    completed = job_service.get_job(planning_job.id, repository=store)
+    assert completed is not None
+    assert completed.status == JobStatus.COMPLETED
+    assert result["presentation_plan_id"] == str(plan_id)
+    generation_jobs = _jobs(store, "presentation_generation")
+    assert len(generation_jobs) == 1
+    failed = job_service.get_job(generation_jobs[0]["id"], repository=store)
+    assert failed is not None
+    assert failed.status == JobStatus.FAILED
+    assert failed.error_code == "PRESENTATION_PLAN_NOT_GENERATABLE"

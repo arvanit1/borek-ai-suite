@@ -424,6 +424,46 @@ async function main() {
 }
 
 {
+  await assert.rejects(
+    buildPresentationPipeline({
+      frameworkVersionId: FRAMEWORK_ID,
+      api: successfulApi([], {
+        async getActivePresentationJob() {
+          return activeJob("presentation_generation", "FAILED");
+        },
+        async getJob(jobId) {
+          if (jobId !== GENERATION_JOB_ID) {
+            return completedJob("presentation_planning");
+          }
+          return {
+            ...completedJob("presentation_generation"),
+            status: "FAILED",
+            current_stage: "FAILED",
+            error: {
+              code: "PRESENTATION_PLAN_NOT_GENERATABLE",
+              message: "Approved plan includes unimplemented layouts (COVER_99)",
+              stage: "SLIDE_GENERATING",
+              retryable: false,
+            },
+          };
+        },
+        async generatePresentationPlan() {
+          throw new Error("failed generation must not restart planning");
+        },
+        async waitForJob() {
+          throw new Error("failed generation must not wait as if running");
+        },
+      }),
+    }),
+    (error: unknown) =>
+      error instanceof PresentationPipelineError &&
+      error.phase === "generation" &&
+      error.code === "PRESENTATION_PLAN_NOT_GENERATABLE" &&
+      error.jobId === GENERATION_JOB_ID,
+  );
+}
+
+{
   let jobReads = 0;
   const recovery = await recoverPresentationPipeline({
     frameworkVersionId: FRAMEWORK_ID,

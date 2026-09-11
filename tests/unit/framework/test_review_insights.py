@@ -14,6 +14,7 @@ from services.framework.review_insights import (
     REVIEW_STATE_BLOCKING,
     REVIEW_STATE_MISSING,
     REVIEW_STATE_READY,
+    REVIEW_STATE_RECOMMENDED,
     REVIEW_STATE_WEAK_EVIDENCE,
     attach_review_insights,
     build_attention_bundle,
@@ -262,3 +263,88 @@ def test_docx_export_blocked_when_render_not_allowed() -> None:
     framework = _framework(render={"allowed": False, "band": "not_ready", "reason": "Too low."})
     with pytest.raises(Exception):
         render_customer_docx(framework)
+
+
+def _sourced_chapters_with_ai_split() -> list[dict]:
+    chapters = [
+        {
+            "chapter_id": str(index),
+            "title": f"Chapter {index}",
+            "body": [{"block": "prose", "text": "Grounded fact.", "source_refs": [{"conversation_id": "C1", "excerpt_pointer": f"turn:{index}"}]}]
+            if index != 6
+            else [
+                {
+                    "block": "ai_split",
+                    "used_for": ["Reading documents into structured fields"],
+                    "not_used_for": ["Deciding whether a case matches"],
+                    "source_refs": [{"conversation_id": "C1", "excerpt_pointer": "turn:6"}],
+                }
+            ],
+            "source_refs": [{"conversation_id": "C1", "excerpt_pointer": f"turn:{index}"}]
+            if index not in {0, 13}
+            else [],
+        }
+        for index in range(14)
+    ]
+    return chapters
+
+
+def test_es37_low_build_readiness_does_not_block_presentation_approval() -> None:
+    framework = _framework(
+        render={
+            "allowed": False,
+            "band": "not_ready",
+            "reason": "Build-readiness is 58/100. A customer report is not rendered below 60. Close the gaps first.",
+        },
+        quality_scores={
+            "opportunity_rating": 72,
+            "conversation_quality": 65,
+            "build_readiness": 58,
+            "rationale": {},
+        },
+        chapters=_sourced_chapters_with_ai_split(),
+        open_items=[{"item_type": "assumption", "description": "Hours validated in workshop", "owner": "Business", "consequence_if_different": "Confirm."}],
+    )
+    bundle = build_attention_bundle(framework)
+    summary = build_review_summary(framework)
+    assert all(signal.get("severity") != "blocking" for signal in bundle["signals"])
+    assert bundle["review_state"] == REVIEW_STATE_RECOMMENDED
+    assert summary["confirm_ready"] is True
+    assert not any(item.get("kind") == "readiness" for item in summary["blocking_items"])
+    assert any("customer report" in (signal.get("action") or "").lower() for signal in bundle["signals"])
+    assert not any("close the open items in chapter 11" in (signal.get("action") or "").lower() for signal in bundle["signals"])
+
+
+def test_es37_three_plus_chapters_without_sources_are_warning_not_blocking() -> None:
+    chapters = _sourced_chapters_with_ai_split()
+    for chapter in chapters:
+        if str(chapter["chapter_id"]) in {"2", "3", "4", "5"}:
+            chapter["source_refs"] = []
+            chapter["body"] = [{"block": "prose", "text": "Ungrounded derived text."}]
+    framework = _framework(
+        render={"allowed": True, "assumptions_banner": False, "band": "ready_to_build"},
+        chapters=chapters,
+    )
+    bundle = build_attention_bundle(framework)
+    weak = [signal for signal in bundle["signals"] if signal["id"] == REVIEW_STATE_WEAK_EVIDENCE]
+    assert weak
+    assert all(signal["severity"] == "warning" for signal in weak)
+    assert bundle["review_state"] != REVIEW_STATE_BLOCKING
+    assert all(signal.get("severity") != "blocking" for signal in bundle["signals"])
+
+
+def test_es37_three_plus_open_questions_are_warning_not_blocking() -> None:
+    framework = _framework(
+        render={"allowed": True, "assumptions_banner": False, "band": "ready_to_build"},
+        chapters=_sourced_chapters_with_ai_split(),
+        open_items=[
+            {"item_type": "dependency", "description": f"How to measure outcome {index}?", "owner": "Client", "consequence_if_different": "Ask the client."}
+            for index in range(4)
+        ],
+    )
+    bundle = build_attention_bundle(framework)
+    missing = [signal for signal in bundle["signals"] if signal["id"] == REVIEW_STATE_MISSING]
+    assert missing
+    assert all(signal["severity"] == "warning" for signal in missing)
+    assert all(signal.get("severity") != "blocking" for signal in bundle["signals"])
+    assert bundle["review_state"] == REVIEW_STATE_RECOMMENDED
