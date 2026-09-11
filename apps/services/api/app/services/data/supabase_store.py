@@ -418,6 +418,149 @@ class SupabaseDataStore:
             raise bad_request("OPPORTUNITY_LIST_FAILED", response.text)
         return [_normalize_opportunity(row) for row in response.json()]
 
+    def load_recent_work_index(
+        self,
+        *,
+        user_id: UUID,
+        opportunity_ids: list[UUID],
+    ) -> dict[str, Any]:
+        _ = user_id
+        if not opportunity_ids:
+            return {
+                "transcripts": {},
+                "frameworks": {},
+                "jobs": {},
+                "plans": {},
+                "presentations": {},
+            }
+        in_filter = f"in.({','.join(str(item) for item in opportunity_ids)})"
+
+        def rows(table: str, params: dict[str, str], error_code: str) -> list[dict[str, Any]]:
+            response = self._request("GET", table, params=params)
+            if response.status_code != 200:
+                raise bad_request(error_code, response.text)
+            payload = response.json()
+            return payload if isinstance(payload, list) else []
+
+        transcript_rows = rows(
+            "transcripts",
+            {"select": "opportunity_id,created_at", "opportunity_id": in_filter},
+            "TRANSCRIPT_LIST_FAILED",
+        )
+        framework_rows = rows(
+            "framework_versions",
+            {
+                "select": "id,opportunity_id,status,created_at,version_number",
+                "opportunity_id": in_filter,
+                "order": "version_number.desc",
+            },
+            "FRAMEWORK_LIST_FAILED",
+        )
+        job_rows = rows(
+            "generation_jobs",
+            {
+                "select": "id,opportunity_id,job_type,status,current_stage,auto_continue,started_at,completed_at,created_at",
+                "opportunity_id": in_filter,
+                "order": "created_at.desc,id.desc",
+            },
+            "JOB_LIST_FAILED",
+        )
+        framework_ids = [str(row.get("id")) for row in framework_rows if row.get("id")]
+        plan_rows: list[dict[str, Any]] = []
+        if framework_ids:
+            plan_rows = rows(
+                "presentation_plans",
+                {
+                    "select": "id,created_at,framework_version_id",
+                    "framework_version_id": f"in.({','.join(framework_ids)})",
+                    "order": "created_at.desc",
+                },
+                "PRESENTATION_PLAN_LIST_FAILED",
+            )
+        plan_ids = [str(row.get("id")) for row in plan_rows if row.get("id")]
+        presentation_rows: list[dict[str, Any]] = []
+        if plan_ids:
+            presentation_rows = rows(
+                "presentations",
+                {
+                    "select": "id,name,created_at,presentation_plan_id",
+                    "presentation_plan_id": f"in.({','.join(plan_ids)})",
+                    "order": "created_at.desc",
+                },
+                "PRESENTATION_LIST_FAILED",
+            )
+        presentation_ids = [str(row.get("id")) for row in presentation_rows if row.get("id")]
+        version_rows: list[dict[str, Any]] = []
+        if presentation_ids:
+            version_rows = rows(
+                "presentation_versions",
+                {
+                    "select": "id,presentation_id,status,version_number",
+                    "presentation_id": f"in.({','.join(presentation_ids)})",
+                    "order": "version_number.desc",
+                },
+                "PRESENTATION_VERSION_LIST_FAILED",
+            )
+
+        transcripts: dict[str, list[dict[str, Any]]] = {str(item): [] for item in opportunity_ids}
+        for row in transcript_rows:
+            transcripts.setdefault(str(row.get("opportunity_id")), []).append(
+                {"created_at": row.get("created_at")}
+            )
+
+        frameworks: dict[str, dict[str, Any]] = {}
+        for row in framework_rows:
+            key = str(row.get("opportunity_id"))
+            if key not in frameworks:
+                frameworks[key] = {
+                    "id": row.get("id"),
+                    "status": row.get("status"),
+                    "created_at": row.get("created_at"),
+                    "version_number": row.get("version_number") or 0,
+                }
+
+        jobs: dict[str, list[dict[str, Any]]] = {str(item): [] for item in opportunity_ids}
+        for row in job_rows:
+            jobs.setdefault(str(row.get("opportunity_id")), []).append(_normalize_generation_job(row))
+
+        framework_to_opp = {str(row.get("id")): str(row.get("opportunity_id")) for row in framework_rows}
+        plans: dict[str, dict[str, Any]] = {}
+        plan_to_opp: dict[str, str] = {}
+        for row in plan_rows:
+            opp_id = framework_to_opp.get(str(row.get("framework_version_id")))
+            if not opp_id:
+                continue
+            plan_to_opp[str(row.get("id"))] = opp_id
+            if opp_id not in plans:
+                plans[opp_id] = {"id": row.get("id"), "created_at": row.get("created_at")}
+
+        latest_version: dict[str, dict[str, Any]] = {}
+        for row in version_rows:
+            key = str(row.get("presentation_id"))
+            if key not in latest_version:
+                latest_version[key] = row
+
+        presentations: dict[str, dict[str, Any]] = {}
+        for row in presentation_rows:
+            opp_id = plan_to_opp.get(str(row.get("presentation_plan_id")))
+            if not opp_id or opp_id in presentations:
+                continue
+            version = latest_version.get(str(row.get("id")))
+            presentations[opp_id] = {
+                "id": row.get("id"),
+                "name": row.get("name"),
+                "created_at": row.get("created_at"),
+                "version_status": None if version is None else version.get("status"),
+            }
+
+        return {
+            "transcripts": transcripts,
+            "frameworks": frameworks,
+            "jobs": jobs,
+            "plans": plans,
+            "presentations": presentations,
+        }
+
     def get_opportunity(self, *, opportunity_id: UUID, user_id: UUID) -> dict[str, Any]:
         response = self._request(
             "GET",
@@ -632,9 +775,10 @@ class SupabaseDataStore:
         conversation_id: str,
         content: bytes,
         sections: list[dict[str, Any]],
+        verify_owner: bool = True,
     ) -> dict[str, Any]:
-        _ = user_id
-        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        if verify_owner:
+            self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
         self._upload_transcript_content(
             storage_path=storage_path,
             mime_type=mime_type,
@@ -671,9 +815,15 @@ class SupabaseDataStore:
             raise bad_request("TRANSCRIPT_SECTIONS_CREATE_FAILED", section_response.text)
         return transcript
 
-    def list_transcripts(self, *, opportunity_id: UUID, user_id: UUID) -> list[dict[str, Any]]:
-        _ = user_id
-        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+    def list_transcripts(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        verify_owner: bool = True,
+    ) -> list[dict[str, Any]]:
+        if verify_owner:
+            self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
         response = self._request(
             "GET",
             "transcripts",

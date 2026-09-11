@@ -293,6 +293,87 @@ class MemoryDataStore:
         rows = [row for row in self.opportunities.values() if row["created_by"] == user_id]
         return sorted(rows, key=lambda row: row["created_at"], reverse=True)
 
+    def load_recent_work_index(
+        self,
+        *,
+        user_id: UUID,
+        opportunity_ids: list[UUID],
+    ) -> dict[str, Any]:
+        owned = {row["id"] for row in self.list_opportunities(user_id=user_id)}
+        wanted = {item for item in opportunity_ids if item in owned}
+        transcripts: dict[str, list[dict[str, Any]]] = {str(item): [] for item in wanted}
+        for row in self.transcripts.values():
+            opp_id = row.get("opportunity_id")
+            if opp_id in wanted:
+                transcripts[str(opp_id)].append({"created_at": row.get("created_at")})
+
+        frameworks: dict[str, dict[str, Any]] = {}
+        for row in self.framework_versions.values():
+            opp_id = row.get("opportunity_id")
+            if opp_id not in wanted:
+                continue
+            current = frameworks.get(str(opp_id))
+            if current is None or int(row.get("version_number") or 0) > int(current.get("version_number") or 0):
+                frameworks[str(opp_id)] = {
+                    "id": row["id"],
+                    "status": row.get("status"),
+                    "created_at": row.get("created_at"),
+                    "version_number": row.get("version_number") or 0,
+                }
+
+        jobs: dict[str, list[dict[str, Any]]] = {str(item): [] for item in wanted}
+        for row in self.generation_jobs.values():
+            opp_id = row.get("opportunity_id")
+            if opp_id in wanted:
+                jobs[str(opp_id)].append(copy.deepcopy(row))
+
+        framework_to_opp = {
+            row["id"]: row["opportunity_id"]
+            for row in self.framework_versions.values()
+            if row.get("opportunity_id") in wanted
+        }
+        plans: dict[str, dict[str, Any]] = {}
+        plan_to_opp: dict[UUID, UUID] = {}
+        for row in self.presentation_plans.values():
+            opp_id = framework_to_opp.get(row.get("framework_version_id"))
+            if opp_id is None:
+                continue
+            plan_to_opp[row["id"]] = opp_id
+            current = plans.get(str(opp_id))
+            if current is None or str(row.get("created_at") or "") > str(current.get("created_at") or ""):
+                plans[str(opp_id)] = {"id": row["id"], "created_at": row.get("created_at")}
+
+        presentations: dict[str, dict[str, Any]] = {}
+        for row in self.presentations.values():
+            opp_id = plan_to_opp.get(row.get("presentation_plan_id"))
+            if opp_id is None:
+                continue
+            current = presentations.get(str(opp_id))
+            if current is None or str(row.get("created_at") or "") > str(current.get("created_at") or ""):
+                latest_version = max(
+                    (
+                        version
+                        for version in self.presentation_versions.values()
+                        if version.get("presentation_id") == row["id"]
+                    ),
+                    key=lambda version: int(version.get("version_number") or 0),
+                    default=None,
+                )
+                presentations[str(opp_id)] = {
+                    "id": row["id"],
+                    "name": row.get("name"),
+                    "created_at": row.get("created_at"),
+                    "version_status": None if latest_version is None else latest_version.get("status"),
+                }
+
+        return {
+            "transcripts": transcripts,
+            "frameworks": frameworks,
+            "jobs": jobs,
+            "plans": plans,
+            "presentations": presentations,
+        }
+
     def get_opportunity(self, *, opportunity_id: UUID, user_id: UUID) -> dict[str, Any]:
         row = self.opportunities.get(opportunity_id)
         if row is None or row["created_by"] != user_id:
@@ -404,8 +485,10 @@ class MemoryDataStore:
         conversation_id: str,
         content: bytes,
         sections: list[dict[str, Any]],
+        verify_owner: bool = True,
     ) -> dict[str, Any]:
-        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        if verify_owner:
+            self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
         transcript_id = uuid.uuid4()
         row = {
             "id": transcript_id,
@@ -422,8 +505,15 @@ class MemoryDataStore:
         self.transcripts[transcript_id] = row
         return row
 
-    def list_transcripts(self, *, opportunity_id: UUID, user_id: UUID) -> list[dict[str, Any]]:
-        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+    def list_transcripts(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        verify_owner: bool = True,
+    ) -> list[dict[str, Any]]:
+        if verify_owner:
+            self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
         rows = [
             row for row in self.transcripts.values() if row["opportunity_id"] == opportunity_id
         ]

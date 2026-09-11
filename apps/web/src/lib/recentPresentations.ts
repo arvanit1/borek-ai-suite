@@ -196,6 +196,34 @@ export function buildRecentWorkItems(
     .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt));
 }
 
+export function snapshotsFromRecentWorkApi(
+  rows: Array<{
+    opportunity: RecentWorkSnapshot["opportunity"];
+    transcript_count: number;
+    framework_status?: string | null;
+    has_plan: boolean;
+    presentation_id?: string | null;
+    presentation_name?: string | null;
+    deck?: { pptx_download_url: string } | null;
+    resource_load_failed?: boolean;
+    activity_at?: string | null;
+    job?: RecentWorkSnapshot["job"] | null;
+  }>,
+): RecentWorkSnapshot[] {
+  return rows.map((row) => ({
+    opportunity: row.opportunity,
+    transcriptCount: row.transcript_count,
+    frameworkStatus: row.framework_status ?? undefined,
+    hasPlan: row.has_plan,
+    presentationId: row.presentation_id ?? undefined,
+    presentationName: row.presentation_name ?? undefined,
+    deck: row.deck ?? undefined,
+    resourceLoadFailed: row.resource_load_failed,
+    activityAt: row.activity_at ?? undefined,
+    job: row.job ?? undefined,
+  }));
+}
+
 export function latestActivityAt(...values: Array<string | null | undefined>): string {
   const valid = values
     .filter(

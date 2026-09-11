@@ -18,7 +18,9 @@ from app.schemas.opportunities import (
     OpportunityCreateRequest,
     OpportunityResponse,
     OpportunityUpdateRequest,
+    RecentWorkSnapshot,
 )
+from app.services.recent_work import list_recent_work_snapshots
 from app.services import job_service
 from app.services.api_errors import not_found
 from app.services.audit import AuditAction, AuditObjectType, record_audit_event
@@ -64,6 +66,14 @@ def create_opportunity(
 def list_opportunities(user: AuthUserDep, store: DataStoreDep) -> list[OpportunityResponse]:
     rows = store.list_opportunities(user_id=user.id)
     return [_to_response(row) for row in rows]
+
+
+@router.get("/recent-work", response_model=list[RecentWorkSnapshot])
+def list_recent_work(user: AuthUserDep, store: DataStoreDep) -> list[RecentWorkSnapshot]:
+    return [
+        RecentWorkSnapshot.model_validate(row)
+        for row in list_recent_work_snapshots(store, user_id=user.id)
+    ]
 
 
 @router.put("/{opportunity_id}/client-logo", response_model=ClientLogoMetadata)
