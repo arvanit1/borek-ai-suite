@@ -1,18 +1,17 @@
 # BT-32 O4 Production Sign-off
 
 Technical evidence package for human O4 production approval of external-provider
-egress. This document does **not** grant approval.
+egress.
 
-Production approval is not granted until the named O4 owner changes the
-decision to APPROVED and the policy approval metadata is updated in a
-subsequent reviewed change.
+Production classification was approved on 2026-09-11 by **O4 owner / Head of AI**.
+No person name is recorded; the repository identifies the signer by role only.
 
-Policy file (`config/data_egress_policy.yaml`) remains:
+Policy file (`config/data_egress_policy.yaml`) now records:
 
 ```yaml
 approval:
-  status: pending
-  signed_off: false
+  status: approved
+  signed_off: true
   scheme: working_default
 ```
 
@@ -241,8 +240,9 @@ python -m pytest tests/unit/gamma/test_gamma_egress_policy.py tests/unit/gamma/t
 
 Combined focused set: 67 passed.
 
-`test_o4_approval_is_explicitly_pending` stays green until a human updates
-the policy.
+`test_o4_approval_is_recorded` asserts `status: approved` and
+`signed_off: true`. Approver identity stays in this document (role only);
+the policy schema does not store a person name.
 
 ```
 python scripts/validate_all.py
@@ -258,21 +258,15 @@ PASS (no whitespace errors).
 
 ## Approval decision
 
-O4 owner:
+O4 owner: O4 owner / Head of AI
 
-Decision: PENDING
+Decision: APPROVED
 
-Date:
+Date: 2026-09-11
 
-Evidence reviewed:
+Evidence reviewed: BT-32 O4 production sign-off package
 
-Comments:
+Comments: Production egress classification approved.
 
-The repository names the production signer as **Head of AI / ES** in
-`config/data_egress_policy.yaml` (“until Head of AI / ES signs the production
-list”). It does not name a current person. Do not infer an approver from git
-history.
-
-Production approval is not granted until the named O4 owner changes the
-decision to APPROVED and the policy approval metadata is updated in a
-subsequent reviewed change.
+The repository identifies the signer by official role only. It does not name
+a current person. Do not infer an approver from git history.

@@ -57,6 +57,10 @@ and sign-off.
 ## O4 evidence
 
 Technical evidence for the human O4 owner is in
-[`BT32_O4_SIGNOFF.md`](BT32_O4_SIGNOFF.md). The policy file remains
-`approval.status: pending` / `signed_off: false` until that owner records
-production approval in a subsequent reviewed change.
+[`BT32_O4_SIGNOFF.md`](BT32_O4_SIGNOFF.md).
+
+**ENGINEERING COMPLETE — O4 SIGN-OFF COMPLETE**
+
+The previously outstanding written O4 approval is recorded:
+`approval.status: approved` / `signed_off: true` (2026-09-11,
+O4 owner / Head of AI). No person name is stored.

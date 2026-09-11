@@ -96,13 +96,13 @@ def _generate(request: GammaGenerateRequest, *, store=None, journey_stage: str, 
     )
 
 
-def test_o4_approval_is_explicitly_pending() -> None:
+def test_o4_approval_is_recorded() -> None:
     approval = load_egress_approval()
-    assert approval["status"] == "pending"
-    assert approval["signed_off"] is False
+    assert approval["status"] == "approved"
+    assert approval["signed_off"] is True
     raw = _policy()
-    assert raw["approval"]["status"] == "pending"
-    assert raw["approval"]["signed_off"] is False
+    assert raw["approval"]["status"] == "approved"
+    assert raw["approval"]["signed_off"] is True
     assert "approver" not in raw["approval"]
     assert "approved_at" not in raw["approval"]
 
