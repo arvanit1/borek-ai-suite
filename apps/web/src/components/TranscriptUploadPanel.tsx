@@ -10,9 +10,8 @@ import { ClientLogoUpload } from "@/components/ClientLogoUpload";
 import { FileUploadQueue } from "@/components/FileUploadQueue";
 import { JourneyStageChoice, JourneyStageSelector } from "@/components/JourneyStageSelector";
 import { OpportunityForm } from "@/components/OpportunityForm";
-import { PipelineStepper } from "@/components/PipelineStepper";
 import { SiteHeader } from "@/components/SiteHeader";
-import { UploadStepper } from "@/components/UploadStepper";
+import { WorkflowActionBar } from "@/components/WorkflowActionBar";
 import {
   createOpportunity,
   getJourneyStageEligibility,
@@ -32,7 +31,6 @@ import {
   clearOpportunityDraft,
   clearPipelineContext,
   getCachedUploadSession,
-  opportunityLabel,
   pipelineHref,
   rememberUploadSession,
   saveActiveOpportunity,
@@ -46,6 +44,7 @@ import {
 } from "@/lib/journeyStageEligibility";
 import {
   bindSelectedJourneyStage,
+  clearSelectedJourneyStage,
   journeyStageForGenerate,
   loadSelectedJourneyStage,
   saveSelectedJourneyStage,
@@ -82,6 +81,14 @@ function mergeQueue(
   return extras.length === 0 ? cached : [...cached, ...extras];
 }
 
+function initialJourneyStage(startFresh: boolean): JourneyStageName | null {
+  const stored = loadSelectedJourneyStage();
+  if (startFresh && stored?.opportunityId) {
+    return defaultStartableStage(NEW_CLIENT_ELIGIBILITY);
+  }
+  return stored?.journeyStage ?? defaultStartableStage(NEW_CLIENT_ELIGIBILITY);
+}
+
 export function TranscriptUploadPanel({
   initialOpportunityId = null,
   startFresh = false,
@@ -102,16 +109,16 @@ export function TranscriptUploadPanel({
   const [opportunityId, setOpportunityId] = useState<string | null>(
     initialOpportunityId || cached.opportunity?.id || null,
   );
-  const [opportunityLabelText, setOpportunityLabelText] = useState<string | null>(
-    cached.opportunity ? opportunityLabel(cached.opportunity) : null,
-  );
   const [queueItems, setQueueItems] = useState<TranscriptQueueItem[]>(cached.queue);
   const [uploadSummary, setUploadSummary] = useState<string | null>(cached.summary);
   const [eligibility, setEligibility] =
     useState<JourneyStageEligibilityResponse>(NEW_CLIENT_ELIGIBILITY);
-  const [journeyStage, setJourneyStage] = useState<JourneyStageName | null>(
-    () => loadSelectedJourneyStage()?.journeyStage ?? defaultStartableStage(NEW_CLIENT_ELIGIBILITY),
+  const [journeyStage, setJourneyStage] = useState<JourneyStageName | null>(() =>
+    initialJourneyStage(startFresh),
   );
+  const [eligibilityLoading, setEligibilityLoading] = useState(false);
+  const [eligibilityError, setEligibilityError] = useState<string | null>(null);
+  const [eligibilityReloadKey, setEligibilityReloadKey] = useState(0);
 
   const contextMatchesRequest = !initialOpportunityId || opportunityId === initialOpportunityId;
   const canUpload =
@@ -123,9 +130,17 @@ export function TranscriptUploadPanel({
       return;
     }
     clearPipelineContext();
+    const storedSelection = loadSelectedJourneyStage();
+    if (storedSelection?.opportunityId) {
+      clearSelectedJourneyStage();
+      const defaultStage = defaultStartableStage(NEW_CLIENT_ELIGIBILITY);
+      setJourneyStage(defaultStage);
+      if (defaultStage) {
+        saveSelectedJourneyStage(defaultStage);
+      }
+    }
     setOpportunity(null);
     setOpportunityId(null);
-    setOpportunityLabelText(null);
     setQueueItems([]);
     setUploadSummary(null);
     router.replace("/upload");
@@ -137,7 +152,6 @@ export function TranscriptUploadPanel({
     }
     setOpportunity(null);
     setOpportunityId(initialOpportunityId);
-    setOpportunityLabelText(null);
     setQueueItems([]);
     setUploadSummary(null);
   }, [initialOpportunityId, opportunityId]);
@@ -156,10 +170,14 @@ export function TranscriptUploadPanel({
     async function loadEligibility() {
       if (!accessToken || !opportunityId || startFresh) {
         setEligibility(NEW_CLIENT_ELIGIBILITY);
+        setEligibilityError(null);
+        setEligibilityLoading(false);
         const stored = loadSelectedJourneyStage()?.journeyStage;
         setJourneyStage(stored ?? defaultStartableStage(NEW_CLIENT_ELIGIBILITY));
         return;
       }
+      setEligibilityLoading(true);
+      setEligibilityError(null);
       try {
         const payload = eligibilityForOpportunity(
           await getJourneyStageEligibility(accessToken, opportunityId),
@@ -177,7 +195,11 @@ export function TranscriptUploadPanel({
         );
       } catch {
         if (!cancelled) {
-          setEligibility(NEW_CLIENT_ELIGIBILITY);
+          setEligibilityError("Available outputs could not be loaded. Try again before changing the output.");
+        }
+      } finally {
+        if (!cancelled) {
+          setEligibilityLoading(false);
         }
       }
     }
@@ -186,7 +208,7 @@ export function TranscriptUploadPanel({
     return () => {
       cancelled = true;
     };
-  }, [accessToken, opportunityId, startFresh]);
+  }, [accessToken, eligibilityReloadKey, opportunityId, startFresh]);
 
   function handleJourneyStageChange(stage: JourneyStageName) {
     setJourneyStage(stage);
@@ -219,7 +241,6 @@ export function TranscriptUploadPanel({
         const stored = storedFromResponse(loaded);
         setOpportunity(loaded);
         setOpportunityId(loaded.id);
-        setOpportunityLabelText(opportunityLabel(stored));
         saveActiveOpportunity(stored);
         clearOpportunityDraft();
         router.replace(pipelineHref("/upload", loaded.id));
@@ -228,7 +249,6 @@ export function TranscriptUploadPanel({
           clearActiveOpportunity();
           setOpportunity(null);
           setOpportunityId(null);
-          setOpportunityLabelText(null);
           setQueueItems([]);
           router.replace("/upload");
         }
@@ -272,7 +292,6 @@ export function TranscriptUploadPanel({
     const stored = storedFromResponse(created);
     setOpportunity(created);
     setOpportunityId(created.id);
-    setOpportunityLabelText(opportunityLabel(stored));
     setUploadSummary(null);
     saveActiveOpportunity(stored);
     bindSelectedJourneyStage(created.id);
@@ -299,7 +318,6 @@ export function TranscriptUploadPanel({
     });
     const stored = storedFromResponse(updated);
     setOpportunity(updated);
-    setOpportunityLabelText(opportunityLabel(stored));
     saveActiveOpportunity(stored);
     rememberUploadSession({
       opportunity: stored,
@@ -358,58 +376,84 @@ export function TranscriptUploadPanel({
       <div className="app-shell app-workspace-body">
         {!loading && isAuthenticated ? <span data-testid="auth-ready" hidden /> : null}
 
-        <PipelineStepper currentStep={1} opportunityId={opportunityId ?? undefined} />
+        <WorkflowActionBar
+          backHref="/"
+          backLabel="Back to Recent"
+          contextLabel="Current presentation"
+          context={
+            <>
+              <strong>
+                {opportunity
+                  ? `${opportunity.client_name} - ${opportunity.opportunity_name}`
+                  : "New presentation"}
+              </strong>
+              <JourneyStageChoice stage={journeyStage} />
+            </>
+          }
+        >
+          {opportunityId &&
+          statusCounts.success > 0 &&
+          statusCounts.pending === 0 &&
+          statusCounts.uploading === 0 ? (
+            <Link
+              href={pipelineHref("/framework-review", opportunityId)}
+              className="btn btn-primary"
+            >
+              Continue to customer story
+            </Link>
+          ) : (
+            <button type="button" className="btn btn-primary" disabled>
+              Continue to customer story
+            </button>
+          )}
+        </WorkflowActionBar>
+
         <AppPageHeader
-          kicker="Step 1 of 4"
-          title="Transcript ingestion"
-          lead="Attach client discovery transcripts to an opportunity. Unsupported formats are filtered on your device before anything is sent to the server."
+          kicker="Presentation intake"
+          title="Create a presentation"
+          lead="Confirm the client, add discovery transcripts, and continue to the customer story."
         />
 
-        <div className="upload-layout">
-          <aside className="upload-sidebar">
-            <UploadStepper
-              opportunityReady={Boolean(opportunityId)}
-              fileCount={queueItems.length}
-              uploadedCount={statusCounts.success}
-            />
-
-            {opportunityId ? (
-              <div className="upload-meta-card">
-                <h3>Active opportunity</h3>
-                {opportunityLabelText ? <p className="upload-meta-title">{opportunityLabelText}</p> : null}
-                <Link
-                  href={pipelineHref("/framework-review", opportunityId)}
-                  className="btn btn-secondary btn-block"
-                >
-                  Review framework
-                </Link>
+        <div className="intake-main">
+            <section className="journey-upload-summary" aria-labelledby="presentation-output-title">
+              <div>
+                <p className="journey-start-kicker">Presentation output</p>
+                <h2 id="presentation-output-title">Selected for this presentation</h2>
+                <JourneyStageChoice stage={journeyStage} />
               </div>
-            ) : (
-              <div className="upload-meta-card upload-meta-card-muted">
-                <h3>Active opportunity</h3>
-                <p className="upload-meta-empty">Create an opportunity to start this pipeline.</p>
-              </div>
-            )}
-          </aside>
+              <details className="journey-change-output">
+                <summary>Change output</summary>
+                {eligibilityError ? (
+                  <div className="alert alert-error recent-error" role="alert">
+                    <span>{eligibilityError}</span>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => setEligibilityReloadKey((key) => key + 1)}
+                    >
+                      Try again
+                    </button>
+                  </div>
+                ) : eligibilityLoading ? (
+                  <p className="journey-start-loading">Loading available outputs...</p>
+                ) : (
+                  <JourneyStageSelector
+                    eligibility={eligibility}
+                    selected={journeyStage}
+                    onSelect={handleJourneyStageChange}
+                    disabled={!isAuthenticated || loading}
+                  />
+                )}
+              </details>
+            </section>
 
-          <div className="upload-main">
             <section className="upload-panel">
               <header className="upload-panel-header">
                 <div>
-                  <h2>Opportunity details</h2>
-                  <p>Every upload is scoped to a sales opportunity record.</p>
+                  <h2>Client and opportunity</h2>
+                  <p>Create the workspace that will hold the transcripts and presentation.</p>
                 </div>
               </header>
-              <div className="journey-upload-choice">
-                <h3>Presentation output</h3>
-                <JourneyStageChoice stage={journeyStage} />
-                <JourneyStageSelector
-                  eligibility={eligibility}
-                  selected={journeyStage}
-                  onSelect={handleJourneyStageChange}
-                  disabled={!isAuthenticated || loading}
-                />
-              </div>
               <OpportunityForm
                 disabled={!isAuthenticated || loading}
                 existing={
@@ -426,14 +470,25 @@ export function TranscriptUploadPanel({
                 }
                 onSubmit={handleCreateOpportunity}
                 onUpdateClientInformation={handleUpdateClientInformation}
+                personalisationHint={
+                  journeyStage === "first_contact"
+                    ? "Save confirmed context for later. First contact stays generic and will not use client-specific references or branding."
+                    : undefined
+                }
+                personalisation={
+                  accessToken && opportunityId && journeyStage !== "first_contact" ? (
+                    <ClientLogoUpload
+                      accessToken={accessToken}
+                      opportunityId={opportunityId}
+                      clientName={opportunity?.client_name}
+                    />
+                  ) : journeyStage === "first_contact" ? (
+                    <p className="client-information-stage-note">
+                      Client branding becomes available for tailored presentations after First contact.
+                    </p>
+                  ) : null
+                }
               />
-              {accessToken && opportunityId ? (
-                <ClientLogoUpload
-                  accessToken={accessToken}
-                  opportunityId={opportunityId}
-                  clientName={opportunity?.client_name}
-                />
-              ) : null}
             </section>
 
             <section
@@ -475,8 +530,8 @@ export function TranscriptUploadPanel({
                 }}
                 onUpload={handleUploadBatch}
               />
+
             </section>
-          </div>
         </div>
       </div>
     </div>

@@ -7,6 +7,7 @@ import {
   createRestoredQueueItem,
   getUploadableItems,
   hasUploadableItems,
+  retryQueueItem,
   updateQueueItem,
 } from "./uploadQueue.js";
 
@@ -55,5 +56,13 @@ const restored = createRestoredQueueItem("tr-1", "call.txt");
 assert.equal(restored.status, "success");
 assert.equal(restored.fileName, "call.txt");
 assert.equal(restored.transcriptId, "tr-1");
+
+const failed = updateQueueItem(mixed, uploadable[0].id, {
+  status: "error",
+  errorMessage: "Connection interrupted",
+});
+const retried = retryQueueItem(failed, uploadable[0].id);
+assert.equal(retried.find((item) => item.id === uploadable[0].id)?.status, "pending");
+assert.equal(retried.find((item) => item.id === uploadable[0].id)?.errorMessage, undefined);
 
 console.log("uploadQueue tests passed");

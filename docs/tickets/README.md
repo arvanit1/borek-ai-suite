@@ -17,7 +17,7 @@ folder; kit overview [`FOLLOWUP_EMAIL_KIT.md`](FOLLOWUP_EMAIL_KIT.md).
 | Owner | Vertical | Live tickets | Specs |
 | --- | --- | --- | --- |
 | Jaya Joshi | Content grounding and deck fidelity | AT-59, ES-39, ES-40, JJ-29, JJ-30, JJ-31, **JJ-32** | [`docs/gamma/`](../gamma/), this folder |
-| Mayank Somwani | User surface and filed history | AT-61, MS-27, MS-28, MS-29, MS-30, MS-31, **MS-32** | this folder |
+| Mayank Somwani | User surface and filed history | AT-61, MS-27, MS-28, MS-29, **MS-31**, **MS-32** (MS-30 closed 11 Sep) | this folder |
 | Blenard Tahiraj | Pipeline stages and release | AT-60, BT-28, BT-29, BT-30, BT-31, BT-32, **BT-33** | this folder |
 
 Each owner holds exactly one earlier-range leftover, chosen so its only

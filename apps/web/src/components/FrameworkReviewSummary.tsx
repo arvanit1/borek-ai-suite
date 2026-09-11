@@ -27,6 +27,7 @@ interface FrameworkReviewSummaryProps {
   onApprove: () => void;
   onSave?: () => void;
   onJumpToChapter?: (chapterId: string) => void;
+  showActions?: boolean;
 }
 
 function ListCard({
@@ -106,6 +107,7 @@ export function FrameworkReviewSummary({
   onApprove,
   onSave,
   onJumpToChapter,
+  showActions = true,
 }: FrameworkReviewSummaryProps) {
   const summary = review.review_summary;
   const signals = review.attention_signals ?? [];
@@ -187,44 +189,49 @@ export function FrameworkReviewSummary({
         )}
       </section>
 
-      <div className="framework-summary-grid">
-        <ListCard
-          title="Key pain points"
-          items={summary.key_pain_points ?? []}
-          empty="No key pain points were captured."
-        />
-        <ListCard
-          title="Key requirements"
-          items={summary.key_requirements ?? []}
-          empty="No key requirements were captured."
-        />
-        <ListCard
-          title="Target outcomes"
-          items={summary.target_outcomes ?? []}
-          empty="No target outcomes were captured."
-        />
-      </div>
+      <details className="framework-summary-details">
+        <summary>View summary details</summary>
+        <div className="framework-summary-details-body">
+          <div className="framework-summary-grid">
+            <ListCard
+              title="Key pain points"
+              items={summary.key_pain_points ?? []}
+              empty="No key pain points were captured."
+            />
+            <ListCard
+              title="Key requirements"
+              items={summary.key_requirements ?? []}
+              empty="No key requirements were captured."
+            />
+            <ListCard
+              title="Target outcomes"
+              items={summary.target_outcomes ?? []}
+              empty="No target outcomes were captured."
+            />
+          </div>
 
-      <div className="framework-summary-grid framework-summary-grid-alerts">
-        <ListCard
-          title="Assumptions"
-          items={assumptions}
-          empty="No assumptions are recorded."
-          prominent
-        />
-        <ListCard
-          title="Open questions"
-          items={openQuestions}
-          empty="No open questions are recorded."
-          prominent
-        />
-        <ListCard
-          title="Evidence warnings"
-          items={evidenceWarnings}
-          empty="Cited sources are present for the reviewed sections."
-          prominent
-        />
-      </div>
+          <div className="framework-summary-grid framework-summary-grid-alerts">
+            <ListCard
+              title="Assumptions"
+              items={assumptions}
+              empty="No assumptions are recorded."
+              prominent
+            />
+            <ListCard
+              title="Open questions"
+              items={openQuestions}
+              empty="No open questions are recorded."
+              prominent
+            />
+            <ListCard
+              title="Evidence warnings"
+              items={evidenceWarnings}
+              empty="Cited sources are present for the reviewed sections."
+              prominent
+            />
+          </div>
+        </div>
+      </details>
 
       {!confirmed ? (
         <div className="framework-approve-panel" data-testid="framework-approve-panel">
@@ -246,7 +253,7 @@ export function FrameworkReviewSummary({
           ) : !humanConfirmed ? (
             <p className="framework-approve-hint">Tick the confirmation above to enable approval.</p>
           ) : null}
-          <div className="framework-toolbar-actions">
+          {showActions ? <div className="framework-toolbar-actions">
             {editable && onSave ? (
               <button
                 type="button"
@@ -266,7 +273,7 @@ export function FrameworkReviewSummary({
             >
               {APPROVE_BUILD_LABEL}
             </button>
-          </div>
+          </div> : null}
         </div>
       ) : null}
     </section>

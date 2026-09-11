@@ -23,6 +23,7 @@ export function RecentPresentationsPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [showJourneyStart, setShowJourneyStart] = useState(false);
   const loadRequestId = useRef(0);
   const currentUserId = session?.user.id;
   const authScope = currentUserId ?? accessToken;
@@ -59,6 +60,25 @@ export function RecentPresentationsPanel() {
     void loadRecent();
   }, [loadRecent]);
 
+  useEffect(() => {
+    if (window.location.hash === "#journey-start" || new URLSearchParams(window.location.search).has("new")) {
+      setShowJourneyStart(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (showJourneyStart) {
+      document.getElementById("journey-start")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [showJourneyStart]);
+
+  function openJourneyStart() {
+    setShowJourneyStart(true);
+    window.requestAnimationFrame(() => {
+      document.getElementById("journey-start")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
   async function handleDownload(item: RecentWorkItem) {
     if (!accessToken || !item.downloadPath) {
       return;
@@ -85,7 +105,10 @@ export function RecentPresentationsPanel() {
 
   return (
     <div className="app-workspace recent-page">
-      <SiteHeader signedInEmail={session?.user.email} />
+      <SiteHeader
+        signedInEmail={session?.user.email}
+        onNewPresentation={openJourneyStart}
+      />
       <main className="app-shell app-workspace-body">
         <div className="recent-heading-row">
           <AppPageHeader
@@ -94,16 +117,17 @@ export function RecentPresentationsPanel() {
             lead="Continue active work or return to a completed customer presentation."
           />
           <div className="archive-heading-actions">
-            <Link href="/archive" className="btn btn-secondary">
-              Archive
-            </Link>
-            <a href="#journey-start" className="btn btn-primary">
-              Create presentation
-            </a>
+            <button
+              type="button"
+              className="btn btn-primary"
+              aria-expanded={showJourneyStart}
+              aria-controls="journey-start"
+              onClick={() => setShowJourneyStart((visible) => !visible)}
+            >
+              {showJourneyStart ? "Close" : "New presentation"}
+            </button>
           </div>
         </div>
-
-        <JourneyStartPanel />
 
         {error ? (
           <div className="alert alert-error recent-error" role="alert">
@@ -125,9 +149,9 @@ export function RecentPresentationsPanel() {
             <p className="recent-empty-kicker">No presentations yet</p>
             <h2>Build your first customer presentation</h2>
             <p>Start with the opportunity details, then upload one or more discovery transcripts.</p>
-            <a href="#journey-start" className="btn btn-primary">
+            <button type="button" className="btn btn-primary" onClick={openJourneyStart}>
               Choose an output
-            </a>
+            </button>
           </section>
         ) : null}
 
@@ -164,6 +188,8 @@ export function RecentPresentationsPanel() {
             ))}
           </section>
         ) : null}
+
+        {showJourneyStart ? <JourneyStartPanel /> : null}
       </main>
     </div>
   );
