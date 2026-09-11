@@ -200,7 +200,7 @@ def header_footer(canvas, doc) -> None:
     canvas.rect(0, 0, A4[0], 10 * mm, fill=1, stroke=0)
     canvas.setFillColor(WHITE)
     canvas.setFont("Times-Roman", 8)
-    canvas.drawString(18 * mm, 4 * mm, "Consolidated Team Plan v1.0  ·  8 September 2026")
+    canvas.drawString(18 * mm, 4 * mm, "Consolidated Team Plan v1.0  ·  updated 11 September 2026")
     canvas.drawRightString(A4[0] - 18 * mm, 4 * mm, f"Page {doc.page}")
     canvas.restoreState()
 
@@ -303,7 +303,9 @@ def build() -> Path:
             "This document adds those tickets, the follow-ons recorded as remaining work in "
             "JJ-27 and JJ-28, the three-stage client journey (First contact, Deepening, "
             "Concretisation) with its demo data, and the earlier-range work these tickets "
-            "cannot close without.",
+            "cannot close without. Section 7, added 11 September 2026, is the follow-up "
+            "email kit — one new ticket each (JJ-32, MS-32, BT-33), split on the same "
+            "verticals.",
             s["body"],
         )
     )
@@ -319,10 +321,11 @@ def build() -> Path:
     story.append(
         p(
             "JJ-26, JJ-27 and JJ-28 have landed, so they are owned but are not workload. "
-            "That leaves eighteen live items, six each. The split follows verticals rather "
-            "than layers: a layered split (one person owns templates, one owns the UI, one "
-            "owns orchestration) forces every single feature to cross all three people, "
-            "which is exactly the coupling that has been stalling the chain.",
+            "That leaves eighteen live pitch items, six each, plus one follow-up email "
+            "ticket each (section 7). The split follows verticals rather than layers: a "
+            "layered split (one person owns templates, one owns the UI, one owns "
+            "orchestration) forces every single feature to cross all three people, which "
+            "is exactly the coupling that has been stalling the chain.",
             s["body"],
         )
     )
@@ -333,20 +336,20 @@ def build() -> Path:
                 [
                     "Jaya Joshi",
                     "Content grounding and deck fidelity",
-                    "AT-59, ES-39, ES-40, JJ-29, JJ-30, JJ-31  (JJ-26 – JJ-28 closed)",
-                    "6",
+                    "AT-59, ES-39, ES-40, JJ-29, JJ-30, JJ-31, JJ-32  (JJ-26 – JJ-28 closed)",
+                    "7",
                 ],
                 [
                     "Mayank Somwani",
                     "User surface and filed history",
-                    "AT-61, MS-27, MS-28, MS-29, MS-30, MS-31",
-                    "6",
+                    "AT-61, MS-27, MS-28, MS-29, MS-30, MS-31, MS-32",
+                    "7",
                 ],
                 [
                     "Blenard Tahiraj",
                     "Pipeline stages and release",
-                    "AT-60, BT-28, BT-29, BT-30, BT-31, BT-32",
-                    "6",
+                    "AT-60, BT-28, BT-29, BT-30, BT-31, BT-32, BT-33",
+                    "7",
                 ],
             ],
             s,
@@ -402,6 +405,9 @@ def build() -> Path:
                 ["BT-30", "End-to-end gate, second edition", "5", "P0", "Blenard", "New; after BT-28/29"],
                 ["BT-31", "Stage prerequisites and prior-stage context", "4", "P0", "Blenard", "New — the lock behind MS-31"],
                 ["BT-32", "Egress classification and allow-list closure", "4", "P0", "Blenard", "New number for unnumbered O4 work"],
+                ["JJ-32", "Follow-up extraction (transcript → JSON)", "5", "P1", "Jaya", "New — email kit, 11 Sep 2026"],
+                ["MS-32", "Follow-up review surface and project statics", "5", "P1", "Mayank", "New — email kit, 11 Sep 2026"],
+                ["BT-33", "Follow-up pipeline (JSON → Outlook draft)", "5", "P1", "Blenard", "New — email kit, 11 Sep 2026"],
             ],
             s,
             [16 * mm, 48 * mm, 16 * mm, 12 * mm, 20 * mm, usable - 112 * mm],
@@ -472,7 +478,7 @@ def build() -> Path:
     story.append(person_banner(
         "Jaya Joshi",
         "Content grounding and deck fidelity",
-        "AT-59 · ES-39 · ES-40 · JJ-29 · JJ-30 · JJ-31   (JJ-26 – JJ-28 closed)",
+        "AT-59 · ES-39 · ES-40 · JJ-29 · JJ-30 · JJ-31 · JJ-32   (JJ-26 – JJ-28 closed)",
         s,
         JAYA,
     ))
@@ -485,7 +491,8 @@ def build() -> Path:
             "previews. AT-59, ES-39 and ES-40 come to her because they are the inputs to her "
             "own tickets — left elsewhere she would be blocked on someone else for her own "
             "starting material. Her whole chain, AT-59 → ES-39 → JJ-31 and ES-40 → JJ-31, is "
-            "now internal to her.",
+            "now internal to her. JJ-32, the follow-up extractor, is specified in section 7 "
+            "and starts as soon as the JSON schema is frozen — it does not wait on Gamma.",
             s["body"],
         )
     )
@@ -624,7 +631,7 @@ def build() -> Path:
     story.append(person_banner(
         "Mayank Somwani",
         "User surface and filed history",
-        "AT-61 · MS-27 · MS-28 · MS-29 · MS-30 · MS-31",
+        "AT-61 · MS-27 · MS-28 · MS-29 · MS-30 · MS-31 · MS-32",
         s,
         MAYANK,
     ))
@@ -636,7 +643,8 @@ def build() -> Path:
             "because MS-29 and MS-30 are the only consumers of filing metadata, so the shape "
             "of that metadata is now settled in one head instead of negotiated across two. "
             "MS-30 is deliberately first: without seed data none of his other tickets can be "
-            "shown working.",
+            "shown working. MS-32, the follow-up review surface, is specified in section 7 "
+            "and builds against a fixture JSON.",
             s["body"],
         )
     )
@@ -741,7 +749,7 @@ def build() -> Path:
     story.append(person_banner(
         "Blenard Tahiraj",
         "Pipeline stages and release",
-        "AT-60 · BT-28 · BT-29 · BT-30 · BT-31 · BT-32",
+        "AT-60 · BT-28 · BT-29 · BT-30 · BT-31 · BT-32 · BT-33",
         s,
         BLENARD,
     ))
@@ -752,7 +760,9 @@ def build() -> Path:
             "contract, the Gamma stage on the Approve path, the customer-facing step names, "
             "the server-side journey lock, what may leave Borek, and the acceptance gate. "
             "AT-60 stays with him because BT-28 and BT-32 depend on it directly, which makes "
-            "his run AT-60 → BT-28 → BT-29 / BT-31 → BT-32 → BT-30 almost entirely internal.",
+            "his run AT-60 → BT-28 → BT-29 / BT-31 → BT-32 → BT-30 almost entirely internal. "
+            "BT-33, the follow-up pipeline, is specified in section 7 and does not sit on "
+            "that Gamma chain.",
             s["body"],
         )
     )
@@ -924,6 +934,22 @@ def build() -> Path:
                     "Mayank seeds demo rate cards that can never be mistaken for grounded "
                     "facts.",
                 ],
+                [
+                    "JJ-32 → MS-32, BT-33",
+                    "Follow-up JSON schema and fixtures",
+                    "Mayank renders the review screen and Blenard renders the email from a "
+                    "fixture JSON, without waiting for a live extractor.",
+                ],
+                [
+                    "MS-32 → BT-33",
+                    "Template string, optional blocks, project statics",
+                    "Blenard fills a frozen template rather than inventing copy.",
+                ],
+                [
+                    "BT-33 → MS-32",
+                    "Draft resource JSON (subject, body, flags, status)",
+                    "Mayank renders a fixture draft until Outlook exists.",
+                ],
             ],
             s,
             [30 * mm, 42 * mm, usable - 72 * mm],
@@ -1010,6 +1036,12 @@ def build() -> Path:
                     "Inherent. The acceptance gate runs last and now has to accept all three "
                     "journey stages.",
                 ],
+                [
+                    "JJ-32 → MS-32 / BT-33",
+                    "Jaya → Mayank / Blenard",
+                    "Follow-up email kit. Freeze the JSON schema and all three start. Does "
+                    "not gate BT-30; BT-30 does not gate it.",
+                ],
             ],
             s,
             [46 * mm, 30 * mm, usable - 76 * mm],
@@ -1050,17 +1082,191 @@ def build() -> Path:
     story.append(
         p(
             "All three can start on day one and none of them starts by waiting. That is the "
-            "test of whether this division worked.",
+            "test of whether this division worked. The follow-up kit in section 7 is the "
+            "same test on a later artefact: freeze the JSON schema and JJ-32, MS-32 and "
+            "BT-33 start in parallel, without waiting on BT-30.",
             s["body"],
         )
     )
     story.append(Spacer(1, 6))
     story.append(
         p(
-            "Specs live in the repo: docs/gamma/JJ26–JJ31 and docs/tickets/BT28–BT32, "
-            "MS27–MS31. The carried-over AT and ES items keep their original IDs and specs so "
-            "the history stays traceable. This PDF is the assignment list, not a substitute "
-            "for those files.",
+            "Specs live in the repo: docs/gamma/JJ26–JJ31 and docs/tickets/BT28–BT33, "
+            "MS27–MS32, JJ32, plus docs/tickets/FOLLOWUP_EMAIL_KIT.md. The carried-over AT "
+            "and ES items keep their original IDs and specs so the history stays traceable. "
+            "This PDF is the assignment list, not a substitute for those files.",
+            s["note"],
+        )
+    )
+
+    story.append(PageBreak())
+    story.append(p("7. Follow-up email kit (added 11 September 2026)", s["h1"]))
+    story.append(
+        p(
+            "After the pitch deck, the next client artefact is the meeting follow-up email. "
+            "The kit contains three things: the email template (what the client receives), "
+            "the extraction prompt (raw transcript → structured JSON), and the rendering "
+            "rules (JSON → finished email). Rule of thumb: the email stays short. A few "
+            "sentences plus compact bullets. Never a wall of text — detail belongs in the "
+            "attached protocol, not in the email body.",
+            s["body"],
+        )
+    )
+    story.append(
+        p(
+            "The split follows the same verticals as the pitch tickets, not layers of one "
+            "feature. Jaya grounds what the email is allowed to claim. Mayank owns the "
+            "template, project statics and the review the meeting owner must complete. "
+            "Blenard owns the job stages and the Outlook draft. The JSON layer is the freeze: "
+            "going transcript → email in one step looks faster and removes the point where "
+            "errors are catchable.",
+            s["body"],
+        )
+    )
+    story.append(
+        table(
+            ["Owner", "Ticket", "Owns", "Starts against"],
+            [
+                [
+                    "Jaya",
+                    "JJ-32",
+                    "Extraction prompt, schema, fixtures, never-invent rules",
+                    "Existing transcripts. Freeze the schema on day one.",
+                ],
+                [
+                    "Mayank",
+                    "MS-32",
+                    "Email template, optional blocks, project statics, review UI",
+                    "A JJ-32 fixture JSON. Confirm does not send.",
+                ],
+                [
+                    "Blenard",
+                    "BT-33",
+                    "Renderer, job stages, Outlook draft, draft/sent log",
+                    "Fixture JSON + frozen template. Never auto-send.",
+                ],
+            ],
+            s,
+            [24 * mm, 18 * mm, 62 * mm, usable - 104 * mm],
+        )
+    )
+    story.append(Spacer(1, 6))
+    story.append(
+        p(
+            "Pipeline. Meeting recording → transcription (Teams / Outlook) → raw transcript "
+            "→ JJ-32 extraction → JSON → BT-33 rendering → Outlook draft → MS-32 human "
+            "review (mandatory) → sent by the meeting owner. The draft goes to the meeting "
+            "owner, never straight to the client.",
+            s["body"],
+        )
+    )
+    story.append(
+        ticket_block(
+            s,
+            "JJ-32",
+            "Follow-up extraction (transcript → JSON)",
+            "Phase 5  ·  P1  ·  NEW  ·  docs/tickets/JJ32_FOLLOWUP_EXTRACTION.md",
+            "Turn a raw, possibly noisy transcript into one JSON object matching the frozen "
+            "schema. Output is JSON only. Use only what is stated; never infer, complete or "
+            "embellish. Key points are outcomes, not topics, maximum three, maximum 20 words. "
+            "Actions are verb-first commitments with a named owner; no owner means it is an "
+            "open question, not an action. Dates that were not said are TBD, never a guess. "
+            "Low-confidence fields must appear in review_flags. English output; keep client "
+            "terminology verbatim. No small talk.",
+            "A fixture transcript yields schema-valid JSON containing only stated facts. "
+            "Unclear owners become open_questions. Missing dates are TBD. Surplus key points "
+            "or actions are not smuggled in as extra bullets. The schema is frozen on day one "
+            "so MS-32 and BT-33 build against fixtures.",
+            "Existing opportunity transcripts. Calendar meeting_date when BT-33 can pass it; "
+            "fixtures supply it until then. MS-32 and BT-33 are consumers, not blockers.",
+        )
+    )
+    story.append(
+        ticket_block(
+            s,
+            "MS-32",
+            "Follow-up review surface and project statics",
+            "Phase 5  ·  P1  ·  NEW  ·  docs/tickets/MS32_FOLLOWUP_REVIEW.md",
+            "The email template the client receives, the optional blocks (open questions, "
+            "decisions, attachment line, next meeting, no-actions fallback), and the review "
+            "screen the meeting owner must complete. Store project_name, salutation style "
+            "(Du/Sie), standard recipients and sender profile once per project — the model "
+            "must never guess them. Formal clients get Dear salutation last_name. Confirming "
+            "review does not send.",
+            "A meeting owner opens a fixture draft, sees a short email not a wall of text, "
+            "must complete the checklist and every review_flag, and cannot skip to send. "
+            "Empty arrays omit their blocks. Project statics round-trip on the opportunity.",
+            "JJ-32 frozen schema and fixtures, not the live extractor. BT-33 draft resource "
+            "shape (subject, body, review_flags, status). Freeze that API; render a fixture "
+            "draft until Outlook lands.",
+        )
+    )
+    story.append(
+        ticket_block(
+            s,
+            "BT-33",
+            "Follow-up pipeline (JSON → Outlook draft)",
+            "Phase 5  ·  P1  ·  NEW  ·  docs/tickets/BT33_FOLLOWUP_PIPELINE.md",
+            "Deterministic renderer and the job graph. Omit empty blocks, sort actions by "
+            "due date with TBD last, render TBD as “date to be confirmed”, add no sentences "
+            "that are not in the template, cap the body at 150 words excluding greeting and "
+            "signature, output plain text. Stages FOLLOWUP_EXTRACTION, FOLLOWUP_RENDERING, "
+            "FOLLOWUP_DRAFT. The Outlook artefact is a draft in the meeting owner's mailbox. "
+            "Send, or a client-addressed draft before review, is a classified failure. Log "
+            "every generated draft alongside the sent version; the delta improves JJ-32. "
+            "Start with two named projects; unlisted projects are refused.",
+            "A fixture JSON produces a legal email with no leftover placeholders. A live path "
+            "produces an Outlook draft for the meeting owner and never a sent client email. "
+            "Draft and sent (or sent_unknown) are both logged.",
+            "JJ-32 frozen schema and fixtures. MS-32 frozen template, optional-block rules "
+            "and project-statics shape, not the review UI. Outlook credentials from delivery; "
+            "until they exist, ship against a fixture mailbox client.",
+        )
+    )
+    story.append(Spacer(1, 6))
+    story.append(p("Hard rules every ticket honours", s["h2"]))
+    story.append(
+        table(
+            ["Rule", "Why"],
+            [
+                [
+                    "Maximum 3 key points and 5 next steps",
+                    "If there are more, the email links to the protocol instead of becoming "
+                    "a wall of text.",
+                ],
+                [
+                    "Every action has an owner",
+                    "No owner → it is not an action, it is an open question.",
+                ],
+                [
+                    "Never invent a date",
+                    "Unknown due date is TBD, rendered as “date to be confirmed”.",
+                ],
+                [
+                    "Nothing that was not said",
+                    "The extractor, the template and the renderer all refuse invented content.",
+                ],
+                [
+                    "Human review is mandatory",
+                    "The draft goes to the meeting owner. The pipeline does not send.",
+                ],
+                [
+                    "Formal clients (Sie-Kultur)",
+                    "Replace the greeting with Dear salutation last_name.",
+                ],
+            ],
+            s,
+            [50 * mm, usable - 50 * mm],
+        )
+    )
+    story.append(Spacer(1, 6))
+    story.append(
+        p(
+            "Rollout. Store project statics once (MS-32). Keep the JSON layer (JJ-32). Log "
+            "draft versus sent (BT-33) so prompt edits have a data set. Start with two "
+            "projects, measure edit distance for four weeks, then widen. The follow-up kit "
+            "does not gate BT-30 and BT-30 does not gate it — all three owners can freeze "
+            "the JSON schema on day one and start.",
             s["note"],
         )
     )
