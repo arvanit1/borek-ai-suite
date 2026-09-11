@@ -53,3 +53,10 @@ sent for any given version.
 JJ-26 (slot allow-list requirement), JJ-31 for the frozen slot list only,
 AT-60 (live provider contract — same owner), AT-52 (audit log), O4 decision
 and sign-off.
+
+## O4 evidence
+
+Technical evidence for the human O4 owner is in
+[`BT32_O4_SIGNOFF.md`](BT32_O4_SIGNOFF.md). The policy file remains
+`approval.status: pending` / `signed_off: false` until that owner records
+production approval in a subsequent reviewed change.

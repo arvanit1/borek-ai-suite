@@ -365,6 +365,40 @@ def test_fixture_and_live_share_the_same_content_policy(
         client.generate(request)
 
 
+def test_contract_drift_new_template_slot_without_policy_fails_closed() -> None:
+    """A slot added only in memory to the Gamma contract has no policy entry."""
+    raw = json.loads((ROOT / "packages" / "contracts" / "gamma_template.json").read_text(encoding="utf-8"))
+    invented = "invented.unclassified_slot"
+    raw["slots"].append(
+        {
+            "name": invented,
+            "label": "Invented",
+            "layout_id": "COVER_01",
+            "source": "opportunity.opportunity_name",
+            "source_chapter_ids": [],
+            "required": False,
+            "max_chars": 40,
+            "classification": "client_confidential",
+        }
+    )
+    classifications = _policy()["field_classifications"]
+    missing = [
+        f"/slots/{item['name']}"
+        for item in raw["slots"]
+        if f"/slots/{item['name']}" not in classifications
+    ]
+    assert missing == [f"/slots/{invented}"]
+    with pytest.raises(EgressBlockedError) as raised:
+        enforce_external_egress(
+            {"slots": {invented: SECRET_MARKER}},
+            provider="gamma",
+            stage="gamma_rendering",
+        )
+    assert raised.value.code == "EGRESS_BLOCKED"
+    assert f"/slots/{invented}" in raised.value.blocked_paths
+    assert SECRET_MARKER not in json.dumps(list_egress_decisions()[0].to_json_dict())
+
+
 def test_named_slot_without_classification_is_omitted_from_policy_lookup() -> None:
     classified = slot_classifications_from_policy(("cover.title", "invented.slot"))
     assert classified["cover.title"] == "internal"
