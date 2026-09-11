@@ -196,17 +196,91 @@ def confirm_customer_report(
     return updated
 
 
+_GENERIC_DOMAIN = frozenset(
+    {
+        "invoice",
+        "invoices",
+        "matching",
+        "matches",
+        "match",
+        "case",
+        "cases",
+        "document",
+        "documents",
+        "field",
+        "fields",
+        "data",
+        "process",
+        "request",
+        "requests",
+        "order",
+        "orders",
+        "purchase",
+        "delivery",
+        "deliveries",
+        "exception",
+        "exceptions",
+        "approval",
+        "approvals",
+        "approve",
+        "workflow",
+        "automation",
+        "agent",
+        "human",
+        "person",
+        "people",
+        "system",
+        "record",
+        "records",
+        "supplier",
+        "suppliers",
+        "extract",
+        "extracting",
+        "reading",
+        "query",
+        "querying",
+        "identity",
+        "structured",
+    }
+)
+
+
 def _phrases_overlap(left: str, right: str) -> bool:
     # ES-13 is a semantic boundary check, not a stem-counting exercise.  Each
     # word has exactly one normalized form, so "supplier" and the synthetic
     # stem "suppl" cannot count as two separate overlaps.
+    # Exact or near-duplicate bullets still block. Shared domain words such as
+    # "invoice" / "matching" do not — that is the live chapter-6 false positive.
+    left_n = _normalize_phrase(left)
+    right_n = _normalize_phrase(right)
+    if left_n and left_n == right_n:
+        return True
     a = _content_tokens(left)
     b = _content_tokens(right)
     if not a or not b:
         return False
-    shared = a & b
-    needed = max(2, int(min(len(a), len(b)) * 0.6 + 0.5))
-    return len(shared) >= needed
+    smaller, larger = (a, b) if len(a) <= len(b) else (b, a)
+    if smaller <= larger and len(smaller) >= 2:
+        return True
+    generic = _generic_stems()
+    distinctive = (a - generic) & (b - generic)
+    distinctive_sizes = (len(a - generic), len(b - generic))
+    if min(distinctive_sizes) == 0:
+        return False
+    needed = max(2, int(min(distinctive_sizes) * 0.7 + 0.5))
+    return len(distinctive) >= needed
+
+
+def _normalize_phrase(text: str) -> str:
+    tokens = [token for token in re.findall(r"[a-z0-9]+", text.lower()) if token not in _STOP]
+    return " ".join(tokens)
+
+
+def _generic_stems() -> set[str]:
+    stems: set[str] = set()
+    for word in _GENERIC_DOMAIN:
+        stems |= _content_tokens(word)
+    return stems
 
 
 def _content_tokens(text: str) -> set[str]:

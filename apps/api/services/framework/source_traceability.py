@@ -55,6 +55,31 @@ def attach_block_source_refs(
             else:
                 updated.append(block)
         chapter["body"] = updated
+        _rollup_chapter_source_refs(chapter)
+
+
+def _rollup_chapter_source_refs(chapter: dict[str, Any]) -> None:
+    """Copy block-level citations up so ES-37 sees chapter coverage."""
+    if chapter.get("source_refs"):
+        return
+    collected: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+    body = chapter.get("body")
+    if not isinstance(body, list):
+        return
+    for block in body:
+        if not isinstance(block, dict):
+            continue
+        for ref in block.get("source_refs") or []:
+            if not isinstance(ref, dict):
+                continue
+            key = (str(ref.get("conversation_id") or ""), str(ref.get("excerpt_pointer") or ""))
+            if key in seen:
+                continue
+            seen.add(key)
+            collected.append(ref)
+    if collected:
+        chapter["source_refs"] = collected
 
 
 def collect_block_traceability_issues(

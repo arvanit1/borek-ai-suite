@@ -314,8 +314,8 @@ async function resolvePresentation(
   };
 }
 
-const HANDOFF_ATTEMPTS = 40;
-const HANDOFF_INTERVAL_MS = 100;
+const HANDOFF_ATTEMPTS = 60;
+const HANDOFF_INTERVAL_MS = 500;
 
 function handoffDelay(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, HANDOFF_INTERVAL_MS));
@@ -360,7 +360,7 @@ async function waitForBackendGeneration(
   throw new PresentationPipelineError(
     "generation",
     "Planning completed, but backend presentation generation did not start",
-    { code: "PRESENTATION_PIPELINE_HANDOFF_MISSING", jobId: planningJobId },
+    { code: "PRESENTATION_PIPELINE_HANDOFF_MISSING", jobId: planningJobId, retryable: true },
   );
 }
 

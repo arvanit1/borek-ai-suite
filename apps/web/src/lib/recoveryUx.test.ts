@@ -22,6 +22,18 @@ assert.equal(running.category, "STILL_RUNNING");
 assert.equal(running.action?.kind, "KEEP_CHECKING");
 assert.equal(running.technical?.jobId, "job-1");
 
+const handoffMissing = recoveryNoticeFromError(
+  {
+    code: "PRESENTATION_PIPELINE_HANDOFF_MISSING",
+    message: "Planning completed, but backend presentation generation did not start",
+    jobId: "job-handoff",
+  },
+  "deck",
+);
+assert.equal(handoffMissing.category, "STILL_RUNNING");
+assert.equal(handoffMissing.action?.kind, "KEEP_CHECKING");
+assert.equal(handoffMissing.technical?.jobId, "job-handoff");
+
 const retrying = retryingRecoveryNotice("plan", "job-2");
 assert.equal(retrying.category, "RETRYING");
 assert.equal(retrying.action, undefined);

@@ -387,14 +387,24 @@ def _coerce_system(item: dict[str, Any]) -> dict[str, str]:
 
 
 def _coerce_open_item(item: dict[str, Any]) -> dict[str, str]:
-    item_type = str(item.get("item_type") or "assumption").strip().lower()
-    if item_type not in {"dependency", "assumption"}:
-        item_type = "assumption"
+    from services.framework.assembly import classify_unknown_open_item
+
+    description = str(item.get("description") or "")
+    raw_type = str(item.get("item_type") or "").strip().lower()
+    classified_type, classified_owner, classified_consequence = classify_unknown_open_item(description)
+    if raw_type in {"dependency", "assumption"}:
+        item_type = raw_type
+        owner = str(item.get("owner") or "") or classified_owner
+        consequence = str(item.get("consequence_if_different") or "") or classified_consequence
+    else:
+        item_type = classified_type
+        owner = str(item.get("owner") or classified_owner)
+        consequence = str(item.get("consequence_if_different") or classified_consequence)
     return {
-        "description": str(item.get("description") or ""),
+        "description": description,
         "item_type": item_type,
-        "owner": str(item.get("owner") or ""),
-        "consequence_if_different": str(item.get("consequence_if_different") or ""),
+        "owner": owner,
+        "consequence_if_different": consequence,
     }
 
 

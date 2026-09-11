@@ -67,6 +67,12 @@ _NUMBER_WORDS = {
 }
 
 
+_QUESTION_RE = re.compile(
+    r"^\s*(how|whether|which|what|when|where|who|why|can|could|should|does|do|is|are)\b|[?]\s*$",
+    re.I,
+)
+
+
 def assemble_from_knowledge(
     models: list[dict[str, Any]],
     *,
@@ -98,15 +104,9 @@ def assemble_from_knowledge(
     ]
     unknowns = [entry["statement"] for entry in buckets.get("unknowns", [])]
     open_items = list(conflict_items)
-    for unknown in unknowns:
-        open_items.append(
-            {
-                "description": unknown,
-                "item_type": "assumption",
-                "owner": "Business",
-                "consequence_if_different": "Missing data is never guessed. Confirm before build, or keep as an assumption.",
-            }
-        )
+    for entry in buckets.get("unknowns", []):
+        open_items.append(_open_item_from_unknown(entry))
+    open_items = _dedupe_open_items(open_items)
 
     numbers = harvest_numbers(entries)
     engine_inputs, engine_open_items = build_engine_inputs(entries, systems, rules, numbers)
@@ -135,6 +135,56 @@ def assemble_from_knowledge(
         "engine_inputs": engine_inputs,
         "stage3_candidates": _stage3_candidates(buckets),
     }
+
+
+def _open_item_from_unknown(entry: dict[str, Any]) -> dict[str, str]:
+    statement = str(entry.get("statement") or "").strip()
+    origin = str(entry.get("origin") or "").strip()
+    item_type, owner, consequence = classify_unknown_open_item(statement, origin)
+    return {
+        "description": statement,
+        "item_type": item_type,
+        "owner": owner,
+        "consequence_if_different": consequence,
+    }
+
+
+def classify_unknown_open_item(statement: str, origin: str = "") -> tuple[str, str, str]:
+    """Map an ES-5 unknown onto chapter-11 type/owner (ES-7 origin + question shape)."""
+    if _is_client_question(statement, origin):
+        return (
+            "dependency",
+            "Client",
+            "This question needs a client answer before the build is fully specified.",
+        )
+    return (
+        "assumption",
+        "Business",
+        "Missing data is never guessed. Confirm before build, or keep as an assumption.",
+    )
+
+
+def _is_client_question(statement: str, origin: str = "") -> bool:
+    text = statement.strip()
+    if not text:
+        return False
+    if _QUESTION_RE.search(text):
+        return True
+    return origin == "OPEN_QUESTION" and bool(
+        re.search(r"\b(how|whether|which|what|when|where|who|why)\b", text, re.I)
+    )
+
+
+def _dedupe_open_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    seen: set[str] = set()
+    unique: list[dict[str, Any]] = []
+    for item in items:
+        key = re.sub(r"[^a-z0-9]+", " ", str(item.get("description") or "").lower()).strip()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        unique.append(item)
+    return unique
 
 
 def harvest_numbers(entries: list[dict[str, Any]]) -> dict[str, Any]:

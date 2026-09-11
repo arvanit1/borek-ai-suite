@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import logging
+
 from celery import Celery
 
 from app.config import settings
 from app.services.job_retry import run_with_transient_retry
+
+logger = logging.getLogger(__name__)
 
 celery_app = Celery(
     "borek_worker",
@@ -18,6 +22,20 @@ celery_app.conf.result_serializer = "json"
 celery_app.conf.accept_content = ["json"]
 celery_app.conf.task_always_eager = settings.API_DATA_BACKEND == "memory"
 celery_app.conf.task_eager_propagates = False
+
+
+def _celery_task_error(exc: Exception) -> Exception:
+    """Celery cannot serialize FastAPI HTTPException into the result backend."""
+    from fastapi import HTTPException
+
+    from app.services.api_errors import error_fields_from_exception
+
+    if isinstance(exc, HTTPException):
+        code, message, _retryable = error_fields_from_exception(exc)
+        wrapped = RuntimeError(message)
+        wrapped.code = code  # type: ignore[attr-defined]
+        return wrapped
+    return exc
 
 
 def _is_retryable_error(exc: Exception) -> bool:
@@ -233,12 +251,20 @@ def run_presentation_planning_task(
             retryable,
             repository=store,
         )
-        raise
+        raise _celery_task_error(exc) from exc
     from app.services.presentation_pipeline import continue_after_planning
 
     # Re-read durable auto_continue after COMPLETED so a concurrent upgrade cannot
     # land between the worker's stale snapshot and continuation.
-    continue_after_planning(store, planning_job_id=parsed_job_id)
+    try:
+        continue_after_planning(store, planning_job_id=parsed_job_id)
+    except Exception:
+        # Planning is already COMPLETED. Continuation records a FAILED generation
+        # job when it can; re-raising would only confuse Celery after success.
+        logger.exception(
+            "Presentation generation did not start after planning job %s completed",
+            job_id,
+        )
     return result
 
 
@@ -294,15 +320,27 @@ def run_framework_generation_task(
 
         return run_with_transient_retry(_run)
     except Exception as exc:
+        from fastapi import HTTPException
+
+        from app.services.api_errors import error_fields_from_exception
+
+        if isinstance(exc, HTTPException):
+            code, message, retryable = error_fields_from_exception(exc)
+            if code == "JOB_FAILED":
+                code = "FRAMEWORK_GENERATION_FAILED"
+        else:
+            code = getattr(exc, "code", "FRAMEWORK_GENERATION_FAILED")
+            message = str(exc)
+            retryable = _is_retryable_error(exc)
         job_service.fail_job(
             parsed_job_id,
-            getattr(exc, "code", "FRAMEWORK_GENERATION_FAILED"),
-            str(exc),
+            code,
+            message,
             stage,
-            _is_retryable_error(exc),
+            retryable,
             repository=store,
         )
-        raise
+        raise _celery_task_error(exc) from exc
 
 
 @celery_app.task(name="tasks.run_framework_render")

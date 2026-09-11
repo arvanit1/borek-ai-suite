@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import re
 from pathlib import Path
 from typing import Any
@@ -10,7 +11,11 @@ import yaml
 
 from services.framework.chapter_validators.base import ChapterValidationError, chapter_by_id
 from services.framework.customer_view import resolve_customer_view
-from services.framework.pre_confirm_check import PreConfirmError, pre_confirm_check
+from services.framework.pre_confirm_check import (
+    PreConfirmError,
+    pre_confirm_check,
+    prepare_framework_for_confirm,
+)
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]
 _PII_CONFIG_PATH = _REPO_ROOT / "config" / "pii_redaction.yaml"
@@ -92,7 +97,7 @@ def build_review_summary(framework: dict[str, Any]) -> dict[str, Any]:
     open_questions = [_open_item_summary(item) for item in open_items if item.get("item_type") == "dependency"]
     contradictions = [_open_item_summary(item) for item in open_items if item.get("item_type") == "conflict"]
     evidence_warnings = _evidence_warnings(framework.get("chapters") or [])
-    blocking_items = _blocking_items(framework, confirm_check, render)
+    blocking_items = _blocking_items(framework, confirm_check)
     executive_points = _executive_summary_points(view, framework)
 
     return {
@@ -171,11 +176,11 @@ def build_attention_signals(framework: dict[str, Any]) -> list[dict[str, Any]]:
     if not render.get("allowed"):
         signals.append(
             _signal(
-                REVIEW_STATE_MISSING,
-                severity="blocking",
+                REVIEW_STATE_RECOMMENDED,
+                severity="warning",
                 message=render.get("reason")
-                or f"Build-readiness is {readiness}/100. Required information is still missing.",
-                action="Close the open items in chapter 11 before approval.",
+                or f"Build-readiness is {readiness}/100. The customer report is held below 60.",
+                action="Review chapter 11 scores. The pitch deck can still be approved; the customer report stays held.",
                 chapter_id="11",
             )
         )
@@ -185,7 +190,7 @@ def build_attention_signals(framework: dict[str, Any]) -> list[dict[str, Any]]:
         signals.append(
             _signal(
                 REVIEW_STATE_MISSING,
-                severity="blocking" if len(dependencies) >= 3 else "warning",
+                severity="warning",
                 message=f"{len(dependencies)} open question(s) still need client input.",
                 action="Review chapter 11 and chapter 7 before approval.",
                 chapter_id="11",
@@ -196,13 +201,13 @@ def build_attention_signals(framework: dict[str, Any]) -> list[dict[str, Any]]:
     weak_chapters = [
         str(chapter.get("chapter_id"))
         for chapter in chapters
-        if str(chapter.get("chapter_id")) not in {"0", "13"} and not chapter.get("source_refs")
+        if str(chapter.get("chapter_id")) not in {"0", "13"} and not _chapter_has_cited_sources(chapter)
     ]
     if weak_chapters:
         signals.append(
             _signal(
                 REVIEW_STATE_WEAK_EVIDENCE,
-                severity="warning" if len(weak_chapters) <= 2 else "blocking",
+                severity="warning",
                 message=f"{len(weak_chapters)} chapter(s) lack source references.",
                 action="Regenerate weak chapters or add traceable facts.",
                 chapter_id=weak_chapters[0],
@@ -284,17 +289,16 @@ def opportunity_pii_redaction_enabled(opportunity: dict[str, Any]) -> bool:
 
 
 def _resolve_review_state(framework: dict[str, Any], signals: list[dict[str, Any]]) -> str:
-    ids = {str(signal["id"]) for signal in signals}
-    if REVIEW_STATE_BLOCKING in ids:
+    blocking = [signal for signal in signals if signal.get("severity") == "blocking"]
+    if any(str(signal["id"]) == REVIEW_STATE_BLOCKING for signal in blocking):
         return REVIEW_STATE_BLOCKING
-    if REVIEW_STATE_MISSING in ids and any(signal.get("severity") == "blocking" for signal in signals if signal["id"] == REVIEW_STATE_MISSING):
+    if any(str(signal["id"]) == REVIEW_STATE_MISSING for signal in blocking):
         return REVIEW_STATE_MISSING
-    if REVIEW_STATE_WEAK_EVIDENCE in ids and any(
-        signal.get("severity") == "blocking" for signal in signals if signal["id"] == REVIEW_STATE_WEAK_EVIDENCE
-    ):
+    if any(str(signal["id"]) == REVIEW_STATE_WEAK_EVIDENCE for signal in blocking):
         return REVIEW_STATE_WEAK_EVIDENCE
-    if REVIEW_STATE_MISSING in ids or REVIEW_STATE_WEAK_EVIDENCE in ids:
-        return REVIEW_STATE_RECOMMENDED if REVIEW_STATE_RECOMMENDED in ids else REVIEW_STATE_MISSING
+    if any(str(signal.get("severity")) in {"warning", "blocking"} for signal in signals):
+        return REVIEW_STATE_RECOMMENDED
+    ids = {str(signal["id"]) for signal in signals}
     if REVIEW_STATE_RECOMMENDED in ids:
         return REVIEW_STATE_RECOMMENDED
     return REVIEW_STATE_READY
@@ -402,7 +406,6 @@ def _target_outcomes(framework: dict[str, Any], view: dict[str, Any]) -> list[st
 def _blocking_items(
     framework: dict[str, Any],
     confirm_check: dict[str, Any],
-    render: dict[str, Any],
 ) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
     if not confirm_check["ready"] and confirm_check.get("reason"):
@@ -411,14 +414,6 @@ def _blocking_items(
                 "kind": "confirm_gate",
                 "chapter_id": "6",
                 "message": confirm_check["reason"],
-            }
-        )
-    if not render.get("allowed") and render.get("reason"):
-        items.append(
-            {
-                "kind": "readiness",
-                "chapter_id": "11",
-                "message": str(render["reason"]),
             }
         )
     for item in framework.get("open_items") or []:
@@ -439,7 +434,7 @@ def _evidence_warnings(chapters: list[dict[str, Any]]) -> list[dict[str, Any]]:
         chapter_id = str(chapter.get("chapter_id") or "")
         if chapter_id in {"0", "13"}:
             continue
-        if chapter.get("source_refs"):
+        if _chapter_has_cited_sources(chapter):
             continue
         warnings.append(
             {
@@ -449,6 +444,15 @@ def _evidence_warnings(chapters: list[dict[str, Any]]) -> list[dict[str, Any]]:
             }
         )
     return warnings
+
+
+def _chapter_has_cited_sources(chapter: dict[str, Any]) -> bool:
+    if chapter.get("source_refs"):
+        return True
+    body = chapter.get("body")
+    if isinstance(body, list):
+        return any(isinstance(block, dict) and block.get("source_refs") for block in body)
+    return False
 
 
 def _open_item_summary(item: dict[str, Any]) -> dict[str, Any]:
@@ -506,8 +510,9 @@ def _management_summary_excerpt(framework: dict[str, Any]) -> str:
 def _confirm_check_state(framework: dict[str, Any]) -> dict[str, Any]:
     if str(framework.get("status") or "") == "confirmed":
         return {"ready": True, "reason": None, "issue_kind": None}
-    probe = dict(framework)
+    probe = copy.deepcopy(framework)
     try:
+        prepare_framework_for_confirm(probe)
         pre_confirm_check(probe)
     except PreConfirmError as exc:
         return {
@@ -532,7 +537,7 @@ def _confirm_issue_kind(message: str) -> str:
 
 
 def _source_coverage(chapters: list[dict[str, Any]]) -> dict[str, int]:
-    with_refs = sum(1 for chapter in chapters if chapter.get("source_refs"))
+    with_refs = sum(1 for chapter in chapters if _chapter_has_cited_sources(chapter))
     return {
         "chapters_with_refs": with_refs,
         "chapters_total": len(chapters),
