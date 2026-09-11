@@ -80,3 +80,20 @@ def test_es33_expected_matches_deterministic_pipeline(case: dict) -> None:
     )
     actual = _normalize(actual, opportunity_id=case["opportunity_id"])
     assert actual == expected
+
+
+@pytest.mark.parametrize("case", _load_manifest()["cases"], ids=lambda item: item["id"])
+def test_es33_review_summary_follows_es36_contract(case: dict) -> None:
+    expected = json.loads((ROOT / case["expected_framework"]).read_text(encoding="utf-8"))
+    summary = expected["review_summary"]
+    points = summary["executive_summary_points"]
+    assert 3 <= len(points) <= 6
+    assert all(isinstance(point, str) and point.strip() for point in points)
+    assert summary["executive_summary"] == " ".join(points)
+    assert summary["key_pain_points"]
+    assert all(isinstance(item, str) and item.strip() for item in summary["key_pain_points"])
+    assert summary["key_pain_points"] == [
+        str(kpi.get("name") or kpi.get("metric") or "").strip()
+        for kpi in expected.get("kpis") or []
+        if str(kpi.get("name") or kpi.get("metric") or "").strip()
+    ][:5]

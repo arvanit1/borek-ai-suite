@@ -69,6 +69,15 @@ def test_at50_renderer_dockerfile_includes_preview_tooling() -> None:
     assert "poppler-utils" in dockerfile
 
 
+def test_at50_worker_dockerfile_includes_jj30_poppler() -> None:
+    dockerfile = (ROOT / "docker/worker/Dockerfile").read_text(encoding="utf-8")
+    assert "poppler-utils" in dockerfile
+    assert "PDFTOPPM_PATH=/usr/bin/pdftoppm" in dockerfile
+    compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+    worker_block = compose.split("  worker:")[1].split("\n  web:")[0]
+    assert "PDFTOPPM_PATH: /usr/bin/pdftoppm" in worker_block
+
+
 def test_at50_web_dockerfile_copies_public_assets() -> None:
     dockerfile = (ROOT / "docker/web/Dockerfile").read_text(encoding="utf-8")
     assert "apps/web/public" in dockerfile
