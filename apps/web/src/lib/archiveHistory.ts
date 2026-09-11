@@ -71,6 +71,13 @@ export function hasActiveArchiveFilters(query: ArchiveSearchQuery): boolean {
   return Boolean(query.search?.trim() || query.fromDate || query.toDate);
 }
 
+export function archiveDateRangeError(fromDate: string, toDate: string): string | null {
+  if (fromDate && toDate && fromDate > toDate) {
+    return "The From date must be on or before the To date.";
+  }
+  return null;
+}
+
 export function buildArchiveListPath(query: ArchiveSearchQuery = {}): string {
   const params = new URLSearchParams();
   const search = query.search?.trim();

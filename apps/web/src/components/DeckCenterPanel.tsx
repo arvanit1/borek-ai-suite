@@ -541,12 +541,14 @@ export function DeckCenterPanel({
               <p className="upload-meta-empty">
                 {opportunityName ?? "Download PowerPoint when the preview looks right."}
               </p>
-              <Link
-                href={pipelineHref("/plan-preview", opportunityId)}
-                className="btn btn-secondary btn-block"
-              >
-                Back to plan
-              </Link>
+              <div className="upload-meta-actions">
+                <Link
+                  href={pipelineHref("/plan-preview", opportunityId)}
+                  className="btn btn-secondary"
+                >
+                  Back to plan
+                </Link>
+              </div>
             </div>
           </aside>
 

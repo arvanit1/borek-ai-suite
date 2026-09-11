@@ -33,7 +33,9 @@ assert.equal(sourceDetail, "Client · source conversation · source excerpt");
 assert.doesNotMatch(`${sourceLabel} ${sourceDetail}`, /[0-9a-f]{8}-[0-9a-f-]{27,}/i);
 
 const css = readFileSync("src/app/globals.css", "utf8");
-assert.match(css, /@media \(max-width: 1024px\)[\s\S]*?\.framework-chapter-nav-open\s*{\s*display: grid;/);
+assert.match(css, /\.workflow-action-bar\s*{[\s\S]*?position:\s*sticky;/);
+assert.match(css, /\.framework-chapter-list-button\s*{[\s\S]*?grid-template-columns:/);
+assert.match(css, /@media \(max-width: 640px\)[\s\S]*?\.workflow-action-bar\s*{[\s\S]*?position:\s*static;/);
 assert.match(css, /grid-template-columns:\s*repeat\(auto-fill, minmax\(min\(100%, 240px\), 1fr\)\)/);
 assert.match(css, /\.site-user[\s\S]*?display:\s*none;/);
 assert.match(css, /overflow-wrap:\s*anywhere;/);

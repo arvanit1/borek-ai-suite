@@ -13,6 +13,7 @@ import {
   getUploadableItems,
   hasUploadableItems,
   removeQueueItem,
+  retryQueueItem,
   statusLabel,
   type TranscriptQueueItem,
 } from "@/lib/uploadQueue";
@@ -51,11 +52,12 @@ export function FileUploadQueue({
 
   const uploadableCount = getUploadableItems(items).length;
   const canSubmit = hasUploadableItems(items);
+  const hasErrors = items.some((item) => item.status === "error");
   const settled =
     items.length > 0 &&
     !canSubmit &&
     !busy &&
-    !items.some((item) => item.status === "uploading" || item.status === "error");
+    !items.some((item) => item.status === "uploading");
   const sampleQueued = items.some((item) => item.fileName === ABC_SYSTEMS_Q2_SAMPLE_FILENAME);
 
   function addFiles(fileList: FileList | null) {
@@ -71,6 +73,24 @@ export function FileUploadQueue({
 
   function handleRemove(id: string) {
     onItemsChange(removeQueueItem(items, id));
+  }
+
+  async function handleRetry(item: TranscriptQueueItem) {
+    if (uploadDisabled) {
+      setError("Create an opportunity before retrying this file.");
+      return;
+    }
+    const retried = { ...item, status: "pending" as const, errorMessage: undefined };
+    onItemsChange(retryQueueItem(items, item.id));
+    setBusy(true);
+    setError(null);
+    try {
+      await onUpload([retried]);
+    } catch (uploadError) {
+      setError(uploadErrorMessage(uploadError));
+    } finally {
+      setBusy(false);
+    }
   }
 
   function handleAddSampleTranscript() {
@@ -118,7 +138,11 @@ export function FileUploadQueue({
   );
 
   return (
-    <div className={`file-queue${settled ? " file-queue-settled" : ""}`}>
+    <div
+      className={`file-queue${settled ? " file-queue-settled" : ""}${
+        hasErrors ? " file-queue-has-errors" : ""
+      }`}
+    >
       {settled ? (
         <div className="file-queue-toolbar">
           <button
@@ -212,7 +236,26 @@ export function FileUploadQueue({
                     <span className={statusClassName(item.status)}>{statusLabel(item.status)}</span>
                   </td>
                   <td className="file-table-actions-col">
-                    {item.status === "success" ? null : (
+                    {item.status === "error" ? (
+                      <div className="file-row-actions">
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          disabled={busy || uploadDisabled}
+                          onClick={() => void handleRetry(item)}
+                        >
+                          Retry
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          disabled={busy}
+                          onClick={() => handleRemove(item.id)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ) : item.status === "success" ? null : (
                       <button
                         type="button"
                         className="btn btn-ghost btn-sm"

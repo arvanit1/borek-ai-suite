@@ -6,11 +6,7 @@ import type { AdditionalClientInformation, ClientContact, OpportunityCreatePaylo
 import { opportunityErrorMessage } from "@/lib/apiErrors";
 import {
   additionalClientInformationError,
-  appendClientInformationFileNote,
-  CLIENT_INFORMATION_FILE_ACCEPT,
   compactAdditionalClientInformation,
-  removeClientInformationFileNote,
-  validateClientInformationFile,
 } from "@/lib/clientIntake";
 import {
   clearOpportunityDraft,
@@ -51,6 +47,8 @@ interface OpportunityFormProps {
   onUpdateClientInformation?: (
     value: AdditionalClientInformation | null,
   ) => Promise<void>;
+  personalisation?: React.ReactNode;
+  personalisationHint?: string;
 }
 
 export function OpportunityForm({
@@ -58,6 +56,8 @@ export function OpportunityForm({
   existing = null,
   onSubmit,
   onUpdateClientInformation,
+  personalisation,
+  personalisationHint = "Add confirmed context or branding when it is useful. You can leave this section empty and continue directly to transcripts.",
 }: OpportunityFormProps) {
   const [values, setValues] = useState<OpportunityFormValues>(existing ?? DEFAULT_VALUES);
   const [busy, setBusy] = useState(false);
@@ -66,8 +66,6 @@ export function OpportunityForm({
   const [createdLabel, setCreatedLabel] = useState<string | null>(
     existing ? `${existing.client_name} — ${existing.opportunity_name}` : null,
   );
-  const [importedFiles, setImportedFiles] = useState<string[]>([]);
-  const [fileError, setFileError] = useState<string | null>(null);
   const identityLocked = Boolean(existing) || Boolean(createdLabel);
   const packDisabled = disabled || busy;
   const existingPack = existing?.additional_client_information ?? null;
@@ -105,7 +103,6 @@ export function OpportunityForm({
       additional_client_information: existingPack,
     });
     setCreatedLabel(`${clientName} — ${opportunityName}`);
-    setFileError(null);
   }, [existingIdentity, existingPack]);
 
   function updateField<K extends keyof OpportunityFormValues>(
@@ -149,44 +146,6 @@ export function OpportunityForm({
       contacts: current.contacts.map((contact, contactIndex) =>
         contactIndex === index ? { ...contact, [key]: value } : contact,
       ),
-    }));
-  }
-
-  async function chooseClientInformationFiles(fileList: FileList | null) {
-    if (!fileList || fileList.length === 0) {
-      return;
-    }
-    setFileError(null);
-    let nextNotes = values.additional_client_information?.notes ?? "";
-    const nextNames = [...importedFiles];
-    for (const file of Array.from(fileList)) {
-      const validation = validateClientInformationFile(file);
-      if (!validation.ok) {
-        setFileError(validation.reason ?? "Choose another file.");
-        continue;
-      }
-      const result = appendClientInformationFileNote(nextNotes, file.name, await file.text());
-      if (result.error) {
-        setFileError(result.error);
-        continue;
-      }
-      nextNotes = result.notes;
-      if (!nextNames.includes(file.name)) {
-        nextNames.push(file.name);
-      }
-    }
-    if (nextNotes !== (values.additional_client_information?.notes ?? "")) {
-      updateClientInformation((current) => ({ ...current, notes: nextNotes || null }));
-    }
-    setImportedFiles(nextNames);
-  }
-
-  function removeImportedFile(fileName: string) {
-    setFileError(null);
-    setImportedFiles((current) => current.filter((name) => name !== fileName));
-    updateClientInformation((current) => ({
-      ...current,
-      notes: removeClientInformationFileNote(current.notes, fileName),
     }));
   }
 
@@ -282,13 +241,13 @@ export function OpportunityForm({
             ✓
           </span>
           <div>
-            <strong>Opportunity created</strong>
+            <strong>Active opportunity</strong>
             <p>{createdLabel}</p>
           </div>
         </div>
       ) : null}
 
-      <div className="opportunity-form-grid">
+      {!identityLocked ? <div className="opportunity-form-grid">
         <div className="form-field">
           <label htmlFor="client_name">Client name</label>
           <input
@@ -351,58 +310,19 @@ export function OpportunityForm({
             model. Leave this on unless a case explicitly needs the original identifiers.
           </p>
         </div>
-      </div>
+      </div> : null}
 
       <details
         className="client-information"
         open={Boolean(compactAdditionalClientInformation(values.additional_client_information))}
       >
         <summary>
-          <span>Additional client information</span>
+          <span>Personalise this presentation</span>
           <span className="optional-label">Optional</span>
         </summary>
         <p className="client-information-intro">
-          Add known context to personalize the Framework. You can leave this section empty and continue
-          directly to transcripts.
+          {personalisationHint}
         </p>
-        <div className="client-information-files">
-            <p>Upload briefing files to fill Notes. TXT, Markdown, CSV, or JSON. 5 MiB maximum.</p>
-            {fileError ? <div className="alert alert-error">{fileError}</div> : null}
-            <div className="client-logo-actions client-information-file-actions">
-              <label className="btn btn-secondary" htmlFor="client_information_files">
-                {importedFiles.length > 0 ? "Choose more files" : "Choose files"}
-              </label>
-              <input
-                id="client_information_files"
-                className="sr-only"
-                type="file"
-                multiple
-                accept={CLIENT_INFORMATION_FILE_ACCEPT}
-                disabled={packDisabled}
-                onChange={(event) => {
-                  void chooseClientInformationFiles(event.target.files);
-                  event.target.value = "";
-                }}
-              />
-            </div>
-            {importedFiles.length > 0 ? (
-              <ul className="client-information-file-list">
-                {importedFiles.map((fileName) => (
-                  <li key={fileName}>
-                    <span>{fileName}</span>
-                    <button
-                      type="button"
-                      className="btn btn-quiet"
-                      disabled={packDisabled}
-                      onClick={() => removeImportedFile(fileName)}
-                    >
-                      Remove
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
         <div className="client-information-grid">
           <div className="form-field">
             <label htmlFor="location_requirements">Location requirements</label>
@@ -548,24 +468,28 @@ export function OpportunityForm({
           ))}
         </div>
         )}
+        {personalisation}
+        {identityLocked ? (
+          <div className="opportunity-form-actions">
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={packDisabled || !onUpdateClientInformation}
+              onClick={() => void persistClientInformation()}
+            >
+              {busy ? "Saving…" : "Save personalisation"}
+            </button>
+          </div>
+        ) : null}
       </details>
 
-      <div className="opportunity-form-actions">
-        {identityLocked ? (
-          <button
-            type="button"
-            className="btn btn-primary"
-            disabled={packDisabled || !onUpdateClientInformation}
-            onClick={() => void persistClientInformation()}
-          >
-            {busy ? "Saving…" : "Save client information"}
-          </button>
-        ) : (
+      {!identityLocked ? (
+        <div className="opportunity-form-actions">
           <button type="submit" className="btn btn-primary" disabled={disabled || busy}>
             {busy ? "Creating…" : "Create opportunity"}
           </button>
-        )}
-      </div>
+        </div>
+      ) : null}
     </form>
   );
 }
