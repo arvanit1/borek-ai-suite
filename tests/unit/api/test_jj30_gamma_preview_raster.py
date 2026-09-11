@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import struct
 import uuid
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
@@ -14,7 +16,11 @@ from app.config import settings
 from app.main import create_app
 from app.services.data.memory_store import get_memory_store
 from app.services.deck_assets import _MINIMAL_PNG
-from app.services.gamma_preview import apply_gamma_preview_raster
+from app.services.gamma_preview import (
+    apply_gamma_preview_raster,
+    rasterise_pdf_pages,
+    _pdftoppm_binary,
+)
 
 USER_ID = uuid.UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
 GAMMA_PPTX = b"gamma-export-pptx-bytes"
@@ -135,6 +141,10 @@ def test_preview_page_count_matches_the_downloaded_pdf(monkeypatch, tmp_path: Pa
         assert preview.headers["content-type"].startswith("image/png")
         images.append(preview.content)
         assert preview.content != _MINIMAL_PNG
+        if _pdftoppm_binary() is not None:
+            width, height = _png_size(preview.content)
+            assert width > 1
+            assert height > 1
     assert len(set(images)) == PAGE_COUNT
 
     pdf = client.get(f"/presentations/{presentation_id}/download/pdf", headers=_headers())
@@ -238,3 +248,60 @@ def test_internal_previews_stay_put_without_an_export(monkeypatch, tmp_path: Pat
     )
     assert preview.status_code == 200
     assert preview.content == _MINIMAL_PNG
+
+
+def _png_size(data: bytes) -> tuple[int, int]:
+    assert data.startswith(b"\x89PNG\r\n\x1a\n")
+    return struct.unpack(">II", data[16:24])
+
+
+def test_placeholder_rasters_are_used_only_when_pdftoppm_is_missing(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(settings, "ARTIFACT_ROOT", str(tmp_path))
+    monkeypatch.setattr("app.services.gamma_preview._pdftoppm_binary", lambda: None)
+    pdf_path = tmp_path / "export.pdf"
+    _write_export_pdf(pdf_path, pages=PAGE_COUNT)
+
+    paths = rasterise_pdf_pages(pdf_path, version_id=uuid.uuid4())
+
+    assert [Path(path).name for path in paths] == [
+        "slide-001.png",
+        "slide-002.png",
+        "slide-003.png",
+    ]
+    for path in paths:
+        data = Path(path).read_bytes()
+        assert data
+        assert _png_size(data) == (1, 1)
+
+
+def test_pdftoppm_writes_real_page_rasters_when_available(
+    monkeypatch, tmp_path: Path
+) -> None:
+    if _pdftoppm_binary() is None:
+        pytest.skip("pdftoppm is not installed")
+    monkeypatch.setattr(settings, "ARTIFACT_ROOT", str(tmp_path))
+    pdf_path = tmp_path / "export.pdf"
+    _write_export_pdf(pdf_path, pages=PAGE_COUNT)
+
+    paths = rasterise_pdf_pages(pdf_path, version_id=uuid.uuid4())
+
+    assert len(paths) == PAGE_COUNT
+    assert [Path(path).name for path in paths] == [
+        "slide-001.png",
+        "slide-002.png",
+        "slide-003.png",
+    ]
+    sizes = []
+    payloads = []
+    for path in paths:
+        data = Path(path).read_bytes()
+        assert data
+        width, height = _png_size(data)
+        assert width > 1
+        assert height > 1
+        sizes.append((width, height))
+        payloads.append(data)
+    assert len(set(payloads)) == PAGE_COUNT
+    assert all(size == sizes[0] for size in sizes)

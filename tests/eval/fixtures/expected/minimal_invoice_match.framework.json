@@ -2263,6 +2263,14 @@
     "language": "en",
     "headline": "Minimal AP Invoice Match",
     "executive_summary": "The AP team receives about 200 supplier invoices per month and matches them to purchase orders in the ERP by hand. At a glance Generated automatically from the captured conversations. Missing facts are listed, never guessed. Release for build at evolution stage 2 (autonomous with human control) only if all three quality gates pass. Blocking items are listed in chapter 11; numbered next steps are in chapter 13.",
+    "executive_summary_points": [
+      "The AP team receives about 200 supplier invoices per month and matches them to purchase orders in the ERP by hand.",
+      "At a glance",
+      "Generated automatically from the captured conversations.",
+      "Missing facts are listed, never guessed.",
+      "Release for build at evolution stage 2 (autonomous with human control) only if all three quality gates pass.",
+      "Blocking items are listed in chapter 11; numbered next steps are in chapter 13."
+    ],
     "key_pain_points": [
       "Success means reaching at least 70 percent",
       "Automation rate",

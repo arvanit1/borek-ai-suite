@@ -2103,6 +2103,14 @@
     "language": "en",
     "headline": "Warehouse Delivery-Note Match",
     "executive_summary": "The warehouse team matches about 500 delivery notes per month to outbound shipments. At a glance Generated automatically from the captured conversations. Missing facts are listed, never guessed. Release for build at evolution stage 2 (autonomous with human control) only if all three quality gates pass. Blocking items are listed in chapter 11; numbered next steps are in chapter 13.",
+    "executive_summary_points": [
+      "The warehouse team matches about 500 delivery notes per month to outbound shipments.",
+      "At a glance",
+      "Generated automatically from the captured conversations.",
+      "Missing facts are listed, never guessed.",
+      "Release for build at evolution stage 2 (autonomous with human control) only if all three quality gates pass.",
+      "Blocking items are listed in chapter 11; numbered next steps are in chapter 13."
+    ],
     "key_pain_points": [
       "Automation rate",
       "Manual handling time",

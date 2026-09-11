@@ -3304,6 +3304,14 @@
     "language": "en",
     "headline": "Invoice 3-Way Match",
     "executive_summary": "Accounts Payable matches around 3,000 invoices per month against purchase orders and goods receipts. At a glance Generated automatically from the captured conversations. Missing facts are listed, never guessed. Release for build at evolution stage 2 (autonomous with human control) only if all three quality gates pass. Blocking items are listed in chapter 11; numbered next steps are in chapter 13.",
+    "executive_summary_points": [
+      "Accounts Payable matches around 3,000 invoices per month against purchase orders and goods receipts.",
+      "At a glance",
+      "Generated automatically from the captured conversations.",
+      "Missing facts are listed, never guessed.",
+      "Release for build at evolution stage 2 (autonomous with human control) only if all three quality gates pass.",
+      "Blocking items are listed in chapter 11; numbered next steps are in chapter 13."
+    ],
     "key_pain_points": [
       "auto-match rate",
       "manual handling time",
