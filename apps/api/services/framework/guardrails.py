@@ -157,8 +157,15 @@ def convert_unsourced_claims(framework: dict[str, Any]) -> None:
         )
     ordered.sort(key=len, reverse=True)
     for chapter in framework.get("chapters") or []:
-        if isinstance(chapter, dict):
-            chapter["body"] = _replace_unsourced_tokens(chapter.get("body"), ordered)
+        if not isinstance(chapter, dict):
+            continue
+        updated: list[Any] = []
+        for block in chapter.get("body") or []:
+            if isinstance(block, dict) and str(block.get("block") or "") == "timeline":
+                updated.append(block)
+            else:
+                updated.append(_replace_unsourced_tokens(block, ordered))
+        chapter["body"] = updated
     _refresh_open_items_table(framework)
 
 

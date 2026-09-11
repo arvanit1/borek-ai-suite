@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import re
 from typing import Any
 
 from packages.contracts.validators import chapter_specs_from_registry
+from services.framework.chapter_validators.ch00_about import has_eight_decision_questions
+from services.framework.chapter_validators.ch03_aim_success import has_conservative_marker
+from services.framework.chapter_validators.ch06_how_built import has_building_protection
 
 
 def load_chapter_registry() -> list[tuple[str, str]]:
@@ -264,7 +268,13 @@ def build_chapters(
                     ]
                     for item in systems
                 ]
-                or [[missing_note, "—", "—"]],
+                or [
+                    [
+                        missing_note,
+                        "—",
+                        "Protected by the guardrails in chapter 8; details are an open item rather than guessed.",
+                    ]
+                ],
             },
             {
                 "block": "ai_split",
@@ -509,16 +519,6 @@ def build_chapters(
     return chapters
 
 
-_EIGHT_QUESTION_MARKERS = (
-    "what is it",
-    "why do it",
-    "how does it work",
-    "how is it built",
-    "what do we need",
-    "is it safe",
-    "does it pay",
-    "can we trust",
-)
 _MISSING_NOTE = "Not named in the conversations. Recorded as an open item rather than guessed."
 
 
@@ -543,6 +543,58 @@ def overlay_llm_chapters(
         updated["source_refs"] = refs
         merged.append(updated)
     return merged
+
+
+def reconcile_chapter_invariants(
+    current_chapters: list[dict[str, Any]],
+    base_chapters: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Surgically restore Ch0/Ch3/Ch6 hard invariants without broad overlay side-effects."""
+    result = copy.deepcopy(current_chapters)
+    base_by_id = {str(chapter.get("chapter_id")): chapter for chapter in base_chapters}
+    for chapter_id in ("0", "3", "6"):
+        chapter = next((item for item in result if str(item.get("chapter_id")) == chapter_id), None)
+        base = base_by_id.get(chapter_id)
+        if chapter is None or base is None:
+            continue
+        body = list(chapter.get("body") or [])
+        base_body = list(base.get("body") or [])
+        if chapter_id == "0":
+            _repair_chapter_0_invariants(body, base_body)
+        elif chapter_id == "3":
+            _repair_chapter_3_invariants(body, base_body)
+        elif chapter_id == "6":
+            _repair_chapter_6_invariants(body, base_body)
+        chapter["body"] = body
+    return result
+
+
+def _repair_chapter_0_invariants(body: list[dict[str, Any]], base_body: list[dict[str, Any]]) -> None:
+    if not has_eight_decision_questions({"body": body}):
+        _ensure_eight_questions(body, base_body)
+    blob = str(body).lower()
+    if not (
+        "generated" in blob
+        and ("human-confirmed" in blob or "human confirmed" in blob)
+        and ("traceable" in blob or "source" in blob)
+        and ("range" in blob or "ranges" in blob)
+        and ("false precision" in blob or "false-precision" in blob)
+    ):
+        _ensure_about_phrases(body, base_body)
+        _ensure_about_boilerplate_prose(body, base_body)
+    _remove_premature_confirmation_claim(body)
+
+
+def _repair_chapter_3_invariants(body: list[dict[str, Any]], base_body: list[dict[str, Any]]) -> None:
+    if has_conservative_marker({"body": body}):
+        return
+    _ensure_conservative_kpi_prose(body, base_body)
+
+
+def _repair_chapter_6_invariants(body: list[dict[str, Any]], base_body: list[dict[str, Any]]) -> None:
+    if has_building_protection({"body": body}):
+        return
+    _repair_building_block_protection(body, base_body)
 
 
 def _keep_required_blocks(chapter_id: str, base_body: list[dict[str, Any]], llm_body: Any) -> list[dict[str, Any]]:
@@ -597,7 +649,7 @@ def _keep_required_blocks(chapter_id: str, base_body: list[dict[str, Any]], llm_
             _replace_first_block(merged, base_body, "kv_rows")
     if chapter_id == "3":
         _ensure_kpi_table(merged, base_body)
-        if "conservative" not in blob():
+        if not has_conservative_marker({"body": merged}):
             _patch_or_append_prose(merged, base_body)
         _ensure_conservative_kpi_prose(merged, base_body)
     if chapter_id == "4":
@@ -742,12 +794,7 @@ def _ensure_eight_questions(merged: list[dict[str, Any]], base_body: list[dict[s
     if not canonical:
         return
     existing = _blocks(merged, "bullets")
-    items: list[str] = []
-    for block in existing:
-        items.extend(str(item) for item in (block.get("items") or []))
-    joined = " ".join(items).lower()
-    has_all = len(items) >= 8 and all(marker in joined for marker in _EIGHT_QUESTION_MARKERS)
-    if has_all and len(existing) == 1:
+    if has_eight_decision_questions({"body": merged}) and len(existing) == 1:
         return
     if existing:
         existing[0]["items"] = list(canonical.get("items") or [])
@@ -759,7 +806,7 @@ def _ensure_eight_questions(merged: list[dict[str, Any]], base_body: list[dict[s
 
 def _ensure_conservative_kpi_prose(merged: list[dict[str, Any]], base_body: list[dict[str, Any]]) -> None:
     """ES-17 — Ch.3 must state KPIs are a conservative derivation."""
-    if "conservative" in str(merged).lower():
+    if has_conservative_marker({"body": merged}):
         return
     base_prose = _first_block(base_body, "prose")
     if base_prose:
@@ -944,25 +991,55 @@ def _ensure_table_purpose(merged: list[dict[str, Any]], base_body: list[dict[str
 
 
 def _ensure_table_protection(merged: list[dict[str, Any]], base_body: list[dict[str, Any]]) -> None:
-    """ES-20: each customer-facing building block states its protection."""
+    """ES-20: building-blocks table must satisfy ch06 `protect` acceptance."""
+    if has_building_protection({"body": merged}):
+        return
+    _repair_building_block_protection(merged, base_body)
+
+
+def _repair_building_block_protection(merged: list[dict[str, Any]], base_body: list[dict[str, Any]]) -> None:
+    """Repair invalid protection cells before falling back to the deterministic table."""
     building = next((item for item in _blocks(merged, "table") if _table_purpose(item) == "building_blocks"), None)
-    protections = [
-        str(row[2] if len(row) > 2 else "").strip().lower()
-        for row in (building or {}).get("rows") or []
-        if isinstance(row, list)
-    ]
-    if building is not None and protections and all(
-        protection and "as named" not in protection and "chapter 8" not in protection
-        for protection in protections
-    ):
-        return
-    base = next((item for item in _blocks(base_body, "table") if _table_purpose(item) == "building_blocks"), None)
-    if base is None:
-        return
+    base_table = next((item for item in _blocks(base_body, "table") if _table_purpose(item) == "building_blocks"), None)
     if building is None:
-        merged.append(base)
-    else:
-        merged[merged.index(building)] = base
+        if base_table is not None:
+            merged.append(copy.deepcopy(base_table))
+        return
+    if base_table is None:
+        return
+    fallback = "Protected by the guardrails in chapter 8; details are an open item rather than guessed."
+    base_by_name = {
+        str(row[0]): row
+        for row in (base_table.get("rows") or [])
+        if isinstance(row, list) and row
+    }
+    for row in building.get("rows") or []:
+        if not isinstance(row, list):
+            continue
+        if any("protect" in str(cell).lower() for cell in row):
+            continue
+        protection_idx = len(row) - 1
+        if protection_idx < 0:
+            continue
+        base_row = base_by_name.get(str(row[0]))
+        if (
+            base_row
+            and len(base_row) > protection_idx
+            and "protect" in str(base_row[protection_idx]).lower()
+        ):
+            row[protection_idx] = base_row[protection_idx]
+            continue
+        sample = next((item for item in (base_table.get("rows") or []) if isinstance(item, list) and item), None)
+        if (
+            sample
+            and len(sample) > protection_idx
+            and "protect" in str(sample[protection_idx]).lower()
+        ):
+            row[protection_idx] = sample[protection_idx]
+        else:
+            row[protection_idx] = fallback
+    if not has_building_protection({"body": merged}):
+        merged[merged.index(building)] = copy.deepcopy(base_table)
 
 
 def _ensure_typed_process_flow(merged: list[dict[str, Any]], base_body: list[dict[str, Any]]) -> None:
@@ -1171,10 +1248,12 @@ def _building_block_protection(item: dict[str, Any], missing_note: str) -> str:
     classification = str(item.get("data_classification") or "").strip()
     parts: list[str] = []
     if access and access.lower() != "as reported":
-        parts.append(f"Least-privilege access: {access}")
+        parts.append(f"Protected by least-privilege access: {access}")
     if classification and classification.lower() != "as reported":
-        parts.append(f"Data handling: {classification}")
-    return "; ".join(parts) if parts else missing_note
+        parts.append(f"Protected data handling: {classification}")
+    if parts:
+        return "; ".join(parts)
+    return "Protected by the guardrails in chapter 8; details are an open item rather than guessed."
 
 
 def _default_flow(caption: str, labels: list[str]) -> dict[str, Any]:

@@ -97,6 +97,10 @@ def collect_block_traceability_issues(
                 continue
             if not _block_requires_traceability(block):
                 continue
+            if _is_ch1_plain_task_prose(chapter_id, block):
+                continue
+            if str(block.get("block") or "") in {"ai_split", "timeline"}:
+                continue
             if str(block.get("tone") or "") == "open_item":
                 continue
             refs = block.get("source_refs") or []
@@ -152,6 +156,12 @@ def convert_unsupported_block_claims(
                 updated.append(block)
                 continue
             claim = _block_text(block)
+            if _is_ch1_plain_task_prose(chapter_id, block):
+                updated.append(block)
+                continue
+            if str(block.get("block") or "") in {"ai_split", "timeline"}:
+                updated.append(block)
+                continue
             refs = block.get("source_refs") or []
             if not refs:
                 reason = "it has no cited conversation excerpt"
@@ -326,6 +336,13 @@ def _minimum_overlap(block: dict[str, Any]) -> int:
     if str(block.get("block") or "") in {"kv_rows", "table", "process_flow", "sensitivity", "timeline", "score_bars", "glossary", "ai_split"}:
         return 1
     return 2
+
+
+def _is_ch1_plain_task_prose(chapter_id: str, block: dict[str, Any]) -> bool:
+    """Ch.1 non-numeric task prose is ES-15 scaffolding, not an ES-28 sourced claim."""
+    if chapter_id != "1" or str(block.get("block") or "") != "prose":
+        return False
+    return not re.search(r"\d", _block_text(block))
 
 
 def _block_requires_traceability(block: dict[str, Any]) -> bool:

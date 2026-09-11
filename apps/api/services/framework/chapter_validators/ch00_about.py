@@ -6,7 +6,7 @@ from typing import Any
 
 from services.framework.chapter_validators.base import ChapterIssue, blocks_of, chapter_blob
 
-_EIGHT_MARKERS = (
+DECISION_QUESTION_MARKERS = (
     "what is it",
     "why do it",
     "how does it work",
@@ -16,6 +16,21 @@ _EIGHT_MARKERS = (
     "does it pay",
     "can we trust",
 )
+
+
+def decision_question_items(chapter: dict[str, Any]) -> list[str]:
+    items: list[str] = []
+    for block in blocks_of(chapter, "bullets"):
+        items.extend(str(item) for item in (block.get("items") or []))
+    return items
+
+
+def has_eight_decision_questions(chapter: dict[str, Any]) -> bool:
+    items = decision_question_items(chapter)
+    if len(items) < 8:
+        return False
+    joined = " ".join(items).lower()
+    return all(marker in joined for marker in DECISION_QUESTION_MARKERS)
 
 
 def validate(framework: dict[str, Any], chapter: dict[str, Any]) -> list[ChapterIssue]:
@@ -39,23 +54,8 @@ def validate(framework: dict[str, Any], chapter: dict[str, Any]) -> list[Chapter
         issues.append(
             ChapterIssue("0", "false_precision", "Chapter 0 must say estimates are ranges, never false precision.")
         )
-    bullets = blocks_of(chapter, "bullets")
-    items: list[str] = []
-    for block in bullets:
-        items.extend(str(item) for item in (block.get("items") or []))
-    if len(items) < 8:
+    if not has_eight_decision_questions(chapter):
         issues.append(
             ChapterIssue("0", "decision_questions", "Chapter 0 must list the eight decision questions the report answers.")
         )
-    else:
-        joined = " ".join(items).lower()
-        missing = [marker for marker in _EIGHT_MARKERS if marker not in joined]
-        if missing:
-            issues.append(
-                ChapterIssue(
-                    "0",
-                    "decision_questions",
-                    "Chapter 0 must list the eight decision questions the report answers.",
-                )
-            )
     return issues
