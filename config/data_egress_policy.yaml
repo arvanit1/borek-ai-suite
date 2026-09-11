@@ -3,6 +3,7 @@ default: deny
 
 # BT-32: the classification scheme is an approved working default (O4, 3 Sep 2026).
 # This field map is NOT production-signed. Do not treat approval_status as granted.
+# Human O4 evidence package: docs/tickets/BT32_O4_SIGNOFF.md
 approval:
   status: pending
   signed_off: false
