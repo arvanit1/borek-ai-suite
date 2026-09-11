@@ -11,7 +11,7 @@ import pytest
 from services.framework.cross_chapter_rules import MultiProcessError, enforce_cross_chapter_rules, flag_multi_process
 from services.framework.guardrails import convert_unsourced_claims
 from services.framework.pipeline import generate_customer_framework
-from services.framework.process_scope import enforce_semantic_process_scope
+from services.framework.process_scope import MAX_SCOPE_ATTEMPTS, PROMPT_VERSION, enforce_semantic_process_scope
 from services.framework.source_traceability import convert_unsupported_block_claims
 from services.observability.llm_logger import STAGE_PROCESS_SCOPE, clear_generation_jobs, jobs_for_opportunity
 
@@ -186,10 +186,15 @@ def test_es29_generic_distinct_processes_are_flagged() -> None:
 def test_es29_semantic_gate_blocks_multiple_sourced_processes() -> None:
     models, _ = _models()
     ref = models[0]["facts"][0]["source_refs"][0]
+    calls = {"count": 0}
 
     def complete(system: str, user: str, schema: dict) -> dict:
-        assert "process-scope:v1" in system
+        calls["count"] += 1
+        assert PROMPT_VERSION in system
         assert "<knowledge_entries>" in user
+        if calls["count"] > 1:
+            assert "RETRY" in user
+            assert "Invoice matching" in user
         return {
             "decision": "multiple",
             "processes": [
@@ -200,6 +205,7 @@ def test_es29_semantic_gate_blocks_multiple_sourced_processes() -> None:
 
     with pytest.raises(MultiProcessError, match="not merged"):
         enforce_semantic_process_scope(models, opportunity_id="OPP-142", complete=complete)
+    assert calls["count"] == MAX_SCOPE_ATTEMPTS
 
 
 def test_es29_semantic_gate_fails_closed_when_uncertain() -> None:
@@ -246,7 +252,82 @@ def test_es29_semantic_gate_logs_the_live_call(monkeypatch: pytest.MonkeyPatch) 
     jobs = jobs_for_opportunity("OPP-142", stages=[STAGE_PROCESS_SCOPE])
     assert len(jobs) == 1
     assert jobs[0]["status"] == "success"
-    assert jobs[0]["prompt_version"] == "process-scope:v1"
+    assert jobs[0]["prompt_version"] == PROMPT_VERSION
+
+
+def test_es29_semantic_gate_reprompts_related_subprocesses_into_one() -> None:
+    models, _ = _models()
+    ref = models[0]["facts"][0]["source_refs"][0]
+    users: list[str] = []
+
+    def complete(system: str, user: str, schema: dict) -> dict:
+        users.append(user)
+        if len(users) == 1:
+            return {
+                "decision": "multiple",
+                "processes": [
+                    {"label": "Customer support / Customer inquiry handling", "source_refs": [ref]},
+                    {"label": "Sales reporting", "source_refs": [ref]},
+                    {"label": "Rural customer engagement / Rural sales", "source_refs": [ref]},
+                    {"label": "Inventory forecasting / Inventory management", "source_refs": [ref]},
+                    {"label": "Rural distribution / Order fulfillment for rural customers", "source_refs": [ref]},
+                    {"label": "Urban customer engagement / Urban sales", "source_refs": [ref]},
+                ],
+            }
+        return {
+            "decision": "single",
+            "processes": [
+                {
+                    "label": "Rural and urban sales operations",
+                    "source_refs": [ref],
+                }
+            ],
+        }
+
+    result = enforce_semantic_process_scope(models, opportunity_id="OPP-142", complete=complete)
+    assert result["decision"] == "single"
+    assert len(result["processes"]) == 1
+    assert len(users) == 2
+    assert "RETRY" in users[1]
+    assert "Rural customer engagement / Rural sales" in users[1]
+    assert "independently automatable" in users[1]
+
+
+def test_es29_semantic_gate_exhausts_retries_then_fails_closed() -> None:
+    models, _ = _models()
+    ref = models[0]["facts"][0]["source_refs"][0]
+    calls = {"count": 0}
+
+    def complete(_system: str, _user: str, _schema: dict) -> dict:
+        calls["count"] += 1
+        return {
+            "decision": "uncertain",
+            "processes": [{"label": "Unclear scope", "source_refs": [ref]}],
+        }
+
+    with pytest.raises(MultiProcessError, match="not confirmed"):
+        enforce_semantic_process_scope(models, opportunity_id="OPP-142", complete=complete)
+    assert calls["count"] == MAX_SCOPE_ATTEMPTS
+
+
+def test_es29_semantic_gate_retries_invalid_payload_then_accepts_single() -> None:
+    models, _ = _models()
+    ref = models[0]["facts"][0]["source_refs"][0]
+    calls = {"count": 0}
+
+    def complete(_system: str, user: str, _schema: dict) -> dict:
+        calls["count"] += 1
+        if calls["count"] == 1:
+            return {"decision": "single", "processes": []}
+        assert "RETRY" in user
+        return {
+            "decision": "single",
+            "processes": [{"label": "Invoice matching", "source_refs": [ref]}],
+        }
+
+    result = enforce_semantic_process_scope(models, opportunity_id="OPP-142", complete=complete)
+    assert result["decision"] == "single"
+    assert calls["count"] == 2
 
 
 def test_es28_chapter_zero_boilerplate_is_not_converted_to_open_item() -> None:
