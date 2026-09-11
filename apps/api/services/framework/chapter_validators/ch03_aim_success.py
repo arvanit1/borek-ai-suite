@@ -7,10 +7,14 @@ from typing import Any
 from services.framework.chapter_validators.base import ChapterIssue, blocks_of, chapter_blob
 
 
+def has_conservative_marker(chapter: dict[str, Any]) -> bool:
+    return "conservative" in chapter_blob(chapter)
+
+
 def validate(framework: dict[str, Any], chapter: dict[str, Any]) -> list[ChapterIssue]:
     issues: list[ChapterIssue] = []
     blob = chapter_blob(chapter)
-    if "conservative" not in blob:
+    if not has_conservative_marker(chapter):
         issues.append(
             ChapterIssue(
                 "3",

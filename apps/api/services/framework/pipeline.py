@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import re
 from datetime import datetime, timezone
@@ -13,7 +14,7 @@ import jsonschema
 from packages.contracts.validators import chapter_specs_from_registry
 from services.framework.assembly import assemble_from_knowledge
 from services.framework.business_case import compute_business_case
-from services.framework.chapter_builder import build_chapters
+from services.framework.chapter_builder import build_chapters, reconcile_chapter_invariants
 from services.framework.client_pack import apply_client_pack_to_skeleton, attach_client_pack_meta, normalize_client_pack
 from services.framework.company_facts import (
     apply_company_facts_to_chapters,
@@ -145,6 +146,7 @@ def generate_customer_framework(
         facts=skeleton.get("facts") or [],
         source_refs=source_refs,
     )
+    base_chapters = copy.deepcopy(chapters)
 
     llm_meta = {"used": False, "model": None, "prompt_version": PROMPT_VERSION}
     if use_llm:
@@ -245,11 +247,15 @@ def generate_customer_framework(
     _assert_registry_titles(framework)
     scrub_framework_chapter_6(framework)
     prepare_framework_for_confirm(framework)
+    framework["chapters"] = reconcile_chapter_invariants(framework.get("chapters") or [], base_chapters)
     attach_block_source_refs(framework, skeleton.get("source_entries") or [])
-    validate_all_chapters(framework)
     convert_unsupported_block_claims(framework, skeleton.get("source_entries") or [])
     enforce_cross_chapter_rules(framework, skeleton.get("source_entries") or [])
     convert_unsourced_claims(framework)
+    # ES-28 conversion can replace unsupported prose with open-item callouts. Restore
+    # hard chapter invariants once more before the final acceptance gate.
+    framework["chapters"] = reconcile_chapter_invariants(framework.get("chapters") or [], base_chapters)
+    validate_all_chapters(framework)
 
     decision = render_decision(int(engines["readiness"]["score"]), framework.get("open_items") or [])
     framework["render"] = decision
