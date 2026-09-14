@@ -7,7 +7,7 @@ from uuid import UUID
 
 from app.schemas.jobs import JobStage, JobStatus
 from app.services import job_service, presentation_generation
-from app.services.api_errors import error_fields_from_exception
+from app.services.api_errors import error_fields_from_exception, failed_stage_from_exception
 from app.services.audit import AuditAction, AuditObjectType, record_audit_event
 from app.services.data import DataStore
 
@@ -17,6 +17,35 @@ logger = logging.getLogger(__name__)
 def _enqueue_context(job: job_service.Job) -> dict:
     raw = (job.result_json or {}).get("_enqueue")
     return dict(raw) if isinstance(raw, dict) else {}
+
+
+def _presentation_generation_jobs(
+    store: DataStore,
+    opportunity_id: UUID,
+) -> list[dict]:
+    rows = getattr(store, "generation_jobs", None)
+    if rows is None:
+        return []
+    return [
+        row
+        for row in rows.values()
+        if row.get("opportunity_id") == opportunity_id
+        and row.get("job_type") == "presentation_generation"
+    ]
+
+
+def _latest_presentation_generation_job(
+    store: DataStore,
+    opportunity_id: UUID,
+) -> job_service.Job | None:
+    rows = _presentation_generation_jobs(store, opportunity_id)
+    if not rows:
+        return None
+    latest = max(
+        rows,
+        key=lambda row: str(row.get("created_at") or row.get("started_at") or row["id"]),
+    )
+    return job_service.get_job(latest["id"], repository=store)
 
 
 def _record_failed_generation_job(
@@ -31,13 +60,26 @@ def _record_failed_generation_job(
     Without this row the UI times out as PRESENTATION_PIPELINE_HANDOFF_MISSING.
     """
     code, message, retryable = error_fields_from_exception(exc)
-    existing = job_service.reuse_active_generation_job(
-        store,
-        planning_job.opportunity_id,
-        stage_group="presentation",
-        job_type="presentation_generation",
-    )
-    job = existing or job_service.create_job(
+    failed_stage = failed_stage_from_exception(exc)
+    existing = _latest_presentation_generation_job(store, planning_job.opportunity_id)
+    if existing is not None:
+        if existing.status == JobStatus.FAILED:
+            # Synchronous generation already recorded the authoritative failure.
+            return
+        if job_service.is_non_terminal_job(existing):
+            if code == "JOB_FAILED":
+                code = "PRESENTATION_CONTINUATION_FAILED"
+            job_service.fail_job(
+                existing.id,
+                code,
+                message,
+                failed_stage,
+                retryable,
+                repository=store,
+            )
+            return
+
+    job = job_service.create_job(
         opportunity_id=planning_job.opportunity_id,
         job_type="presentation_generation",
         enqueue={
@@ -47,15 +89,13 @@ def _record_failed_generation_job(
         },
         repository=store,
     )
-    if not job_service.is_non_terminal_job(job):
-        return
     if code == "JOB_FAILED":
         code = "PRESENTATION_CONTINUATION_FAILED"
     job_service.fail_job(
         job.id,
         code,
         message,
-        JobStage.SLIDE_GENERATING,
+        failed_stage,
         retryable,
         repository=store,
     )
