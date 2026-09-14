@@ -25,9 +25,10 @@ from services.slides.group_c_compression import (
     validate_and_compress_group_c_slide_spec,
 )
 from services.validation.compression_retry import CompressionResult
-from services.validation.compression_retry import get_value_at_path
+from services.validation.compression_retry import get_value_at_path, set_value_at_path
 from services.validation.source_chapter_enforcement import (
     SourceChapterEnforcementError,
+    populated_content_leaf_paths,
     validate_field_provenance,
 )
 
@@ -95,6 +96,7 @@ class GroupCGenerationConfig:
     allowed_chapter_ids: tuple[str, ...]
     provenance_path_guidance: str
     instructions: str
+    exclude_monetary_fields: bool = False
 
 
 _COMMERCIAL_KEY = re.compile(
@@ -122,6 +124,15 @@ _NON_CONTENT_KEYS = frozenset(
     }
 )
 _DROP = object()
+_OPTIONAL_MONETARY_EXCLUSION_FIELDS = frozenset({"subtitle", "sectionLabel"})
+_EXCLUDED_MONETARY_PROMPT = (
+    " Monetary exclusion is active (excludeMonetaryFields=true). Do not include "
+    "prices, costs, savings amounts, ROI, revenue, commercial claims, fees, "
+    "budgets, currency values, monetary percentages, payback, investment, or "
+    "pricing language in any generated field, including title, subtitle, "
+    "sectionLabel, criteria titles, criteria descriptions, and callouts."
+)
+_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
 
 
 def generate_group_c_slide_spec(
@@ -170,10 +181,23 @@ def generate_group_c_slide_spec(
             )
 
         candidate = copy.deepcopy(generated)
+        if config.exclude_monetary_fields:
+            candidate = repair_excluded_monetary_content(
+                candidate,
+                chapters=chapters,
+            )
         try:
             _validate_slide_spec(candidate, config, chapters)
         except UngroundedContentError as exc:
             if attempt + 1 < _MAX_AT8_REGENERATION_ATTEMPTS:
+                request = _with_at8_rejection(request, str(exc))
+                continue
+            raise
+        except (ProhibitedCommercialContentError, GroupCBusinessValidationError) as exc:
+            if (
+                config.exclude_monetary_fields
+                and attempt + 1 < _MAX_AT8_REGENERATION_ATTEMPTS
+            ):
                 request = _with_at8_rejection(request, str(exc))
                 continue
             raise
@@ -391,12 +415,132 @@ def _validate_numeric_grounding(
             )
 
 
+def repair_excluded_monetary_content(
+    slide_spec: dict[str, Any],
+    *,
+    chapters: tuple[dict[str, Any], ...],
+) -> dict[str, Any]:
+    """Remove or rewrite prohibited commercial copy before ES-39 validation."""
+    repaired = copy.deepcopy(slide_spec)
+    for _ in range(32):
+        commercial_paths = _find_commercial_paths(repaired)
+        if not commercial_paths:
+            break
+        path = commercial_paths[0]
+        field_name = path.rsplit(".", 1)[-1].split("[", 1)[0]
+        if field_name in _OPTIONAL_MONETARY_EXCLUSION_FIELDS:
+            _remove_value_at_path(repaired, path)
+            _prune_field_provenance(repaired, path)
+            continue
+
+        current = get_value_at_path(repaired, _path_for_accessor(path))
+        if not isinstance(current, str):
+            break
+        cleaned = _repair_commercial_string(current, chapters=chapters)
+        if cleaned and not _contains_commercial_value(cleaned):
+            set_value_at_path(repaired, _path_for_accessor(path), cleaned)
+            continue
+        fallback = _grounded_non_commercial_fallback(chapters)
+        if fallback and not _contains_commercial_value(fallback):
+            set_value_at_path(repaired, _path_for_accessor(path), fallback)
+            continue
+        break
+
+    _prune_field_provenance(repaired)
+    return repaired
+
+
+def _path_for_accessor(path: str) -> str:
+    return path[2:] if path.startswith("$.") else path
+
+
+def _remove_value_at_path(payload: dict[str, Any], path: str) -> None:
+    accessor = _path_for_accessor(path)
+    from services.validation.compression_retry import _parse_path_tokens
+
+    tokens = list(_parse_path_tokens(accessor))
+    if not tokens:
+        raise KeyError(path)
+    current: Any = payload
+    for segment, index, quoted in tokens[:-1]:
+        if segment is not None:
+            current = current[segment]
+        elif index is not None:
+            current = current[int(index)]
+        else:
+            current = current[quoted]  # type: ignore[index]
+
+    last_segment, last_index, last_quoted = tokens[-1]
+    if last_segment is not None:
+        current.pop(last_segment, None)
+    elif last_index is not None:
+        del current[int(last_index)]
+    else:
+        del current[last_quoted]  # type: ignore[index]
+
+
+def _prune_field_provenance(
+    slide_spec: dict[str, Any],
+    removed_path: str | None = None,
+) -> None:
+    provenance = slide_spec.get("fieldProvenance")
+    if not isinstance(provenance, list):
+        return
+    expected = set(populated_content_leaf_paths(slide_spec))
+    normalized_removed = (
+        _path_for_accessor(removed_path) if removed_path is not None else None
+    )
+    slide_spec["fieldProvenance"] = [
+        entry
+        for entry in provenance
+        if isinstance(entry, dict)
+        and entry.get("path") in expected
+        and (
+            normalized_removed is None or entry.get("path") != normalized_removed
+        )
+    ]
+
+
+def _repair_commercial_string(
+    text: str,
+    *,
+    chapters: tuple[dict[str, Any], ...],
+) -> str:
+    cleaned_parts = [
+        part.strip()
+        for part in _SENTENCE_SPLIT.split(text.strip())
+        if part.strip() and not _contains_commercial_value(part.strip())
+    ]
+    if cleaned_parts:
+        return " ".join(cleaned_parts)
+    return ""
+
+
+def _grounded_non_commercial_fallback(
+    chapters: tuple[dict[str, Any], ...],
+) -> str | None:
+    for chapter in chapters:
+        title = chapter.get("title")
+        if isinstance(title, str) and title.strip() and not _contains_commercial_value(title):
+            return title.strip()
+    for chapter in chapters:
+        for text in _iter_content_strings(chapter.get("body", {})):
+            if (
+                isinstance(text, str)
+                and len(text.strip()) >= 3
+                and not _contains_commercial_value(text)
+            ):
+                return text.strip()
+    return None
+
+
 def _generation_instructions(config: GroupCGenerationConfig) -> str:
     from llm.json_schema_bundle import layout_limit_instruction
 
     allowed = ", ".join(config.allowed_chapter_ids)
+    monetary_rule = _EXCLUDED_MONETARY_PROMPT if config.exclude_monetary_fields else ""
     return (
-        f"{config.instructions}{layout_limit_instruction(config.layout_id)} "
+        f"{config.instructions}{monetary_rule}{layout_limit_instruction(config.layout_id)} "
         "Include fieldProvenance in the generated SlideSpec. "
         "Use the same dotted/array path syntax as AT-8 (for example, "
         "components[0].title or left.items[0]). Include exactly one provenance "
