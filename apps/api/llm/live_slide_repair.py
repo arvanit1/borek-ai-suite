@@ -158,6 +158,8 @@ def repair_live_slide_spec(slide_spec: dict[str, Any], request: Any) -> dict[str
     spec = copy.deepcopy(slide_spec)
     spec["layoutId"] = getattr(request, "layout_id", spec.get("layoutId"))
     spec.setdefault("schema_version", "1.0")
+    if isinstance(spec.get("subtitle"), str) and not spec["subtitle"].strip():
+        spec.pop("subtitle", None)
 
     chapter_ids = _request_chapter_ids(request)
     required_roots = _required_roots(request)

@@ -9,6 +9,10 @@ from services.slides.content_generation.group_a.common import (
     StructuredGenerator,
     generate_group_a_slide_spec,
 )
+from services.slides.content_generation.group_a.subtitle_repair import (
+    format_empty_subtitle_retry_message,
+    repair_empty_subtitle,
+)
 from services.slides.group_a_compression import GroupACompressFieldsFn
 from services.validation.compression_retry import CompressionResult
 
@@ -28,12 +32,16 @@ CONFIG = GroupAGenerationConfig(
         "currentState.title, and targetState.title must be a complete label of "
         "at most 32 characters. Select, shorten, reorganize, or paraphrase grounded "
         "content only; do not add facts or capabilities. "
+        "When you include subtitle, it must be a non-empty grounded string from the "
+        "supplied chapters. Omit subtitle rather than returning an empty string. "
         "NUMBERS: Always spell out numbers as words when they appear in compound "
         "terms or process names. Write 'three-way match', never '3-way match'. "
         "Write 'three steps', never '3 steps'. Write 'two systems', never '2 systems'. "
         "Use digits only for quantities that appear as digits in the chapter text "
         "you were given."
     ),
+    pre_validate_repair=repair_empty_subtitle,
+    format_retry_message=format_empty_subtitle_retry_message,
 )
 
 
