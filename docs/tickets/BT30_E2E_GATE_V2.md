@@ -144,6 +144,58 @@ and `error.code = GAMMA_TIMEOUT`.
 E2E. BT-30 E2E gate remains **open** until manual smoke / remaining dependency
 items pass.
 
+### GAMMA_PAYLOAD_INVALID on first_contact (ES-40 / Gamma boundary)
+
+**Observed failure:** Live manual smoke on opportunity
+`df756ac2-3e9f-47e2-91f5-8a64b6ad83bc` reached
+`SLIDE_GENERATING → SLIDE_VALIDATING → GAMMA_RENDERING`, then failed with
+`GAMMA_PAYLOAD_INVALID`:
+`Prices are not permitted in this payload (400). They are not labelled indicative
+as a workaround.`
+
+**Root cause:**
+
+- SlideSpecs are validated for commercial content at generation time, but the
+  live Gamma payload is built from confirmed Framework chapter prose via
+  `build_gamma_content_slots` (ES-40), not from SlideSpecs.
+- Chapter 1 business-case rows (for example
+  `Investment: ~EUR 22500 build · ~EUR 400/month run cost`) and the cover
+  tagline were flattened into `executive_summary.body`, `context.summary`, and
+  `cover.subtitle`.
+- `refuse_ungrounded_prices(..., allow_prices=False)` correctly refused those
+  rate-card-shaped figures on the first_contact profile before HTTP submission.
+
+**Fix (2026-09-14):**
+
+- Added `apps/api/services/gamma/payload_compliance.py`:
+  provider-specific repair + `validate_gamma_payload_compliance` immediately
+  before Gamma submission.
+- Non-pricing stages strip commercial/monetary lines from slot text only;
+  optional slots that become empty (for example `cover.subtitle`) are omitted.
+- Persisted Framework and SlideSpecs are unchanged.
+
+**Test proof:**
+
+- `tests/unit/gamma/test_gamma_payload_compliance.py` reproduces the manual-smoke
+  chapter-1 ROI row and proves compliance repair + local validation.
+- Gamma unit suite + BT-30 integration: green.
+
+**Live verification (2026-09-14):**
+
+- Opportunity: `df756ac2-3e9f-47e2-91f5-8a64b6ad83bc`
+- Presentation: `e6edf85e-f287-4f9f-9620-5492226fd7e9`
+- Job: `981c7746-de22-4947-94e5-06b71f28f866`
+- Payload compliance scan: no prohibited paths
+- Stages:
+  `GAMMA_RENDERING → ARTIFACT_FILING → PREVIEW_RENDERING → COMPLETED`
+- Reconnect probe at `GAMMA_RENDERING`: same job ID on refetch (no duplicate)
+- Retrieval: deck/preview/PPTX/PDF HTTP 200 (12 slides)
+
+**Gate status:** Gamma payload commercial-content blocker **resolved** for live
+first_contact. BT-30 manual smoke remains **open** for logo-present
+(`COVER_01` numeric attribution), German live path, and UI reconnect
+success-path proof.
+
 ## Proof
 
 - Automated E2E (extend `tests/integration/full_pipeline/test_bt27_e2e_gate.py`)
