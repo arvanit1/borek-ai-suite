@@ -231,7 +231,7 @@ field-attributed chapters: 95`.
   unchanged).
 - BT-30 integration gate: `6 passed`.
 
-**Live verification (2026-09-14):**
+**Live verification — grounding safety (2026-09-14, PR #106 merged):**
 
 - Opportunity: `30a9da97-5798-51fb-bc58-c8028a9124dd`
 - Logo: persisted (`audit-logo.png`, 128×128)
@@ -239,17 +239,35 @@ field-attributed chapters: 95`.
   — all LLM stat badges were unsupported numeric/spelled claims and were
   dropped; BT-15 `min_items=1` fail-closed (no word-form evasion, no fabricated
   replacement badges)
-- Logo-present manual smoke: **not complete** — live COVER generation does not
-  yet produce a valid SlideSpec when every generated badge is unsupported
-- Gamma / artifact filing / preview / PPTX / PDF / visual logo proof: **not
-  reached**
 
-**Gate status:** COVER_01 **grounding safety** fixed (unsupported numeric and
-spelled-number badges dropped; validator-evasion repair removed; numeric
-grounding remains fail-closed). Logo-present manual smoke remains **open**
-because live COVER still fails BT-15 `min_items=1` when no valid badge
-survives. Full-deck blockers also remain for `TIMELINE_01`, German live path,
-and UI reconnect success-path proof.
+**Follow-up fix — BT-15 `min_items=1` when no grounded numbers (2026-09-14):**
+
+- Chapter 1 source for this opportunity: title `Management summary`, empty body,
+  **no numeric tokens** after commercial sanitization.
+- Prompt now requires at least one statBadge; prefers grounded numeric only when
+  present in source; otherwise a short non-numeric badge from chapter title/body.
+- When repair drops all unsupported numeric badges, `_deterministic_grounded_non_numeric_badge`
+  extracts the longest verbatim source word (≤16 chars) plus a grounded label from
+  the same chapter text; bounded retry adds explicit non-numeric instructions when
+  `min_items` still fails.
+- Numeric grounding and BT-15 strictness unchanged; no generic hard-coded fallbacks
+  (`Trusted`, `Reliable`, etc.).
+
+**Live verification — minItems fix (2026-09-14):**
+
+- Direct live `generate_cover_01` on opp `30a9da97`: **VALID**
+  - `statBadges`: `[{ "value": "Overview", "label": "Chapter Focus" }]`
+  - No invented numeric claims (`95`, `ninety-five`, etc.)
+  - `fieldProvenance` valid for chapter `1`
+- Logo-present full pipeline job `c60a5c6d-dbc4-4992-831a-2e94ef06b920`:
+  **COMPLETED** (12 slides, Gamma PPTX/PDF filed)
+- Visual logo verification on rendered deck: **not performed** in this run
+
+**Gate status:** COVER_01 **minItems blocker resolved** for the logo-present
+opportunity (live COVER VALID; full deck generation COMPLETED). Logo-present
+manual smoke remains **partially open** until rendered preview/PPTX is fetched
+and the client logo is visually confirmed on COVER. Remaining blockers: German
+live path and UI reconnect success-path proof.
 
 ## Proof
 
