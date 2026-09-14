@@ -219,8 +219,12 @@ def test_live_payload_places_the_signed_url_bottom_right_and_keeps_borek_left(mo
     )
     footer = payload["cardOptions"]["headerFooter"]
     assert footer["bottomLeft"]["source"] == "themeLogo"
-    assert footer["bottomRight"]["source"] == signed
-    assert footer["bottomRight"]["maxHeightPercent"] == 6.0
+    assert footer["bottomRight"] == {
+        "type": "image",
+        "source": "custom",
+        "src": signed,
+        "size": "sm",
+    }
 
 
 def test_live_payload_omits_a_private_reference_even_when_the_gate_passed() -> None:

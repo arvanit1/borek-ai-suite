@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 import time
 from dataclasses import replace
 from typing import Any
@@ -155,11 +156,10 @@ class LiveGammaClient:
         client_logo_url = _fetchable_client_logo_url(request)
         if client_logo_url is not None:
             placement = request.client_logo_placement or load_gamma_template().client_logo
-            header_footer["bottomRight"] = {
-                "type": "image",
-                "source": client_logo_url,
-                "maxHeightPercent": placement.max_height_pct,
-            }
+            header_footer["bottomRight"] = _custom_header_footer_image(
+                src=client_logo_url,
+                max_height_pct=placement.max_height_pct,
+            )
         payload = {
             "inputText": input_text,
             "textMode": "preserve",
@@ -289,8 +289,12 @@ def client_logo_sent_in_outbound_payload(payload: dict[str, Any]) -> bool:
     bottom_right = header_footer.get("bottomRight")
     if not isinstance(bottom_right, dict):
         return False
-    source = bottom_right.get("source")
-    return isinstance(source, str) and bool(source.strip())
+    return (
+        bottom_right.get("type") == "image"
+        and bottom_right.get("source") == "custom"
+        and isinstance(bottom_right.get("src"), str)
+        and bool(bottom_right["src"].strip())
+    )
 
 
 def _fetchable_client_logo_url(request: GammaGenerateRequest) -> str | None:
@@ -311,8 +315,48 @@ def raise_for_gamma_status(response: httpx.Response) -> None:
     if response.status_code == 404:
         raise GammaTemplateError("The locked Gamma theme or template was not found.")
     if response.status_code in {400, 409, 422}:
-        raise GammaPayloadError("Gamma rejected the generation payload.")
+        detail = _sanitize_gamma_provider_message(response)
+        raise GammaPayloadError(
+            detail or "Gamma rejected the generation payload."
+        )
     raise GammaProviderError("Gamma provider failed.")
+
+
+def _custom_header_footer_image(*, src: str, max_height_pct: float) -> dict[str, Any]:
+    """Map JJ-27 placement semantics onto Gamma's header/footer image schema."""
+    return {
+        "type": "image",
+        "source": "custom",
+        "src": src,
+        "size": _gamma_image_size_for_max_height_pct(max_height_pct),
+    }
+
+
+def _gamma_image_size_for_max_height_pct(max_height_pct: float) -> str:
+    if max_height_pct <= 6.0:
+        return "sm"
+    if max_height_pct <= 10.0:
+        return "md"
+    if max_height_pct <= 14.0:
+        return "lg"
+    return "xl"
+
+
+def _sanitize_gamma_provider_message(response: httpx.Response) -> str | None:
+    try:
+        body = response.json()
+    except ValueError:
+        return None
+    if not isinstance(body, dict):
+        return None
+    message = body.get("message")
+    if not isinstance(message, str) or not message.strip():
+        return None
+    return _redact_sensitive_urls(message.strip())
+
+
+def _redact_sensitive_urls(text: str) -> str:
+    return re.sub(r"https?://\S+", "[redacted-url]", text)
 
 
 def _owned_artifact(

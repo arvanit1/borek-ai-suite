@@ -11,9 +11,12 @@ from services.gamma.client_logo import (
     decide_client_logo,
 )
 from services.gamma import live_client
+from services.gamma.contract import GammaPayloadError
 from services.gamma.live_client import (
     LiveGammaClient,
+    _gamma_image_size_for_max_height_pct,
     client_logo_sent_in_outbound_payload,
+    raise_for_gamma_status,
     uses_scratch_generation,
 )
 from tests.unit.gamma.test_jj27_client_logo_placement import (
@@ -62,8 +65,13 @@ def test_deepening_fetchable_logo_routes_to_standard_generations(monkeypatch) ->
     assert "gammaId" not in payload
     assert payload["textMode"] == "preserve"
     footer = payload["cardOptions"]["headerFooter"]
-    assert footer["bottomRight"]["source"] == signed
-    assert footer["bottomRight"]["maxHeightPercent"] == 6.0
+    bottom_right = footer["bottomRight"]
+    assert bottom_right == {
+        "type": "image",
+        "source": "custom",
+        "src": signed,
+        "size": "sm",
+    }
     assert client_logo_sent_in_outbound_payload(payload) is True
 
 
@@ -122,6 +130,54 @@ def _json_response(status: int, payload: dict, url: str = "https://public-api.ga
     return httpx.Response(status, json=payload, request=httpx.Request("POST", url))
 
 
+def test_scratch_payload_uses_gamma_custom_image_schema_without_unsupported_keys(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    signed = _signed_logo_ref(monkeypatch)
+    decision = decide_client_logo(_logo(), opportunity_id=OPPORTUNITY_ID)
+    client = LiveGammaClient(api_key="k", theme_id="theme-1", template_id="tpl-1")
+    payload = client._generation_payload(  # noqa: SLF001
+        _request(client_logo_ref=signed, client_logo_placement=decision.placement),
+    )
+
+    assert set(payload) <= {
+        "inputText",
+        "textMode",
+        "format",
+        "themeId",
+        "exportAs",
+        "title",
+        "cardOptions",
+    }
+    bottom_right = payload["cardOptions"]["headerFooter"]["bottomRight"]
+    assert set(bottom_right) == {"type", "source", "src", "size"}
+    assert "maxHeightPercent" not in bottom_right
+
+
+def test_jj27_max_height_pct_maps_to_gamma_size_sm() -> None:
+    assert _gamma_image_size_for_max_height_pct(6.0) == "sm"
+
+
+def test_raise_for_gamma_status_surfaces_sanitized_provider_message() -> None:
+    response = httpx.Response(
+        400,
+        json={
+            "message": (
+                "Input validation errors: 1. cardOptions.headerFooter.bottomRight.source "
+                "must be one of the following values: https://secret.example/logo?token=abc"
+            ),
+            "statusCode": 400,
+        },
+        request=httpx.Request("POST", "https://public-api.gamma.app/v1.0/generations"),
+    )
+
+    with pytest.raises(GammaPayloadError, match="headerFooter.bottomRight.source") as exc:
+        raise_for_gamma_status(response)
+
+    assert "https://" not in str(exc.value)
+    assert "token=abc" not in str(exc.value)
+
+
 def test_live_http_post_includes_logo_in_json_body(monkeypatch) -> None:
     signed = _signed_logo_ref(monkeypatch)
     decision = decide_client_logo(_logo(), opportunity_id=OPPORTUNITY_ID)
@@ -155,6 +211,11 @@ def test_live_http_post_includes_logo_in_json_body(monkeypatch) -> None:
     body = http.json_bodies[0]
     assert isinstance(body, dict)
     assert client_logo_sent_in_outbound_payload(body)
-    assert body["cardOptions"]["headerFooter"]["bottomRight"]["source"] == signed
+    assert body["cardOptions"]["headerFooter"]["bottomRight"] == {
+        "type": "image",
+        "source": "custom",
+        "src": signed,
+        "size": "sm",
+    }
     assert signed not in str(result)
     assert result.client_logo_applied is True
