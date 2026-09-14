@@ -1,0 +1,26 @@
+{
+  "workshop_clear": {
+    "calendar_meeting_date": "11.09.2026",
+    "description": "Clear workshop: 3 outcome-style key points, verb-first actions with owners, no small talk."
+  },
+  "unowned_commitment": {
+    "calendar_meeting_date": "11.09.2026",
+    "description": "Commitment with no owner becomes an open question, not an action."
+  },
+  "next_friday": {
+    "calendar_meeting_date": "11.09.2026",
+    "description": "Relative due 'next Friday' resolves against calendar meeting_date to 18.09.2026."
+  },
+  "no_deadline": {
+    "calendar_meeting_date": "11.09.2026",
+    "description": "Named owner, no deadline → due TBD."
+  },
+  "noisy_speakers": {
+    "calendar_meeting_date": "11.09.2026",
+    "description": "Missing speaker labels: action_items confidence is low and review_flags is non-empty."
+  },
+  "action_overflow": {
+    "calendar_meeting_date": "11.09.2026",
+    "description": "More than five named actions: keep five nearest dues, flag action_overflow_see_protocol."
+  }
+}

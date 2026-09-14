@@ -1,0 +1,4 @@
+Lena Hoffmann (BOREK): Requirements catch-up. The interface work is still open.
+Markus Weber (Acme): The interface specification should be delivered next week.
+Lena Hoffmann (BOREK): We did not name an owner for that. Let's leave it open until someone takes it.
+Markus Weber (Acme): Agreed, no one committed to writing it today.

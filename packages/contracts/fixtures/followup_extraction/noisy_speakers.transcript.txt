@@ -1,0 +1,4 @@
+Speaker: We should send the interface specification soon.
+: Test invoices are also needed.
+Unknown: Someone on the client side will provide them, I think.
+: Maybe next week, not sure who owns it.

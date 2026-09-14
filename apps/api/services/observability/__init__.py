@@ -2,6 +2,7 @@
 
 from services.observability.llm_logger import (
     STAGE_EXTRACTION,
+    STAGE_FOLLOWUP_EXTRACTION,
     STAGE_LOCALIZE,
     STAGE_SYNTHESIS,
     LlmCallRecord,
@@ -19,6 +20,7 @@ from services.observability.llm_logger import (
 
 __all__ = [
     "STAGE_EXTRACTION",
+    "STAGE_FOLLOWUP_EXTRACTION",
     "STAGE_LOCALIZE",
     "STAGE_SYNTHESIS",
     "LlmCallRecord",
