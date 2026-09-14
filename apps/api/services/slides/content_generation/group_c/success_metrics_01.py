@@ -28,6 +28,7 @@ CONFIG = GroupCGenerationConfig(
         "other monetary content. Do not invent metrics. AI must not set PowerPoint "
         "x, y, or width."
     ),
+    exclude_monetary_fields=True,
 )
 
 

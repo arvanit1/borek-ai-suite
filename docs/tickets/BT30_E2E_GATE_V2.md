@@ -72,8 +72,45 @@ repeat the same invalid structure.
 - Duplicate layout IDs: none
 
 **Gate status:** Duplicate-layout planner condition **resolved** for live
-planning. BT-30 E2E gate remains **open** until the full Phase 5 journey
-(including Gamma/retrieval failure paths) passes.
+planning.
+
+### SUCCESS_METRICS_01 commercial content (ES-39 / Group C)
+
+**Observed failure:** Live OpenAI slide generation for `SUCCESS_METRICS_01`
+failed during `SLIDE_GENERATING` with
+`SUCCESS_METRICS_01 contains prohibited commercial content at $.subtitle`
+(`PRESENTATION_CONTINUATION_FAILED`).
+
+**Root cause:**
+
+- Chapter bodies were sanitized before generation, but live LLM output was not
+  repaired before ES-39 commercial validation.
+- `excludeMonetaryFields=true` applied to the layout mapping but did not reach
+  the Group C generator as an explicit exclusion flag or repair step.
+
+**Fix (2026-09-14):**
+
+- Enabled `exclude_monetary_fields` on `SUCCESS_METRICS_01` generation config.
+- Added explicit monetary-exclusion instructions to the live generation prompt.
+- Added deterministic commercial-content repair before validation using the
+  same canonical `_contains_commercial_value` / `_find_commercial_paths` rules.
+- Optional fields (`subtitle`, `sectionLabel`) are removed when commercial;
+  required fields are sentence-filtered or replaced with grounded non-commercial
+  chapter fallback text.
+
+**Live verification (2026-09-14):**
+
+- Path: confirmed Group A framework fixture → live OpenAI planning → live slide
+  generation (`.env` live AI + Gamma)
+- Planning: PASS (10 unique layout IDs)
+- `SUCCESS_METRICS_01`: PASS — non-commercial subtitle and criteria persisted
+- Generation stages reached:
+  `SLIDE_GENERATING → SLIDE_VALIDATING → GAMMA_RENDERING → ARTIFACT_FILING → PREVIEW_RENDERING`
+- Presentation generation job: `COMPLETED`
+
+**Gate status:** Commercial-content slide-generation blocker **resolved** for
+live `SUCCESS_METRICS_01`. BT-30 E2E gate remains **open** until the full Phase
+5 journey (including failure-path recovery and German smoke) passes.
 
 ## Proof
 

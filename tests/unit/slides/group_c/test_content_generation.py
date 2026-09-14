@@ -460,7 +460,11 @@ def test_ms13_fewer_than_two_components_fails_before_compression() -> None:
     assert calls["compress"] == 0
 
 
-@pytest.mark.parametrize("case", CASES.values(), ids=CASES.keys())
+@pytest.mark.parametrize(
+    "case",
+    [value for key, value in CASES.items() if key != "success_metrics"],
+    ids=[key for key in CASES if key != "success_metrics"],
+)
 @pytest.mark.parametrize(
     "prohibited",
     [
@@ -471,7 +475,7 @@ def test_ms13_fewer_than_two_components_fails_before_compression() -> None:
         "Annual cost savings of 20%",
     ],
 )
-def test_generated_commercial_output_is_rejected_for_every_layout(
+def test_generated_commercial_output_is_rejected_for_non_repairable_layouts(
     case: Case, prohibited: str
 ) -> None:
     with pytest.raises(ProhibitedCommercialContentError):
@@ -545,13 +549,16 @@ def test_ms8_numeric_metric_must_come_from_the_attributed_chapter() -> None:
         _run(case, _framework(), CapturingGenerator(output=metrics))
 
 
-def test_ms8_ms14_currency_on_success_metrics_is_rejected() -> None:
+def test_ms8_ms14_currency_on_success_metrics_is_repaired() -> None:
     case = CASES["success_metrics"]
     invalid = _slide(case)
     invalid["criteria"][0]["description"] = "Save EUR 2,400 per month"
 
-    with pytest.raises((ProhibitedCommercialContentError, GroupCBusinessValidationError)):
-        _run(case, _framework(), CapturingGenerator(output=invalid))
+    result = _run(case, _framework(), CapturingGenerator(output=invalid))
+
+    assert result.status == "VALID"
+    assert result.slide_spec is not None
+    assert "EUR" not in json.dumps(result.slide_spec)
 
 
 def test_ms6_compression_cannot_introduce_commercial_content() -> None:
