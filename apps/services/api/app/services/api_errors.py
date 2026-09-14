@@ -5,6 +5,27 @@ from __future__ import annotations
 from fastapi import HTTPException, status
 
 
+def failed_stage_from_exception(exc: BaseException) -> "JobStage":
+    """Map a raised exception to the pipeline stage that actually failed."""
+    from app.schemas.jobs import JobStage
+
+    stage = getattr(exc, "failed_stage", None) or getattr(exc, "stage", None)
+    if isinstance(stage, JobStage):
+        return stage
+    if isinstance(stage, str):
+        try:
+            return JobStage(stage)
+        except ValueError:
+            pass
+
+    code = str(getattr(exc, "code", "") or getattr(exc, "error_code", "") or "")
+    if code.startswith("GAMMA_"):
+        return JobStage.GAMMA_RENDERING
+    if code in {"RENDERER_TIMEOUT", "RENDERER_UNAVAILABLE"}:
+        return JobStage.PPTX_RENDERING
+    return JobStage.SLIDE_GENERATING
+
+
 def error_fields_from_exception(exc: BaseException) -> tuple[str, str, bool]:
     """Return (code, message, retryable) for worker fail_job / continuation."""
     current: BaseException | None = exc

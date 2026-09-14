@@ -109,8 +109,40 @@ failed during `SLIDE_GENERATING` with
 - Presentation generation job: `COMPLETED`
 
 **Gate status:** Commercial-content slide-generation blocker **resolved** for
-live `SUCCESS_METRICS_01`. BT-30 E2E gate remains **open** until the full Phase
-5 journey (including failure-path recovery and German smoke) passes.
+live `SUCCESS_METRICS_01`.
+
+### Gamma failure-path recovery (BT-28 / MS-28)
+
+**Observed failure:** Fixture E2E
+`test_bt30_classified_gamma_failure_recovers_without_dead_end` reported
+`FAILED` with `error.stage = SLIDE_GENERATING` even though Gamma was invoked
+and `error.code = GAMMA_TIMEOUT`.
+
+**Root cause:**
+
+- Synchronous in-process continuation (`continue_after_planning` →
+  `enqueue_presentation_generate` → `task.run`) correctly failed the real
+  generation job at `GAMMA_RENDERING` via the worker.
+- BT-25 continuation error handling then created a **second**
+  `presentation_generation` job and hard-coded `failed_stage = SLIDE_GENERATING`,
+  masking the authoritative Gamma failure and breaking retry/resume discovery.
+
+**Fix (2026-09-14):**
+
+- Skip duplicate continuation failure rows when a generation job is already
+  `FAILED` (preserve worker-recorded stage, code, retryability).
+- Derive continuation `failed_stage` from the classified exception
+  (`GAMMA_*` → `GAMMA_RENDERING`) when a visibility row is still required.
+
+**Test proof:**
+
+- `test_bt30_classified_gamma_failure_recovers_without_dead_end`: PASS — fails
+  at `GAMMA_RENDERING`, retryable, retry completes to ready + downloads.
+- Full BT-30 integration suite: `6 passed`.
+
+**Gate status:** Gamma failure-path recovery blocker **resolved** in fixture
+E2E. BT-30 E2E gate remains **open** until manual smoke / remaining dependency
+items pass.
 
 ## Proof
 

@@ -554,6 +554,66 @@ def test_continuation_http_error_records_failed_generation_job(
     assert failed.failed_stage == JobStage.SLIDE_GENERATING
 
 
+def test_continuation_preserves_worker_gamma_failure_without_duplicate_job(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from services.gamma.contract import GammaTimeoutError
+
+    store, opportunity, framework = _store_with_confirmed_framework()
+    plan = _persist_plan(store, framework)
+    planning_job = _completed_planning_job(
+        store,
+        opportunity,
+        framework,
+        plan,
+        auto_continue=True,
+    )
+
+    def _fail_after_enqueue(current_store, **kwargs):
+        presentation = current_store.create_presentation(
+            presentation_plan_id=plan["id"],
+            user_id=USER_ID,
+            name="BT-25 Gamma failure",
+        )
+        job = job_service.create_job(
+            opportunity["id"],
+            "presentation_generation",
+            presentation_id=presentation["id"],
+            enqueue={
+                "user_id": str(USER_ID),
+                "presentation_id": str(presentation["id"]),
+            },
+            repository=current_store,
+        )
+        job_service.fail_job(
+            job.id,
+            "GAMMA_TIMEOUT",
+            "Gamma generation timed out.",
+            JobStage.GAMMA_RENDERING,
+            True,
+            repository=current_store,
+        )
+        raise GammaTimeoutError()
+
+    monkeypatch.setattr(
+        presentation_generation,
+        "enqueue_presentation_generate",
+        _fail_after_enqueue,
+    )
+
+    with pytest.raises(GammaTimeoutError):
+        continue_after_planning(store, planning_job_id=planning_job.id)
+
+    generation_jobs = _jobs(store, "presentation_generation")
+    assert len(generation_jobs) == 1
+    failed = job_service.get_job(generation_jobs[0]["id"], repository=store)
+    assert failed is not None
+    assert failed.status == JobStatus.FAILED
+    assert failed.error_code == "GAMMA_TIMEOUT"
+    assert failed.failed_stage == JobStage.GAMMA_RENDERING
+    assert failed.error_retryable is True
+
+
 def test_worker_continuation_failure_keeps_planning_completed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
