@@ -10,6 +10,10 @@ from services.slides.content_generation.group_a.common import (
     StructuredGenerator,
     generate_group_a_slide_spec,
 )
+from services.slides.content_generation.group_a.subtitle_repair import (
+    format_empty_subtitle_retry_message,
+    repair_empty_subtitle,
+)
 from services.slides.group_a_compression import GroupACompressFieldsFn
 from services.slides.summary_compression import validate_and_compress_summary_slide_spec
 from services.validation.compression_retry import CompressionResult
@@ -33,11 +37,15 @@ CONFIG = GroupAGenerationConfig(
         "content only; do not add facts. Never output currency, investment, "
         "pricing, ROI, payback, costs, savings, or other monetary content. "
         "Do not invent metrics. "
+        "When you include subtitle, it must be a non-empty grounded string from "
+        "chapter 1. Omit subtitle rather than returning an empty string. "
         "NUMBERS: Always spell out numbers as words when they appear in compound "
         "terms. Write 'three-way match', never '3-way match'. Use digits only "
         "for quantities that appear as digits in the chapter text you were given."
     ),
     schema_dir=SUMMARY_SCHEMA_DIR,
+    pre_validate_repair=repair_empty_subtitle,
+    format_retry_message=format_empty_subtitle_retry_message,
 )
 
 

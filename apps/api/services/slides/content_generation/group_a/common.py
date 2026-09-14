@@ -14,6 +14,10 @@ from urllib.parse import urljoin
 import jsonschema
 from referencing import Registry, Resource
 
+from services.slides.content_generation.group_a.subtitle_repair import (
+    format_empty_subtitle_retry_message,
+    is_empty_subtitle_validation_error,
+)
 from services.slides.group_a_compression import (
     GroupACompressFieldsFn,
     validate_and_compress_group_a_slide_spec,
@@ -182,6 +186,19 @@ def generate_group_a_slide_spec(
         except UngroundedContentError as exc:
             if attempt + 1 < _MAX_AT8_REGENERATION_ATTEMPTS:
                 request = _with_at8_rejection(request, str(exc))
+                continue
+            raise
+        except SlideSpecValidationError as exc:
+            if (
+                is_empty_subtitle_validation_error(str(exc))
+                and attempt + 1 < _MAX_AT8_REGENERATION_ATTEMPTS
+            ):
+                retry_message = str(exc)
+                if config.format_retry_message is not None:
+                    retry_message = config.format_retry_message(retry_message)
+                else:
+                    retry_message = format_empty_subtitle_retry_message(retry_message)
+                request = _with_at8_rejection(request, retry_message)
                 continue
             raise
         result = compress_slide(
