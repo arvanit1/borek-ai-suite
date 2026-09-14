@@ -12,8 +12,11 @@ from services.gamma.contract import gamma_egress_reference
 from services.gamma.live_client import LiveGammaClient
 from services.gamma.signed_logo import (
     SIGNED_LOGO_PATH,
+    is_public_https_fetch_url,
     mint_signed_client_logo_url,
+    mint_supabase_storage_signed_logo_url,
     owned_https_prefixes,
+    resolve_public_api_base_url,
     verify_signed_client_logo_request,
 )
 
@@ -228,3 +231,128 @@ def test_live_payload_omits_a_private_reference_even_when_the_gate_passed() -> N
     )
     assert "bottomRight" not in payload["cardOptions"]["headerFooter"]
     assert payload["cardOptions"]["headerFooter"]["bottomLeft"]["source"] == "themeLogo"
+
+
+def test_supabase_storage_sign_url_is_public_and_owned(monkeypatch) -> None:
+    import httpx
+
+    from app.config import settings
+
+    class _Response:
+        status_code = 200
+
+        @staticmethod
+        def json() -> dict[str, str]:
+            return {"signedURL": "/object/sign/client-logos/acme/logo.png?token=abc"}
+
+    monkeypatch.setattr(httpx, "post", lambda *args, **kwargs: _Response())
+    signed = mint_supabase_storage_signed_logo_url(
+        supabase_url="https://project.supabase.co",
+        service_role_key="service-role",
+        storage_path="acme/logo.png",
+        ttl_seconds=900,
+    )
+    assert signed == "https://project.supabase.co/storage/v1/object/sign/client-logos/acme/logo.png?token=abc"
+    monkeypatch.setattr(settings, "SUPABASE_URL", "https://project.supabase.co")
+    assert any("project.supabase.co/storage/v1/object/sign/" in prefix for prefix in owned_https_prefixes())
+    assert is_public_https_fetch_url(signed)
+
+
+def test_stage_uses_supabase_sign_url_when_api_signing_is_unavailable(
+    monkeypatch, tmp_path
+) -> None:
+    from app.config import settings
+    from app.services.data.memory_store import get_memory_store
+    from app.services.gamma_stage import build_gamma_request
+
+    supabase_signed = (
+        "https://project.supabase.co/storage/v1/object/sign/client-logos/acme/logo.png?token=abc"
+    )
+    monkeypatch.setattr(settings, "PRESENTATION_ENGINE", "gamma")
+    monkeypatch.setattr(settings, "GAMMA_EXECUTION_MODE", "fixture")
+    monkeypatch.setattr(settings, "ARTIFACT_ROOT", str(tmp_path))
+    monkeypatch.setattr(settings, "PUBLIC_API_BASE_URL", "")
+    monkeypatch.setattr(settings, "SUPABASE_URL", "https://project.supabase.co")
+    store = get_memory_store()
+    monkeypatch.setattr(
+        store,
+        "mint_client_logo_provider_url",
+        lambda *, opportunity_id, ttl_seconds: supabase_signed,
+    )
+    opportunity = _opportunity(store)
+    store.upsert_client_logo(
+        opportunity_id=opportunity["id"],
+        user_id=USER_ID,
+        file_name="acme.png",
+        mime_type="image/png",
+        size_bytes=1024,
+        storage_path=f"{opportunity['id']}/client-logo/acme.png",
+        content=b"\x89PNG\r\n\x1a\n",
+        width_px=512,
+        height_px=512,
+    )
+
+    request, logo = build_gamma_request(
+        opportunity=opportunity,
+        presentation_version_id=uuid.uuid4(),
+        user_id=USER_ID,
+        store=store,
+        stage="deepening",
+    )
+
+    assert logo.applied is True
+    assert request.client_logo_ref == supabase_signed
+    assert request.client_logo_placement is not None
+
+    result = _run_stage(store, opportunity)
+    assert result["client_logo"]["applied"] is True
+    assert result["client_logo"]["reason"] == REASON_APPLIED
+
+
+def test_signed_logo_ttl_covers_gamma_timeout(monkeypatch, tmp_path) -> None:
+    from app.config import settings
+    from app.services.data.memory_store import get_memory_store
+    from app.services.gamma_stage import build_gamma_request
+
+    captured: dict[str, int] = {}
+
+    def _mint(*, opportunity_id, ttl_seconds):
+        captured["ttl_seconds"] = ttl_seconds
+        return "https://project.supabase.co/storage/v1/object/sign/client-logos/acme/logo.png?token=abc"
+
+    monkeypatch.setattr(settings, "PRESENTATION_ENGINE", "gamma")
+    monkeypatch.setattr(settings, "PUBLIC_API_BASE_URL", "")
+    monkeypatch.setattr(settings, "GAMMA_TIMEOUT_SECONDS", 180.0)
+    monkeypatch.setattr(settings, "CLIENT_LOGO_SIGNED_URL_TTL_SECONDS", 900)
+    store = get_memory_store()
+    monkeypatch.setattr(store, "mint_client_logo_provider_url", _mint)
+    opportunity = _opportunity(store)
+    store.upsert_client_logo(
+        opportunity_id=opportunity["id"],
+        user_id=USER_ID,
+        file_name="acme.png",
+        mime_type="image/png",
+        size_bytes=1024,
+        storage_path=f"{opportunity['id']}/client-logo/acme.png",
+        content=b"\x89PNG\r\n\x1a\n",
+        width_px=512,
+        height_px=512,
+    )
+
+    build_gamma_request(
+        opportunity=opportunity,
+        presentation_version_id=uuid.uuid4(),
+        user_id=USER_ID,
+        store=store,
+        stage="deepening",
+    )
+    assert captured["ttl_seconds"] >= 240
+
+
+def test_localhost_api_base_is_not_treated_as_public(monkeypatch) -> None:
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "PUBLIC_API_BASE_URL", "")
+    monkeypatch.setenv("NEXT_PUBLIC_API_URL", "http://localhost:8000")
+    assert resolve_public_api_base_url() == ""
+    assert is_public_https_fetch_url("https://localhost:8000/public/client-logos/x") is False
