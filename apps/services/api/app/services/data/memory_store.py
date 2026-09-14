@@ -453,6 +453,14 @@ class MemoryDataStore:
         row = self.get_client_logo(opportunity_id=opportunity_id, user_id=user_id)
         return bytes(row["content"])
 
+    def mint_client_logo_provider_url(
+        self,
+        *,
+        opportunity_id: UUID,
+        ttl_seconds: int,
+    ) -> str | None:
+        return None
+
     def get_client_logo_for_signed_fetch(
         self, *, opportunity_id: UUID
     ) -> tuple[dict[str, Any], bytes]:

@@ -66,18 +66,26 @@ def _signed_logo_ref(
     *,
     opportunity_id: Any,
     stage: str,
+    store: Any | None = None,
 ) -> str | None:
     """JJ-29: mint a fetchable URL only after the placement gate. Never send private refs."""
     profile = load_gamma_template().profile(stage)
     if not logo.applied or not profile.client_logo:
         return None
     ttl = max(int(settings.CLIENT_LOGO_SIGNED_URL_TTL_SECONDS), int(settings.GAMMA_TIMEOUT_SECONDS) + 60)
-    return mint_signed_client_logo_url(
+    signed = mint_signed_client_logo_url(
         opportunity_id,
         public_api_base_url=settings.PUBLIC_API_BASE_URL,
         secret=settings.CLIENT_LOGO_SIGNING_SECRET or settings.SUPABASE_JWT_SECRET,
         ttl_seconds=ttl,
     )
+    if signed is not None:
+        return signed
+    minter = getattr(store, "mint_client_logo_provider_url", None)
+    if minter is None:
+        return None
+    parsed_id = opportunity_id if isinstance(opportunity_id, UUID) else UUID(str(opportunity_id))
+    return minter(opportunity_id=parsed_id, ttl_seconds=ttl)
 
 
 def client_logo_decision_for_opportunity(
@@ -120,7 +128,12 @@ def build_gamma_request(
         or opportunity.get("requested_journey_stage")
     )
     opportunity["journey_stage"] = resolved_stage
-    signed_ref = _signed_logo_ref(logo, opportunity_id=opportunity_id, stage=resolved_stage)
+    signed_ref = _signed_logo_ref(
+        logo,
+        opportunity_id=opportunity_id,
+        stage=resolved_stage,
+        store=store,
+    )
     content = build_gamma_content_payload(
         opportunity=opportunity,
         framework=framework,
