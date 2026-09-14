@@ -214,8 +214,12 @@ def test_a_signed_url_from_an_owned_host_is_placed_bottom_right(monkeypatch) -> 
     )
 
     bottom_right = payload["cardOptions"]["headerFooter"]["bottomRight"]
-    assert bottom_right["source"] == signed_url
-    assert bottom_right["maxHeightPercent"] == 6.0
+    assert bottom_right == {
+        "type": "image",
+        "source": "custom",
+        "src": signed_url,
+        "size": "sm",
+    }
     # The Borek logo keeps its own corner.
     assert payload["cardOptions"]["headerFooter"]["bottomLeft"]["source"] == "themeLogo"
 
