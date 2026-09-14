@@ -20,7 +20,10 @@ from services.validation.source_chapter_enforcement import (
 )
 
 MAX_STAT_BADGES = 3
+_STAT_BADGE_VALUE_MAX_LENGTH = 16
+_STAT_BADGE_LABEL_MAX_LENGTH = 32
 _STAT_BADGE_PATH = re.compile(r"^statBadges\[\d+\]")
+_SOURCE_WORD = re.compile(r"[A-Za-z][A-Za-z'-]{0,15}")
 _SPELLED_NUMBER = re.compile(
     r"\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|"
     r"thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|"
@@ -82,17 +85,90 @@ def repair_cover_ungrounded_stat_badges(
             continue
         kept.append((badge, source_ids))
 
-    repaired["statBadges"] = [badge for badge, _sources in kept]
     if len(kept) != len(badges):
+        repaired["statBadges"] = [badge for badge, _sources in kept]
         _resync_cover_stat_badge_provenance(repaired, kept)
+
+    if not repaired.get("statBadges"):
+        fallback = _deterministic_grounded_non_numeric_badge(chapters, chapter_ids)
+        if fallback is not None:
+            badge, source_ids = fallback
+            repaired["statBadges"] = [badge]
+            _resync_cover_stat_badge_provenance(
+                repaired,
+                [(badge, source_ids)],
+            )
     return repaired
+
+
+def _deterministic_grounded_non_numeric_badge(
+    chapters: tuple[dict[str, Any], ...],
+    chapter_ids: tuple[str, ...],
+) -> tuple[dict[str, Any], tuple[str, ...]] | None:
+    chapters_by_id = {
+        chapter["chapter_id"]: chapter
+        for chapter in chapters
+        if isinstance(chapter, dict) and isinstance(chapter.get("chapter_id"), str)
+    }
+    for chapter_id in chapter_ids:
+        chapter = chapters_by_id.get(chapter_id)
+        if chapter is None:
+            continue
+        source_text = _chapter_source_text(chapter)
+        value = _select_grounded_non_numeric_value(source_text)
+        if value is None:
+            continue
+        label = _select_grounded_non_numeric_label(source_text, value)
+        if label is None:
+            continue
+        return ({"value": value, "label": label}, (chapter_id,))
+    return None
+
+
+def _select_grounded_non_numeric_value(source_text: str) -> str | None:
+    if not source_text.strip():
+        return None
+    candidates: list[str] = []
+    for match in _SOURCE_WORD.finditer(source_text):
+        word = match.group(0)
+        if len(word) > _STAT_BADGE_VALUE_MAX_LENGTH:
+            continue
+        if _number_tokens(word) or _looks_like_spelled_numeric_claim(word):
+            continue
+        normalized = word.casefold()
+        if normalized not in {item.casefold() for item in candidates}:
+            candidates.append(word)
+    if not candidates:
+        return None
+    return max(candidates, key=len)
+
+
+def _select_grounded_non_numeric_label(
+    source_text: str,
+    value: str,
+) -> str | None:
+    normalized_source = source_text.casefold()
+    sentences = [
+        segment.strip()
+        for segment in re.split(r"[.;\n]+", source_text)
+        if segment.strip()
+    ]
+    for sentence in sentences:
+        if value.casefold() in sentence.casefold() and len(sentence) <= _STAT_BADGE_LABEL_MAX_LENGTH:
+            return sentence
+    title = source_text.strip()
+    if value.casefold() in normalized_source and len(title) <= _STAT_BADGE_LABEL_MAX_LENGTH:
+        return title
+    if len(value) <= _STAT_BADGE_LABEL_MAX_LENGTH:
+        return value
+    return None
 
 
 def _stat_badge_value_is_grounded(
     value: str,
     attributed: tuple[dict[str, Any], ...],
 ) -> bool:
-    chapter_text = " ".join(_chapter_body_text(chapter) for chapter in attributed)
+    chapter_text = " ".join(_chapter_source_text(chapter) for chapter in attributed)
     normalized = value.casefold()
     if normalized and normalized in chapter_text.casefold():
         return True
@@ -109,6 +185,17 @@ def _stat_badge_value_is_grounded(
 
 def _looks_like_spelled_numeric_claim(value: str) -> bool:
     return bool(_SPELLED_NUMBER.search(value))
+
+
+def _chapter_source_text(chapter: dict[str, Any]) -> str:
+    parts: list[str] = []
+    title = chapter.get("title")
+    if isinstance(title, str) and title.strip():
+        parts.append(title.strip())
+    body_text = _chapter_body_text(chapter)
+    if body_text.strip():
+        parts.append(body_text.strip())
+    return " ".join(parts)
 
 
 def _chapter_body_text(chapter: dict[str, Any]) -> str:
@@ -164,6 +251,18 @@ def _resync_cover_stat_badge_provenance(
         slide_spec["sourceChapterIds"] = union
 
 
+def _cover_retry_message(message: str) -> str:
+    if "statBadges" not in message or "minimum" not in message.casefold():
+        return message
+    return (
+        f"{message} Previous stat badges were removed because they were unsupported. "
+        "Return at least one statBadge. Use a grounded numeric value only if it "
+        "appears verbatim in the supplied chapter title or body. Otherwise use a "
+        "short non-numeric value copied verbatim from the chapter title or body. "
+        "Do not invent numbers or spell unsupported numbers as words."
+    )
+
+
 CONFIG = GroupAGenerationConfig(
     layout_id="COVER_01",
     schema_filename="cover_01.schema.json",
@@ -173,13 +272,17 @@ CONFIG = GroupAGenerationConfig(
         "statBadges[i].value and statBadges[i].label"
     ),
     instructions=(
-        "Create COVER_01 content using only chapter 1. Include at most 3 "
-        "statBadges — use only the strongest grounded quantitative facts. "
+        "Create COVER_01 content using only chapter 1. Include at least 1 and at "
+        "most 3 statBadges. Prefer grounded quantitative facts only when the "
+        "supplied chapter title or body contains the exact number. If the chapter "
+        "contains no grounded numbers, include at least one short non-numeric "
+        "statBadge whose value is copied verbatim from the chapter title or body. "
         "Select only grounded, non-commercial facts. Never output currency, "
         "investment, pricing, ROI, payback, costs, savings, or other monetary "
-        "content. Do not invent metrics."
+        "content. Do not invent metrics. Do not spell unsupported numbers as words."
     ),
     pre_validate_repair=repair_cover_ungrounded_stat_badges,
+    format_retry_message=_cover_retry_message,
 )
 
 

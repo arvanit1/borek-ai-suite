@@ -106,6 +106,17 @@ class CapturingGenerator:
         return copy.deepcopy(self.output)
 
 
+@dataclass
+class SequenceCapturingGenerator:
+    outputs: list[dict[str, Any]]
+    requests: list[StructuredGenerationRequest] = field(default_factory=list)
+
+    def __call__(self, request: StructuredGenerationRequest) -> dict[str, Any]:
+        self.requests.append(request)
+        index = len(self.requests) - 1
+        return copy.deepcopy(self.outputs[min(index, len(self.outputs) - 1)])
+
+
 def _load_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
@@ -116,6 +127,13 @@ def _framework() -> dict[str, Any]:
 
 def _slide(case: Case) -> dict[str, Any]:
     return _load_json(SLIDE_FIXTURE_DIR / case.fixture_name)
+
+
+def _cover_without_numeric_title_fields(cover: dict[str, Any]) -> dict[str, Any]:
+    patched = copy.deepcopy(cover)
+    patched["title"] = "Invoice Match Automation"
+    patched["subtitle"] = "From manual checking to controlled automation"
+    return patched
 
 
 def _no_op_compressor(
@@ -852,7 +870,8 @@ def test_cover_prompt_states_maximum_three_stat_badges() -> None:
 
     instructions = generator.requests[0].instructions
     assert "at most 3 statBadges" in instructions
-    assert "strongest grounded quantitative facts" in instructions
+    assert "at least 1" in instructions
+    assert "non-numeric statBadge" in instructions
     assert "Do not invent metrics" in instructions
 
 
@@ -905,7 +924,7 @@ def _cover_chapters() -> tuple[dict[str, Any], ...]:
     return _extract_allowed_chapters(_framework(), CONFIG.allowed_chapter_ids)
 
 
-def test_cover_ungrounded_numeric_badge_is_dropped_without_source_match() -> None:
+def test_cover_ungrounded_numeric_badge_is_replaced_with_source_grounded_badge() -> None:
     cover = _slide(CASES["cover"])
     cover["statBadges"] = [{"value": "95", "label": "Automation rate"}]
     cover["fieldProvenance"] = [
@@ -919,8 +938,17 @@ def test_cover_ungrounded_numeric_badge_is_dropped_without_source_match() -> Non
 
     result = _run(CASES["cover"], _framework(), CapturingGenerator(output=cover))
 
-    assert result.status == "VALIDATION_FAILED"
-    assert result.slide_spec is None
+    assert result.status == "VALID"
+    assert result.slide_spec is not None
+    badge = result.slide_spec["statBadges"][0]
+    assert badge["value"] != "95"
+    assert "95" not in badge["value"].casefold()
+    assert "ninety" not in badge["value"].casefold()
+    validate_field_provenance(
+        result.slide_spec,
+        real_chapter_ids=["1"],
+        allowed_chapter_ids=["1"],
+    )
 
 
 def test_cover_grounded_numeric_badge_is_preserved() -> None:
@@ -1003,8 +1031,10 @@ def test_cover_repair_helper_leaves_valid_spec_unchanged() -> None:
     assert repaired["sourceChapterIds"] == cover["sourceChapterIds"]
 
 
-def test_cover_all_unsupported_numeric_badges_fail_bt15_min_items() -> None:
-    cover = _slide(CASES["cover"])
+def test_cover_all_unsupported_numeric_badges_fail_when_no_source_text_exists(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    cover = _cover_without_numeric_title_fields(_slide(CASES["cover"]))
     cover["statBadges"] = [
         {"value": "95", "label": "Unsupported rate"},
         {"value": "99%", "label": "Unsupported percent"},
@@ -1019,6 +1049,15 @@ def test_cover_all_unsupported_numeric_badges_fail_bt15_min_items() -> None:
         {"path": "statBadges[1].value", "sourceChapterIds": ["1"]},
         {"path": "statBadges[1].label", "sourceChapterIds": ["1"]},
     ]
+    from services.slides.content_generation.group_a import common as group_a_common
+
+    monkeypatch.setattr(
+        group_a_common,
+        "_extract_allowed_chapters",
+        lambda _framework_object, _allowed: (
+            {"chapter_id": "1", "title": "", "body": ""},
+        ),
+    )
 
     result = _run(CASES["cover"], _framework(), CapturingGenerator(output=cover))
 
@@ -1065,7 +1104,7 @@ def test_cover_repair_reindexes_provenance_when_first_badge_dropped() -> None:
     )
 
 
-def test_cover_repair_drops_ungrounded_badges_when_provenance_is_invalid() -> None:
+def test_cover_repair_inserts_source_grounded_badge_when_provenance_is_invalid() -> None:
     cover = _slide(CASES["cover"])
     cover["statBadges"] = [{"value": "95", "label": "Unsupported rate"}]
     cover["fieldProvenance"] = [
@@ -1076,11 +1115,75 @@ def test_cover_repair_drops_ungrounded_badges_when_provenance_is_invalid() -> No
 
     repaired = repair_cover_ungrounded_stat_badges(cover, _cover_chapters())
 
-    assert repaired["statBadges"] == []
-    assert not any(
+    assert len(repaired["statBadges"]) == 1
+    assert repaired["statBadges"][0]["value"] != "95"
+    assert any(
         str(entry.get("path", "")).startswith("statBadges[")
         for entry in repaired["fieldProvenance"]
     )
+
+
+def test_cover_empty_chapter_title_uses_grounded_title_word_for_fallback() -> None:
+    cover = _slide(CASES["cover"])
+    cover["statBadges"] = [{"value": "95", "label": "Unsupported rate"}]
+    cover["fieldProvenance"] = [
+        entry
+        for entry in cover["fieldProvenance"]
+        if not str(entry["path"]).startswith("statBadges[")
+    ] + [
+        {"path": "statBadges[0].value", "sourceChapterIds": ["1"]},
+        {"path": "statBadges[0].label", "sourceChapterIds": ["1"]},
+    ]
+    chapters = ({"chapter_id": "1", "title": "Management summary", "body": ""},)
+
+    repaired = repair_cover_ungrounded_stat_badges(cover, chapters)
+
+    assert repaired["statBadges"] == [
+        {"value": "Management", "label": "Management summary"},
+    ]
+
+
+def test_cover_retry_message_requires_grounded_non_numeric_badge() -> None:
+    from services.slides.content_generation.group_a.cover_01 import _cover_retry_message
+
+    message = _cover_retry_message(
+        "Slide (COVER_01) Field statBadges item count 0 is below minimum 1"
+    )
+
+    assert "removed because they were unsupported" in message
+    assert "non-numeric value copied verbatim" in message
+    assert "Do not invent numbers" in message
+
+
+def test_cover_retry_instruction_is_sent_after_empty_stat_badges(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from services.slides.content_generation.group_a import common as group_a_common
+
+    cover = _cover_without_numeric_title_fields(_slide(CASES["cover"]))
+    cover["statBadges"] = [{"value": "95", "label": "Unsupported rate"}]
+    cover["fieldProvenance"] = [
+        entry
+        for entry in cover["fieldProvenance"]
+        if not str(entry["path"]).startswith("statBadges[")
+    ] + [
+        {"path": "statBadges[0].value", "sourceChapterIds": ["1"]},
+        {"path": "statBadges[0].label", "sourceChapterIds": ["1"]},
+    ]
+    generator = SequenceCapturingGenerator(outputs=[cover, cover])
+
+    monkeypatch.setattr(
+        group_a_common,
+        "_extract_allowed_chapters",
+        lambda _framework_object, _allowed: (
+            {"chapter_id": "1", "title": "", "body": ""},
+        ),
+    )
+
+    _run(CASES["cover"], _framework(), generator)
+
+    assert len(generator.requests) >= 2
+    assert "removed because they were unsupported" in generator.requests[1].instructions
 
 
 def test_cover_spelled_numeric_claim_is_dropped_when_not_in_source() -> None:
@@ -1137,7 +1240,7 @@ def test_cover_repair_never_spells_unsupported_numbers() -> None:
         assert forbidden not in serialized
 
 
-def test_cover_zero_stat_badges_still_fail_bt15_min_items() -> None:
+def test_cover_empty_model_stat_badges_get_source_grounded_fallback() -> None:
     cover = _slide(CASES["cover"])
     cover["statBadges"] = []
     cover["fieldProvenance"] = [
@@ -1145,6 +1248,103 @@ def test_cover_zero_stat_badges_still_fail_bt15_min_items() -> None:
         for entry in cover["fieldProvenance"]
         if not str(entry["path"]).startswith("statBadges[")
     ]
+
+    result = _run(CASES["cover"], _framework(), CapturingGenerator(output=cover))
+
+    assert result.status == "VALID"
+    assert result.slide_spec is not None
+    assert len(result.slide_spec["statBadges"]) >= 1
+    for forbidden in ("Trusted", "Reliable", "AI-Powered"):
+        assert forbidden not in json.dumps(result.slide_spec["statBadges"])
+
+
+def test_cover_non_numeric_fallback_provenance_points_to_source_chapter() -> None:
+    cover = _slide(CASES["cover"])
+    cover["statBadges"] = [{"value": "95", "label": "Unsupported rate"}]
+    cover["fieldProvenance"] = [
+        entry
+        for entry in cover["fieldProvenance"]
+        if not str(entry["path"]).startswith("statBadges[")
+    ] + [
+        {"path": "statBadges[0].value", "sourceChapterIds": ["1"]},
+        {"path": "statBadges[0].label", "sourceChapterIds": ["1"]},
+    ]
+
+    result = _run(CASES["cover"], _framework(), CapturingGenerator(output=cover))
+
+    assert result.status == "VALID"
+    assert result.slide_spec is not None
+    value_paths = [
+        entry
+        for entry in result.slide_spec["fieldProvenance"]
+        if entry.get("path") == "statBadges[0].value"
+    ]
+    assert value_paths == [{"path": "statBadges[0].value", "sourceChapterIds": ["1"]}]
+    validate_field_provenance(
+        result.slide_spec,
+        real_chapter_ids=["1"],
+        allowed_chapter_ids=["1"],
+    )
+
+
+def test_cover_retry_second_response_with_grounded_non_numeric_succeeds(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from services.slides.content_generation.group_a import common as group_a_common
+
+    bad = _cover_without_numeric_title_fields(_slide(CASES["cover"]))
+    bad["statBadges"] = [{"value": "95", "label": "Unsupported rate"}]
+    bad["fieldProvenance"] = [
+        entry
+        for entry in bad["fieldProvenance"]
+        if not str(entry["path"]).startswith("statBadges[")
+    ] + [
+        {"path": "statBadges[0].value", "sourceChapterIds": ["1"]},
+        {"path": "statBadges[0].label", "sourceChapterIds": ["1"]},
+    ]
+    good = copy.deepcopy(bad)
+    good["statBadges"] = [{"value": "Human", "label": "Exceptions stay controlled"}]
+
+    generator = SequenceCapturingGenerator(outputs=[bad, good])
+
+    monkeypatch.setattr(
+        group_a_common,
+        "_extract_allowed_chapters",
+        lambda _framework_object, _allowed: (
+            {"chapter_id": "1", "title": "", "body": ""},
+        ),
+    )
+
+    result = _run(CASES["cover"], _framework(), generator)
+
+    assert result.status == "VALID"
+    assert result.slide_spec is not None
+    assert result.slide_spec["statBadges"][0]["value"] == "Human"
+
+
+def test_cover_bounded_retries_exhausted_when_stat_badges_stay_unsupported(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from services.slides.content_generation.group_a import common as group_a_common
+
+    cover = _cover_without_numeric_title_fields(_slide(CASES["cover"]))
+    cover["statBadges"] = [{"value": "95", "label": "Unsupported rate"}]
+    cover["fieldProvenance"] = [
+        entry
+        for entry in cover["fieldProvenance"]
+        if not str(entry["path"]).startswith("statBadges[")
+    ] + [
+        {"path": "statBadges[0].value", "sourceChapterIds": ["1"]},
+        {"path": "statBadges[0].label", "sourceChapterIds": ["1"]},
+    ]
+
+    monkeypatch.setattr(
+        group_a_common,
+        "_extract_allowed_chapters",
+        lambda _framework_object, _allowed: (
+            {"chapter_id": "1", "title": "", "body": ""},
+        ),
+    )
 
     result = _run(CASES["cover"], _framework(), CapturingGenerator(output=cover))
 

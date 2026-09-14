@@ -93,6 +93,7 @@ class GroupAGenerationConfig:
     instructions: str
     schema_dir: Path = GROUP_A_SCHEMA_DIR
     pre_validate_repair: PreValidateRepair | None = None
+    format_retry_message: Callable[[str], str] | None = None
 
     @property
     def schema_path(self) -> Path:
@@ -190,7 +191,10 @@ def generate_group_a_slide_spec(
         if result.status == "VALID":
             break
         if attempt + 1 < _MAX_AT8_REGENERATION_ATTEMPTS and result.message:
-            request = _with_at8_rejection(request, result.message)
+            retry_message = result.message
+            if config.format_retry_message is not None:
+                retry_message = config.format_retry_message(retry_message)
+            request = _with_at8_rejection(request, retry_message)
 
     if result is None:
         raise SlideSpecValidationError(
