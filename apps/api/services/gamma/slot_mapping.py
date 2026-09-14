@@ -19,6 +19,7 @@ from services.framework.company_facts import (
     refuse_ungrounded_prices,
 )
 from services.gamma.contract import FORBIDDEN_BRANDING_KEYS, GammaContentSlot, GammaPayloadError
+from services.gamma.payload_compliance import apply_gamma_payload_compliance
 from services.gamma.template import GammaSlotDefinition, GammaTemplate, load_gamma_template
 
 JOURNEY_STAGES = ("first_contact", "deepening", "concretisation")
@@ -115,6 +116,14 @@ def build_gamma_content_slots(
             raise GammaPayloadError(
                 f"Required Borek template slot '{definition.name}' has no content."
             )
+    filled = [
+        slot
+        for slot in apply_gamma_payload_compliance(
+            tuple(filled),
+            pricing_permitted=profile.pricing_permitted,
+        )
+        if slot.value.strip()
+    ]
     blob = " ".join(slot.value for slot in filled)
     company_facts = ((payload or {}).get("generation_meta") or {}).get("company_facts")
     try:

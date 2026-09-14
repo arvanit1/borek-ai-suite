@@ -23,6 +23,7 @@ from services.gamma.contract import (
     GammaContentSlot,
     GammaPayloadError,
 )
+from services.gamma.payload_compliance import validate_gamma_payload_compliance
 from services.gamma.slot_mapping import (
     DEFAULT_JOURNEY_STAGE,
     JOURNEY_STAGES,
@@ -98,7 +99,13 @@ def build_gamma_content_payload(
         "grounded_facts": grounded,
         "client_logo_ref": logo,
     }
-    return validate_gamma_content_payload(payload)
+    validated = validate_gamma_content_payload(payload)
+    validate_gamma_payload_compliance(
+        validated,
+        pricing_permitted=include_pricing,
+        grounding=grounding,
+    )
+    return validated
 
 
 def slots_from_payload(payload: dict[str, Any]) -> tuple[GammaContentSlot, ...]:
