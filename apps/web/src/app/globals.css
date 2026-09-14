@@ -825,7 +825,9 @@ samp {
   box-shadow: var(--workspace-card-shadow);
 }
 
-.recent-list + .journey-start-panel {
+.journey-start-panel + .recent-list,
+.journey-start-panel + .recent-empty,
+.journey-start-panel + .recent-state-card {
   margin-top: var(--workspace-card-gap);
 }
 
@@ -869,10 +871,24 @@ samp {
   margin-bottom: 1rem;
 }
 
+.opportunity-personalisation {
+  margin: 1.15rem 0 0;
+}
+
+.opportunity-personalisation .client-logo-upload {
+  margin-top: 0;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
 .client-information-stage-note {
-  margin: 1rem 0 0;
-  padding-top: 1rem;
-  border-top: 1px solid #edf1f5;
+  margin: 0;
+  padding: 0.9rem 1.05rem;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: #f8fafc;
   color: var(--color-muted);
   font-size: 0.88rem;
 }
@@ -1226,6 +1242,59 @@ samp {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 0.5rem;
+}
+
+.workflow-step-indicator {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.15rem 0;
+  list-style: none;
+  margin: -0.35rem 0 1.15rem;
+  padding: 0;
+}
+
+.workflow-step-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--color-muted);
+  font-size: 0.82rem;
+}
+
+.workflow-step-rule {
+  width: 1.1rem;
+  height: 1px;
+  margin-right: 0.35rem;
+  background: var(--color-border);
+}
+
+.workflow-step-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 999px;
+  background: #eef2f7;
+  color: var(--color-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.workflow-step-item.is-complete .workflow-step-index {
+  background: var(--borek-primary-soft);
+  color: var(--color-primary);
+}
+
+.workflow-step-item.is-current {
+  color: var(--color-text);
+  font-weight: 700;
+}
+
+.workflow-step-item.is-current .workflow-step-index {
+  background: var(--color-primary);
+  color: #fff;
 }
 
 .pipeline-rail {
@@ -1781,9 +1850,9 @@ samp {
   grid-template-columns: minmax(0, 1fr) minmax(220px, 280px);
   gap: 1.25rem;
   align-items: center;
-  margin-top: 1.2rem;
-  padding-top: 1.2rem;
-  border-top: 1px solid #edf1f5;
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
 }
 
 .client-logo-title-row h3 {
@@ -3002,6 +3071,10 @@ samp {
   font-size: 0.9rem;
 }
 
+.framework-export-panel + .framework-approve-panel {
+  margin-top: 1.25rem;
+}
+
 .framework-approve-panel {
   margin-top: 0.25rem;
   padding: 1rem 1.15rem;
@@ -3417,6 +3490,14 @@ samp {
 }
 
 @media (max-width: 640px) {
+  .workflow-step-indicator {
+    gap: 0.35rem 0;
+  }
+
+  .workflow-step-label {
+    font-size: 0.75rem;
+  }
+
   .workflow-action-bar {
     position: static;
     grid-template-columns: 1fr;

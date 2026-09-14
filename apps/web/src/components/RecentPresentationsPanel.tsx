@@ -68,14 +68,14 @@ export function RecentPresentationsPanel() {
 
   useEffect(() => {
     if (showJourneyStart) {
-      document.getElementById("journey-start")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }, [showJourneyStart]);
 
   function openJourneyStart() {
     setShowJourneyStart(true);
     window.requestAnimationFrame(() => {
-      document.getElementById("journey-start")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      window.scrollTo({ top: 0, behavior: "smooth" });
     });
   }
 
@@ -129,6 +129,8 @@ export function RecentPresentationsPanel() {
           </div>
         </div>
 
+        {showJourneyStart ? <JourneyStartPanel /> : null}
+
         {error ? (
           <div className="alert alert-error recent-error" role="alert">
             <span>{error}</span>
@@ -150,7 +152,7 @@ export function RecentPresentationsPanel() {
             <h2>Build your first customer presentation</h2>
             <p>Start with the opportunity details, then upload one or more discovery transcripts.</p>
             <button type="button" className="btn btn-primary" onClick={openJourneyStart}>
-              Choose an output
+              New presentation
             </button>
           </section>
         ) : null}
@@ -188,8 +190,6 @@ export function RecentPresentationsPanel() {
             ))}
           </section>
         ) : null}
-
-        {showJourneyStart ? <JourneyStartPanel /> : null}
       </main>
     </div>
   );

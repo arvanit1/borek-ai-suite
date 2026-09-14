@@ -97,6 +97,7 @@ const deckCenter = readFileSync(deckCenterPath, "utf8");
 assert.doesNotMatch(deckCenter, /Details for diagnostics/);
 assert.doesNotMatch(deckCenter, /presentation-diagnostics/);
 assert.doesNotMatch(deckCenter, /\bGamma\b/);
-assert.match(deckCenter, /presentation-ready-actions/);
+assert.match(deckCenter, /data-testid="download-powerpoint"/);
+assert.match(deckCenter, /WorkflowActionBar/);
 
 console.log("readyScreenEngineNeutral tests passed");

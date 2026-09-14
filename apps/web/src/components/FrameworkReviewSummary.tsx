@@ -28,6 +28,7 @@ interface FrameworkReviewSummaryProps {
   onSave?: () => void;
   onJumpToChapter?: (chapterId: string) => void;
   showActions?: boolean;
+  showConfirm?: boolean;
 }
 
 function ListCard({
@@ -108,6 +109,7 @@ export function FrameworkReviewSummary({
   onSave,
   onJumpToChapter,
   showActions = true,
+  showConfirm = true,
 }: FrameworkReviewSummaryProps) {
   const summary = review.review_summary;
   const signals = review.attention_signals ?? [];
@@ -233,7 +235,7 @@ export function FrameworkReviewSummary({
         </div>
       </details>
 
-      {!confirmed ? (
+      {!confirmed && showConfirm ? (
         <div className="framework-approve-panel" data-testid="framework-approve-panel">
           <label className="framework-human-confirm">
             <input

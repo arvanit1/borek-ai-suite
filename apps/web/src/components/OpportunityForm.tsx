@@ -312,6 +312,10 @@ export function OpportunityForm({
         </div>
       </div> : null}
 
+      {personalisation ? (
+        <div className="opportunity-personalisation">{personalisation}</div>
+      ) : null}
+
       <details
         className="client-information"
         open={Boolean(compactAdditionalClientInformation(values.additional_client_information))}
@@ -468,7 +472,6 @@ export function OpportunityForm({
           ))}
         </div>
         )}
-        {personalisation}
         {identityLocked ? (
           <div className="opportunity-form-actions">
             <button

@@ -5,10 +5,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { AppPageHeader } from "@/components/AppPageHeader";
 import { useAuth } from "@/components/AuthProvider";
+import { JourneyStageChoice } from "@/components/JourneyStageSelector";
 import { LiveGenerationProgress } from "@/components/LiveGenerationProgress";
-import { PipelineStepper } from "@/components/PipelineStepper";
 import { RecoveryBanner } from "@/components/RecoveryBanner";
 import { SiteHeader } from "@/components/SiteHeader";
+import { WorkflowActionBar } from "@/components/WorkflowActionBar";
+import { WorkflowStepIndicator } from "@/components/WorkflowStepIndicator";
 import {
   ApiRequestError,
   FRAMEWORK_JOB_TIMEOUT_MS,
@@ -371,44 +373,40 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
           </div>
         ) : null}
 
-        <PipelineStepper
-          currentStep={3}
-          opportunityId={opportunityId}
-          frameworkReady={frameworkConfirmed !== false}
-          frameworkConfirmed={Boolean(frameworkConfirmed)}
-          planReady={Boolean(plan)}
-        />
+        <WorkflowActionBar
+          backHref={pipelineHref("/framework-review", opportunityId)}
+          backLabel="Back to customer story"
+          contextLabel="Current step"
+          context={
+            <>
+              <strong>{plan ? "Slide plan ready" : "Presentation plan"}</strong>
+              <JourneyStageChoice stage={journeyStageForGenerate(opportunityId) ?? null} />
+            </>
+          }
+        >
+          {plan ? (
+            <Link href={pipelineHref("/deck-center", opportunityId)} className="btn btn-primary">
+              Continue to presentation
+            </Link>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={busy || jobPolling || frameworkConfirmed === false || !isAuthenticated}
+              onClick={() => void handleGeneratePlan()}
+            >
+              {jobPolling ? "Generating plan..." : "Generate plan"}
+            </button>
+          )}
+        </WorkflowActionBar>
+        <WorkflowStepIndicator currentStep={3} />
         <AppPageHeader
-          kicker="Step 3 of 4"
+          kicker="Slide plan"
           title="Presentation plan preview"
-          lead="Review the planned slide sequence - order, purpose, and layout - before committing to full deck generation."
+          lead="Review the planned slide sequence — order, purpose, and layout — before building the presentation."
         />
 
-        <div className="upload-layout">
-          <aside className="upload-sidebar">
-            <div className="upload-meta-card">
-              <h3>Active opportunity</h3>
-              <p className="upload-meta-empty">Confirm the slide order before generating the deck.</p>
-              <div className="upload-meta-actions">
-                <Link
-                  href={pipelineHref("/framework-review", opportunityId)}
-                  className="btn btn-secondary"
-                >
-                  Back to framework
-                </Link>
-                {plan ? (
-                  <Link
-                    href={pipelineHref("/deck-center", opportunityId)}
-                    className="btn btn-primary"
-                  >
-                    Open presentation
-                  </Link>
-                ) : null}
-              </div>
-            </div>
-          </aside>
-
-          <div className="upload-main">
+        <div className="intake-main">
         {activeNotice && surfacePrecedence.showRecovery ? (
           <RecoveryBanner
             notice={
@@ -463,15 +461,7 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
               </div>
             </header>
             <div className="pipeline-empty-body">
-              <p>No presentation plan exists yet for this opportunity.</p>
-              <button
-                type="button"
-                className="btn btn-primary"
-                disabled={busy}
-                onClick={() => void handleGeneratePlan()}
-              >
-                Generate plan
-              </button>
+              <p>No presentation plan exists yet for this opportunity. Generate it from the bar above.</p>
             </div>
           </section>
         ) : null}
@@ -514,7 +504,6 @@ export function PlanPreviewPanel({ opportunityId }: PlanPreviewPanelProps) {
             </p>
           </section>
         ) : null}
-          </div>
         </div>
       </div>
     </div>

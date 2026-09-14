@@ -1672,16 +1672,52 @@ class SupabaseDataStore:
         opportunity_id: UUID,
         user_id: UUID,
     ) -> list[dict[str, Any]]:
-        rows = [
-            row
-            for row in self.list_presentations(user_id=user_id)
-            if self.get_presentation_opportunity_id(
-                presentation_id=row["id"],
-                user_id=user_id,
-            )
-            == opportunity_id
-        ]
-        return sorted(rows, key=lambda row: row["created_at"], reverse=True)
+        # Workers use a service-role credential, so RLS cannot scope
+        # list_presentations() for them. Resolve the requested opportunity's
+        # lineage explicitly instead of walking presentations owned by every
+        # user and failing on the first foreign framework.
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        framework_response = self._request(
+            "GET",
+            "framework_versions",
+            params={
+                "select": "id",
+                "opportunity_id": f"eq.{opportunity_id}",
+                "created_by": f"eq.{user_id}",
+            },
+        )
+        if framework_response.status_code != 200:
+            raise bad_request("FRAMEWORK_LIST_FAILED", framework_response.text)
+        framework_ids = [str(row["id"]) for row in framework_response.json()]
+        if not framework_ids:
+            return []
+
+        plan_response = self._request(
+            "GET",
+            "presentation_plans",
+            params={
+                "select": "id",
+                "framework_version_id": f"in.({','.join(framework_ids)})",
+            },
+        )
+        if plan_response.status_code != 200:
+            raise bad_request("PRESENTATION_PLAN_LIST_FAILED", plan_response.text)
+        plan_ids = [str(row["id"]) for row in plan_response.json()]
+        if not plan_ids:
+            return []
+
+        response = self._request(
+            "GET",
+            "presentations",
+            params={
+                "select": "*",
+                "presentation_plan_id": f"in.({','.join(plan_ids)})",
+                "order": "created_at.desc",
+            },
+        )
+        if response.status_code != 200:
+            raise bad_request("PRESENTATION_LIST_FAILED", response.text)
+        return [_normalize_presentation(row) for row in response.json()]
 
     def get_latest_presentation_for_opportunity(
         self,

@@ -98,10 +98,22 @@ const uploadPanelSource = readFileSync(
   "utf8",
 );
 assert.doesNotMatch(uploadPanelSource, /PipelineStepper|UploadStepper/);
+assert.match(uploadPanelSource, /WorkflowStepIndicator/);
 assert.match(uploadPanelSource, /Selected for this presentation/);
 assert.match(uploadPanelSource, /Change output/);
 assert.match(uploadPanelSource, /Continue to customer story/);
 assert.match(uploadPanelSource, /journeyStage !== "first_contact"/);
+assert.match(uploadPanelSource, /Create the opportunity to add an optional client logo/);
+
+const opportunityFormSource = readFileSync(
+  fileURLToPath(new URL("./OpportunityForm.tsx", import.meta.url)),
+  "utf8",
+);
+assert.match(opportunityFormSource, /opportunity-personalisation/);
+assert.ok(
+  opportunityFormSource.indexOf("opportunity-personalisation") <
+    opportunityFormSource.indexOf("<details"),
+);
 
 const cssPath = fileURLToPath(new URL("../app/globals.css", import.meta.url));
 const css = readFileSync(cssPath, "utf8");

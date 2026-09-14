@@ -14,6 +14,7 @@ import { LiveGenerationProgress } from "@/components/LiveGenerationProgress";
 import { RecoveryBanner } from "@/components/RecoveryBanner";
 import { SiteHeader } from "@/components/SiteHeader";
 import { WorkflowActionBar } from "@/components/WorkflowActionBar";
+import { WorkflowStepIndicator } from "@/components/WorkflowStepIndicator";
 import {
   ApiRequestError,
   FRAMEWORK_JOB_TIMEOUT_MS,
@@ -63,6 +64,7 @@ import {
 import { customerStatusLabel } from "@/lib/frameworkLabels";
 import {
   canApproveAndBuild,
+  HUMAN_CONFIRM_LABEL,
   isApprovalBlocked,
   reviewPayloadFromUnknown,
   type FrameworkReviewPayload,
@@ -1059,6 +1061,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
             </button>
           )}
         </WorkflowActionBar>
+        <WorkflowStepIndicator currentStep={2} />
 
         <AppPageHeader
           kicker="Customer story review"
@@ -1241,31 +1244,13 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
                       onSave={() => void handleSave()}
                       onJumpToChapter={jumpToChapter}
                       showActions={false}
+                      showConfirm={false}
                     />
                   ) : (
-                    <div className="framework-approve-panel">
-                      <p className="upload-hint">
-                        The concise summary is not available yet. Review the 14 chapters below
-                        before approving.
-                      </p>
-                      {editable && !frameworkConfirmed ? (
-                        <>
-                          <label className="framework-human-confirm">
-                            <input
-                              type="checkbox"
-                              data-testid="framework-human-confirm"
-                              checked={humanConfirmed}
-                              disabled={busy}
-                              onChange={(event) => setHumanConfirmed(event.target.checked)}
-                            />
-                            <span>
-                              I have reviewed this customer story and I approve building the
-                              presentation.
-                            </span>
-                          </label>
-                        </>
-                      ) : null}
-                    </div>
+                    <p className="upload-hint">
+                      The concise summary is not available yet. Review the 14 chapters below
+                      before approving.
+                    </p>
                   )}
 
                   <div className="framework-export-panel" data-testid="framework-export-panel">
@@ -1310,6 +1295,30 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
                       </button>
                     </div>
                   </div>
+                  {editable && !frameworkConfirmed ? (
+                    <div className="framework-approve-panel" data-testid="framework-approve-panel">
+                      <label className="framework-human-confirm">
+                        <input
+                          type="checkbox"
+                          data-testid="framework-human-confirm"
+                          checked={humanConfirmed}
+                          disabled={busy}
+                          onChange={(event) => setHumanConfirmed(event.target.checked)}
+                        />
+                        <span>{HUMAN_CONFIRM_LABEL}</span>
+                      </label>
+                      {approvalBlocked ? (
+                        <p className="framework-approve-hint" data-testid="framework-approve-blocked-hint">
+                          Approval is locked until the blocking issues above are resolved
+                          {dirty ? " and your edits are saved." : "."}
+                        </p>
+                      ) : !humanConfirmed ? (
+                        <p className="framework-approve-hint">
+                          Tick the confirmation above to enable approval.
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </section>
 
                 <details className="framework-details-disclosure">
