@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 from pathlib import Path
 from typing import Any
@@ -38,6 +39,49 @@ def load_chapter_layout_guidance() -> dict[str, Any]:
 
     _validate_guidance(guidance)
     return guidance
+
+
+def chapter_split_layout_slots() -> dict[frozenset[str], frozenset[str]]:
+    """Return layout slots that share multi-chapter content across one slide each."""
+    slots: dict[frozenset[str], frozenset[str]] = {}
+    for mapping in load_chapter_layout_guidance()["mappings"]:
+        chapters = mapping.get("chapters")
+        layout_ids = mapping.get("layoutIds")
+        if (
+            isinstance(chapters, list)
+            and len(chapters) > 1
+            and isinstance(layout_ids, list)
+            and len(layout_ids) > 1
+        ):
+            slots[frozenset(chapters)] = frozenset(layout_ids)
+    return slots
+
+
+def chapter_split_framework_references(chapters: frozenset[str]) -> frozenset[str]:
+    return frozenset(f"chapter_{chapter}" for chapter in chapters)
+
+
+def prepare_chapter_layout_guidance_for_planner() -> dict[str, Any]:
+    """Return canonical guidance with explicit layout-slot semantics for BT-3."""
+    guidance = load_chapter_layout_guidance()
+    enriched = copy.deepcopy(guidance)
+    enriched["layoutUniquenessRules"] = [
+        "Each layoutId is a global slide slot and may appear at most once in the "
+        "PresentationPlan.",
+        "When multiple chapters map to the same layoutIds list, those chapters "
+        "collectively contribute content to those slots; do not emit one slide per "
+        "chapter per layout.",
+        "Fold related chapter content into the single slide for each layoutId "
+        "instead of duplicating layoutId values.",
+    ]
+    for index, mapping in enumerate(enriched["mappings"]):
+        chapters = ", ".join(mapping["chapters"])
+        layouts = ", ".join(mapping["layoutIds"])
+        mapping["interpretation"] = (
+            f"Chapters {chapters} contribute content to at most one slide each for "
+            f"{layouts}. Mapping does not authorize duplicate slide instances."
+        )
+    return enriched
 
 
 def _validate_guidance(guidance: Any) -> None:
