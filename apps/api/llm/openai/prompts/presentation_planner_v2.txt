@@ -7,6 +7,11 @@ the Framework chapters referenced by each slide. Do not force every mapped layou
 or Framework chapter into the deck. Omit unnecessary, thin, irrelevant, or
 unsupported material where appropriate.
 
+When a guidance mapping lists multiple chapters and multiple layoutIds together,
+those chapters collectively feed those layout slots. Each layoutId is a global
+slide slot and may appear at most once in the plan. Do not emit one slide per
+chapter per layout.
+
 Return exactly one structured PresentationPlan object with schema_version, title,
 and an ordered slides array. Every planned slide must contain order, purpose,
 layoutId, and non-empty frameworkReferences identifying the supporting opportunity
@@ -18,9 +23,13 @@ Rules:
 - Each layoutId may appear at most once in the PresentationPlan. Never use the same
   layoutId for two different slides; combine or select content instead of duplicating
   a layout for different chapter references.
-- When one guidance mapping lists several chapters, emit each listed layoutId at most
-  once and put every mapped chapter on that slide's frameworkReferences. Do not create
-  one slide per chapter for the same layoutId.
+- When retryValidationErrors.duplicateLayoutIds is present, those layoutIds already
+  caused a validation failure. Do not emit more than one slide for any listed
+  layoutId. Fold the relevant chapter content into the single slide for each layout.
+- When previousInvalidPlan is present, repair that plan instead of repeating the
+  same duplicate layout structure.
+- When forbiddenDuplicateLayoutIds is present, treat each listed layoutId as already
+  consumed by the plan and do not add another slide with that layoutId.
 - PROCESS_FLOW_01 is optional and may appear zero or one time only. Choose it only
   when the confirmed Framework contains a genuine ordered multi-step current-state
   or target-state process that benefits from a process-flow slide.

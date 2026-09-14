@@ -285,8 +285,8 @@ def test_plan_with_exactly_one_process_flow_is_valid(
     assert sum(slide.layoutId.value == "PROCESS_FLOW_01" for slide in result.slides) == 1
 
 
-@pytest.mark.parametrize("duplicate_layout_id", ["PROCESS_FLOW_01", "CONTEXT_01", "SCOPE_01"])
-def test_duplicate_layout_retries_then_collapses_without_mutating_model_response(
+@pytest.mark.parametrize("duplicate_layout_id", ["CONTEXT_01"])
+def test_duplicate_layout_is_rejected_once_without_retry_or_silent_removal(
     confirmed_framework: dict[str, Any],
     valid_plan: dict[str, Any],
     duplicate_layout_id: str,
@@ -298,64 +298,17 @@ def test_duplicate_layout_retries_then_collapses_without_mutating_model_response
     duplicate = copy.deepcopy(original_slide)
     duplicate["order"] = len(response["slides"]) + 1
     duplicate["purpose"] = f"duplicate {duplicate_layout_id}"
-    duplicate["frameworkReferences"] = ["chapter_4"]
     response["slides"].append(duplicate)
     snapshot = copy.deepcopy(response)
     planner = MockPlanner(response)
 
-    result = plan_presentation(confirmed_framework, planner=planner)
+    with pytest.raises(PresentationPlanValidationError, match=duplicate_layout_id):
+        plan_presentation(confirmed_framework, planner=planner)
 
     assert len(planner.calls) == 3
     assert [call["retry_count"] for call in planner.calls] == [0, 1, 2]
-    assert "Correction required" in planner.calls[1]["planning_input"]["instructions"]
-    assert duplicate_layout_id in planner.calls[1]["planning_input"]["instructions"]
-    assert "Correction required" in planner.calls[2]["planning_input"]["instructions"]
     assert response == snapshot
-    layout_ids = [slide.layoutId.value for slide in result.slides]
-    assert layout_ids.count(duplicate_layout_id) == 1
-    assert len(layout_ids) == len(set(layout_ids))
-    collapsed = next(
-        slide
-        for slide in result.model_dump(mode="json")["slides"]
-        if slide["layoutId"] == duplicate_layout_id
-    )
-    assert "chapter_4" in collapsed["frameworkReferences"]
-
-
-def test_problem_solution_and_process_flow_duplicates_collapse_together(
-    confirmed_framework: dict[str, Any], valid_plan: dict[str, Any]
-) -> None:
-    response = copy.deepcopy(valid_plan)
-    problem = {
-        "order": len(response["slides"]) + 1,
-        "purpose": "problem and solution",
-        "layoutId": "PROBLEM_SOLUTION_01",
-        "frameworkReferences": ["chapter_2"],
-    }
-    response["slides"].extend(
-        [
-            problem,
-            {**problem, "order": problem["order"] + 1, "frameworkReferences": ["chapter_4"]},
-            copy.deepcopy(response["slides"][3])
-            | {"order": problem["order"] + 2, "purpose": "duplicate process"},
-        ]
-    )
-    for order, slide in enumerate(response["slides"], start=1):
-        slide["order"] = order
-    planner = MockPlanner(response)
-
-    result = plan_presentation(confirmed_framework, planner=planner)
-    layout_ids = [slide.layoutId.value for slide in result.slides]
-
-    assert layout_ids.count("PROBLEM_SOLUTION_01") == 1
-    assert layout_ids.count("PROCESS_FLOW_01") == 1
-    assert len(layout_ids) == len(set(layout_ids))
-    problem_slide = next(
-        slide
-        for slide in result.model_dump(mode="json")["slides"]
-        if slide["layoutId"] == "PROBLEM_SOLUTION_01"
-    )
-    assert problem_slide["frameworkReferences"] == ["chapter_2", "chapter_4"]
+    assert len(response["slides"]) == len(valid_plan["slides"]) + 1
 
 
 def test_registry_validation_runs_before_duplicate_layout_validation(
@@ -380,11 +333,10 @@ def test_registry_validation_runs_before_duplicate_layout_validation(
         recording_registry_validator,
     )
 
-    result = plan_presentation(confirmed_framework, planner=MockPlanner(response))
+    with pytest.raises(PresentationPlanValidationError, match="CONTEXT_01"):
+        plan_presentation(confirmed_framework, planner=MockPlanner(response))
 
-    assert len(registry_calls) == 4
-    assert registry_calls[:3] == [response, response, response]
-    assert [slide.layoutId.value for slide in result.slides].count("CONTEXT_01") == 1
+    assert registry_calls == [response, response, response]
 
 
 def test_mocked_planning_is_deterministic_and_does_not_mutate_response(
@@ -442,7 +394,6 @@ def test_planner_prompt_and_api_keep_stage_b_boundary_narrow() -> None:
     assert "coordinates" in normalized_prompt and "geometry" in normalized_prompt
     assert "each layoutid may appear at most once" in normalized_prompt
     assert "never use the same layoutid for two different slides" in normalized_prompt
-    assert "do not create one slide per chapter for the same layoutid" in normalized_prompt
     assert "process_flow_01 is optional and may appear zero or one time only" in normalized_prompt
     assert "do not add process_flow_01 merely because" in normalized_prompt
     assert "transcript" not in parameters

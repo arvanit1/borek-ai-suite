@@ -29,6 +29,52 @@ Also cover:
 The Phase 5 journey passes on a clean user, including at least one failure path
 (Gamma or retrieval) that recovers without a dead end.
 
+## Known live failures (open)
+
+### Duplicate presentation-plan layout IDs (BT-1 / BT-3)
+
+**Observed failure:** Live OpenAI planning could emit duplicate
+`PROBLEM_SOLUTION_01` and `PROCESS_FLOW_01` slides when interpreting the
+chapter 2 / chapter 4 mapping in `chapter_layout_map.json` as one slide per
+chapter per layout. The planner prompt already forbade duplicate layout IDs,
+but duplicate-layout validation retries did not pass the failed layout IDs (or
+the prior invalid plan) back into the retry context, so three attempts could
+repeat the same invalid structure.
+
+**Root cause:**
+
+- BT-1: retry loop incremented `retry_count` only; `planning_input` was unchanged
+  on duplicate-layout failures.
+- BT-3: multi-chapter mappings did not state clearly enough that layout IDs are
+  global slide slots (at most one slide each).
+
+**Fix (2026-09-14):**
+
+- Pass `retryValidationErrors.duplicateLayoutIds`, `forbiddenDuplicateLayoutIds`,
+  and `previousInvalidPlan` on duplicate-layout retries.
+- Enrich BT-3 guidance with `layoutUniquenessRules` and per-mapping
+  `interpretation` text; clarify `chapter_layout_map.json` description and the
+  planner prompt.
+- Deterministically repair chapter-split duplicates for multi-chapter layout
+  slots (chapters 2 and 4 → `PROBLEM_SOLUTION_01` / `PROCESS_FLOW_01`) by
+  merging `frameworkReferences` into one slide per layout.
+
+**Live verification (2026-09-14):**
+
+- Path: confirmed Group A framework fixture → live OpenAI `plan_presentation`
+- Attempts: 1 (`retry_count` 0)
+- Final layout IDs (9 slides, all unique):
+  `COVER_01`, `EXECUTIVE_SUMMARY_01`, `CONTEXT_01`, `PROBLEM_SOLUTION_01`,
+  `PROCESS_FLOW_01`, `SCOPE_01`, `REQUIREMENTS_MATRIX_01`, `COMPLIANCE_01`,
+  `NEXT_STEPS_01`
+- `PROBLEM_SOLUTION_01` count: 1
+- `PROCESS_FLOW_01` count: 1
+- Duplicate layout IDs: none
+
+**Gate status:** Duplicate-layout planner condition **resolved** for live
+planning. BT-30 E2E gate remains **open** until the full Phase 5 journey
+(including Gamma/retrieval failure paths) passes.
+
 ## Proof
 
 - Automated E2E (extend `tests/integration/full_pipeline/test_bt27_e2e_gate.py`)
