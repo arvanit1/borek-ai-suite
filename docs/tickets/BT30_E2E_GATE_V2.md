@@ -266,8 +266,8 @@ field-attributed chapters: 95`.
 **Gate status:** COVER_01 **minItems blocker resolved** for the logo-present
 opportunity (live COVER VALID; full deck generation COMPLETED). Logo-present
 manual smoke remains **partially open** until rendered preview/PPTX is fetched
-and the client logo is visually confirmed on COVER. Remaining blockers: German
-live path and UI reconnect success-path proof.
+and the client logo is visually confirmed on COVER. Remaining blocker: German
+live path (external Anthropic credit blocker as of 2026-09-14).
 
 ### SlideSpec / Gamma card-count mismatch (scratch generation)
 
@@ -310,8 +310,48 @@ provider pages. Closing preview at DB index 12 returned 404 while
   - `client_logo_applied=true`, fallback none
 
 **Gate status:** Card-count mismatch and closing preview 404 **resolved** for
-this live deepening run. BT-30 E2E gate remains **open** for German live smoke
-and UI reconnect success-path proof.
+this live deepening run.
+
+### UI reconnect / reload during GAMMA_RENDERING (success path)
+
+**Observed requirement:** Manual smoke must prove a full browser reload during
+an in-flight presentation generation job at `GAMMA_RENDERING` re-attaches to the
+same job, resumes polling, and completes without duplicate backend work.
+
+**Live verification (2026-09-14):**
+
+- Opportunity: `30a9da97-5798-51fb-bc58-c8028a9124dd`
+- Presentation: `bf4ec97a-e4c9-4c18-a746-2abc1e9559f6`
+- Job: `3d216f80-0d42-4c90-9183-075b63d9598d`
+- Version: `4c078d2d-c21f-42cd-b0a3-43826604a302`
+- Journey stage: `deepening`
+- Route:
+  `/deck-center?opportunityId=30a9da97-5798-51fb-bc58-c8028a9124dd&presentationId=bf4ec97a-e4c9-4c18-a746-2abc1e9559f6`
+- Reload: full browser refresh (F5) while backend `current_stage=GAMMA_RENDERING`
+  and `status=RUNNING`
+- Before reload UI: **Building your presentation** (`GAMMA_RENDERING` step in
+  progress)
+- After reload:
+  - same URL, presentation / job / version IDs
+  - backend still `GAMMA_RENDERING` / `RUNNING`
+  - UI restored to **Building your presentation**
+  - polling resumed via `GET /opportunities/{id}/jobs/active?stage_group=presentation`
+  - no blocking browser console errors
+  - no duplicate generation job
+  - worker logs: one Gamma `POST /v1.0/generations` only
+- Completion: same job `COMPLETED`
+  - 11 slides / previews
+  - PPTX HTTP 200, PDF HTTP 200
+  - preview index 0 → 200, index 10 → 200
+  - UI: **Your presentation is ready** with download buttons
+
+**Recovery mechanism:** URL-persisted `opportunityId` + `presentationId` plus
+backend authoritative active-job lookup (`getActiveJob` → `inspectActiveJob` →
+`monitorJobUntilTerminal` in `startPipelineParallelLoad`). Does not depend on
+transient React in-memory job state alone.
+
+**Gate status:** Reconnect / reload success-path **PASS**. BT-30 E2E gate
+remains **open** only for German live smoke (external Anthropic credit blocker).
 
 ## Proof
 
