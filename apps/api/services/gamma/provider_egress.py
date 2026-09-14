@@ -22,13 +22,15 @@ GAMMA_LIVE_HTTP_KEYS = frozenset(
         "format",
         "themeId",
         "exportAs",
+        "cardSplit",
+        "numCards",
         "cardOptions",
         "gammaId",
     }
 )
 
 GAMMA_TECHNICAL_HTTP_KEYS = frozenset(
-    {"textMode", "format", "themeId", "exportAs", "gammaId"}
+    {"textMode", "format", "themeId", "exportAs", "cardSplit", "numCards", "gammaId"}
 )
 
 # These roots are internal payload objects. They must not appear on a provider send.
@@ -67,6 +69,7 @@ def gamma_live_technical_inventory(
     if request is not None and fetchable_client_logo_url(request):
         provider["textMode"] = "preserve"
         provider["format"] = "presentation"
+        provider["cardSplit"] = "inputTextBreaks"
     elif template_id:
         provider["gammaId"] = template_id
     else:

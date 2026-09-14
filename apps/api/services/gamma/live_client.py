@@ -25,6 +25,11 @@ from services.gamma.contract import (
     gamma_egress_reference,
 )
 from services.gamma.fixture_client import validate_generate_request
+from services.gamma.input_text import (
+    CARD_SPLIT_INPUT_TEXT_BREAKS,
+    align_slots_with_planned_slides,
+    build_scratch_input_text,
+)
 from services.gamma.provider_egress import gamma_live_egress_inventory
 from services.gamma.signed_logo import owned_https_prefixes
 from services.gamma.template import load_gamma_template
@@ -135,9 +140,15 @@ class LiveGammaClient:
         return "/v1.0/generations"
 
     def _generation_payload(self, request: GammaGenerateRequest) -> dict[str, Any]:
-        input_text = "\n\n".join(f"{slot.name}: {slot.value}" for slot in request.slots)
-        title = next((slot.value for slot in request.slots if slot.name == "cover.title"), None)
+        template = load_gamma_template()
+        ordered_slots = align_slots_with_planned_slides(
+            request.slots,
+            request.planned_slide_specs,
+            template=template,
+        )
+        title = next((slot.value for slot in ordered_slots if slot.name == "cover.title"), None)
         if self._template_id and not uses_scratch_generation(request):
+            input_text = "\n\n".join(f"{slot.name}: {slot.value}" for slot in ordered_slots)
             # POST /v1.0/generations/from-template requires prompt + gammaId.
             # cardOptions/headerFooter are not documented on this endpoint.
             payload: dict[str, Any] = {
@@ -160,12 +171,19 @@ class LiveGammaClient:
                 src=client_logo_url,
                 max_height_pct=placement.max_height_pct,
             )
+        input_text, num_cards = build_scratch_input_text(
+            ordered_slots,
+            template=template,
+            planned_slide_specs=request.planned_slide_specs,
+        )
         payload = {
             "inputText": input_text,
             "textMode": "preserve",
             "format": "presentation",
             "themeId": self._theme_id,
             "exportAs": request.output_formats[0],
+            "cardSplit": CARD_SPLIT_INPUT_TEXT_BREAKS,
+            "numCards": num_cards,
             "cardOptions": {"headerFooter": header_footer},
         }
         if title:

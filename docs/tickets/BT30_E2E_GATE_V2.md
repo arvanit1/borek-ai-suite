@@ -269,6 +269,50 @@ manual smoke remains **partially open** until rendered preview/PPTX is fetched
 and the client logo is visually confirmed on COVER. Remaining blockers: German
 live path and UI reconnect success-path proof.
 
+### SlideSpec / Gamma card-count mismatch (scratch generation)
+
+**Observed failure:** Live deepening on opportunity
+`30a9da97-5798-51fb-bc58-c8028a9124dd` could complete with fewer Gamma/PDF/PPTX
+pages than persisted SlideSpecs. Example historical run: 13 SlideSpecs vs 12
+provider pages. Closing preview at DB index 12 returned 404 while
+`slide-012.png` existed as the last provider page (index 11).
+
+**Root cause:**
+
+- Scratch `/v1.0/generations` requests omitted `numCards` and `cardSplit`.
+- Gamma defaulted to `cardSplit=auto` and chose its own card count.
+- `inputText` joined slots with `\n\n` only; no `\n---\n` card boundaries.
+- Gamma therefore merged or dropped cards relative to the planned SlideSpec
+  sequence.
+
+**Fix (2026-09-14):**
+
+- Added explicit SlideSpec-aligned card segmentation in
+  `apps/api/services/gamma/input_text.py`.
+- Scratch payload now sets `cardSplit=inputTextBreaks`, `numCards=N`, and
+  separates cards with `\n---\n`.
+- `slides_json` from the presentation version drives card order; SlideSpec text
+  fills layouts when Framework slots are empty.
+
+**Live verification (2026-09-14):**
+
+- Direct bounded probe (`N=3`, scratch path with logo): requested 3 segments /
+  `numCards=3` / `cardSplit=inputTextBreaks` → Gamma returned 3 PDF pages and 3
+  PPTX slides (`generationId=N8pohmhHqcDUtASeJ8MUJ`).
+- Full deepening smoke (new presentation `efb7899d-8070-4b63-8d19-1bb4712ae4b8`,
+  job `ed661927-ef3e-4bda-aa79-2188f70ea74a`, Gamma `WKedMBocpeHsIdv9hGFz2`):
+  - SlideSpecs: **11**
+  - Gamma/PPTX/PDF/previews/deck-center: **11**
+  - Final SlideSpec: `NEXT_STEPS_01` at index 10
+  - Preview HTTP: index 0 → 200, index 10 → 200, index 11 → 404
+  - Cover graphical BT30 logo: **PASS**
+  - Closing graphical BT30 logo: **PASS**
+  - `client_logo_applied=true`, fallback none
+
+**Gate status:** Card-count mismatch and closing preview 404 **resolved** for
+this live deepening run. BT-30 E2E gate remains **open** for German live smoke
+and UI reconnect success-path proof.
+
 ## Proof
 
 - Automated E2E (extend `tests/integration/full_pipeline/test_bt27_e2e_gate.py`)

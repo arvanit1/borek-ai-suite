@@ -147,6 +147,8 @@ def test_scratch_payload_uses_gamma_custom_image_schema_without_unsupported_keys
         "themeId",
         "exportAs",
         "title",
+        "cardSplit",
+        "numCards",
         "cardOptions",
     }
     bottom_right = payload["cardOptions"]["headerFooter"]["bottomRight"]

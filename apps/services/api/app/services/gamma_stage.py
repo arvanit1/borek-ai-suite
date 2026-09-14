@@ -24,6 +24,7 @@ from services.gamma.contract import (
 )
 from services.gamma.signed_logo import mint_signed_client_logo_url
 from services.gamma.provider import build_gamma_provider
+from services.gamma.input_text import align_slots_with_planned_slides
 from services.gamma.payload import build_gamma_content_payload, slots_from_payload
 from services.gamma.slot_mapping import resolve_journey_stage, slot_chapter_provenance
 from services.gamma.template import load_gamma_template
@@ -117,6 +118,7 @@ def build_gamma_request(
     output_formats: tuple[str, ...] = ("pptx", "pdf"),
     stage: str | None = None,
     prior_stage_context: dict[str, Any] | None = None,
+    planned_slide_specs: list[dict[str, Any]] | None = None,
 ) -> tuple[GammaGenerateRequest, ClientLogoDecision]:
     opportunity_id = opportunity["id"]
     logo = client_logo_decision_for_opportunity(
@@ -143,15 +145,21 @@ def build_gamma_request(
         client_logo_ref=signed_ref,
         prior_stage_context=prior_stage_context or opportunity.get("prior_stage_context"),
     )
+    planned = tuple(spec for spec in (planned_slide_specs or []) if isinstance(spec, dict))
+    slots = align_slots_with_planned_slides(
+        slots_from_payload(content),
+        planned or None,
+    )
     request = GammaGenerateRequest(
         template_id=content["template_id"],
         template_version=LOCKED_BOREK_TEMPLATE_VERSION,
         opportunity_id=str(opportunity_id),
         presentation_version_id=str(presentation_version_id),
         output_formats=output_formats,  # type: ignore[arg-type]
-        slots=slots_from_payload(content),
+        slots=slots,
         client_logo_ref=content.get("client_logo_ref"),
         client_logo_placement=logo.placement if content.get("client_logo_ref") else None,
+        planned_slide_specs=planned or None,
         timeout_seconds=settings.GAMMA_TIMEOUT_SECONDS,
     )
     return request, logo
@@ -167,6 +175,7 @@ def run_gamma_rendering_stage(
     framework: dict[str, Any] | None = None,
     stage: str | None = None,
     prior_stage_context: dict[str, Any] | None = None,
+    planned_slide_specs: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     if not gamma_enabled():
         return {"skipped": True, "engine": "internal"}
@@ -179,6 +188,7 @@ def run_gamma_rendering_stage(
         framework=framework,
         stage=stage,
         prior_stage_context=prior_stage_context,
+        planned_slide_specs=planned_slide_specs,
     )
     provider = build_gamma_provider(
         execution_mode=settings.GAMMA_EXECUTION_MODE,
@@ -412,6 +422,14 @@ def run_gamma_stage_for_presentation(
             )
         except Exception:
             framework = None
+    planned_slide_specs = None
+    if isinstance(version, dict):
+        raw_specs = version.get("slides_json") or []
+        if isinstance(raw_specs, list):
+            planned_slide_specs = [
+                spec for spec in raw_specs if isinstance(spec, dict)
+            ]
+
     return run_gamma_rendering_stage(
         store,
         job_id=job_id,
@@ -421,4 +439,5 @@ def run_gamma_stage_for_presentation(
         framework=framework,
         stage=stage,
         prior_stage_context=prior_stage_context,
+        planned_slide_specs=planned_slide_specs,
     )
