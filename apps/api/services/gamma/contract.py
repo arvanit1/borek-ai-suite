@@ -216,6 +216,7 @@ class GammaGenerateRequest:
     slots: tuple[GammaContentSlot, ...]
     client_logo_ref: str | None = None
     client_logo_placement: ClientLogoPlacement | None = None
+    planned_slide_specs: tuple[dict[str, Any], ...] | None = None
     timeout_seconds: float = 30.0
 
 

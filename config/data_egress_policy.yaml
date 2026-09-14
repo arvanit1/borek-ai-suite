@@ -72,6 +72,8 @@ field_classifications:
   "/provider/textMode": internal
   "/provider/format": internal
   "/provider/exportAs": internal
+  "/provider/cardSplit": internal
+  "/provider/numCards": internal
   # Raw prior-stage / grounded-fact objects must never leave. Unlisted = deny.
 
 # Client-confidential leaves require an exact or prefix allow-list entry per provider.
