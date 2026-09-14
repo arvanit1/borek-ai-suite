@@ -192,9 +192,64 @@ as a workaround.`
 - Retrieval: deck/preview/PPTX/PDF HTTP 200 (12 slides)
 
 **Gate status:** Gamma payload commercial-content blocker **resolved** for live
-first_contact. BT-30 manual smoke remains **open** for logo-present
-(`COVER_01` numeric attribution), German live path, and UI reconnect
-success-path proof.
+first_contact.
+
+### COVER_01 numeric attribution (BT-9 / BT-14, logo-present smoke)
+
+**Observed failure:** Live manual smoke on opportunity
+`30a9da97-5798-51fb-bc58-c8028a9124dd` (logo present, `audit-logo.png`
+128×128) failed during `SLIDE_GENERATING` with
+`COVER_01 contains numeric content at statBadges[0].value absent from its
+field-attributed chapters: 95`.
+
+**Root cause:**
+
+- Chapter 1 for this demo service-desk framework has **no numeric tokens** after
+  commercial sanitization (monetary KPI rows stripped before Group A generation).
+- Live OpenAI still invented `statBadges[0].value = "95"`.
+- `wrap_live_structured_generator` can exhaust retries and return the last
+  payload; `generate_group_a_slide_spec` then re-validated without a
+  deterministic COVER_01 repair step, so strict BT-14 numeric grounding raised
+  `UngroundedContentError`.
+
+**Fix (2026-09-14):**
+
+- Added `repair_cover_ungrounded_stat_badges` in
+  `apps/api/services/slides/content_generation/group_a/cover_01.py`, wired via
+  `GroupAGenerationConfig.pre_validate_repair` before final validation.
+- Ungrounded stat-badge values are **dropped** (never spelled out as words to
+  evade numeric grounding); provenance is reindexed for retained badges.
+- If every badge is unsupported numeric, repair leaves no fabricated
+  replacement and BT-15 `min_items` / bounded regeneration fail closed.
+- Validator strictness unchanged; no invented source refs or replacement stats.
+
+**Test proof:**
+
+- New COVER_01 regression tests in
+  `tests/unit/slides/test_group_a_content_generation.py` (ungrounded `95`,
+  grounded `80%`, drop-unrepairable badge, non-numeric unchanged, valid spec
+  unchanged).
+- BT-30 integration gate: `6 passed`.
+
+**Live verification (2026-09-14):**
+
+- Opportunity: `30a9da97-5798-51fb-bc58-c8028a9124dd`
+- Logo: persisted (`audit-logo.png`, 128×128)
+- Direct live OpenAI `generate_cover_01` on confirmed framework: **VALIDATION_FAILED**
+  — all LLM stat badges were unsupported numeric/spelled claims and were
+  dropped; BT-15 `min_items=1` fail-closed (no word-form evasion, no fabricated
+  replacement badges)
+- Logo-present manual smoke: **not complete** — live COVER generation does not
+  yet produce a valid SlideSpec when every generated badge is unsupported
+- Gamma / artifact filing / preview / PPTX / PDF / visual logo proof: **not
+  reached**
+
+**Gate status:** COVER_01 **grounding safety** fixed (unsupported numeric and
+spelled-number badges dropped; validator-evasion repair removed; numeric
+grounding remains fail-closed). Logo-present manual smoke remains **open**
+because live COVER still fails BT-15 `min_items=1` when no valid badge
+survives. Full-deck blockers also remain for `TIMELINE_01`, German live path,
+and UI reconnect success-path proof.
 
 ## Proof
 

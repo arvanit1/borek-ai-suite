@@ -78,6 +78,12 @@ StructuredGenerator = Callable[[StructuredGenerationRequest], dict[str, Any]]
 _MAX_AT8_REGENERATION_ATTEMPTS = 3
 
 
+PreValidateRepair = Callable[
+    [dict[str, Any], tuple[dict[str, Any], ...]],
+    dict[str, Any],
+]
+
+
 @dataclass(frozen=True)
 class GroupAGenerationConfig:
     layout_id: str
@@ -86,6 +92,7 @@ class GroupAGenerationConfig:
     provenance_path_guidance: str
     instructions: str
     schema_dir: Path = GROUP_A_SCHEMA_DIR
+    pre_validate_repair: PreValidateRepair | None = None
 
     @property
     def schema_path(self) -> Path:
@@ -167,6 +174,8 @@ def generate_group_a_slide_spec(
             )
 
         candidate = copy.deepcopy(generated)
+        if config.pre_validate_repair is not None:
+            candidate = config.pre_validate_repair(candidate, chapters)
         try:
             _validate_slide_spec(candidate, config, chapters)
         except UngroundedContentError as exc:
