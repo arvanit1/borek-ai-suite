@@ -6,6 +6,10 @@ import copy
 import re
 from typing import Any
 
+from services.validation.source_chapter_enforcement import (
+    sync_root_source_chapter_ids_from_field_provenance,
+)
+
 SUBTITLE_MAX_LENGTH = 100
 _SENTENCE_SPLIT = re.compile(r"[.;\n]+")
 
@@ -29,6 +33,7 @@ def repair_empty_subtitle(
         repaired["subtitle"] = text
         _set_provenance_path(repaired, "subtitle", source_ids)
 
+    sync_root_source_chapter_ids_from_field_provenance(repaired)
     return repaired
 
 
