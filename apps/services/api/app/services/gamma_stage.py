@@ -12,9 +12,11 @@ from app.services.gamma_generation import generate_with_egress_policy
 from services.gamma.artifacts import gamma_result_metadata, persist_gamma_result
 from services.gamma.client_logo import (
     FALLBACK_WORDMARK,
+    REASON_PROVIDER_MODE_NO_LOGO,
     ClientLogoDecision,
     decide_client_logo,
 )
+from services.gamma.provider_egress import fetchable_client_logo_url
 from services.gamma.contract import (
     LOCKED_BOREK_TEMPLATE_VERSION,
     GammaError,
@@ -212,19 +214,31 @@ def _client_logo_metadata(
     logo: ClientLogoDecision,
     *,
     provider_applied: bool,
+    had_fetchable_logo: bool = False,
 ) -> dict[str, Any]:
-    """Record what the deck actually shows, not just what the rules allowed."""
+    """Record whether the outbound Gamma payload requested the client logo."""
     metadata = logo.as_metadata()
     if logo.applied and not provider_applied:
-        metadata.update(
-            applied=False,
-            reason="provider_could_not_fetch_reference",
-            detail=(
-                "The stored logo passed the placement rules but the reference is "
-                "private, so the deck falls back to the client name wordmark."
-            ),
-            fallback=FALLBACK_WORDMARK,
-        )
+        if had_fetchable_logo:
+            metadata.update(
+                applied=False,
+                reason=REASON_PROVIDER_MODE_NO_LOGO,
+                detail=(
+                    "A fetchable client logo reference was available but the outbound "
+                    "Gamma request did not include header/footer image placement."
+                ),
+                fallback=FALLBACK_WORDMARK,
+            )
+        else:
+            metadata.update(
+                applied=False,
+                reason="provider_could_not_fetch_reference",
+                detail=(
+                    "The stored logo passed the placement rules but the reference is "
+                    "private, so the deck falls back to the client name wordmark."
+                ),
+                fallback=FALLBACK_WORDMARK,
+            )
     return metadata
 
 
@@ -285,6 +299,7 @@ def _invoke_gamma(
             "client_logo": _client_logo_metadata(
                 logo,
                 provider_applied=bool(metadata.get("client_logo_applied")),
+                had_fetchable_logo=fetchable_client_logo_url(request) is not None,
             ),
         }
     except GammaError as exc:

@@ -25,6 +25,7 @@ REASON_DIMENSIONS_UNKNOWN = "dimensions_unknown"
 REASON_BELOW_MIN_EDGE = "below_minimum_resolution"
 REASON_INSUFFICIENT_PIXELS = "insufficient_pixels"
 REASON_EXTREME_ASPECT_RATIO = "extreme_aspect_ratio"
+REASON_PROVIDER_MODE_NO_LOGO = "provider_mode_does_not_support_client_logo"
 
 FALLBACK_WORDMARK = "client_name_wordmark"
 

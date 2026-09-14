@@ -61,11 +61,12 @@ class LiveGammaClient:
             raise GammaTemplateError("GAMMA_THEME_ID is required for live generation.")
 
         request = self._filter_external_slots(request)
+        outbound_payload = self._generation_payload(request)
         deadline = time.monotonic() + request.timeout_seconds
         created = self._request(
             "POST",
-            self._generation_path(),
-            json_body=self._generation_payload(request),
+            self._generation_path(request),
+            json_body=outbound_payload,
             deadline=deadline,
         )
         generation_id = str(created.get("generationId") or created.get("generation_id") or "")
@@ -95,7 +96,7 @@ class LiveGammaClient:
             template_id=request.template_id,
             template_version=request.template_version,
             branding_locked=True,
-            client_logo_applied=_fetchable_client_logo_url(request) is not None,
+            client_logo_applied=client_logo_sent_in_outbound_payload(outbound_payload),
             artifacts=tuple(artifacts),
         )
 
@@ -127,17 +128,17 @@ class LiveGammaClient:
             client_logo_placement=request.client_logo_placement if logo_allowed else None,
         )
 
-    def _generation_path(self) -> str:
-        if self._template_id:
+    def _generation_path(self, request: GammaGenerateRequest) -> str:
+        if self._template_id and not uses_scratch_generation(request):
             return "/v1.0/generations/from-template"
         return "/v1.0/generations"
 
     def _generation_payload(self, request: GammaGenerateRequest) -> dict[str, Any]:
         input_text = "\n\n".join(f"{slot.name}: {slot.value}" for slot in request.slots)
         title = next((slot.value for slot in request.slots if slot.name == "cover.title"), None)
-        if self._template_id:
+        if self._template_id and not uses_scratch_generation(request):
             # POST /v1.0/generations/from-template requires prompt + gammaId.
-            # inputText/textMode/format/cardOptions are generate-from-scratch fields.
+            # cardOptions/headerFooter are not documented on this endpoint.
             payload: dict[str, Any] = {
                 "prompt": input_text,
                 "gammaId": self._template_id,
@@ -270,6 +271,26 @@ class LiveGammaClient:
         if not isinstance(payload, dict):
             raise GammaProviderError("Gamma returned a non-object payload.")
         return payload
+
+
+def uses_scratch_generation(request: GammaGenerateRequest) -> bool:
+    """Use /generations when a fetchable client logo must ride in cardOptions."""
+    return _fetchable_client_logo_url(request) is not None
+
+
+def client_logo_sent_in_outbound_payload(payload: dict[str, Any]) -> bool:
+    """True only when the outbound Gamma HTTP JSON requests a custom footer image."""
+    card_options = payload.get("cardOptions")
+    if not isinstance(card_options, dict):
+        return False
+    header_footer = card_options.get("headerFooter")
+    if not isinstance(header_footer, dict):
+        return False
+    bottom_right = header_footer.get("bottomRight")
+    if not isinstance(bottom_right, dict):
+        return False
+    source = bottom_right.get("source")
+    return isinstance(source, str) and bool(source.strip())
 
 
 def _fetchable_client_logo_url(request: GammaGenerateRequest) -> str | None:
