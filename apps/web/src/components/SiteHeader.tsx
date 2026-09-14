@@ -26,7 +26,7 @@ export function SiteHeader({ signedInEmail, onNewPresentation }: SiteHeaderProps
               <Link href="/" className="site-nav-recent">Recent</Link>
               <Link href="/archive" className="site-nav-archive">Archive</Link>
               <Link
-                href="/?new=1#journey-start"
+                href="/?new=1"
                 className="site-nav-new"
                 onClick={
                   onNewPresentation

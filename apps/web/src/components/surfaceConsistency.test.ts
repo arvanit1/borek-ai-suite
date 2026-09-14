@@ -79,7 +79,10 @@ assert.match(mobileSurfaces, /\.recent-state-card,[\s\S]*?\.recent-empty,/);
 
 for (const component of ["PlanPreviewPanel.tsx", "DeckCenterPanel.tsx"]) {
   const source = readFileSync(fileURLToPath(new URL(`./${component}`, import.meta.url)), "utf8");
-  assert.match(source, /className="upload-meta-actions"/, component);
+  assert.match(source, /WorkflowActionBar/, component);
+  assert.match(source, /WorkflowStepIndicator/, component);
+  assert.match(source, /className="intake-main"/, component);
+  assert.doesNotMatch(source, /upload-sidebar|PipelineStepper/, component);
 }
 
 console.log("Workspace surface consistency tests passed");

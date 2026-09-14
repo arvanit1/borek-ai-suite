@@ -5,8 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { AppPageHeader } from "@/components/AppPageHeader";
-import { PipelineStepper } from "@/components/PipelineStepper";
 import { SiteHeader } from "@/components/SiteHeader";
+import { WorkflowStepIndicator, type WorkflowStepId } from "@/components/WorkflowStepIndicator";
 import { loadActiveOpportunity, pipelineHref } from "@/lib/pipelineContext";
 
 interface PipelineContextMissingProps {
@@ -33,18 +33,18 @@ export function PipelineContextMissing({ title, detail }: PipelineContextMissing
     <div className="app-workspace">
       <SiteHeader />
       <div className="app-shell app-workspace-body">
-        <PipelineStepper
+        <WorkflowStepIndicator
           currentStep={
-            pathname.startsWith("/framework-review")
+            (pathname.startsWith("/framework-review")
               ? 2
               : pathname.startsWith("/plan-preview")
                 ? 3
                 : pathname.startsWith("/deck-center")
                   ? 4
-                  : 1
+                  : 1) as WorkflowStepId
           }
         />
-        <AppPageHeader kicker="Pipeline" title={title} lead={detail} />
+        <AppPageHeader kicker="Presentation" title={title} lead={detail} />
         <div className="upload-panel pipeline-empty-panel">
           <div className="pipeline-empty-body">
             <span className="pipeline-empty-icon" aria-hidden="true">

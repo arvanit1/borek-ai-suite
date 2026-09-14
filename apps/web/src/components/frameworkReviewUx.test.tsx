@@ -27,7 +27,13 @@ const panelSource = readFileSync(
   "utf8",
 );
 assert.doesNotMatch(panelSource, /PipelineStepper|framework-sidebar|Review all 14 chapters/);
+assert.match(panelSource, /WorkflowStepIndicator/);
 assert.match(panelSource, /framework-top-approve-button/);
+assert.match(panelSource, /showConfirm=\{false\}/);
+assert.match(
+  panelSource,
+  /data-testid="framework-export-panel"[\s\S]*data-testid="framework-approve-panel"/,
+);
 assert.match(panelSource, /framework-chapter-list/);
 assert.match(panelSource, /aria-expanded={isOpen}/);
 assert.match(panelSource, /isOpen \? closeChapter\(item\.chapterId\) : openChapter\(item\.chapterId\)/);

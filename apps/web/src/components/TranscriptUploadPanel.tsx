@@ -12,6 +12,7 @@ import { JourneyStageChoice, JourneyStageSelector } from "@/components/JourneySt
 import { OpportunityForm } from "@/components/OpportunityForm";
 import { SiteHeader } from "@/components/SiteHeader";
 import { WorkflowActionBar } from "@/components/WorkflowActionBar";
+import { WorkflowStepIndicator } from "@/components/WorkflowStepIndicator";
 import {
   createOpportunity,
   getJourneyStageEligibility,
@@ -407,6 +408,7 @@ export function TranscriptUploadPanel({
             </button>
           )}
         </WorkflowActionBar>
+        <WorkflowStepIndicator currentStep={1} />
 
         <AppPageHeader
           kicker="Presentation intake"
@@ -486,7 +488,11 @@ export function TranscriptUploadPanel({
                     <p className="client-information-stage-note">
                       Client branding becomes available for tailored presentations after First contact.
                     </p>
-                  ) : null
+                  ) : (
+                    <p className="client-information-stage-note">
+                      Create the opportunity to add an optional client logo.
+                    </p>
+                  )
                 }
               />
             </section>

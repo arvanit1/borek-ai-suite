@@ -5,11 +5,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { AppPageHeader } from "@/components/AppPageHeader";
 import { useAuth } from "@/components/AuthProvider";
+import { JourneyStageChoice } from "@/components/JourneyStageSelector";
 import { LiveGenerationProgress } from "@/components/LiveGenerationProgress";
-import { PipelineStepper } from "@/components/PipelineStepper";
 import { RecoveryBanner } from "@/components/RecoveryBanner";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SlidePreviewCard } from "@/components/SlidePreviewCard";
+import { WorkflowActionBar } from "@/components/WorkflowActionBar";
+import { WorkflowStepIndicator } from "@/components/WorkflowStepIndicator";
 import {
   ApiRequestError,
   changePresentationSlideLayout,
@@ -46,6 +48,7 @@ import {
   stageGroupForPage,
 } from "@/lib/jobReconnect";
 import { startPipelineParallelLoad } from "@/lib/pipelineParallelLoad";
+import { journeyStageForGenerate } from "@/lib/journeyStageSelection";
 import { opportunityLabel, pipelineHref } from "@/lib/pipelineContext";
 import {
   ARTIFACTS_PARTIAL_LABEL,
@@ -516,16 +519,52 @@ export function DeckCenterPanel({
           </div>
         ) : null}
 
-        <PipelineStepper
-          currentStep={4}
-          opportunityId={opportunityId}
-          frameworkReady
-          frameworkConfirmed
-          planReady
-          presentationReady={ready}
-        />
+        <WorkflowActionBar
+          backHref={pipelineHref("/plan-preview", opportunityId)}
+          backLabel="Back to plan"
+          contextLabel="Current presentation"
+          context={
+            <>
+              <strong>{opportunityName ?? (ready ? "Presentation ready" : "Presentation")}</strong>
+              <JourneyStageChoice stage={journeyStageForGenerate(opportunityId) ?? null} />
+            </>
+          }
+        >
+          {ready ? (
+            <>
+              <button
+                type="button"
+                className="btn btn-primary"
+                data-testid="download-powerpoint"
+                disabled={busy || !pptxAvailable}
+                onClick={() => void handleDownload("pptx")}
+              >
+                {DOWNLOAD_POWERPOINT_LABEL}
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                data-testid="download-pdf"
+                disabled={busy || !pdfAvailable}
+                onClick={() => void handleDownload("pdf")}
+              >
+                {DOWNLOAD_PDF_LABEL}
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={busy || jobPolling || !isAuthenticated}
+              onClick={() => void handleGenerateDeck()}
+            >
+              {jobPolling ? "Building presentation..." : "Build presentation"}
+            </button>
+          )}
+        </WorkflowActionBar>
+        <WorkflowStepIndicator currentStep={4} />
         <AppPageHeader
-          kicker="Step 4 of 4"
+          kicker="Presentation"
           title={presentationReadyTitle(ready)}
           lead={
             ready
@@ -534,25 +573,7 @@ export function DeckCenterPanel({
           }
         />
 
-        <div className="upload-layout">
-          <aside className="upload-sidebar">
-            <div className="upload-meta-card">
-              <h3>Active opportunity</h3>
-              <p className="upload-meta-empty">
-                {opportunityName ?? "Download PowerPoint when the preview looks right."}
-              </p>
-              <div className="upload-meta-actions">
-                <Link
-                  href={pipelineHref("/plan-preview", opportunityId)}
-                  className="btn btn-secondary"
-                >
-                  Back to plan
-                </Link>
-              </div>
-            </div>
-          </aside>
-
-          <div className="upload-main">
+        <div className="intake-main">
             {notice && surfacePrecedence.showRecovery ? (
               <RecoveryBanner
                 notice={
@@ -610,15 +631,7 @@ export function DeckCenterPanel({
                   </div>
                 </header>
                 <div className="pipeline-empty-body">
-                  <p>No presentation exists yet for this opportunity.</p>
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    disabled={busy}
-                    onClick={() => void handleGenerateDeck()}
-                  >
-                    Build presentation
-                  </button>
+                  <p>No presentation exists yet for this opportunity. Build it from the bar above.</p>
                 </div>
               </section>
             ) : null}
@@ -638,14 +651,6 @@ export function DeckCenterPanel({
                   {metaParts.length > 0 ? (
                     <p className="upload-hint">{metaParts.join(" · ")}</p>
                   ) : null}
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    disabled={busy}
-                    onClick={() => void handleGenerateDeck()}
-                  >
-                    Build presentation
-                  </button>
                 </div>
               </section>
             ) : null}
@@ -659,26 +664,6 @@ export function DeckCenterPanel({
                       {metaParts.length > 0 ? (
                         <p className="presentation-ready-meta">{metaParts.join(" · ")}</p>
                       ) : null}
-                    </div>
-                    <div className="presentation-ready-actions">
-                      <button
-                        type="button"
-                        className="btn btn-primary"
-                        data-testid="download-powerpoint"
-                        disabled={busy || !pptxAvailable}
-                        onClick={() => void handleDownload("pptx")}
-                      >
-                        {DOWNLOAD_POWERPOINT_LABEL}
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        data-testid="download-pdf"
-                        disabled={busy || !pdfAvailable}
-                        onClick={() => void handleDownload("pdf")}
-                      >
-                        {DOWNLOAD_PDF_LABEL}
-                      </button>
                     </div>
                   </header>
                   {!pptxAvailable ? (
@@ -741,7 +726,6 @@ export function DeckCenterPanel({
                 </section>
               </>
             ) : null}
-          </div>
         </div>
       </div>
     </div>
