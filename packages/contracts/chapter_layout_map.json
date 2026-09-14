@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "description": "Default chapter-to-layout guidance (technical plan section 13.2). Planner guidance only.",
+  "description": "Default chapter-to-layout guidance (technical plan section 13.2). Planner guidance only. Each layoutId is a global slide slot (at most one slide per layoutId). When multiple chapters share a mapping, they collectively feed those slots rather than creating one slide per chapter per layout.",
   "mappings": [
     { "chapters": ["1"], "layoutIds": ["COVER_01", "EXECUTIVE_SUMMARY_01", "CONTEXT_01"] },
     { "chapters": ["2", "4"], "layoutIds": ["PROBLEM_SOLUTION_01", "PROCESS_FLOW_01"] },

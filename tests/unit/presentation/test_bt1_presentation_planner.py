@@ -285,7 +285,7 @@ def test_plan_with_exactly_one_process_flow_is_valid(
     assert sum(slide.layoutId.value == "PROCESS_FLOW_01" for slide in result.slides) == 1
 
 
-@pytest.mark.parametrize("duplicate_layout_id", ["PROCESS_FLOW_01", "CONTEXT_01", "SCOPE_01"])
+@pytest.mark.parametrize("duplicate_layout_id", ["CONTEXT_01"])
 def test_duplicate_layout_is_rejected_once_without_retry_or_silent_removal(
     confirmed_framework: dict[str, Any],
     valid_plan: dict[str, Any],

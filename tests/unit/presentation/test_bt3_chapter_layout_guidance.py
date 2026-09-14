@@ -16,6 +16,7 @@ from services.presentation.chapter_layout_guidance import (
     CHAPTER_LAYOUT_MAP_PATH,
     ChapterLayoutGuidanceError,
     load_chapter_layout_guidance,
+    prepare_chapter_layout_guidance_for_planner,
 )
 from services.presentation.planner import (
     PROMPT_PATH,
@@ -114,9 +115,22 @@ def test_guidance_reaches_same_single_call_without_mutating_framework(
     assert len(planner.calls) == 1
     call = planner.calls[0]
     assert call["retry_count"] == 0
-    assert call["planning_input"]["chapterLayoutGuidance"] == json.loads(
+    guidance = call["planning_input"]["chapterLayoutGuidance"]
+    assert guidance == prepare_chapter_layout_guidance_for_planner()
+    raw_mappings = json.loads(
         CHAPTER_LAYOUT_MAP_PATH.read_text(encoding="utf-8")
+    )["mappings"]
+    for enriched, raw in zip(guidance["mappings"], raw_mappings, strict=True):
+        assert enriched["chapters"] == raw["chapters"]
+        assert enriched["layoutIds"] == raw["layoutIds"]
+        assert enriched.get("excludeMonetaryFields") == raw.get(
+            "excludeMonetaryFields"
+        )
+    chapter_two_four = next(
+        mapping for mapping in guidance["mappings"] if mapping["chapters"] == ["2", "4"]
     )
+    assert "at most one slide each" in chapter_two_four["interpretation"]
+    assert "layoutUniquenessRules" in guidance
     assert call["planning_input"]["frameworkObject"]["status"] == "confirmed"
     assert confirmed_framework == snapshot
 
@@ -149,7 +163,12 @@ def test_runtime_mapping_drift_is_reflected_without_a_hardcoded_copy(
     plan_presentation(confirmed_framework, planner=planner)
 
     assert len(planner.calls) == 1
-    assert planner.calls[0]["planning_input"]["chapterLayoutGuidance"] == drifted
+    sent = planner.calls[0]["planning_input"]["chapterLayoutGuidance"]
+    assert sent["schema_version"] == drifted["schema_version"]
+    assert sent["description"] == drifted["description"]
+    assert sent["mappings"][0]["chapters"] == drifted["mappings"][0]["chapters"]
+    assert sent["mappings"][0]["layoutIds"] == drifted["mappings"][0]["layoutIds"]
+    assert "layoutUniquenessRules" in sent
 
 
 @pytest.mark.parametrize(
@@ -255,6 +274,9 @@ def test_prompt_declares_guidance_grounding_and_commercial_rules() -> None:
     assert "guidance, not a mandatory" in lowered
     assert "do not force every mapped layout" in lowered
     assert "omit unnecessary, thin" in lowered
+    assert "collectively feed those layout slots" in lowered
+    assert "retryvalidationerrors.duplicatelayoutids" in lowered
+    assert "previousinvalidplan" in lowered
     assert "frameworkreferences" in lowered
     assert "excludemonetaryfields=true" in lowered
     assert "pricing" in lowered and "currency" in lowered and "commercial" in lowered
