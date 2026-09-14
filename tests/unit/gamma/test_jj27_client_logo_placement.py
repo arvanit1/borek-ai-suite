@@ -161,11 +161,23 @@ def test_the_template_refuses_placements_outside_the_co_branding_area(
         )
 
 
-def test_the_fixture_provider_reports_an_applied_logo() -> None:
+def test_the_fixture_provider_reports_an_applied_logo(monkeypatch) -> None:
+    from app.config import settings
+    from tests.unit.gamma.test_jj29_signed_logo_url import OWNED_BASE, _mint
+
+    monkeypatch.setattr(settings, "PUBLIC_API_BASE_URL", OWNED_BASE)
+    monkeypatch.setattr(settings, "CLIENT_LOGO_SIGNING_SECRET", "jj29-logo-signing-secret")
+    signed = _mint()
+    assert signed is not None
+    monkeypatch.setattr(
+        live_client,
+        "owned_https_prefixes",
+        lambda: (f"{OWNED_BASE}/",),
+    )
     decision = decide_client_logo(_logo(), opportunity_id=OPPORTUNITY_ID)
     result = FixtureGammaClient().generate(
         _request(
-            client_logo_ref=decision.reference,
+            client_logo_ref=signed,
             client_logo_placement=decision.placement,
         ),
     )

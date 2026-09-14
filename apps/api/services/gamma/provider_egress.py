@@ -58,12 +58,16 @@ def gamma_live_technical_inventory(
     theme_id: str,
     template_id: str,
     output_format: str,
+    request: GammaGenerateRequest | None = None,
 ) -> dict[str, Any]:
     provider: dict[str, str] = {
         "themeId": theme_id,
         "exportAs": output_format,
     }
-    if template_id:
+    if request is not None and fetchable_client_logo_url(request):
+        provider["textMode"] = "preserve"
+        provider["format"] = "presentation"
+    elif template_id:
         provider["gammaId"] = template_id
     else:
         provider["textMode"] = "preserve"
@@ -83,6 +87,7 @@ def gamma_live_egress_inventory(
             theme_id=theme_id,
             template_id=template_id,
             output_format=request.output_formats[0],
+            request=request,
         )
     )
     return inventory

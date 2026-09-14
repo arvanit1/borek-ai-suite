@@ -23,6 +23,7 @@ from services.gamma.contract import (
     GammaTemplateError,
     GammaTimeoutError,
 )
+from services.gamma.provider_egress import fetchable_client_logo_url
 from services.gamma.template import load_gamma_template
 
 FixtureFailure = Literal["timeout", "auth", "rate_limit", "provider"]
@@ -135,7 +136,7 @@ class FixtureGammaClient:
             template_id=request.template_id,
             template_version=request.template_version,
             branding_locked=True,
-            client_logo_applied=request.client_logo_ref is not None,
+            client_logo_applied=fetchable_client_logo_url(request) is not None,
             artifacts=artifacts,
         )
 
