@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "description": "Default chapter-to-layout guidance (technical plan section 13.2). Planner guidance only.",
+  "description": "Default chapter-to-layout guidance (technical plan section 13.2). Planner guidance only. Each layoutId may appear at most once; when several chapters share a mapping, combine those chapters onto the listed layouts rather than repeating a layoutId.",
   "mappings": [
     { "chapters": ["1"], "layoutIds": ["COVER_01", "EXECUTIVE_SUMMARY_01", "CONTEXT_01"] },
     { "chapters": ["2", "4"], "layoutIds": ["PROBLEM_SOLUTION_01", "PROCESS_FLOW_01"] },

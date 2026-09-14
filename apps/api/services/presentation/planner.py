@@ -83,11 +83,18 @@ def plan_presentation(
     }
     client = planner if planner is not None else LlmClient()
     last_validation_error: PresentationPlanValidationError | None = None
+    last_raw_plan: Any = None
 
     for attempt in range(3):
+        attempt_input = copy.deepcopy(planning_input)
+        if last_validation_error is not None:
+            attempt_input["instructions"] = _instructions_with_duplicate_correction(
+                str(attempt_input.get("instructions") or ""),
+                last_validation_error,
+            )
         try:
             raw_plan = client.complete_planning(
-                planning_input=planning_input,
+                planning_input=attempt_input,
                 prompt_version=PROMPT_VERSION,
                 retry_count=attempt,
             )
@@ -95,28 +102,115 @@ def plan_presentation(
             raise PresentationPlanningCallError(
                 f"Presentation planning call failed: {exc}"
             ) from exc
+        last_raw_plan = raw_plan
 
         try:
-            plan = consume_presentation_plan(copy.deepcopy(raw_plan))
-            validated_payload = plan.model_dump(mode="json")
-            validate_presentation_plan_business_rules(validated_payload)
-            validate_registry_layout_selection(validated_payload)
-            _validate_unique_layout_ids(validated_payload)
-            return plan
+            return _validated_plan(raw_plan)
         except (SchemaVersionMismatchError, ValidationError, ContractValidationError) as exc:
             last_validation_error = PresentationPlanValidationError(
                 f"Invalid PresentationPlan: {exc}"
             )
-            if not _is_duplicate_layout_error(exc) or attempt == 2:
+            if not _is_duplicate_layout_error(exc):
                 raise last_validation_error from exc
+
+    if last_raw_plan is not None and last_validation_error is not None:
+        try:
+            return _validated_plan(_collapse_duplicate_layouts(last_raw_plan))
+        except (SchemaVersionMismatchError, ValidationError, ContractValidationError) as exc:
+            raise PresentationPlanValidationError(
+                f"Invalid PresentationPlan: {exc}"
+            ) from exc
 
     raise last_validation_error or PresentationPlanValidationError(
         "Invalid PresentationPlan: planning retries exhausted"
     )
 
 
+def _validated_plan(raw_plan: Any) -> PresentationPlan:
+    plan = consume_presentation_plan(copy.deepcopy(raw_plan))
+    validated_payload = plan.model_dump(mode="json")
+    validate_presentation_plan_business_rules(validated_payload)
+    validate_registry_layout_selection(validated_payload)
+    _validate_unique_layout_ids(validated_payload)
+    return plan
+
+
 def _is_duplicate_layout_error(exc: BaseException) -> bool:
     return "layoutId values must be unique" in str(exc)
+
+
+def _duplicate_layout_ids_from_error(exc: BaseException) -> list[str]:
+    message = str(exc)
+    marker = "duplicates:"
+    if marker not in message:
+        return []
+    return [
+        part.strip().rstrip(".)")
+        for part in message.split(marker, 1)[1].split(",")
+        if part.strip()
+    ]
+
+
+def _instructions_with_duplicate_correction(instructions: str, exc: BaseException) -> str:
+    duplicates = ", ".join(_duplicate_layout_ids_from_error(exc)) or "the repeated layoutId values"
+    return (
+        f"{instructions.rstrip()}\n\n"
+        "Correction required: the previous PresentationPlan repeated layoutId values. "
+        f"Keep {duplicates} at most once. Combine chapter references onto those slides "
+        "instead of emitting a second slide with the same layoutId."
+    )
+
+
+def _collapse_duplicate_layouts(raw_plan: Any) -> dict[str, Any]:
+    """Keep the first slide per layoutId and merge later chapter references onto it."""
+    if not isinstance(raw_plan, dict):
+        raise ContractValidationError(
+            "PresentationPlan layoutId values must be unique; duplicates could not be repaired"
+        )
+    collapsed = copy.deepcopy(raw_plan)
+    slides = collapsed.get("slides")
+    if not isinstance(slides, list):
+        return collapsed
+
+    kept: list[dict[str, Any]] = []
+    index_by_layout: dict[str, int] = {}
+    for slide in slides:
+        if not isinstance(slide, dict):
+            kept.append(slide)
+            continue
+        layout_id = slide.get("layoutId")
+        if not isinstance(layout_id, str):
+            kept.append(copy.deepcopy(slide))
+            continue
+        if layout_id in index_by_layout:
+            existing = kept[index_by_layout[layout_id]]
+            existing["frameworkReferences"] = _unique_refs(
+                existing.get("frameworkReferences"),
+                slide.get("frameworkReferences"),
+            )
+            continue
+        index_by_layout[layout_id] = len(kept)
+        kept.append(copy.deepcopy(slide))
+
+    for order, slide in enumerate(kept, start=1):
+        if isinstance(slide, dict):
+            slide["order"] = order
+    collapsed["slides"] = kept
+    return collapsed
+
+
+def _unique_refs(*groups: Any) -> list[str]:
+    merged: list[str] = []
+    seen: set[str] = set()
+    for group in groups:
+        if not isinstance(group, list):
+            continue
+        for item in group:
+            if not isinstance(item, str) or item in seen:
+                continue
+            seen.add(item)
+            merged.append(item)
+    return merged
 
 
 def _validate_unique_layout_ids(plan: dict[str, Any]) -> None:

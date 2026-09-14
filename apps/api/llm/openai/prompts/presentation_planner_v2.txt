@@ -18,6 +18,9 @@ Rules:
 - Each layoutId may appear at most once in the PresentationPlan. Never use the same
   layoutId for two different slides; combine or select content instead of duplicating
   a layout for different chapter references.
+- When one guidance mapping lists several chapters, emit each listed layoutId at most
+  once and put every mapped chapter on that slide's frameworkReferences. Do not create
+  one slide per chapter for the same layoutId.
 - PROCESS_FLOW_01 is optional and may appear zero or one time only. Choose it only
   when the confirmed Framework contains a genuine ordered multi-step current-state
   or target-state process that benefits from a process-flow slide.

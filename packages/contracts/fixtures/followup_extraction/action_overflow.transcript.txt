@@ -1,0 +1,8 @@
+Lena Hoffmann (BOREK): We have more next steps than the email can list.
+Markus Weber (Acme): I will provide the test invoices by 18.09.2026.
+Lena Hoffmann (BOREK): I will deliver the interface specification by 19.09.2026.
+Markus Weber (Acme): I will open the firewall exception by 20.09.2026.
+Lena Hoffmann (BOREK): I will share the sequence diagram by 21.09.2026.
+Markus Weber (Acme): I will book the UAT window by 22.09.2026.
+Lena Hoffmann (BOREK): I will write the cutover checklist by 23.09.2026.
+Markus Weber (Acme): Detail stays in the protocol.

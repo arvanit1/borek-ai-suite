@@ -1,0 +1,11 @@
+Lena Hoffmann (BOREK): Good morning everyone. How was the weekend?
+Markus Weber (Acme): Fine, thanks. The football was a disaster.
+Lena Hoffmann (BOREK): Let's start the requirements workshop. We will keep the email short and put the detail in the protocol.
+Markus Weber (Acme): Agreed. For the interface, we decided it will be REST, not SOAP.
+Lena Hoffmann (BOREK): Confirmed. REST is the interface we will build.
+Markus Weber (Acme): The pilot starts with invoice matching only. Warehouse labelling stays out of scope for now.
+Lena Hoffmann (BOREK): Decision noted: the pilot is invoice matching only.
+Lena Hoffmann (BOREK): I will deliver the interface specification by 25.09.2026.
+Markus Weber (Acme): I will provide the test invoices by 18.09.2026.
+Lena Hoffmann (BOREK): Coffee after this? The canteen has a new cake.
+Markus Weber (Acme): Maybe later. That is all from my side.

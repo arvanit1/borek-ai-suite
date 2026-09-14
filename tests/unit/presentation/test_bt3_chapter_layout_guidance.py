@@ -81,6 +81,7 @@ def test_canonical_map_is_runtime_source_and_preserves_semantics() -> None:
     )
     assert guidance == raw
     assert "guidance only" in guidance["description"].lower()
+    assert "at most once" in guidance["description"].lower()
     assert _mapping_for("1")["layoutIds"] == [
         "COVER_01",
         "EXECUTIVE_SUMMARY_01",
@@ -254,6 +255,7 @@ def test_prompt_declares_guidance_grounding_and_commercial_rules() -> None:
     assert PROMPT_PATH.name == "presentation_planner_v2.txt"
     assert "guidance, not a mandatory" in lowered
     assert "do not force every mapped layout" in lowered
+    assert "one slide per chapter for the same layoutid" in lowered
     assert "omit unnecessary, thin" in lowered
     assert "frameworkreferences" in lowered
     assert "excludemonetaryfields=true" in lowered

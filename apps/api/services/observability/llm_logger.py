@@ -61,6 +61,7 @@ STAGE_EXTRACTION = "knowledge_extraction"
 STAGE_SYNTHESIS = "framework_synthesis"
 STAGE_LOCALIZE = "customer_localize"
 STAGE_PROCESS_SCOPE = "process_scope"
+STAGE_FOLLOWUP_EXTRACTION = "followup_extraction"
 
 
 @dataclass(frozen=True)
