@@ -154,6 +154,28 @@ def validate_field_provenance(
     return by_path
 
 
+def sync_root_source_chapter_ids_from_field_provenance(
+    slide_spec: dict[str, Any],
+) -> None:
+    """Set root sourceChapterIds to the union of fieldProvenance sourceChapterIds."""
+    provenance = slide_spec.get(FIELD_PROVENANCE_KEY)
+    if not isinstance(provenance, list) or not provenance:
+        return
+
+    union: list[str] = []
+    for entry in provenance:
+        if not isinstance(entry, dict):
+            continue
+        chapter_ids = entry.get(SOURCE_CHAPTER_IDS_KEY)
+        if not isinstance(chapter_ids, list):
+            continue
+        for chapter_id in chapter_ids:
+            if isinstance(chapter_id, str) and chapter_id not in union:
+                union.append(chapter_id)
+    if union:
+        slide_spec[SOURCE_CHAPTER_IDS_KEY] = union
+
+
 def _collect_populated_leaf_paths(value: Any, path: str, paths: list[str]) -> None:
     if isinstance(value, dict):
         for key, item in value.items():

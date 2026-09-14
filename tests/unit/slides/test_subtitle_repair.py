@@ -19,6 +19,10 @@ from services.slides.content_generation.group_a.subtitle_repair import (
     format_empty_subtitle_retry_message,
     repair_empty_subtitle,
 )
+from services.validation.source_chapter_enforcement import (
+    SourceChapterEnforcementError,
+    validate_field_provenance,
+)
 from services.slides.content_generation.summary.executive_summary_01 import (
     generate_executive_summary_01,
 )
@@ -85,10 +89,39 @@ def _no_op_compressor(values: dict[str, str], _violations: list[Any]) -> dict[st
     return values
 
 
+def _chapter_only_provenance(spec: dict[str, Any], chapter_id: str) -> None:
+    spec["sourceChapterIds"] = [chapter_id]
+    spec["fieldProvenance"] = [
+        {**entry, "sourceChapterIds": [chapter_id]}
+        for entry in spec["fieldProvenance"]
+        if isinstance(entry, dict) and entry.get("path") != "subtitle"
+    ]
+
+
+def _validate_bt14(spec: dict[str, Any]) -> None:
+    validate_field_provenance(
+        spec,
+        real_chapter_ids=("1", "2"),
+        allowed_chapter_ids=("1", "2"),
+    )
+
+
 def test_repair_empty_subtitle_uses_grounded_chapter_title() -> None:
     spec = _load_json(CONTEXT_FIXTURE)
     spec["subtitle"] = ""
+    _chapter_only_provenance(spec, "2")
+    before = copy.deepcopy(spec)
+
     repaired = repair_empty_subtitle(spec, _chapters())
+
+    assert before["sourceChapterIds"] == ["2"]
+    assert "subtitle" not in before or before.get("subtitle") == ""
+    assert not any(
+        entry.get("path") == "subtitle"
+        for entry in before["fieldProvenance"]
+        if isinstance(entry, dict)
+    )
+
     assert repaired["subtitle"] == "Management summary"
     subtitle_provenance = [
         entry
@@ -97,6 +130,8 @@ def test_repair_empty_subtitle_uses_grounded_chapter_title() -> None:
     ]
     assert len(subtitle_provenance) == 1
     assert subtitle_provenance[0]["sourceChapterIds"] == ["1"]
+    assert repaired["sourceChapterIds"] == ["2", "1"]
+    _validate_bt14(repaired)
 
 
 def test_repair_whitespace_subtitle_is_not_left_in_place() -> None:
@@ -110,8 +145,81 @@ def test_repair_whitespace_subtitle_is_not_left_in_place() -> None:
 
 def test_valid_subtitle_is_unchanged() -> None:
     spec = _load_json(CONTEXT_FIXTURE)
+    before = copy.deepcopy(spec)
     repaired = repair_empty_subtitle(spec, _chapters())
-    assert repaired["subtitle"] == spec["subtitle"]
+    assert repaired == before
+
+
+def test_repair_empty_subtitle_resyncs_root_for_executive_summary() -> None:
+    spec = _load_json(EXEC_FIXTURE)
+    spec["subtitle"] = ""
+    _chapter_only_provenance(spec, "2")
+
+    repaired = repair_empty_subtitle(spec, _chapters())
+
+    assert repaired["subtitle"] == "Management summary"
+    assert repaired["sourceChapterIds"] == ["2", "1"]
+    _validate_bt14(repaired)
+
+
+def test_blank_subtitle_omitted_resyncs_root_union() -> None:
+    spec = _load_json(CONTEXT_FIXTURE)
+    spec["subtitle"] = ""
+    _chapter_only_provenance(spec, "2")
+    spec["sourceChapterIds"] = ["1", "2"]
+    chapters = (
+        {
+            "chapter_id": "2",
+            "title": "",
+            "body": "",
+        },
+    )
+
+    repaired = repair_empty_subtitle(spec, chapters)
+
+    assert "subtitle" not in repaired
+    assert repaired["sourceChapterIds"] == ["2"]
+    _validate_bt14(repaired)
+
+
+def test_multiple_fields_preserve_exact_bt14_union() -> None:
+    spec = _load_json(CONTEXT_FIXTURE)
+    spec["subtitle"] = ""
+    spec["sourceChapterIds"] = ["2"]
+    spec["fieldProvenance"] = [
+        {"path": "sectionLabel", "sourceChapterIds": ["1", "2"]},
+        {"path": "title", "sourceChapterIds": ["2"]},
+        {"path": "problem.title", "sourceChapterIds": ["2"]},
+        {"path": "problem.description", "sourceChapterIds": ["2"]},
+        {"path": "solution.title", "sourceChapterIds": ["1"]},
+        {"path": "solution.description", "sourceChapterIds": ["1"]},
+        {"path": "currentState.title", "sourceChapterIds": ["2"]},
+        {"path": "currentState.description", "sourceChapterIds": ["2"]},
+        {"path": "targetState.title", "sourceChapterIds": ["1"]},
+        {"path": "targetState.description", "sourceChapterIds": ["1"]},
+    ]
+
+    repaired = repair_empty_subtitle(spec, _chapters())
+
+    assert repaired["sourceChapterIds"] == ["1", "2"]
+    _validate_bt14(repaired)
+
+
+def test_unsynchronized_fixture_still_fails_without_repair() -> None:
+    spec = _load_json(CONTEXT_FIXTURE)
+    spec["subtitle"] = "Management summary"
+    spec["sourceChapterIds"] = ["2"]
+    spec["fieldProvenance"] = [
+        entry
+        for entry in spec["fieldProvenance"]
+        if isinstance(entry, dict) and entry.get("path") != "subtitle"
+    ]
+    spec["fieldProvenance"].append(
+        {"path": "subtitle", "sourceChapterIds": ["1"]}
+    )
+
+    with pytest.raises(SourceChapterEnforcementError, match="absent from root"):
+        _validate_bt14(spec)
 
 
 def test_context_01_empty_subtitle_from_llm_is_accepted() -> None:
