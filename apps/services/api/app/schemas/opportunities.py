@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 from datetime import datetime
+import re
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+_EMAIL_PATTERN = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 
 class ClientContact(BaseModel):
@@ -35,6 +39,73 @@ class AdditionalClientInformation(BaseModel):
         return self
 
 
+class FollowupRecipient(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    email: str = Field(..., min_length=3, max_length=320)
+    first_name: str | None = Field(default=None, max_length=200)
+    last_name: str | None = Field(default=None, max_length=200)
+    salutation: str | None = Field(default=None, max_length=100)
+    kind: Literal["to", "cc"] = "to"
+    primary: bool = False
+
+    @model_validator(mode="after")
+    def validate_recipient(self) -> FollowupRecipient:
+        if not _EMAIL_PATTERN.fullmatch(self.email.strip()) or any(
+            value is not None and not value.strip()
+            for value in (self.first_name, self.last_name, self.salutation)
+        ):
+            raise ValueError("recipient fields must contain valid non-blank values")
+        return self
+
+
+class FollowupSenderProfile(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(..., min_length=1, max_length=200)
+    role: str = Field(..., min_length=1, max_length=200)
+    email: str = Field(..., min_length=3, max_length=320)
+
+    @model_validator(mode="after")
+    def validate_sender(self) -> FollowupSenderProfile:
+        if (
+            not self.name.strip()
+            or not self.role.strip()
+            or not _EMAIL_PATTERN.fullmatch(self.email.strip())
+        ):
+            raise ValueError("sender profile must contain a name, role, and valid email")
+        return self
+
+
+class FollowupProjectStatics(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    project_name: str = Field(..., min_length=1, max_length=200)
+    client_short: str = Field(..., min_length=1, max_length=200)
+    salutation_style: Literal["informal", "formal"]
+    standard_recipients: list[FollowupRecipient] = Field(min_length=1, max_length=20)
+    sender_profile: FollowupSenderProfile
+
+    @model_validator(mode="after")
+    def validate_project_statics(self) -> FollowupProjectStatics:
+        if not self.project_name.strip() or not self.client_short.strip():
+            raise ValueError("project_name and client_short cannot be blank")
+        primary = [
+            recipient
+            for recipient in self.standard_recipients
+            if recipient.kind == "to" and recipient.primary
+        ]
+        if len(primary) != 1:
+            raise ValueError("exactly one primary to recipient is required")
+        if self.salutation_style == "informal" and not primary[0].first_name:
+            raise ValueError("informal salutation requires the primary recipient first_name")
+        if self.salutation_style == "formal" and not (
+            primary[0].salutation and primary[0].last_name
+        ):
+            raise ValueError("formal salutation requires salutation and last_name")
+        return self
+
+
 class OpportunityCreateRequest(BaseModel):
     client_name: str = Field(..., min_length=1)
     opportunity_name: str = Field(..., min_length=1)
@@ -42,6 +113,7 @@ class OpportunityCreateRequest(BaseModel):
     language: str = Field(default="en", min_length=2, max_length=10)
     pii_redaction_enabled: bool = True
     additional_client_information: AdditionalClientInformation | None = None
+    followup_statics: FollowupProjectStatics | None = None
 
 
 class OpportunityUpdateRequest(BaseModel):
@@ -52,6 +124,7 @@ class OpportunityUpdateRequest(BaseModel):
     status: str | None = Field(default=None, min_length=1)
     pii_redaction_enabled: bool | None = None
     additional_client_information: AdditionalClientInformation | None = None
+    followup_statics: FollowupProjectStatics | None = None
 
 
 class OpportunityResponse(BaseModel):
@@ -63,6 +136,7 @@ class OpportunityResponse(BaseModel):
     status: str
     pii_redaction_enabled: bool = True
     additional_client_information: AdditionalClientInformation | None = None
+    followup_statics: FollowupProjectStatics | None = None
     demo_marker: str | None = None
     created_by: UUID
     created_at: datetime

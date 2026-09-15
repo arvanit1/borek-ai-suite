@@ -110,11 +110,21 @@ function isConnectionError(error: unknown): boolean {
   );
 }
 
+function isSlideContentGuardError(value: ErrorShape): boolean {
+  return (
+    value.code === "PRESENTATION_GENERATION_FAILED" &&
+    /numeric content|prohibited commercial|absent from its field-attributed|ungrounded/i.test(
+      value.message ?? "",
+    )
+  );
+}
+
 function isValidationError(value: ErrorShape): boolean {
   return (
     (value.code != null && VALIDATION_CODES.has(value.code)) ||
     value.stage === "FRAMEWORK_VALIDATING" ||
     value.stage === "SLIDE_VALIDATING" ||
+    isSlideContentGuardError(value) ||
     (value.code === "PRESENTATION_GENERATION_FAILED" &&
       value.stage === "SLIDE_GENERATING" &&
       /generation failed validation|content constraints? failed|item count .* exceeds maximum/i.test(
@@ -270,6 +280,16 @@ export function recoveryNoticeFromError(
 
   if (isValidationError(value)) {
     const payloadRejected = value.code === "GAMMA_PAYLOAD_INVALID";
+    if (context === "deck" && (payloadRejected || isSlideContentGuardError(value))) {
+      return {
+        category: "VALIDATION_NEEDS_REVIEW",
+        title: "This presentation needs a small correction",
+        message:
+          "A slide did not match the approved customer story. Generate again on this same opportunity, or open Customer story to unlock a short edit, re-approve, and retry. You do not need a new presentation.",
+        action: { kind: "GENERATE", label: "Generate again" },
+        technical,
+      };
+    }
     return {
       category: "VALIDATION_NEEDS_REVIEW",
       title: "Review is needed before continuing",

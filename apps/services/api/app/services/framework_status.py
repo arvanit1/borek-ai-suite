@@ -7,6 +7,14 @@ from app.services.api_errors import bad_request, conflict
 REVIEWABLE_FRAMEWORK_STATUSES = frozenset({"draft", "in_review"})
 
 
+def require_confirmed_framework(status: str) -> None:
+    if status != "confirmed":
+        raise bad_request(
+            "FRAMEWORK_NOT_CONFIRMED",
+            "Only a confirmed customer story can be unlocked for a small correction.",
+        )
+
+
 def require_reviewable_framework(status: str, *, action: str) -> None:
     if status == "confirmed":
         if action == "confirm":

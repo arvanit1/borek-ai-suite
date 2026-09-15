@@ -14,6 +14,7 @@ import type {
   PresentationGenerateResponse,
   PresentationResponse,
 } from "./deckTypes";
+import type { FollowupProjectStatics } from "./followupReview";
 
 export function getApiBaseUrl(): string {
   return process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || DEFAULT_API_URL;
@@ -258,6 +259,7 @@ export interface OpportunityCreatePayload {
   language: string;
   pii_redaction_enabled?: boolean;
   additional_client_information?: AdditionalClientInformation;
+  followup_statics?: FollowupProjectStatics;
 }
 
 export interface ClientContact {
@@ -296,6 +298,7 @@ export interface OpportunityResponse {
   status: string;
   pii_redaction_enabled?: boolean;
   additional_client_information?: AdditionalClientInformation | null;
+  followup_statics?: FollowupProjectStatics | null;
   demo_marker?: string | null;
 }
 
@@ -320,6 +323,7 @@ export interface TranscriptUploadResponse {
 
 export interface OpportunityUpdatePayload {
   additional_client_information?: AdditionalClientInformation | null;
+  followup_statics?: FollowupProjectStatics | null;
 }
 
 export async function createOpportunity(
@@ -558,6 +562,17 @@ export async function updateFramework(
       method: "PATCH",
       body: JSON.stringify({ framework_json: frameworkJson }),
     },
+  );
+}
+
+export async function reopenFrameworkForCorrection(
+  accessToken: string,
+  opportunityId: string,
+): Promise<FrameworkVersionResponse> {
+  return apiFetch<FrameworkVersionResponse>(
+    `/opportunities/${opportunityId}/framework/reopen-for-correction`,
+    accessToken,
+    { method: "POST" },
   );
 }
 

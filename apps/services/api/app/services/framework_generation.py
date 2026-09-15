@@ -19,7 +19,7 @@ from app.services.es32_job_observability import (
     apply_framework_job_observability,
     build_framework_job_observability,
 )
-from app.services.framework_status import require_reviewable_framework
+from app.services.framework_status import require_confirmed_framework, require_reviewable_framework
 from app.services.stage_a_orchestration import generate_framework_from_transcripts
 from services.framework.rendering.customer_docx import render_customer_docx
 from services.framework.rendering.customer_pdf import render_customer_pdf
@@ -204,6 +204,21 @@ def confirm_framework(
         user_id=user_id,
         framework_version_id=framework_version_id,
         confirmed_framework_json=confirmed_json,
+    )
+
+
+def reopen_framework_for_correction(
+    store: DataStore,
+    *,
+    opportunity_id: UUID,
+    user_id: UUID,
+):
+    store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+    row = store.get_latest_framework(opportunity_id=opportunity_id, user_id=user_id)
+    require_confirmed_framework(row["status"])
+    return store.reopen_framework_for_correction(
+        opportunity_id=opportunity_id,
+        user_id=user_id,
     )
 
 

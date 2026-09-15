@@ -31,6 +31,7 @@ import {
   getPresentationPlan,
   listTranscripts,
   regenerateFrameworkChapter,
+  reopenFrameworkForCorrection,
   retryJob,
   updateFramework as persistFramework,
   waitForJob,
@@ -811,6 +812,28 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
     }
   }
 
+  async function handleUnlockCorrection() {
+    if (!accessToken) {
+      return;
+    }
+    setBusy(true);
+    setNotice(null);
+    try {
+      const reopened = await reopenFrameworkForCorrection(accessToken, opportunityId);
+      setFrameworkVersion(reopened);
+      setDirty(false);
+      setHumanConfirmed(false);
+      await applyReview(reopened);
+      setInfo(
+        "Customer story unlocked. Edit the chapter, save, tick confirm, and approve again. Then generate the presentation on this same opportunity.",
+      );
+    } catch (reopenError) {
+      setNotice(recoveryNoticeFromError(reopenError, "framework"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleDownloadFramework(format: "docx" | "pdf", language = "en") {
     if (!accessToken || !frameworkVersion || !frameworkJson) {
       return;
@@ -1041,14 +1064,25 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
               {jobPolling ? "Building customer story..." : "Generate customer story"}
             </button>
           ) : frameworkConfirmed ? (
-            <button
-              type="button"
-              className="btn btn-primary"
-              disabled={workflowPrimaryDisabled}
-              onClick={() => void handleBuildConfirmedFramework()}
-            >
-              {pipelineActive ? "Building presentation..." : "Build presentation"}
-            </button>
+            <>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                data-testid="framework-unlock-correction"
+                disabled={workflowBusy}
+                onClick={() => void handleUnlockCorrection()}
+              >
+                Make a small correction
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={workflowPrimaryDisabled}
+                onClick={() => void handleBuildConfirmedFramework()}
+              >
+                {pipelineActive ? "Building presentation..." : "Build presentation"}
+              </button>
+            </>
           ) : (
             <button
               type="button"

@@ -27,7 +27,8 @@
     "test:ms28": "tsx src/lib/recoveryUx.test.ts && tsx src/components/RecoveryBanner.test.tsx",
     "test:ms29": "tsx src/lib/archiveHistory.test.ts && tsx src/components/ArchiveHistoryView.test.tsx",
     "test:ms31": "tsx src/lib/journeyStageEligibility.test.ts && tsx src/lib/journeyStageSelection.test.ts && tsx src/components/journeyStageSelector.test.tsx",
-    "test:ux": "tsx src/components/frameworkReviewUx.test.tsx && tsx src/components/surfaceConsistency.test.ts && tsx src/components/workflowStepIndicator.test.tsx"
+    "test:ux": "tsx src/components/frameworkReviewUx.test.tsx && tsx src/components/surfaceConsistency.test.ts && tsx src/components/workflowStepIndicator.test.tsx",
+    "test:ms32": "tsx src/lib/followupReview.test.ts && tsx src/components/FollowupReviewView.test.tsx"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.8",

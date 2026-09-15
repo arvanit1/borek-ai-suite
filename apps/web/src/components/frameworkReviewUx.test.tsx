@@ -29,6 +29,8 @@ const panelSource = readFileSync(
 assert.doesNotMatch(panelSource, /PipelineStepper|framework-sidebar|Review all 14 chapters/);
 assert.match(panelSource, /WorkflowStepIndicator/);
 assert.match(panelSource, /framework-top-approve-button/);
+assert.match(panelSource, /framework-unlock-correction/);
+assert.match(panelSource, /Make a small correction/);
 assert.match(panelSource, /showConfirm=\{false\}/);
 assert.match(
   panelSource,

@@ -203,3 +203,13 @@ def test_at61_archive_migration_adds_retrieval_and_integrity_metadata() -> None:
     assert 'FOR SELECT' in content
     assert 'users_read_own_filed_artifacts' in content
     assert 'preserve_completed_filing_trigger' in content
+
+
+def test_ms32_migration_adds_project_statics_to_owner_scoped_opportunities() -> None:
+    content = (MIGRATIONS_DIR / "024_ms32_followup_statics.sql").read_text(
+        encoding="utf-8"
+    )
+    assert "ADD COLUMN IF NOT EXISTS followup_statics JSONB" in content
+    assert "opportunities_followup_statics_object" in content
+    assert "jsonb_typeof(followup_statics) = 'object'" in content
+    assert "CREATE TABLE" not in content

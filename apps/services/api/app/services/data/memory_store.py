@@ -273,6 +273,7 @@ class MemoryDataStore:
         language: str,
         pii_redaction_enabled: bool = True,
         additional_client_information: dict[str, Any] | None = None,
+        followup_statics: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         opportunity_id = uuid.uuid4()
         now = _now()
@@ -285,6 +286,7 @@ class MemoryDataStore:
             "status": "active",
             "pii_redaction_enabled": bool(pii_redaction_enabled),
             "additional_client_information": copy.deepcopy(additional_client_information),
+            "followup_statics": copy.deepcopy(followup_statics),
             "created_by": user_id,
             "created_at": now,
             "updated_at": now,
@@ -392,7 +394,7 @@ class MemoryDataStore:
     ) -> dict[str, Any]:
         row = self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
         for key, value in updates.items():
-            if value is not None or key == "additional_client_information":
+            if value is not None or key in {"additional_client_information", "followup_statics"}:
                 row[key] = value
         row["updated_at"] = _now()
         return row
@@ -717,6 +719,25 @@ class MemoryDataStore:
         row["framework_json"] = framework_json
         row["confirmed_by"] = user_id
         row["confirmed_at"] = now
+        return row
+
+    def reopen_framework_for_correction(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+    ) -> dict[str, Any]:
+        row = self.get_latest_framework(opportunity_id=opportunity_id, user_id=user_id)
+        framework_json = copy.deepcopy(row["framework_json"])
+        framework_json["status"] = "in_review"
+        framework_json.pop("confirmed_by", None)
+        framework_json.pop("confirmed_at", None)
+        change_log = framework_json.setdefault("change_log", [])
+        change_log.append("Reopened for a small correction after presentation generation")
+        row["status"] = "in_review"
+        row["framework_json"] = framework_json
+        row["confirmed_by"] = None
+        row["confirmed_at"] = None
         return row
 
     def update_latest_framework(

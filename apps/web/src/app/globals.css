@@ -3569,3 +3569,143 @@ samp {
     grid-column: 2;
   }
 }
+
+.followup-review-page {
+  display: grid;
+  gap: var(--workspace-card-gap);
+}
+
+.followup-context {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.8rem;
+  color: var(--color-muted);
+}
+
+.followup-context strong {
+  color: var(--color-text);
+}
+
+.followup-fixture-badge {
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  background: var(--borek-cream);
+  color: var(--borek-accent);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.followup-unsent-note {
+  margin: 0;
+}
+
+.followup-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.followup-secondary-recipients {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 0.75rem;
+}
+
+.followup-secondary-recipients h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.followup-recipient-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(8rem, 1fr) auto;
+  align-items: end;
+  gap: 0.75rem;
+}
+
+.followup-draft-panel,
+.followup-checklist-panel,
+.followup-statics-panel {
+  display: grid;
+  gap: 1rem;
+}
+
+.followup-draft-panel textarea {
+  min-height: 24rem;
+  resize: vertical;
+  font-family: var(--font-body);
+  line-height: 1.55;
+}
+
+.followup-draft-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 1rem;
+  color: var(--color-muted);
+  font-size: 0.86rem;
+}
+
+.followup-validation {
+  margin: 0;
+  padding-left: 2rem;
+}
+
+.followup-checklist,
+.followup-flags {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.followup-checklist label,
+.followup-flags label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 0.65rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.followup-checklist input,
+.followup-flags input {
+  margin-top: 0.2rem;
+}
+
+.followup-flags h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.followup-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+}
+
+.followup-panel-actions p {
+  margin: 0;
+  max-width: 46rem;
+  color: var(--color-muted);
+  font-size: 0.88rem;
+}
+
+@media (max-width: 640px) {
+  .followup-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .followup-recipient-row {
+    grid-template-columns: 1fr;
+  }
+
+  .followup-panel-actions,
+  .followup-panel-actions .btn {
+    width: 100%;
+  }
+}

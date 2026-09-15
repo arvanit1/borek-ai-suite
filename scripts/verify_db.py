@@ -42,7 +42,12 @@ EXPECTED_TABLES = [
 ]
 
 EXPECTED_COLUMNS = {
-    "opportunities": ("pii_redaction_enabled", "additional_client_information", "demo_marker"),
+    "opportunities": (
+        "pii_redaction_enabled",
+        "additional_client_information",
+        "followup_statics",
+        "demo_marker",
+    ),
     "generation_jobs": (
         "llm_cost_eur",
         "error_retryable",
