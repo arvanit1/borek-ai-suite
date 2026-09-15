@@ -36,6 +36,9 @@ _NON_RETRYABLE_CODES = {
     "ARTIFACT_NOT_FOUND",
     "INVALID_ARTIFACT_KIND",
     "EGRESS_BLOCKED",
+    "FOLLOWUP_SEND_FORBIDDEN",
+    "FOLLOWUP_CLIENT_UNREVIEWED",
+    "FOLLOWUP_PROJECT_NOT_ALLOWED",
 }
 
 
@@ -163,6 +166,16 @@ def dispatch_resumed_job(job: Job) -> None:
             str(payload["slide_id"]),
             str(payload["user_id"]),
             str(payload["layout_id"]),
+        )
+        return
+    if job.job_type == "followup_generation":
+        from app.worker import run_followup_generation_task
+
+        _send(
+            run_followup_generation_task,
+            job_id,
+            str(job.opportunity_id),
+            str(payload["user_id"]),
         )
         return
     raise JobNotRetryableError(f"Job type {job.job_type} cannot be retried")

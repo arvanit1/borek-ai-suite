@@ -21,6 +21,9 @@ class JobStage(str, Enum):
     GAMMA_RENDERING = "GAMMA_RENDERING"
     ARTIFACT_FILING = "ARTIFACT_FILING"
     PREVIEW_RENDERING = "PREVIEW_RENDERING"
+    FOLLOWUP_EXTRACTION = "FOLLOWUP_EXTRACTION"
+    FOLLOWUP_RENDERING = "FOLLOWUP_RENDERING"
+    FOLLOWUP_DRAFT = "FOLLOWUP_DRAFT"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
 
@@ -47,6 +50,20 @@ JOB_PIPELINE_STAGES: tuple[JobStage, ...] = (
     JobStage.ARTIFACT_FILING,
     JobStage.PREVIEW_RENDERING,
 )
+
+# BT-33 follow-up pipeline — independent from presentation/framework stages.
+FOLLOWUP_JOB_PIPELINE_STAGES: tuple[JobStage, ...] = (
+    JobStage.QUEUED,
+    JobStage.FOLLOWUP_EXTRACTION,
+    JobStage.FOLLOWUP_RENDERING,
+    JobStage.FOLLOWUP_DRAFT,
+)
+
+
+def pipeline_stages_for_job_type(job_type: str) -> tuple[JobStage, ...]:
+    if str(job_type or "") == "followup_generation":
+        return FOLLOWUP_JOB_PIPELINE_STAGES
+    return JOB_PIPELINE_STAGES
 
 
 class JobErrorDetail(BaseModel):

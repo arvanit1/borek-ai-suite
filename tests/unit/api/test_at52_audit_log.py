@@ -212,6 +212,61 @@ def test_state_changing_endpoints_emit_required_audit_actions() -> None:
     delete_logo = client.delete(logo_path, headers=_headers())
     assert delete_logo.status_code == 204
 
+    from unittest.mock import patch
+
+    from services.followup.extraction import load_followup_fixture
+
+    settings.FOLLOWUP_ALLOWED_PROJECT_KEYS = "fixture-acme-invoice"
+    workshop_transcript = (
+        Path(__file__).resolve().parents[3]
+        / "packages"
+        / "contracts"
+        / "fixtures"
+        / "followup_extraction"
+        / "workshop_clear.transcript.txt"
+    ).read_bytes()
+    followup_transcript = client.post(
+        f"/opportunities/{opportunity_id}/transcripts",
+        headers=_headers(),
+        files={"file": ("workshop.txt", workshop_transcript, "text/plain")},
+    )
+    assert followup_transcript.status_code == 201
+    followup_transcript_id = followup_transcript.json()["transcript"]["id"]
+    statics = {
+        "project_name": "Acme Invoice Automation",
+        "salutation_style": "informal",
+        "recipient_first_name": "Markus",
+        "time_reference": "today",
+        "sender_name": "Lena Hoffmann",
+        "sender_role": "Delivery Lead",
+    }
+    with patch(
+        "app.services.followup_pipeline.extract_followup",
+        side_effect=lambda *a, **k: load_followup_fixture("workshop_clear")[1],
+    ):
+        generate_followup = client.post(
+            f"/opportunities/{opportunity_id}/followup/generate",
+            headers=_headers(),
+            json={
+                "transcript_id": followup_transcript_id,
+                "project_key": "fixture-acme-invoice",
+                "project_statics": statics,
+                "meeting_owner_email": "owner@example.com",
+            },
+        )
+    assert generate_followup.status_code == 202
+    confirm_followup = client.post(
+        f"/opportunities/{opportunity_id}/followup/review/confirm",
+        headers=_headers(),
+    )
+    assert confirm_followup.status_code == 200
+    record_followup = client.post(
+        f"/opportunities/{opportunity_id}/followup/delivery/record",
+        headers=_headers(),
+        json={"delivery_status": "sent_unknown"},
+    )
+    assert record_followup.status_code == 200
+
     recorded = set(_audit_actions())
     assert CANONICAL_AUDIT_ACTIONS.issubset(recorded)
 

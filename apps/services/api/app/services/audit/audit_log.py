@@ -30,6 +30,9 @@ class AuditAction(StrEnum):
     SLIDE_REGENERATE = "slide.regenerate"
     SLIDE_CHANGE_LAYOUT = "slide.change_layout"
     ARTIFACT_FILE = "artifact.file"
+    FOLLOWUP_GENERATE = "followup.generate"
+    FOLLOWUP_REVIEW = "followup.review"
+    FOLLOWUP_DELIVERY_RECORD = "followup.delivery.record"
 
 
 class AuditObjectType(StrEnum):

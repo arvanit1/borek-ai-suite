@@ -2288,6 +2288,115 @@ class SupabaseDataStore:
             "fact_kinds": sorted({row["kind"] for row in rows}),
         }
 
+    def upsert_followup_draft(self, *, idempotency_key: str, record: dict[str, Any]) -> dict[str, Any]:
+        body = _json_safe_value({**record, "idempotency_key": idempotency_key})
+        response = _request_with_retry(
+            "POST",
+            f"{self._base_url}/rest/v1/followup_drafts",
+            headers={
+                **self._headers,
+                "Prefer": "resolution=merge-duplicates,return=representation",
+            },
+            params={"on_conflict": "idempotency_key"},
+            json=body,
+        )
+        if response.status_code not in (200, 201) or not response.json():
+            raise bad_request("FOLLOWUP_DRAFT_WRITE_FAILED", response.text)
+        return dict(response.json()[0])
+
+    def get_followup_draft(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        draft_id: UUID | None = None,
+    ) -> dict[str, Any] | None:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        params: dict[str, str] = {
+            "opportunity_id": f"eq.{opportunity_id}",
+            "select": "*",
+            "order": "updated_at.desc",
+            "limit": "1",
+        }
+        if draft_id is not None:
+            params["id"] = f"eq.{draft_id}"
+        response = self._request("GET", "followup_drafts", params=params)
+        if response.status_code != 200:
+            raise bad_request("FOLLOWUP_DRAFT_READ_FAILED", response.text)
+        rows = response.json()
+        return dict(rows[0]) if rows else None
+
+    def update_followup_draft(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        draft_id: UUID,
+        updates: dict[str, Any],
+    ) -> dict[str, Any]:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        response = self._request(
+            "PATCH",
+            "followup_drafts",
+            params={"id": f"eq.{draft_id}"},
+            json_body=_json_safe_value(updates),
+        )
+        if response.status_code != 200 or not response.json():
+            raise bad_request("FOLLOWUP_DRAFT_UPDATE_FAILED", response.text)
+        return dict(response.json()[0])
+
+    def create_followup_sent_log(self, record: dict[str, Any]) -> dict[str, Any]:
+        response = self._request(
+            "POST",
+            "followup_sent_log",
+            json_body=_json_safe_value(record),
+        )
+        if response.status_code not in (200, 201) or not response.json():
+            raise bad_request("FOLLOWUP_SENT_LOG_WRITE_FAILED", response.text)
+        return dict(response.json()[0])
+
+    def get_followup_sent_log(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        followup_draft_id: UUID,
+    ) -> dict[str, Any] | None:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        response = self._request(
+            "GET",
+            "followup_sent_log",
+            params={
+                "opportunity_id": f"eq.{opportunity_id}",
+                "followup_draft_id": f"eq.{followup_draft_id}",
+                "select": "*",
+                "order": "created_at.desc",
+                "limit": "1",
+            },
+        )
+        if response.status_code != 200:
+            raise bad_request("FOLLOWUP_SENT_LOG_READ_FAILED", response.text)
+        rows = response.json()
+        return dict(rows[0]) if rows else None
+
+    def list_followup_drafts_for_user(self, *, user_id: UUID) -> list[dict[str, Any]]:
+        opportunities = self.list_opportunities(user_id=user_id)
+        if not opportunities:
+            return []
+        opportunity_ids = ",".join(str(item["id"]) for item in opportunities)
+        response = self._request(
+            "GET",
+            "followup_drafts",
+            params={
+                "opportunity_id": f"in.({opportunity_ids})",
+                "select": "*",
+                "order": "created_at.asc",
+            },
+        )
+        if response.status_code != 200:
+            raise bad_request("FOLLOWUP_DRAFT_LIST_FAILED", response.text)
+        return list(response.json())
+
 
 def validate_transcript_upload(file_name: str, mime_type: str | None) -> None:
     extension = Path(file_name).suffix.lower()
