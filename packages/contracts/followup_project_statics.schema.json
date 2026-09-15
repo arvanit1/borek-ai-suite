@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://borek.ai/schemas/followup_project_statics/v1.0",
+  "title": "FollowupProjectStatics",
+  "description": "MS-32 project and sender statics consumed by BT-33. The extractor must never guess these values.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "project_name",
+    "salutation_style",
+    "recipient_first_name",
+    "time_reference",
+    "sender_name",
+    "sender_role"
+  ],
+  "properties": {
+    "project_name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Exact project label used with the client."
+    },
+    "client_short": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short client label for owner references, e.g. Acme."
+    },
+    "salutation_style": {
+      "type": "string",
+      "enum": ["informal", "formal"],
+      "description": "informal → Hi first_name; formal → Dear salutation last_name."
+    },
+    "recipient_first_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "salutation": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Required when salutation_style is formal, e.g. Mr or Ms."
+    },
+    "last_name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Required when salutation_style is formal."
+    },
+    "time_reference": {
+      "type": "string",
+      "minLength": 1,
+      "description": "e.g. today, yesterday, on 11.09.2026."
+    },
+    "sender_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sender_role": {
+      "type": "string",
+      "minLength": 1
+    },
+    "no_actions_dependency": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Dependency phrase for the no-actions fallback when action_items is empty."
+    }
+  }
+}
