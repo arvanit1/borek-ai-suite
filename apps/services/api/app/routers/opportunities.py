@@ -51,6 +51,11 @@ def create_opportunity(
             if body.additional_client_information is not None
             else None
         ),
+        followup_statics=(
+            body.followup_statics.model_dump()
+            if body.followup_statics is not None
+            else None
+        ),
     )
     record_audit_event(
         store,

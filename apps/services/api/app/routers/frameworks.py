@@ -224,6 +224,30 @@ def confirm_framework(
     return _to_response(row)
 
 
+@opportunity_router.post(
+    "/{opportunity_id}/framework/reopen-for-correction",
+    response_model=FrameworkVersionResponse,
+)
+def reopen_framework_for_correction(
+    opportunity_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+) -> FrameworkVersionResponse:
+    row = framework_generation.reopen_framework_for_correction(
+        store,
+        opportunity_id=opportunity_id,
+        user_id=user.id,
+    )
+    record_audit_event(
+        store,
+        actor_id=user.id,
+        action=AuditAction.FRAMEWORK_UPDATE,
+        object_type=AuditObjectType.FRAMEWORK_VERSION,
+        object_id=row["id"],
+    )
+    return _to_response(row)
+
+
 @opportunity_router.patch(
     "/{opportunity_id}/framework",
     response_model=FrameworkVersionResponse,

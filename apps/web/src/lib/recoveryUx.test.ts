@@ -87,6 +87,22 @@ assert.equal(liveCoverValidation.category, "VALIDATION_NEEDS_REVIEW");
 assert.equal(liveCoverValidation.action?.kind, "REVIEW");
 assert.doesNotMatch(liveCoverValidation.message, /COVER_01|statBadges/i);
 
+const ungroundedHeadline = recoveryNoticeFromError(
+  new ApiRequestError(
+    "EXECUTIVE_SUMMARY_01 contains numeric content at headline absent from its field-attributed chapters: 1.000",
+    422,
+    "PRESENTATION_GENERATION_FAILED",
+    { retryable: false, jobId: "job-es", stage: "SLIDE_GENERATING" },
+  ),
+  "deck",
+);
+assert.equal(ungroundedHeadline.category, "VALIDATION_NEEDS_REVIEW");
+assert.equal(ungroundedHeadline.action?.kind, "GENERATE");
+assert.equal(ungroundedHeadline.action?.label, "Generate again");
+assert.doesNotMatch(ungroundedHeadline.message, /contact support/i);
+assert.match(ungroundedHeadline.message, /same opportunity/i);
+assert.equal(recoveryActionHref(ungroundedHeadline, "opportunity-1"), undefined);
+
 const retryableFailure = recoveryNoticeFromError(
   new ApiRequestError("Provider response body", 422, "PROVIDER_UNAVAILABLE", {
     retryable: true,
@@ -172,7 +188,7 @@ const gammaCases = [
   ["GAMMA_TIMEOUT", true, "TERMINAL_FAILURE", "RETRY"],
   ["GAMMA_AUTH", false, "TERMINAL_FAILURE", undefined],
   ["GAMMA_TEMPLATE_LOCKED", false, "TERMINAL_FAILURE", undefined],
-  ["GAMMA_PAYLOAD_INVALID", false, "VALIDATION_NEEDS_REVIEW", "REVIEW"],
+  ["GAMMA_PAYLOAD_INVALID", false, "VALIDATION_NEEDS_REVIEW", "GENERATE"],
   ["GAMMA_RATE_LIMIT", true, "TERMINAL_FAILURE", "RETRY"],
   ["GAMMA_PROVIDER_FAILED", true, "TERMINAL_FAILURE", "RETRY"],
 ] as const;
@@ -198,7 +214,8 @@ const payloadRejected = recoveryNoticeFromError(
   }),
   "deck",
 );
-assert.equal(payloadRejected.action?.target, "framework");
+assert.equal(payloadRejected.action?.kind, "GENERATE");
+assert.equal(payloadRejected.action?.label, "Generate again");
 
 const interruptedWhileRunning = recoveryNoticeFromError(
   new TypeError("Failed to fetch"),

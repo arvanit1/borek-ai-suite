@@ -246,6 +246,43 @@ def test_update_framework_rejects_confirmed_version() -> None:
     assert patch.json()["error"]["code"] == "FRAMEWORK_IMMUTABLE"
 
 
+def test_reopen_for_correction_unlocks_confirmed_framework() -> None:
+    client = _client()
+    opportunity_id = _create_opportunity(client)
+    client.post(f"/opportunities/{opportunity_id}/framework/generate", headers=_headers())
+    confirm = client.post(
+        f"/opportunities/{opportunity_id}/framework/confirm",
+        headers=_headers(),
+        json={},
+    )
+    assert confirm.status_code == 200
+
+    reopened = client.post(
+        f"/opportunities/{opportunity_id}/framework/reopen-for-correction",
+        headers=_headers(),
+    )
+    assert reopened.status_code == 200
+    assert reopened.json()["status"] == "in_review"
+
+    latest = client.get(f"/opportunities/{opportunity_id}/framework", headers=_headers())
+    framework_json = latest.json()["framework_json"]
+    framework_json["title"] = "Corrected title"
+    patch = client.patch(
+        f"/opportunities/{opportunity_id}/framework",
+        headers=_headers(),
+        json={"framework_json": framework_json},
+    )
+    assert patch.status_code == 200
+    assert patch.json()["framework_json"]["title"] == "Corrected title"
+
+    already_open = client.post(
+        f"/opportunities/{opportunity_id}/framework/reopen-for-correction",
+        headers=_headers(),
+    )
+    assert already_open.status_code == 400
+    assert already_open.json()["error"]["code"] == "FRAMEWORK_NOT_CONFIRMED"
+
+
 def test_render_requires_confirmed_framework() -> None:
     client = _client()
     opportunity_id = _create_opportunity(client)

@@ -370,6 +370,10 @@ export function DeckCenterPanel({
   }
 
   function handleRecoveryAction() {
+    if (notice?.action?.kind === "GENERATE") {
+      void handleGenerateDeck();
+      return;
+    }
     if (notice?.action?.kind === "RETRY") {
       void handleRetry();
       return;
