@@ -127,6 +127,9 @@ class MemoryDataStore:
     knowledge_corpus_versions: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     knowledge_documents: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     knowledge_facts: dict[UUID, dict[str, Any]] = field(default_factory=dict)
+    followup_drafts: dict[UUID, dict[str, Any]] = field(default_factory=dict)
+    followup_drafts_by_key: dict[str, UUID] = field(default_factory=dict)
+    followup_sent_log: dict[UUID, dict[str, Any]] = field(default_factory=dict)
 
     def get_filing_record(self, idempotency_key: str) -> dict[str, Any] | None:
         row = self.filed_artifacts.get(idempotency_key)
@@ -1523,6 +1526,101 @@ class MemoryDataStore:
         target = UUID(str(job_id))
         rows = [row for row in self.llm_calls.values() if row.get("job_id") == target]
         return [copy.deepcopy(row) for row in sorted(rows, key=lambda item: item["created_at"])]
+
+    def upsert_followup_draft(self, *, idempotency_key: str, record: dict[str, Any]) -> dict[str, Any]:
+        existing_id = self.followup_drafts_by_key.get(idempotency_key)
+        now = _now()
+        if existing_id is not None:
+            row = self.followup_drafts[existing_id]
+            row.update(copy.deepcopy(record))
+            row["updated_at"] = now
+            return copy.deepcopy(row)
+        draft_id = _optional_uuid(record.get("id")) or uuid.uuid4()
+        row = copy.deepcopy(record)
+        row.setdefault("id", draft_id)
+        row.setdefault("created_at", now)
+        row["updated_at"] = now
+        row["idempotency_key"] = idempotency_key
+        self.followup_drafts[draft_id] = row
+        self.followup_drafts_by_key[idempotency_key] = draft_id
+        return copy.deepcopy(row)
+
+    def get_followup_draft(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        draft_id: UUID | None = None,
+    ) -> dict[str, Any] | None:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        rows = [
+            row
+            for row in self.followup_drafts.values()
+            if row["opportunity_id"] == opportunity_id
+        ]
+        if not rows:
+            return None
+        if draft_id is not None:
+            row = self.followup_drafts.get(draft_id)
+            if row is None or row["opportunity_id"] != opportunity_id:
+                return None
+            return copy.deepcopy(row)
+        return copy.deepcopy(max(rows, key=lambda item: item["updated_at"]))
+
+    def update_followup_draft(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        draft_id: UUID,
+        updates: dict[str, Any],
+    ) -> dict[str, Any]:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        row = self.followup_drafts.get(draft_id)
+        if row is None or row["opportunity_id"] != opportunity_id:
+            raise not_found("FOLLOWUP_DRAFT_NOT_FOUND", "Follow-up draft not found.")
+        row.update(copy.deepcopy(updates))
+        row["updated_at"] = _now()
+        return copy.deepcopy(row)
+
+    def create_followup_sent_log(self, record: dict[str, Any]) -> dict[str, Any]:
+        entry_id = _optional_uuid(record.get("id")) or uuid.uuid4()
+        now = _now()
+        row = copy.deepcopy(record)
+        row["id"] = entry_id
+        row.setdefault("created_at", now)
+        row["updated_at"] = now
+        self.followup_sent_log[entry_id] = row
+        return copy.deepcopy(row)
+
+    def get_followup_sent_log(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        followup_draft_id: UUID,
+    ) -> dict[str, Any] | None:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        rows = [
+            row
+            for row in self.followup_sent_log.values()
+            if row["opportunity_id"] == opportunity_id
+            and row["followup_draft_id"] == followup_draft_id
+        ]
+        if not rows:
+            return None
+        return copy.deepcopy(max(rows, key=lambda item: item["created_at"]))
+
+    def list_followup_drafts_for_user(self, *, user_id: UUID) -> list[dict[str, Any]]:
+        owned_opportunity_ids = {
+            row["id"] for row in self.opportunities.values() if row["created_by"] == user_id
+        }
+        rows = [
+            copy.deepcopy(row)
+            for row in self.followup_drafts.values()
+            if row["opportunity_id"] in owned_opportunity_ids
+        ]
+        return sorted(rows, key=lambda item: item["created_at"])
 
 
 _memory_store = MemoryDataStore()

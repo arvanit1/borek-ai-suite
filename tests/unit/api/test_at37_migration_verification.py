@@ -133,7 +133,7 @@ def test_verify_db_covers_llm_calls_table() -> None:
     assert '"egress_audit"' in content
 
 
-def test_apply_migrations_script_covers_001_through_023() -> None:
+def test_apply_migrations_script_covers_001_through_024() -> None:
     assert APPLY_MIGRATIONS.is_file()
     content = APPLY_MIGRATIONS.read_text(encoding="utf-8")
     compile(content, str(APPLY_MIGRATIONS), "exec")
@@ -144,7 +144,7 @@ def test_apply_migrations_script_covers_001_through_023() -> None:
         for name in names
         if re.match(r"^\d{3}_", name)
     )
-    assert numbers == list(range(1, 24)), f"expected 001-023 with no gaps, got {numbers}"
+    assert numbers == list(range(1, 25)), f"expected 001-024 with no gaps, got {numbers}"
     assert names == sorted(names)
 
 

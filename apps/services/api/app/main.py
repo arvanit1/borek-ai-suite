@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.middleware.error_handler import register_error_handlers
 from app.routers import (
     archive,
+    followups,
     frameworks,
     health,
     jobs,
@@ -52,6 +53,7 @@ def create_app() -> FastAPI:
     app.include_router(public_logos.router)
     app.include_router(opportunities.router, prefix="/opportunities", tags=["opportunities"])
     app.include_router(transcripts.router, prefix="/opportunities", tags=["transcripts"])
+    app.include_router(followups.router, prefix="/opportunities", tags=["followups"])
     app.include_router(
         frameworks.opportunity_router,
         prefix="/opportunities",

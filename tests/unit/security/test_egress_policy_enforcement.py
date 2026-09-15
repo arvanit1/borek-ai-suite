@@ -40,7 +40,7 @@ def _reset_egress_audit() -> None:
 
 def test_policy_approves_openai_anthropic_and_gamma() -> None:
     policy = load_runtime_egress_policy()
-    assert policy.approved_providers == frozenset({"openai", "anthropic", "gamma"})
+    assert policy.approved_providers == frozenset({"openai", "anthropic", "gamma", "outlook"})
 
 
 def test_enforce_allows_working_default_openai_planning_payload() -> None:

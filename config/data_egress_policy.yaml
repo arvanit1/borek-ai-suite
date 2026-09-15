@@ -20,6 +20,7 @@ approved_providers:
   - openai
   - anthropic
   - gamma
+  - outlook
 
 rules:
   public:
@@ -74,6 +75,22 @@ field_classifications:
   "/provider/exportAs": internal
   "/provider/cardSplit": internal
   "/provider/numCards": internal
+  # BT-33 follow-up extraction (JJ-32) — client-confidential transcript leaves via anthropic only.
+  "/transcript": client_confidential
+  "/calendar_meeting_date": internal
+  "/meeting_topic": client_confidential
+  "/meeting_date": client_confidential
+  "/key_points": client_confidential
+  "/decisions": client_confidential
+  "/action_items": client_confidential
+  "/open_questions": client_confidential
+  "/next_meeting": client_confidential
+  # BT-33 mailbox draft boundary — subject/body are client-confidential.
+  "/subject": client_confidential
+  "/body": client_confidential
+  "/meeting_owner_email": internal
+  "/client_recipient_email": client_confidential
+  "/restricted_marker": restricted
   # Raw prior-stage / grounded-fact objects must never leave. Unlisted = deny.
 
 # Client-confidential leaves require an exact or prefix allow-list entry per provider.
@@ -85,6 +102,13 @@ client_confidential_allowlist:
     - "/offendingValues"
   anthropic:
     - "/user"
+    - "/transcript"
+    - "/calendar_meeting_date"
+  outlook:
+    - "/subject"
+    - "/body"
+    - "/meeting_owner_email"
+    - "/client_recipient_email"
   gamma:
     - "/slots/cover.client_name"
     - "/slots/cover.subtitle"

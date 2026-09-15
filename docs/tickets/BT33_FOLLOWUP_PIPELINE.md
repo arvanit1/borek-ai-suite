@@ -103,3 +103,34 @@ MS-32 for the frozen template string, optional-block rules, and project
 statics shape — not the review UI. Existing transcripts and opportunity jobs
 (AT-56 / AT-57 resume). Outlook credentials from delivery; until they exist,
 the renderer and job graph ship against a fixture mailbox client.
+
+## Implementation / acceptance (2026-09-15)
+
+Commits:
+
+- `1327f3e` — Phase 1 deterministic renderer + contracts
+- `0de0b80` — Phase 2 pipeline orchestration + persistence + fixture mailbox
+
+Fixture E2E acceptance (API/job path, `FixtureMailboxClient`, allowed project
+`fixture-acme-invoice`, `workshop_clear` transcript fixture):
+
+| Area | Status |
+| --- | --- |
+| Renderer | PASS |
+| Orchestration (`FOLLOWUP_EXTRACTION` → `FOLLOWUP_RENDERING` → `FOLLOWUP_DRAFT` → `COMPLETED` / `review_status=pending`) | PASS |
+| Resume / idempotency (AT-57 checkpoints; single fixture mailbox draft) | PASS |
+| Fixture mailbox (meeting-owner draft; no client recipient before review) | PASS |
+| Review handoff (fetch / edit / confirm; no send) | PASS |
+| No-send enforcement (`FOLLOWUP_SEND_FORBIDDEN`) | PASS |
+| Rollout gate (`FOLLOWUP_PROJECT_NOT_ALLOWED` for unlisted projects) | PASS |
+| Egress (BT-33 anthropic + outlook field map; metadata-only audit) | PASS |
+| RLS / user isolation | PASS |
+| Draft / sent log (no transcript in delta log) | PASS |
+
+**ENGINEERING STATUS:** COMPLETE
+
+**LIVE OUTLOOK STATUS:** PENDING DELIVERY CREDENTIALS
+
+The ticket explicitly permits the renderer and job graph to ship against the
+fixture mailbox client until delivery supplies Microsoft Graph / Outlook
+credentials. Live Outlook verification has **not** been performed.

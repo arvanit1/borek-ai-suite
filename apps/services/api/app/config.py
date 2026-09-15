@@ -138,6 +138,14 @@ class Settings(BaseSettings):
         default="fixture",
         description="fixture for deterministic local/test runs; live invokes configured LLM providers",
     )
+    MAILBOX_EXECUTION_MODE: Literal["fixture", "live"] = Field(
+        default="fixture",
+        description="fixture mailbox drafts for BT-33; live Outlook/Graph is not implemented yet",
+    )
+    FOLLOWUP_ALLOWED_PROJECT_KEYS: str = Field(
+        default="",
+        description="Comma-separated rollout allow-list for BT-33 follow-up generation; empty denies all",
+    )
 
     API_HOST: str = "0.0.0.0"
     API_PORT: int = 8000

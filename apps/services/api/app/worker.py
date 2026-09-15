@@ -702,6 +702,27 @@ def run_slide_regenerate_task(
     )
 
 
+@celery_app.task(name="tasks.run_followup_generation")
+def run_followup_generation_task(
+    job_id: str,
+    opportunity_id: str,
+    user_id: str,
+) -> dict[str, str]:
+    from uuid import UUID
+
+    from app.services.data import build_worker_data_store
+    from app.services.followup_pipeline import run_followup_generation
+
+    store = build_worker_data_store()
+    job = run_followup_generation(
+        store,
+        job_id=UUID(job_id),
+        opportunity_id=UUID(opportunity_id),
+        user_id=UUID(user_id),
+    )
+    return {"job_id": job_id, "status": job.status.value}
+
+
 @celery_app.task(name="tasks.run_slide_change_layout")
 def run_slide_change_layout_task(
     job_id: str,

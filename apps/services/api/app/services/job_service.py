@@ -13,6 +13,7 @@ from app.schemas.jobs import (
     JobResponse,
     JobStage,
     JobStatus,
+    pipeline_stages_for_job_type,
 )
 
 
@@ -174,6 +175,8 @@ def job_matches_stage_group(job_type: str, stage_group: str | None) -> bool:
         return "framework" in name
     if stage_group == "presentation":
         return "presentation" in name or "slide" in name
+    if stage_group == "followup":
+        return "followup" in name
     return True
 
 
@@ -290,12 +293,13 @@ def advance_stage(
 
     _ensure_not_terminal(job)
 
-    if job.current_stage not in JOB_PIPELINE_STAGES or next_stage not in JOB_PIPELINE_STAGES:
+    pipeline = pipeline_stages_for_job_type(job.job_type)
+    if job.current_stage not in pipeline or next_stage not in pipeline:
         raise InvalidJobTransitionError(
             f"Job {job_id} cannot advance from stage {job.current_stage.value}",
         )
-    current_index = JOB_PIPELINE_STAGES.index(job.current_stage)
-    next_index = JOB_PIPELINE_STAGES.index(next_stage)
+    current_index = pipeline.index(job.current_stage)
+    next_index = pipeline.index(next_stage)
     if next_index <= current_index:
         raise InvalidJobTransitionError(
             f"Invalid stage transition {job.current_stage.value} -> {next_stage.value}",
@@ -325,10 +329,11 @@ def ensure_stage(
             job.started_at = job.started_at or datetime.now(UTC)
             return _save(job, repository)
         return job
+    pipeline = pipeline_stages_for_job_type(job.job_type)
     if (
-        job.current_stage in JOB_PIPELINE_STAGES
-        and stage in JOB_PIPELINE_STAGES
-        and JOB_PIPELINE_STAGES.index(stage) < JOB_PIPELINE_STAGES.index(job.current_stage)
+        job.current_stage in pipeline
+        and stage in pipeline
+        and pipeline.index(stage) < pipeline.index(job.current_stage)
     ):
         return job
     return advance_stage(job_id, stage, repository=repository)
@@ -350,15 +355,16 @@ def resume_job(
         )
     if not job.error_retryable:
         raise JobNotRetryableError(f"Job {job_id} is not retryable")
+    pipeline = pipeline_stages_for_job_type(job.job_type)
     stage = from_stage or job.failed_stage
-    if stage is None or stage not in JOB_PIPELINE_STAGES:
+    if stage is None or stage not in pipeline:
         raise InvalidJobTransitionError(
             f"Job {job_id} has no pipeline stage to resume from",
         )
     if (
         job.failed_stage is not None
-        and job.failed_stage in JOB_PIPELINE_STAGES
-        and JOB_PIPELINE_STAGES.index(stage) > JOB_PIPELINE_STAGES.index(job.failed_stage)
+        and job.failed_stage in pipeline
+        and pipeline.index(stage) > pipeline.index(job.failed_stage)
     ):
         raise InvalidJobTransitionError(
             f"Job {job_id} cannot resume after failed stage {job.failed_stage.value}",

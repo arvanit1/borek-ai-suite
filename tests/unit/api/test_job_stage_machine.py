@@ -34,12 +34,19 @@ def test_job_stage_enum_values_in_order() -> None:
         "GAMMA_RENDERING",
         "ARTIFACT_FILING",
         "PREVIEW_RENDERING",
+        "FOLLOWUP_EXTRACTION",
+        "FOLLOWUP_RENDERING",
+        "FOLLOWUP_DRAFT",
         "COMPLETED",
         "FAILED",
     ]
     assert [stage.value for stage in JobStage] == expected
-    assert len(JobStage) == 14
-    assert list(JOB_PIPELINE_STAGES) == [JobStage.QUEUED, *expected[1:-2]]
+    assert len(JobStage) == 17
+    followup_start = expected.index("FOLLOWUP_EXTRACTION")
+    assert list(JOB_PIPELINE_STAGES) == [
+        JobStage.QUEUED,
+        *[JobStage(value) for value in expected[1:followup_start]],
+    ]
 
 
 def test_job_status_enum_has_four_values() -> None:
