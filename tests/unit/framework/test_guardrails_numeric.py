@@ -39,7 +39,43 @@ def test_lint_numbers_allows_german_decimal_comma() -> None:
     assert lint_numbers(framework, customer) == []
 
 
-def test_lint_numbers_allows_german_spaced_thousands_without_stray_part_errors() -> None:
+def test_lint_numbers_allows_german_spaced_thousands_when_grounded() -> None:
+    framework = _framework_with_kpi("Monthly spend is EUR 13 500.")
+    customer = "Estimated monthly spend is EUR 13 500."
+    assert lint_numbers(framework, customer) == []
+
+
+def test_lint_numbers_allows_equivalent_spaced_thousands_without_space() -> None:
+    framework = _framework_with_kpi("Monthly spend is EUR 13 500.")
+    customer = "Estimated monthly spend is EUR 13500."
+    assert lint_numbers(framework, customer) == []
+
+
+def test_lint_numbers_rejects_altered_spaced_thousands() -> None:
+    framework = _framework_with_kpi("Monthly spend is EUR 13 500.")
+    customer = "Monthly spend is EUR 13 999."
+    errors = lint_numbers(framework, customer)
+    assert len(errors) == 1
+    assert "13 999" in errors[0] or "999" in errors[0]
+
+
+def test_lint_numbers_rejects_ungrounded_spaced_thousands() -> None:
+    framework = _framework_with_kpi("Monthly spend is EUR 13 500.")
+    customer = "Monthly spend is EUR 15 500."
+    errors = lint_numbers(framework, customer)
+    assert len(errors) == 1
+    assert "15 500" in errors[0] or "500" in errors[0]
+
+
+def test_lint_numbers_inspects_ungrounded_number_before_sentence_period() -> None:
+    framework = _framework_with_kpi("The team processes about 200 invoices per month.")
+    customer = "The team processes about 999."
+    errors = lint_numbers(framework, customer)
+    assert len(errors) == 1
+    assert "999" in errors[0]
+
+
+def test_lint_numbers_allows_grounded_spaced_thousands_before_sentence_period() -> None:
     framework = _framework_with_kpi("Monthly spend is EUR 13 500.")
     customer = "Estimated monthly spend is EUR 13 500."
     assert lint_numbers(framework, customer) == []
