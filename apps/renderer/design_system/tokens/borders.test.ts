@@ -84,7 +84,7 @@ function findBorderViolations(roots: string[]): Array<{ file: string; match: str
 
 assert.equal(BorekBorders.card.borderColor, BorekColors.border);
 assert.equal(BorekBorders.divider.color, BorekColors.border);
-assert.equal(BorekBorders.card.borderRadiusInches, BorekGrid.rowGap / 2);
+assert.equal(BorekBorders.card.borderRadiusInches, 0);
 assert.equal(BorekBorderLineWidths.card, 1);
 assert.equal(BorekBorderLineWidths.divider, 1);
 assert.equal(BorekBorders.card.lineWidthPt, BorekBorderLineWidths.card);
@@ -92,8 +92,9 @@ assert.equal(BorekBorders.divider.lineWidthPt, BorekBorderLineWidths.divider);
 
 for (const value of [BorekBorders.card.borderRadiusInches, BorekBorders.card.lineWidthPt, BorekBorders.divider.lineWidthPt]) {
   assert.equal(typeof value, "number");
-  assert.ok(value > 0, "border measurements must be positive");
+  assert.ok(value >= 0, "border measurements must be non-negative");
 }
+assert.ok(BorekBorders.card.lineWidthPt > 0, "card line width must be positive");
 
 assert.deepEqual(BorekBorderTokens, { borders: BorekBorders, lineWidths: BorekBorderLineWidths });
 assert.deepEqual(BOREK_BORDER_TOKENS, BorekBorderTokens);

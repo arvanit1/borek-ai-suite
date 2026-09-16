@@ -195,8 +195,7 @@ def test_a_private_reference_is_left_out_of_the_live_payload() -> None:
             client_logo_placement=decision.placement,
         ),
     )
-    assert "bottomRight" not in payload["cardOptions"]["headerFooter"]
-    assert payload["cardOptions"]["headerFooter"]["bottomLeft"]["source"] == "themeLogo"
+    assert "cardOptions" not in payload
 
 
 def test_a_signed_url_from_an_owned_host_is_placed_bottom_right(monkeypatch) -> None:
@@ -220,8 +219,7 @@ def test_a_signed_url_from_an_owned_host_is_placed_bottom_right(monkeypatch) -> 
         "src": signed_url,
         "size": "sm",
     }
-    # The Borek logo keeps its own corner.
-    assert payload["cardOptions"]["headerFooter"]["bottomLeft"]["source"] == "themeLogo"
+    assert "bottomLeft" not in payload["cardOptions"]["headerFooter"]
 
 
 def test_an_arbitrary_external_url_is_never_an_accepted_reference() -> None:

@@ -7,14 +7,19 @@ import { fileURLToPath } from "node:url";
 
 import { BOREK_COLOR_TOKENS, BorekColors, type BorekColorToken } from "./colors.js";
 
-/** Technical plan v2 §16 — BorekTheme.colors seed palette (expected values for tests only). */
-const TECHNICAL_PLAN_V2_COLORS: Record<BorekColorToken, string> = {
+/** Brand Guide 2.0 / presentation_ci.json palette (expected values for tests only). */
+const PRESENTATION_CI_COLORS: Record<BorekColorToken, string> = {
   background: "FFFFFF",
-  text: "182230",
-  mutedText: "667085",
-  border: "E4E7EC",
-  primary: "0057B8",
-  coverBackground: "182230",
+  text: "0D1240",
+  mutedText: "5C6178",
+  border: "E2E4EC",
+  primary: "0D1240",
+  coverBackground: "0D1240",
+  mist: "F3F4F8",
+  spirit: "124F94",
+  splashOrange: "E07E00",
+  splashRed: "DD3D00",
+  splashTeal: "02A69F",
 };
 
 const HEX_WITHOUT_HASH = /^[0-9A-Fa-f]{6}$/;
@@ -90,8 +95,8 @@ export function findHardcodedHexViolations(roots: string[]): Array<{ file: strin
   return violations;
 }
 
-for (const token of Object.keys(TECHNICAL_PLAN_V2_COLORS) as BorekColorToken[]) {
-  assert.equal(BorekColors[token], TECHNICAL_PLAN_V2_COLORS[token], `token ${token} must match technical plan v2 §16`);
+for (const token of Object.keys(PRESENTATION_CI_COLORS) as BorekColorToken[]) {
+  assert.equal(BorekColors[token], PRESENTATION_CI_COLORS[token], `token ${token} must match presentation CI contract`);
 }
 
 for (const value of Object.values(BOREK_COLOR_TOKENS)) {

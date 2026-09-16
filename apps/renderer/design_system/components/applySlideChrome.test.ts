@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import {
   leftoverPlaceholdersForSlide,
   logoVariantForSlide,
+  shouldShowBorekLogo,
   usesClosingMaster,
 } from "./applySlideChrome.js";
 import {
@@ -24,6 +25,13 @@ assert.equal(
 );
 assert.equal(logoVariantForSlide({ opportunityTitle: "T", layoutId: "PROCESS_FLOW_01" }), "light");
 assert.equal(logoVariantForSlide({ opportunityTitle: "T", layoutId: "TIMELINE_01" }), "light");
+
+assert.equal(shouldShowBorekLogo({ opportunityTitle: "T", layoutId: "COVER_01" }), true);
+assert.equal(
+  shouldShowBorekLogo({ opportunityTitle: "T", layoutId: "COMPLIANCE_01", darkBackground: true }),
+  true,
+);
+assert.equal(shouldShowBorekLogo({ opportunityTitle: "T", layoutId: "PROCESS_FLOW_01" }), false);
 
 assert.equal(
   usesClosingMaster({ opportunityTitle: "T", layoutId: "COMPLIANCE_01", darkBackground: true }),

@@ -19,7 +19,7 @@ reads. If the two disagree, the JSON wins and this document is stale.
 | --- | --- | --- |
 | Pitch Factory template id | `borek-branded-standard` | `template_id` in the contract |
 | Template version | `v1` | `template_version` in the contract |
-| Gamma theme | `GAMMA_THEME_ID` (default `4kv51cbpy4xonmj`, "Borek Pitch Theme") | environment |
+| Gamma theme | `GAMMA_THEME_ID` (official default `y7pjh5eetjgbiym`, see `presentation_ci.json`) | environment |
 | Gamma template/gamma id | `GAMMA_TEMPLATE_ID` | environment |
 
 The Pitch Factory id is what the request carries and what the fixture and live
@@ -37,7 +37,7 @@ is not a runtime input and the pipeline has no way to override it.
 | Heading | `#0D1D51` |
 | Accent | `#0072C7` |
 | Body and heading typeface | Inter |
-| Borek logo | theme logo, bottom-left header/footer on every card |
+| Borek logo | cover and closing via approved theme only — not on content slides |
 | Background | white cards, dark cover |
 
 These keys are refused if they ever appear in a request: `brand_color`, `theme`,

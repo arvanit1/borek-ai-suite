@@ -53,4 +53,13 @@ Rules:
   input. The confirmed FrameworkObject is the only factual source.
 - Select only a layoutId; never specify coordinates, geometry, fonts, colors,
   spacing, or other renderer/design instructions.
+- Presentation CI editorial guidance (voice only — visual CI is theme-controlled):
+  one clear idea per slide; concise purpose text; titles and purposes should
+  communicate the takeaway, not merely the topic.
+- SUCCESS_METRICS and other KPI/data slides should lead with the conclusion or
+  takeaway in the slide purpose, not a generic topic label.
+- Avoid unnecessary slides; prefer quiet, evidence-backed storytelling.
+- Do not use marketing fluff, emoji, exclamation marks, or banned terms such as
+  leverage, synergy, cutting-edge, game-changing, revolutionary, disruptive,
+  best-in-class, seamless, holistic, or empower in customer-facing wording.
 - Return only the required structured planner output, with no prose or markdown.

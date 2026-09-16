@@ -12,10 +12,10 @@ import {
   type BorekSpacingToken,
 } from "./spacing.js";
 
-/** Technical plan v2 §16 — BorekTheme.spacing seed values (expected values for tests only). */
-const TECHNICAL_PLAN_V2_SPACING: Record<BorekSpacingToken, number> = {
-  marginX: 0.65,
-  marginTop: 0.5,
+/** Brand Guide 2.0 — 120px margins at 1920×1080 (expected values for tests only). */
+const PRESENTATION_CI_SPACING: Record<BorekSpacingToken, number> = {
+  marginX: 120 / 144,
+  marginTop: 120 / 144,
   footerHeight: 0.35,
 };
 
@@ -87,11 +87,11 @@ function findSpacingViolations(roots: string[]): Array<{ file: string; match: st
   return violations;
 }
 
-for (const token of Object.keys(TECHNICAL_PLAN_V2_SPACING) as BorekSpacingToken[]) {
+for (const token of Object.keys(PRESENTATION_CI_SPACING) as BorekSpacingToken[]) {
   assert.equal(
     BorekSpacing[token],
-    TECHNICAL_PLAN_V2_SPACING[token],
-    `spacing token ${token} must match technical plan v2 §16`,
+    PRESENTATION_CI_SPACING[token],
+    `spacing token ${token} must match presentation CI contract`,
   );
 }
 

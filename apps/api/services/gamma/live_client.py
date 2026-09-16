@@ -161,9 +161,9 @@ class LiveGammaClient:
                 payload["title"] = title
             return payload
 
-        header_footer: dict[str, Any] = {
-            "bottomLeft": {"type": "image", "source": "themeLogo"},
-        }
+        # Brand Guide: Borek logo belongs on cover/closing via the approved theme only.
+        # Never inject a deck-wide themeLogo that would appear on content slides.
+        header_footer: dict[str, Any] = {}
         client_logo_url = _fetchable_client_logo_url(request)
         if client_logo_url is not None:
             placement = request.client_logo_placement or load_gamma_template().client_logo
@@ -176,7 +176,7 @@ class LiveGammaClient:
             template=template,
             planned_slide_specs=request.planned_slide_specs,
         )
-        payload = {
+        payload: dict[str, Any] = {
             "inputText": input_text,
             "textMode": "preserve",
             "format": "presentation",
@@ -184,8 +184,9 @@ class LiveGammaClient:
             "exportAs": request.output_formats[0],
             "cardSplit": CARD_SPLIT_INPUT_TEXT_BREAKS,
             "numCards": num_cards,
-            "cardOptions": {"headerFooter": header_footer},
         }
+        if header_footer:
+            payload["cardOptions"] = {"headerFooter": header_footer}
         if title:
             payload["title"] = title
         return payload
