@@ -146,7 +146,11 @@ def execute_framework_render(
     )
     output_dir = deck_assets_root() / "frameworks" / str(framework_version_id)
     output_dir.mkdir(parents=True, exist_ok=True)
-    lang = str(framework["framework_json"].get("language") or "en")
+    lang = str(
+        (framework["framework_json"].get("customer_view") or {}).get("render_language")
+        or framework["framework_json"].get("language")
+        or "en"
+    )
     if output_format == "docx":
         output_path = output_dir / "report.docx"
         output_path.write_bytes(render_customer_docx(framework["framework_json"], lang=lang))

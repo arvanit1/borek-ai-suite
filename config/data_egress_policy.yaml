@@ -43,6 +43,8 @@ field_classifications:
   "/violations": internal
   "/system": internal
   "/frameworkObject": client_confidential
+  "/customerLocalizedChapters": client_confidential
+  "/presentationRenderLanguage": internal
   "/chapters": client_confidential
   "/offendingValues": client_confidential
   "/user": client_confidential
@@ -98,6 +100,7 @@ field_classifications:
 client_confidential_allowlist:
   openai:
     - "/frameworkObject"
+    - "/customerLocalizedChapters"
     - "/chapters"
     - "/offendingValues"
   anthropic:

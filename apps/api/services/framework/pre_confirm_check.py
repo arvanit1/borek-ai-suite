@@ -14,6 +14,7 @@ from services.framework.chapter_validators.ch05_how_it_works import (
 )
 from services.framework.customer_view import build_customer_view
 from services.framework.guardrails import strip_citations_from_value
+from services.framework.localization import make_localize_fn
 
 _STOP = frozenset(
     {
@@ -174,10 +175,26 @@ def confirm_customer_report(
     pre_confirm_check(updated)
     lang = str(
         (updated.get("customer_view") or {}).get("render_language")
-        or updated.get("language_master")
+        or updated.get("language")
         or "en"
     )
-    updated["customer_view"] = strip_citations_from_value(build_customer_view(updated, lang=lang))
+    localize = (
+        make_localize_fn(
+            opportunity_id=str(updated.get("opportunity_id") or ""),
+            framework_id=str(updated.get("id") or updated.get("framework_id") or ""),
+        )
+        if lang == "de"
+        else None
+    )
+    updated["customer_view"] = strip_citations_from_value(
+        build_customer_view(
+            updated,
+            lang=lang,
+            localize=localize,
+            opportunity_id=str(updated.get("opportunity_id") or ""),
+            framework_id=str(updated.get("id") or updated.get("framework_id") or ""),
+        )
+    )
     stamp = (now or (lambda: datetime.now(timezone.utc)))().replace(microsecond=0).isoformat().replace("+00:00", "Z")
     updated["status"] = "confirmed"
     updated["updated_at"] = stamp

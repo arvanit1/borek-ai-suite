@@ -24,6 +24,16 @@ _SUPERLATIVE = re.compile(
 _NUMBER_RE = re.compile(r"(?<![A-Za-z0-9.,-])(\d+(?:[.,]\d+)?)(?![A-Za-z0-9.,-])")
 
 
+def _numeric_token(raw: str) -> float:
+    """Parse customer numbers, treating DE decimal commas as fractional separators."""
+    text = raw.strip()
+    if "," in text and "." not in text:
+        text = text.replace(",", ".")
+    else:
+        text = text.replace(",", "")
+    return float(text)
+
+
 class GuardrailError(ValueError):
     def __init__(self, message: str) -> None:
         super().__init__(message)
@@ -76,18 +86,17 @@ def lint_numbers(framework: dict[str, Any], customer_text: str) -> list[str]:
         framework.get("access_needs"),
     ):
         for token in re.findall(r"\d+(?:[.,]\d+)?", _flatten_customer_text(bucket or {})):
-            allowed.add(_norm(token.replace(",", "")))
             try:
-                raw = float(token.replace(",", ""))
+                raw = _numeric_token(token)
             except ValueError:
                 continue
+            allowed.add(_norm(raw))
             if 0 < raw <= 1:
                 allowed.add(_norm(raw * 100))
     errors: list[str] = []
     for match in _NUMBER_RE.finditer(customer_text):
-        token = match.group(1).replace(",", "")
         try:
-            number = float(token)
+            number = _numeric_token(match.group(1))
         except ValueError:
             continue
         if number in {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 24, 36}:
@@ -95,8 +104,14 @@ def lint_numbers(framework: dict[str, Any], customer_text: str) -> list[str]:
         if _norm(number) in allowed or _norm(int(number) if number.is_integer() else number) in allowed:
             continue
         nearby = customer_text[max(0, match.start() - 24) : match.end() + 24]
-        prefix = customer_text[max(0, match.start() - 6) : match.start()].lower()
-        if prefix.endswith("turn:"):
+        prefix = customer_text[max(0, match.start() - 8) : match.start()]
+        suffix = customer_text[match.end() : match.end() + 8]
+        if prefix.endswith("turn:") or prefix.lower().endswith("turn:"):
+            continue
+        # DE/EU grouped thousands such as "13 500" or "13.500" must not lint as stray parts.
+        if re.search(r"\d{1,3}\s+$", prefix) or re.search(r"\d{1,3}\.\s*$", prefix):
+            continue
+        if re.match(r"^\s\d{3}\b", suffix) or re.match(r"^\.\d{3}\b", suffix):
             continue
         if any(
             word in nearby.lower()
