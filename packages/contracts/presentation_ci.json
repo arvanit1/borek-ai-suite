@@ -1,0 +1,175 @@
+{
+  "schema_version": "1.0",
+  "description": "Borek presentation CI contract (Brand Guide 2.0). Visual grammar for Gamma theme and internal renderer; voice/editorial rules for Stage B content.",
+  "source_documents": [
+    {
+      "id": "brand_guide_2_0",
+      "title": "BOREK Brand Guide 2.0",
+      "role": "normative",
+      "precedence": 1
+    },
+    {
+      "id": "master_slides",
+      "title": "Borek Master Slides",
+      "role": "visual_reference",
+      "precedence": 2
+    },
+    {
+      "id": "white_paper_master",
+      "title": "Borek White Paper Master",
+      "role": "editorial_patterns",
+      "precedence": 3
+    }
+  ],
+  "precedence_rule": "Brand Guide explicit rules override Master Slides examples; White Paper patterns apply only where compatible with slide-density rules.",
+  "official_gamma_theme_id": "y7pjh5eetjgbiym",
+  "theme_id_setting": "GAMMA_THEME_ID",
+  "colors": {
+    "primary": {
+      "name": "Indigo",
+      "hex": "#0D1240",
+      "role": "primary brand color; cover/closing full bleed"
+    },
+    "paper": {
+      "name": "Paper",
+      "hex": "#FFFFFF",
+      "role": "content slide background"
+    },
+    "mist": {
+      "name": "Mist",
+      "hex": "#F3F4F8",
+      "role": "supporting background / subtle fill"
+    },
+    "slate": {
+      "name": "Slate",
+      "hex": "#5C6178",
+      "role": "secondary text"
+    },
+    "hairline": {
+      "name": "Hairline",
+      "hex": "#E2E4EC",
+      "role": "rules and dividers"
+    },
+    "spirit": {
+      "name": "Spirit",
+      "hex": "#124F94",
+      "role": "supporting brand blue"
+    },
+    "splash": {
+      "allowed": ["#E07E00", "#DD3D00", "#124F94", "#02A69F"],
+      "max_per_slide": 1,
+      "never_carry_text": true
+    },
+    "rules": [
+      "Indigo is the primary brand color.",
+      "Use at most one splash/highlight color per slide or visual context.",
+      "Splash colors must never carry text.",
+      "No gradients.",
+      "No shadows.",
+      "No decorative visual noise unless explicitly allowed."
+    ]
+  },
+  "typography": {
+    "primary_family": "Inter",
+    "fallback_families": ["Segoe UI", "Verdana", "sans-serif"],
+    "weights": [300, 400, 500, 600],
+    "max_weights_per_slide": 2,
+    "minimum_slide_text_px": 24,
+    "rules": [
+      "Inter is the primary typeface.",
+      "Use Verdana or listed fallbacks only where the Brand Guide specifies.",
+      "Preserve title/body hierarchy.",
+      "Use at most two font weights per slide."
+    ]
+  },
+  "geometry": {
+    "aspect_ratio": "16:9",
+    "design_width_px": 1920,
+    "design_height_px": 1080,
+    "margin_px": 120,
+    "corner_radius_px": 0,
+    "slides": {
+      "cover": {
+        "background": "primary_indigo_full_bleed",
+        "borek_logo": true
+      },
+      "content": {
+        "background": "paper",
+        "borek_logo": false,
+        "footer": ["date", "page_number"]
+      },
+      "closing": {
+        "background": "primary_indigo_full_bleed",
+        "borek_logo": true
+      }
+    },
+    "rules": [
+      "0 px corner radius on cards and containers.",
+      "Prefer thin rules and whitespace over decorative boxes.",
+      "Content slides use white background with date and page number footer."
+    ]
+  },
+  "logo": {
+    "approved_variants": ["white_on_indigo", "indigo_on_light"],
+    "never_recolor": true,
+    "preserve_clear_space": true,
+    "borek_logo_on_cover": true,
+    "borek_logo_on_closing": true,
+    "borek_logo_on_content_slides": false,
+    "client_logo_cards": ["cover", "closing"],
+    "rules": [
+      "Use approved Borek logo color variants only.",
+      "White logo on Indigo; Indigo logo on light backgrounds.",
+      "Never recolor the logo.",
+      "Do not place the Borek logo on normal content slides."
+    ]
+  },
+  "voice": {
+    "tone": ["clear", "reliable", "concrete", "active"],
+    "short_sentences": true,
+    "commitments_include_dates_when_supported": true,
+    "no_exclamation_marks": true,
+    "no_emoji": true,
+    "banned_marketing_terms": [
+      "leverage",
+      "synergy",
+      "synergies",
+      "cutting-edge",
+      "game-changing",
+      "revolutionary",
+      "disruptive",
+      "best-in-class",
+      "seamless",
+      "holistic",
+      "empower"
+    ],
+    "rules": [
+      "Write in active voice with short sentences.",
+      "State commitments with dates when source material supports them.",
+      "Do not use exclamation marks in customer-facing slide copy.",
+      "Do not use emoji.",
+      "Avoid the banned marketing vocabulary listed in this contract."
+    ]
+  },
+  "editorial": {
+    "one_idea_per_slide": true,
+    "concise_titles": true,
+    "kpi_takeaway_titles": true,
+    "concrete_numbers_over_adjectives": true,
+    "evidence_backed_metrics": true,
+    "clear_next_actions": true,
+    "kernaussage_single_takeaway": true,
+    "rules": [
+      "One clear idea per slide.",
+      "Titles should communicate the takeaway, not merely the topic.",
+      "SUCCESS_METRICS and KPI slides lead with the conclusion or takeaway in the title.",
+      "Prefer concrete numbers over adjectives.",
+      "Metrics must remain Framework-grounded.",
+      "Include clear next actions where applicable."
+    ]
+  },
+  "unresolved_corporate_facts": [
+    "Founding year (1781 vs 1790) — not encoded.",
+    "HRB / legal registration strings marked tbd — not encoded."
+  ]
+}

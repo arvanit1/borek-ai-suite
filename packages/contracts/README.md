@@ -17,6 +17,7 @@ Single source of truth for all cross-service data contracts.
 | `knowledge_model.schema.json` | ES-5 (Endrit) | Complete |
 | `knowledge_corpus.json` | AT-59 / ES-39 | Complete |
 | `gamma_template.json` | JJ-26 | Complete |
+| `presentation_ci.json` | Brand Guide 2.0 CI | Complete |
 | `gamma_payload.schema.json` | ES-40 | Complete |
 | `gamma_provider.json` | AT-60A | Complete |
 | `gamma_artifact_location.json` | BT-28 | Complete |
