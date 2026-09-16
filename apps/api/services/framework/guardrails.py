@@ -22,15 +22,40 @@ _SUPERLATIVE = re.compile(
     re.I,
 )
 _NUMBER_RE = re.compile(r"(?<![A-Za-z0-9.,-])(\d+(?:[.,]\d+)?)(?![A-Za-z0-9.,-])")
+_ENGLISH_THOUSANDS_COMMA_RE = re.compile(r"^\d{1,3}(,\d{3})+$")
+_EU_DOT_THOUSANDS_RE = re.compile(r"^\d{1,3}(\.\d{3})+$")
+_GERMAN_DECIMAL_COMMA_RE = re.compile(r"^\d+,\d{1,2}$")
 
 
 def _numeric_token(raw: str) -> float:
-    """Parse customer numbers, treating DE decimal commas as fractional separators."""
+    """Normalize locale-specific numeric tokens to a float for grounding checks."""
     text = raw.strip()
-    if "," in text and "." not in text:
-        text = text.replace(",", ".")
-    else:
-        text = text.replace(",", "")
+    if not text:
+        raise ValueError("empty numeric token")
+
+    has_comma = "," in text
+    has_dot = "." in text
+
+    if has_comma and has_dot:
+        # The rightmost separator is the decimal mark.
+        if text.rfind(",") > text.rfind("."):
+            normalized = text.replace(".", "").replace(",", ".")
+        else:
+            normalized = text.replace(",", "")
+        return float(normalized)
+
+    if has_comma:
+        if _ENGLISH_THOUSANDS_COMMA_RE.match(text):
+            return float(text.replace(",", ""))
+        if _GERMAN_DECIMAL_COMMA_RE.match(text):
+            return float(text.replace(",", "."))
+        return float(text.replace(",", ""))
+
+    if has_dot:
+        if _EU_DOT_THOUSANDS_RE.match(text):
+            return float(text.replace(".", ""))
+        return float(text)
+
     return float(text)
 
 
@@ -108,10 +133,10 @@ def lint_numbers(framework: dict[str, Any], customer_text: str) -> list[str]:
         suffix = customer_text[match.end() : match.end() + 8]
         if prefix.endswith("turn:") or prefix.lower().endswith("turn:"):
             continue
-        # DE/EU grouped thousands such as "13 500" or "13.500" must not lint as stray parts.
-        if re.search(r"\d{1,3}\s+$", prefix) or re.search(r"\d{1,3}\.\s*$", prefix):
+        # DE spaced thousands such as "13 500" must not lint as stray parts.
+        if re.search(r"\d{1,3}\s+$", prefix):
             continue
-        if re.match(r"^\s\d{3}\b", suffix) or re.match(r"^\.\d{3}\b", suffix):
+        if re.match(r"^\s\d{3}\b", suffix):
             continue
         if any(
             word in nearby.lower()
