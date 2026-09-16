@@ -129,6 +129,7 @@ def test_state_changing_endpoints_emit_required_audit_actions() -> None:
         f"/opportunities/{opportunity_id}/framework",
         headers=_headers(),
     )
+    framework_version_id = latest_framework.json()["id"]
     framework_json = latest_framework.json()["framework_json"]
     framework_json["title"] = "Edited title"
     update_framework = client.patch(
@@ -137,6 +138,7 @@ def test_state_changing_endpoints_emit_required_audit_actions() -> None:
         json={"framework_json": framework_json},
     )
     assert update_framework.status_code == 200
+    framework_version_id = update_framework.json()["id"]
 
     confirm = client.post(
         f"/opportunities/{opportunity_id}/framework/confirm",
@@ -144,6 +146,7 @@ def test_state_changing_endpoints_emit_required_audit_actions() -> None:
         json={"framework_version_id": framework_version_id},
     )
     assert confirm.status_code == 200
+    framework_version_id = confirm.json()["id"]
 
     render = client.post(
         f"/opportunities/{opportunity_id}/framework/render",

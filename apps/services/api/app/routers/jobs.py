@@ -13,7 +13,7 @@ from app.schemas.jobs import JobEnqueueResponse, JobResponse, JobStage
 from app.services import job_service
 from app.services.api_errors import bad_request, not_found
 from app.services.audit import AuditObjectType, record_audit_event
-from app.services.job_retry import dispatch_resumed_job
+from app.services.job_retry import dispatch_resumed_job, validate_resume_payload
 from app.services.job_service import InvalidJobTransitionError, JobNotRetryableError
 from app.worker import health_check_task
 
@@ -71,6 +71,7 @@ def retry_job(
 
     store.get_opportunity(opportunity_id=job.opportunity_id, user_id=user.id)
     try:
+        validate_resume_payload(job)
         resumed = job_service.resume_job(
             parsed_id,
             from_stage=from_stage,

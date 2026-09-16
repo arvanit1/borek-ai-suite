@@ -96,7 +96,15 @@ def structured_complete(
         except ClaudeClientError:
             raise
         except Exception as exc:
-            raise ClaudeClientError(_public_claude_error(exc)) from exc
+            message = _public_claude_error(exc)
+            lowered = str(exc).lower()
+            if "api_key" in lowered or "authentication" in lowered or "unauthorized" in lowered:
+                raise ClaudeClientError(message, code="CLAUDE_AUTH", retryable=False) from exc
+            if "timeout" in lowered or "timed out" in lowered:
+                raise ClaudeClientError(message, code="PROVIDER_TIMEOUT", retryable=True) from exc
+            if "rate" in lowered and "limit" in lowered:
+                raise ClaudeClientError(message, code="PROVIDER_RATE_LIMIT", retryable=True) from exc
+            raise ClaudeClientError(message, code="PROVIDER_UNAVAILABLE", retryable=True) from exc
 
         if usage_out is not None:
             usage_out.append(getattr(response, "usage", None))

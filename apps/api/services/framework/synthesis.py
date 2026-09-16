@@ -28,16 +28,35 @@ from services.observability.llm_logger import STAGE_SYNTHESIS, run_logged_llm_ca
 from services.validation.schema_retry import SourceRefRetryError, require_valid_source_refs
 
 PROMPT_VERSION = "framework-synthesis:v1"
+CHAPTER_REGEN_PROMPT_VERSION = "framework-chapter-regeneration:v1"
 _PROMPT_PATH = Path(__file__).resolve().parents[2] / "llm" / "claude" / "prompts" / "synthesis_v1.txt"
+_CHAPTER_REGEN_PROMPT_PATH = Path(__file__).resolve().parents[2] / "llm" / "claude" / "prompts" / "chapter_regeneration_v1.txt"
 _SCHEMA_PATH = Path(__file__).resolve().parents[2] / "llm" / "claude" / "prompts" / "customer_report.schema.json"
 
 ClaudeComplete = Callable[[str, str, dict[str, Any]], dict[str, Any]]
 
 
 class FrameworkSynthesisError(ValueError):
-    def __init__(self, message: str) -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        code: str = "FRAMEWORK_GENERATION_FAILED",
+        retryable: bool = False,
+    ) -> None:
         super().__init__(message)
         self.user_message = message
+        self.code = code
+        self.retryable = retryable
+
+
+class ChapterSynthesisValidationError(FrameworkSynthesisError):
+    def __init__(self, message: str) -> None:
+        super().__init__(
+            message,
+            code="FRAMEWORK_VALIDATION_FAILED",
+            retryable=False,
+        )
 
 
 def load_customer_report_schema() -> dict[str, Any]:
@@ -88,7 +107,11 @@ def synthesize_customer_draft(
                     usage_out=usage_holder,
                 )
             except ClaudeClientError as exc:
-                raise FrameworkSynthesisError(exc.user_message) from exc
+                raise FrameworkSynthesisError(
+                    exc.user_message,
+                    code=str(getattr(exc, "code", "FRAMEWORK_GENERATION_FAILED")),
+                    retryable=bool(getattr(exc, "retryable", False)),
+                ) from exc
             if not isinstance(raw, dict):
                 raise FrameworkSynthesisError("Claude did not return a JSON object for the customer report.")
             return _coerce_draft(raw)
@@ -138,6 +161,155 @@ def synthesize_customer_draft(
                 else "Customer report draft still has invalid source_refs after retry."
             ) from exc
         return _finalize_customer_draft(draft, schema)
+
+
+def synthesize_customer_chapter(
+    *,
+    framework: dict[str, Any],
+    knowledge_models: list[dict[str, Any]],
+    chapter_id: str,
+    complete: ClaudeComplete | None = None,
+    opportunity_id: str | None = None,
+) -> dict[str, Any]:
+    """Regenerate one chapter without asking the model to rewrite the other thirteen."""
+    target_id = str(chapter_id)
+    matches = [
+        chapter
+        for chapter in framework.get("chapters") or []
+        if str(chapter.get("chapter_id")) == target_id
+    ]
+    if len(matches) != 1:
+        raise ChapterSynthesisValidationError(f"Framework must contain exactly one chapter {target_id}.")
+    target = matches[0]
+    schema = _chapter_regeneration_schema(target_id, str(target.get("title") or ""))
+    system = _CHAPTER_REGEN_PROMPT_PATH.read_text(encoding="utf-8") + "\n\n" + _format_tone_and_guardrails(tone_voice())
+    entries = [
+        {
+            "bucket": bucket,
+            "statement": entry.get("statement"),
+            "origin": entry.get("origin"),
+            "confidence": entry.get("confidence"),
+            "source_refs": entry.get("source_refs") or [],
+        }
+        for model in knowledge_models
+        for bucket in (
+            "facts",
+            "systems",
+            "people",
+            "process_steps",
+            "rules",
+            "exceptions",
+            "requirements",
+            "constraints",
+            "risks",
+            "unknowns",
+        )
+        for entry in model.get(bucket) or []
+        if isinstance(entry, dict)
+    ]
+    user = (
+        f"prompt_version: {CHAPTER_REGEN_PROMPT_VERSION}\n"
+        f"TARGET CHAPTER:\n{json.dumps(target, ensure_ascii=False, indent=2)}\n\n"
+        "The other chapters are read-only consistency context:\n"
+        f"{json.dumps(framework.get('chapters') or [], ensure_ascii=False, indent=2)}\n\n"
+        "Use only these knowledge entries; missing information must remain an open item:\n"
+        f"{json.dumps(entries, ensure_ascii=False, indent=2)}"
+    )
+    runner = complete or _anthropic_chapter_complete
+    usage_holder: list[Any] = []
+
+    def invoke() -> dict[str, Any]:
+        if complete is not None:
+            return runner(system, user, schema)
+        try:
+            return structured_complete(
+                system,
+                user,
+                schema,
+                tool_name="submit_customer_chapter",
+                tool_description="Submit exactly one regenerated Framework chapter.",
+                max_tokens=CLAUDE_STRUCTURED_MAX_TOKENS,
+                temperature=0,
+                usage_out=usage_holder,
+            )
+        except ClaudeClientError as exc:
+            raise FrameworkSynthesisError(
+                exc.user_message,
+                code=str(getattr(exc, "code", "FRAMEWORK_GENERATION_FAILED")),
+                retryable=bool(getattr(exc, "retryable", False)),
+            ) from exc
+
+    if complete is None:
+        raw = run_logged_llm_call(
+            stage=STAGE_SYNTHESIS,
+            prompt_version=CHAPTER_REGEN_PROMPT_VERSION,
+            model=sonnet_model(),
+            attempt=1,
+            opportunity_id=opportunity_id or str(framework.get("opportunity_id") or "") or None,
+            usage_out=usage_holder,
+            invoke=invoke,
+        )
+    else:
+        raw = invoke()
+    try:
+        jsonschema.validate(instance=raw, schema=schema)
+    except jsonschema.ValidationError as exc:
+        path = ".".join(str(part) for part in exc.absolute_path) or "(root)"
+        raise ChapterSynthesisValidationError(
+            f"Regenerated chapter failed schema validation at {path}: {exc.message}"
+        ) from exc
+    allowed_cids, allowed_turns = _allowed_citation_scope({"source_entries": entries})
+    violations = collect_customer_report_source_ref_violations(
+        {"chapters": [raw]},
+        allowed_conversation_ids=sorted(allowed_cids),
+        allowed_turn_indices=sorted(allowed_turns),
+    )
+    if violations:
+        raise ChapterSynthesisValidationError(violations[0].message)
+    return raw
+
+
+def _chapter_regeneration_schema(chapter_id: str, title: str) -> dict[str, Any]:
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["chapter_id", "title", "body", "source_refs"],
+        "properties": {
+            "chapter_id": {"const": chapter_id},
+            "title": {"const": title},
+            "body": {
+                "oneOf": [
+                    {"type": "string", "minLength": 1},
+                    {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": True}},
+                ]
+            },
+            "source_refs": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["conversation_id", "speaker_role", "excerpt_pointer"],
+                    "properties": {
+                        "conversation_id": {"type": "string", "minLength": 1},
+                        "speaker_role": {"type": "string", "minLength": 1},
+                        "excerpt_pointer": {"type": "string", "minLength": 1},
+                    },
+                },
+            },
+        },
+    }
+
+
+def _anthropic_chapter_complete(system: str, user: str, schema: dict[str, Any]) -> dict[str, Any]:
+    return structured_complete(
+        system,
+        user,
+        schema,
+        tool_name="submit_customer_chapter",
+        tool_description="Submit exactly one regenerated Framework chapter.",
+        max_tokens=CLAUDE_STRUCTURED_MAX_TOKENS,
+        temperature=0,
+    )
 
 
 def _finalize_customer_draft(draft: dict[str, Any], schema: dict[str, Any]) -> dict[str, Any]:

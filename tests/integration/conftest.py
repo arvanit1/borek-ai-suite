@@ -170,7 +170,7 @@ def confirmed_framework_id(client_user_a, _rls_access_tokens: dict[str, str]) ->
     framework_json["opportunity_id"] = opportunity_id
     framework_json["status"] = "confirmed"
     user = decode_access_token(_rls_access_tokens["a"])
-    store = SupabaseDataStore(_rls_access_tokens["a"])
+    store = SupabaseDataStore(os.environ["SUPABASE_SERVICE_ROLE_KEY"])
     row = store.create_framework_version(
         opportunity_id=UUID(opportunity_id),
         user_id=user.id,

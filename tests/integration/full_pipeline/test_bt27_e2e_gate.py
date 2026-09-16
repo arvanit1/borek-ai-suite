@@ -328,7 +328,11 @@ def test_bt27_active_generation_is_recovered_without_new_planning(
     inflight = job_service.create_job(
         uuid.UUID(opportunity_id),
         "presentation_generation",
-        enqueue={"user_id": str(USER_ID), "presentation_id": str(uuid.uuid4())},
+        enqueue={
+            "user_id": str(USER_ID),
+            "presentation_id": str(uuid.uuid4()),
+            "framework_version_id": framework_version_id,
+        },
         repository=get_memory_store(),
     )
 

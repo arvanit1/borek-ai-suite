@@ -87,7 +87,7 @@ def _generate_stage(
     opportunity_id: str,
     journey_stage: str,
 ) -> dict:
-    _confirm_framework(client, opportunity_id)
+    framework_version_id = _confirm_framework(client, opportunity_id)
     plan = client.post(
         f"/opportunities/{opportunity_id}/presentation-plan/generate",
         headers=_headers(),
@@ -438,12 +438,16 @@ def test_eligibility_is_independent_of_presentation_engine(
 def test_at56_reconnect_does_not_duplicate_jobs() -> None:
     client = _client()
     opportunity_id = _create_opportunity(client)
-    _confirm_framework(client, opportunity_id)
+    framework_version_id = _confirm_framework(client, opportunity_id)
     plan_id = uuid.uuid4()
     job = job_service.create_job(
         uuid.UUID(opportunity_id),
         "presentation_planning",
-        enqueue={"presentation_plan_id": str(plan_id), "user_id": str(USER_ID)},
+        enqueue={
+            "presentation_plan_id": str(plan_id),
+            "user_id": str(USER_ID),
+            "framework_version_id": framework_version_id,
+        },
         repository=get_memory_store(),
     )
     job_service.advance_stage(

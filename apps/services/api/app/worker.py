@@ -289,18 +289,37 @@ def run_framework_generation_task(
             nonlocal stage
             with _llm_observability_scope(store, parsed_job_id, UUID(opportunity_id)):
                 job_service.ensure_stage(parsed_job_id, stage, repository=store)
-                stage = JobStage.KNOWLEDGE_EXTRACTING
-                job_service.ensure_stage(parsed_job_id, stage, repository=store)
-                stage = JobStage.FRAMEWORK_SYNTHESIZING
-                job_service.ensure_stage(parsed_job_id, stage, repository=store)
+
+                def advance(target: str) -> None:
+                    nonlocal stage
+                    target_stage = {
+                        "knowledge": JobStage.KNOWLEDGE_EXTRACTING,
+                        "synthesis": JobStage.FRAMEWORK_SYNTHESIZING,
+                        "validation": JobStage.FRAMEWORK_VALIDATING,
+                    }[target]
+                    if target_stage == stage:
+                        return
+                    stage = target_stage
+                    job_service.ensure_stage(parsed_job_id, stage, repository=store)
+
+                loaded_job = job_service.get_job(parsed_job_id, repository=store)
+                if loaded_job is None:
+                    raise RuntimeError(f"Job not found: {job_id}")
+                enqueue = dict((loaded_job.result_json or {}).get("_enqueue") or {})
+                frozen_transcripts = enqueue.get("transcript_ids")
                 framework = framework_generation.execute_framework_generate(
                     store,
                     opportunity_id=UUID(opportunity_id),
                     user_id=UUID(user_id),
                     framework_version_id=UUID(framework_version_id),
+                    job_id=parsed_job_id,
+                    transcript_ids=(
+                        [str(item) for item in frozen_transcripts]
+                        if isinstance(frozen_transcripts, list)
+                        else None
+                    ),
+                    stage_callback=advance,
                 )
-                stage = JobStage.FRAMEWORK_VALIDATING
-                job_service.ensure_stage(parsed_job_id, stage, repository=store)
                 loaded_job = job_service.get_job(parsed_job_id, repository=store)
                 if loaded_job is None:
                     raise RuntimeError(f"Job not found: {job_id}")
@@ -401,30 +420,57 @@ def run_framework_regenerate_chapter_task(
     job_id: str,
     framework_version_id: str,
     chapter_id: str,
+    opportunity_id: str | None = None,
+    user_id: str | None = None,
+    source_framework_version_id: str | None = None,
+    source_revision: str | None = None,
 ) -> dict[str, str]:
     from uuid import UUID
 
     from app.schemas.jobs import JobStage
-    from app.services import job_service
+    from app.services import framework_generation, job_service
     from app.services.data import build_worker_data_store
 
     store = build_worker_data_store()
     parsed_job_id = UUID(job_id)
     stage = JobStage.TRANSCRIPT_PROCESSING
     try:
+        if not all((opportunity_id, user_id, source_framework_version_id, source_revision)):
+            outdated = RuntimeError(
+                "This chapter-regeneration job predates the append-only contract. Start regeneration again."
+            )
+            outdated.code = "FRAMEWORK_REGENERATION_JOB_OUTDATED"  # type: ignore[attr-defined]
+            outdated.retryable = False  # type: ignore[attr-defined]
+            raise outdated
+
         def _run() -> dict[str, str]:
             nonlocal stage
             job_service.ensure_stage(parsed_job_id, stage, repository=store)
-            stage = JobStage.KNOWLEDGE_EXTRACTING
-            job_service.ensure_stage(parsed_job_id, stage, repository=store)
-            stage = JobStage.FRAMEWORK_SYNTHESIZING
-            job_service.ensure_stage(parsed_job_id, stage, repository=store)
-            stage = JobStage.FRAMEWORK_VALIDATING
-            job_service.ensure_stage(parsed_job_id, stage, repository=store)
+
+            def advance(target: str) -> None:
+                nonlocal stage
+                stage = {
+                    "knowledge": JobStage.KNOWLEDGE_EXTRACTING,
+                    "synthesis": JobStage.FRAMEWORK_SYNTHESIZING,
+                    "validation": JobStage.FRAMEWORK_VALIDATING,
+                }[target]
+                job_service.ensure_stage(parsed_job_id, stage, repository=store)
+
+            framework_generation.execute_framework_regenerate_chapter(
+                store,
+                opportunity_id=UUID(opportunity_id),
+                user_id=UUID(user_id),
+                source_framework_version_id=UUID(source_framework_version_id),
+                framework_version_id=UUID(framework_version_id),
+                chapter_id=chapter_id,
+                source_revision=source_revision,
+                stage_callback=advance,
+            )
             job_service.complete_job(
                 parsed_job_id,
                 repository=store,
                 result_json={
+                    "source_framework_version_id": source_framework_version_id,
                     "framework_version_id": framework_version_id,
                     "chapter_id": chapter_id,
                 },
@@ -437,15 +483,21 @@ def run_framework_regenerate_chapter_task(
 
         return run_with_transient_retry(_run)
     except Exception as exc:
+        from app.services.api_errors import error_fields_from_exception
+
+        code, message, retryable = error_fields_from_exception(exc)
+        if code == "JOB_FAILED":
+            code = "FRAMEWORK_REGENERATE_FAILED"
+            retryable = _is_retryable_error(exc)
         job_service.fail_job(
             parsed_job_id,
-            getattr(exc, "code", "FRAMEWORK_REGENERATE_FAILED"),
-            str(exc),
+            code,
+            message,
             stage,
-            _is_retryable_error(exc),
+            retryable,
             repository=store,
         )
-        raise
+        raise _celery_task_error(exc) from exc
 
 
 @celery_app.task(name="tasks.run_presentation_generation")

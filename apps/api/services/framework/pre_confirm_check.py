@@ -170,7 +170,6 @@ def confirm_customer_report(
     updated = copy.deepcopy(framework)
     if str(updated.get("status") or "") == "confirmed":
         return updated
-    prepare_framework_for_confirm(updated)
     pre_confirm_check(updated)
     lang = str(
         (updated.get("customer_view") or {}).get("render_language")

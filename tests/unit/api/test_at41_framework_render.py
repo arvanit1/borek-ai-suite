@@ -60,6 +60,7 @@ def _create_framework(client: TestClient, *, confirm: bool = False) -> tuple[str
             json={"framework_version_id": framework_id},
         )
         assert confirmed.status_code == 200, confirmed.text
+        framework_id = confirmed.json()["id"]
     latest = client.get(f"/frameworks/{framework_id}", headers=_headers())
     assert latest.status_code == 200, latest.text
     return framework_id, latest.json()
@@ -257,6 +258,7 @@ def test_render_docx_includes_tables_and_lists() -> None:
         json={"framework_json": framework_json},
     )
     assert patch.status_code == 200, patch.text
+    framework_id = patch.json()["id"]
 
     response = client.get(
         f"/frameworks/{framework_id}/render?format=docx",

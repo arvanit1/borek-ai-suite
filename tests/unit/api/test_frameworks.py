@@ -2,14 +2,21 @@
 
 from __future__ import annotations
 
+import copy
 import uuid
+from uuid import UUID
 
+import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from app.auth import create_test_access_token
 from app.config import settings
 from app.main import create_app
+from app.services import framework_generation
 from app.services.data.memory_store import get_memory_store
+from app.services.framework_versioning import framework_source_revision
+from app.services.stage_a_orchestration import _redact_framework_for_llm
 
 USER_ID = uuid.UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
 
@@ -41,6 +48,26 @@ def _create_opportunity(client: TestClient) -> str:
     return response.json()["id"]
 
 
+def _without_lifecycle(framework_json: dict) -> dict:
+    cleaned = copy.deepcopy(framework_json)
+    fields = {
+        "version",
+        "previous_version_id",
+        "status",
+        "created_at",
+        "updated_at",
+        "change_log",
+        "confirmed_by",
+        "confirmed_at",
+    }
+    for field in fields:
+        cleaned.pop(field, None)
+    if isinstance(cleaned.get("customer_view"), dict):
+        for field in fields:
+            cleaned["customer_view"].pop(field, None)
+    return cleaned
+
+
 def test_generate_get_and_confirm_framework() -> None:
     client = _client()
     opportunity_id = _create_opportunity(client)
@@ -57,7 +84,9 @@ def test_generate_get_and_confirm_framework() -> None:
 
     latest = client.get(f"/opportunities/{opportunity_id}/framework", headers=_headers())
     assert latest.status_code == 200
-    framework_version_id = latest.json()["id"]
+    draft_row = latest.json()
+    framework_version_id = draft_row["id"]
+    draft_json = copy.deepcopy(draft_row["framework_json"])
     assert latest.json()["status"] == "draft"
 
     by_id = client.get(f"/frameworks/{framework_version_id}", headers=_headers())
@@ -70,6 +99,17 @@ def test_generate_get_and_confirm_framework() -> None:
     )
     assert confirm.status_code == 200
     assert confirm.json()["status"] == "confirmed"
+    confirmed = confirm.json()
+    assert confirmed["id"] != framework_version_id
+    assert confirmed["version_number"] == draft_row["version_number"] + 1
+    assert confirmed["framework_json"]["version"] == confirmed["version_number"]
+    assert confirmed["framework_json"]["previous_version_id"] == framework_version_id
+    assert confirmed["framework_json"]["chapters"] == draft_json["chapters"]
+    assert _without_lifecycle(confirmed["framework_json"]) == _without_lifecycle(draft_json)
+
+    unchanged_draft = client.get(f"/frameworks/{framework_version_id}", headers=_headers()).json()
+    assert unchanged_draft["status"] == "draft"
+    assert unchanged_draft["framework_json"] == draft_json
 
 
 def _set_latest_framework_status(opportunity_id: str, status: str) -> None:
@@ -84,6 +124,11 @@ def test_regenerate_chapter_enqueues_job() -> None:
     client = _client()
     opportunity_id = _create_opportunity(client)
     client.post(f"/opportunities/{opportunity_id}/framework/generate", headers=_headers())
+    before_row = client.get(
+        f"/opportunities/{opportunity_id}/framework",
+        headers=_headers(),
+    ).json()
+    before = copy.deepcopy(before_row["framework_json"])
 
     response = client.post(
         f"/opportunities/{opportunity_id}/framework/regenerate-chapter",
@@ -95,6 +140,150 @@ def test_regenerate_chapter_enqueues_job() -> None:
     job = client.get(f"/jobs/{response.json()['job_id']}", headers=_headers())
     assert job.status_code == 200
     assert job.json()["status"] == "COMPLETED"
+    assert job.json()["result"]["source_framework_version_id"] == before_row["id"]
+
+    after_row = client.get(
+        f"/opportunities/{opportunity_id}/framework",
+        headers=_headers(),
+    ).json()
+    after = after_row["framework_json"]
+    assert after_row["id"] != before_row["id"]
+    assert after_row["version_number"] == before_row["version_number"] + 1
+    assert after["version"] == before["version"] + 1
+    assert after["previous_version_id"] == before_row["id"]
+    for index, chapter in enumerate(before["chapters"]):
+        if chapter["chapter_id"] == "3":
+            assert after["chapters"][index] != chapter
+        else:
+            assert after["chapters"][index] == chapter
+
+    source = client.get(f"/frameworks/{before_row['id']}", headers=_headers())
+    assert source.json()["framework_json"] == before
+
+
+def test_completed_regeneration_retry_reuses_reserved_version(monkeypatch) -> None:
+    client = _client()
+    opportunity_id = _create_opportunity(client)
+    client.post(f"/opportunities/{opportunity_id}/framework/generate", headers=_headers())
+    source = client.get(f"/opportunities/{opportunity_id}/framework", headers=_headers()).json()
+    response = client.post(
+        f"/opportunities/{opportunity_id}/framework/regenerate-chapter",
+        headers=_headers(),
+        json={"chapter_id": "3"},
+    )
+    job = client.get(f"/jobs/{response.json()['job_id']}", headers=_headers()).json()
+    destination_id = job["result"]["framework_version_id"]
+
+    def fail_if_called(*_args, **_kwargs):
+        raise AssertionError("chapter generation repeated")
+
+    monkeypatch.setattr(
+        framework_generation,
+        "regenerate_framework_chapter_from_transcripts",
+        fail_if_called,
+    )
+
+    reused = framework_generation.execute_framework_regenerate_chapter(
+        get_memory_store(),
+        opportunity_id=UUID(opportunity_id),
+        user_id=USER_ID,
+        source_framework_version_id=UUID(source["id"]),
+        framework_version_id=UUID(destination_id),
+        chapter_id="3",
+        source_revision=framework_source_revision(
+            get_memory_store().get_framework_version(
+                framework_version_id=UUID(source["id"]),
+                user_id=USER_ID,
+            )
+        ),
+    )
+
+    assert str(reused["id"]) == destination_id
+    assert len(get_memory_store().framework_versions) == 2
+
+
+def test_completed_framework_generation_retry_reuses_reserved_version(monkeypatch) -> None:
+    client = _client()
+    opportunity_id = _create_opportunity(client)
+    generated = client.post(
+        f"/opportunities/{opportunity_id}/framework/generate",
+        headers=_headers(),
+    ).json()
+    reserved_id = generated["framework_version_id"]
+
+    def fail_if_called(*_args, **_kwargs):
+        raise AssertionError("framework generation repeated")
+
+    monkeypatch.setattr(
+        framework_generation,
+        "generate_framework_from_transcripts",
+        fail_if_called,
+    )
+    reused = framework_generation.execute_framework_generate(
+        get_memory_store(),
+        opportunity_id=UUID(opportunity_id),
+        user_id=USER_ID,
+        framework_version_id=UUID(reserved_id),
+    )
+
+    assert str(reused["id"]) == reserved_id
+    assert len(get_memory_store().framework_versions) == 1
+
+
+def test_regeneration_rejects_source_edited_during_chapter_generation(monkeypatch) -> None:
+    client = _client()
+    opportunity_id = _create_opportunity(client)
+    client.post(f"/opportunities/{opportunity_id}/framework/generate", headers=_headers())
+    store = get_memory_store()
+    source = store.get_latest_framework(opportunity_id=UUID(opportunity_id), user_id=USER_ID)
+    revision = framework_source_revision(source)
+
+    def edit_source_during_generation(*_args, **_kwargs):
+        replacement = copy.deepcopy(source["framework_json"]["chapters"][3])
+        replacement["body"] = [{"block": "prose", "text": "Regenerated aim."}]
+        source["framework_json"]["title"] = "Concurrent manual edit"
+        return replacement
+
+    monkeypatch.setattr(
+        framework_generation,
+        "regenerate_framework_chapter_from_transcripts",
+        edit_source_during_generation,
+    )
+
+    with pytest.raises(HTTPException) as raised:
+        framework_generation.execute_framework_regenerate_chapter(
+            store,
+            opportunity_id=UUID(opportunity_id),
+            user_id=USER_ID,
+            source_framework_version_id=source["id"],
+            framework_version_id=uuid.uuid4(),
+            chapter_id="3",
+            source_revision=revision,
+        )
+
+    assert raised.value.status_code == 409
+    assert raised.value.detail["code"] == "FRAMEWORK_VERSION_CONFLICT"
+    assert len(store.framework_versions) == 1
+
+
+def test_framework_context_is_redacted_before_chapter_llm() -> None:
+    framework = {
+        "title": "Contact Jane Doe at jane.doe@example.com or +49 151 12345678",
+        "chapters": [
+            {
+                "body": "Jane Doe owns the approval.",
+                "private@example.com": "Do not leak PII from keys either.",
+            }
+        ],
+    }
+
+    redacted = _redact_framework_for_llm(framework, enabled=True)
+
+    serialized = str(redacted)
+    assert "jane.doe@example.com" not in serialized
+    assert "private@example.com" not in serialized
+    assert "+49 151 12345678" not in serialized
+    assert framework["title"].endswith("+49 151 12345678")
 
 
 def test_update_framework_persists_edits() -> None:
@@ -119,6 +308,28 @@ def test_update_framework_persists_edits() -> None:
 
     reloaded = client.get(f"/opportunities/{opportunity_id}/framework", headers=_headers())
     assert reloaded.json()["framework_json"]["title"] == "Updated framework title"
+
+
+def test_update_framework_rejects_invalid_contract_without_persisting() -> None:
+    client = _client()
+    opportunity_id = _create_opportunity(client)
+    client.post(f"/opportunities/{opportunity_id}/framework/generate", headers=_headers())
+
+    latest = client.get(f"/opportunities/{opportunity_id}/framework", headers=_headers())
+    original = latest.json()["framework_json"]
+    invalid = dict(original)
+    invalid["chapters"] = []
+
+    patch = client.patch(
+        f"/opportunities/{opportunity_id}/framework",
+        headers=_headers(),
+        json={"framework_json": invalid},
+    )
+
+    assert patch.status_code == 422
+    assert patch.json()["error"]["code"] == "FRAMEWORK_VALIDATION_FAILED"
+    reloaded = client.get(f"/opportunities/{opportunity_id}/framework", headers=_headers())
+    assert reloaded.json()["framework_json"] == original
 
 
 def test_update_framework_preserves_per_fact_evidence_after_reload() -> None:
@@ -256,6 +467,7 @@ def test_reopen_for_correction_unlocks_confirmed_framework() -> None:
         json={},
     )
     assert confirm.status_code == 200
+    confirmed = copy.deepcopy(confirm.json())
 
     reopened = client.post(
         f"/opportunities/{opportunity_id}/framework/reopen-for-correction",
@@ -263,6 +475,15 @@ def test_reopen_for_correction_unlocks_confirmed_framework() -> None:
     )
     assert reopened.status_code == 200
     assert reopened.json()["status"] == "in_review"
+    assert reopened.json()["id"] != confirmed["id"]
+    assert reopened.json()["version_number"] == confirmed["version_number"] + 1
+    assert reopened.json()["framework_json"]["previous_version_id"] == confirmed["id"]
+    assert reopened.json()["framework_json"]["version"] == reopened.json()["version_number"]
+    assert "confirmed_by" not in reopened.json()["framework_json"]
+    assert "confirmed_at" not in reopened.json()["framework_json"]
+    assert _without_lifecycle(reopened.json()["framework_json"]) == _without_lifecycle(confirmed["framework_json"])
+    preserved = client.get(f"/frameworks/{confirmed['id']}", headers=_headers()).json()
+    assert preserved == confirmed
 
     latest = client.get(f"/opportunities/{opportunity_id}/framework", headers=_headers())
     framework_json = latest.json()["framework_json"]

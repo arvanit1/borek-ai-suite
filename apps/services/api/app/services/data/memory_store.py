@@ -127,6 +127,56 @@ class MemoryDataStore:
     knowledge_corpus_versions: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     knowledge_documents: dict[UUID, dict[str, Any]] = field(default_factory=dict)
     knowledge_facts: dict[UUID, dict[str, Any]] = field(default_factory=dict)
+    knowledge_model_checkpoints: dict[tuple[UUID, UUID], dict[str, Any]] = field(default_factory=dict)
+
+    def list_job_knowledge_models(
+        self,
+        *,
+        job_id: UUID,
+        opportunity_id: UUID,
+        user_id: UUID,
+    ) -> list[dict[str, Any]]:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        job = self.generation_jobs.get(job_id)
+        if job is None or job["opportunity_id"] != opportunity_id:
+            raise bad_request("KNOWLEDGE_CHECKPOINT_INVALID", "Generation job does not belong to this opportunity")
+        return [
+            copy.deepcopy(row)
+            for (checkpoint_job_id, _transcript_id), row in self.knowledge_model_checkpoints.items()
+            if checkpoint_job_id == job_id and row["opportunity_id"] == opportunity_id
+        ]
+
+    def upsert_job_knowledge_model(
+        self,
+        *,
+        job_id: UUID,
+        transcript_id: UUID,
+        opportunity_id: UUID,
+        user_id: UUID,
+        conversation_id: str,
+        knowledge_model_json: dict[str, Any],
+        schema_version: str,
+        prompt_version: str,
+    ) -> dict[str, Any]:
+        job = self.generation_jobs.get(job_id)
+        if job is None or job["opportunity_id"] != opportunity_id:
+            raise bad_request("KNOWLEDGE_CHECKPOINT_INVALID", "Generation job does not belong to this opportunity")
+        self.get_transcript(
+            opportunity_id=opportunity_id,
+            transcript_id=transcript_id,
+            user_id=user_id,
+        )
+        row = {
+            "generation_job_id": job_id,
+            "transcript_id": transcript_id,
+            "opportunity_id": opportunity_id,
+            "conversation_id": conversation_id,
+            "knowledge_model_json": copy.deepcopy(knowledge_model_json),
+            "schema_version": schema_version,
+            "prompt_version": prompt_version,
+        }
+        self.knowledge_model_checkpoints[(job_id, transcript_id)] = row
+        return copy.deepcopy(row)
 
     def get_filing_record(self, idempotency_key: str) -> dict[str, Any] | None:
         row = self.filed_artifacts.get(idempotency_key)
@@ -623,12 +673,24 @@ class MemoryDataStore:
         ]
         version_number = len(existing) + 1
         framework_version_id = framework_version_id or uuid.uuid4()
+        persisted_json = copy.deepcopy(framework_json)
+        persisted_json["opportunity_id"] = str(opportunity_id)
+        persisted_json["version"] = version_number
+        persisted_json["previous_version_id"] = (
+            str(max(existing, key=lambda item: item["version_number"])["id"])
+            if existing
+            else None
+        )
+        persisted_json["status"] = status
+        from packages.contracts.schema_consumer import validate_framework_object
+
+        validate_framework_object(persisted_json)
         row = {
             "id": framework_version_id,
             "opportunity_id": opportunity_id,
             "version_number": version_number,
             "status": status,
-            "framework_json": framework_json,
+            "framework_json": persisted_json,
             "created_by": user_id,
             "created_at": _now(),
         }
@@ -771,6 +833,62 @@ class MemoryDataStore:
 
         change_log = row["framework_json"].setdefault("change_log", [])
         change_log.append(f"Regenerated chapter {chapter_id}")
+        return row
+
+    def append_framework_version_transition(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        source_framework_version_id: UUID,
+        framework_version_id: UUID,
+        framework_json: dict[str, Any],
+        status: str,
+        source_revision: str,
+        transition: str,
+    ) -> dict[str, Any]:
+        existing = self.framework_versions.get(framework_version_id)
+        if existing is not None:
+            if existing["framework_json"] == framework_json:
+                return existing
+            raise conflict("FRAMEWORK_VERSION_CONFLICT", "The reserved Framework version already exists")
+        source = self.get_framework_version(
+            framework_version_id=source_framework_version_id,
+            user_id=user_id,
+        )
+        latest = self.get_latest_framework(opportunity_id=opportunity_id, user_id=user_id)
+        if latest["id"] != source["id"]:
+            raise conflict("FRAMEWORK_VERSION_CONFLICT", "The Framework changed before regeneration completed")
+        from app.services.framework_versioning import framework_source_revision
+
+        if framework_source_revision(source) != source_revision:
+            raise conflict("FRAMEWORK_VERSION_CONFLICT", "The source Framework changed during regeneration")
+        allowed = {
+            "regenerate": ({"draft", "in_review"}, {"draft", "in_review"}),
+            "edit": ({"draft", "in_review"}, {"draft", "in_review"}),
+            "confirm": ({"draft", "in_review"}, {"confirmed"}),
+            "reopen": ({"confirmed"}, {"in_review"}),
+        }
+        source_statuses, target_statuses = allowed.get(transition, (set(), set()))
+        if source["status"] not in source_statuses or status not in target_statuses:
+            raise conflict("FRAMEWORK_VERSION_CONFLICT", "Invalid Framework version transition")
+        next_version = int(source["version_number"]) + 1
+        if (
+            int(framework_json.get("version") or 0) != next_version
+            or str(framework_json.get("previous_version_id") or "") != str(source["id"])
+            or str(framework_json.get("status") or "") != status
+        ):
+            raise conflict("FRAMEWORK_VERSION_CONFLICT", "Framework successor metadata is inconsistent")
+        row = {
+            "id": framework_version_id,
+            "opportunity_id": opportunity_id,
+            "version_number": next_version,
+            "status": status,
+            "framework_json": copy.deepcopy(framework_json),
+            "created_by": user_id,
+            "created_at": _now(),
+        }
+        self.framework_versions[framework_version_id] = row
         return row
 
     def generate_framework_stub(

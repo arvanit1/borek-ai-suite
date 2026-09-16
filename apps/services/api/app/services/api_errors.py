@@ -61,6 +61,16 @@ def bad_request(code: str, message: str) -> HTTPException:
     )
 
 
+def unprocessable(code: str, message: str, *, detail: dict | None = None) -> HTTPException:
+    payload: dict = {"code": code, "message": message}
+    if detail is not None:
+        payload["detail"] = detail
+    return HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        detail=payload,
+    )
+
+
 def forbidden(code: str, message: str) -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,

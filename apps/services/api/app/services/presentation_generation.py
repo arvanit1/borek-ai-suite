@@ -173,17 +173,6 @@ def enqueue_presentation_plan_generate(
     auto_continue: bool = False,
     journey_stage: str | None = None,
 ):
-    existing = job_service.reuse_active_generation_job(
-        store,
-        opportunity_id,
-        stage_group="presentation",
-        job_type="presentation_planning",
-    )
-    if existing is not None:
-        if auto_continue:
-            existing = _enable_auto_continue_on_reused_job(store, existing)
-        return _existing_plan_payload(existing), existing, True
-
     eligibility = require_startable_journey_stage(
         store,
         opportunity_id=opportunity_id,
@@ -196,6 +185,28 @@ def enqueue_presentation_plan_generate(
         user_id=user_id,
         framework_version_id=framework_version_id,
     )
+    existing = job_service.reuse_active_generation_job(
+        store,
+        opportunity_id,
+        stage_group="presentation",
+        job_type="presentation_planning",
+    )
+    existing_enqueue = dict((existing.result_json or {}).get("_enqueue") or {}) if existing is not None else {}
+    same_stage = str(existing_enqueue.get("journey_stage") or "first_contact") == str(
+        eligibility["requested_journey_stage"]
+    )
+    same_prior = str(existing_enqueue.get("prior_stage_presentation_version_id") or "") == str(
+        eligibility["prior_stage_presentation_version_id"] or ""
+    )
+    if (
+        existing is not None
+        and str(existing_enqueue.get("framework_version_id") or "") == str(framework["id"])
+        and same_stage
+        and same_prior
+    ):
+        if auto_continue:
+            existing = _enable_auto_continue_on_reused_job(store, existing)
+        return _existing_plan_payload(existing), existing, True
 
     plan_id = uuid.uuid4()
     job = job_service.create_job(
@@ -293,38 +304,67 @@ def enqueue_presentation_generate(
     journey_stage: str | None = None,
 ):
     store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
-    existing = job_service.reuse_active_generation_job(
-        store,
-        opportunity_id,
-        stage_group="presentation",
-    )
-    if existing is not None:
-        presentation, plan = _existing_presentation_payload(
-            store,
-            user_id=user_id,
-            job=existing,
-        )
-        return presentation, plan, existing, True
-
-    eligibility = require_startable_journey_stage(
-        store,
-        opportunity_id=opportunity_id,
-        user_id=user_id,
-        journey_stage=journey_stage,
-    )
     framework = _require_confirmed_framework(
         store,
         opportunity_id=opportunity_id,
         user_id=user_id,
         framework_version_id=framework_version_id,
     )
-    plan = _resolve_presentation_plan(
+    eligibility = require_startable_journey_stage(
         store,
         opportunity_id=opportunity_id,
         user_id=user_id,
-        framework_version_id=framework["id"],
-        presentation_plan_id=presentation_plan_id,
+        journey_stage=journey_stage,
     )
+    plan: dict[str, Any] | None = None
+    plan_error: HTTPException | None = None
+    try:
+        plan = _resolve_presentation_plan(
+            store,
+            opportunity_id=opportunity_id,
+            user_id=user_id,
+            framework_version_id=framework["id"],
+            presentation_plan_id=presentation_plan_id,
+        )
+    except HTTPException as exc:
+        plan_error = exc
+    existing = job_service.reuse_active_generation_job(
+        store,
+        opportunity_id,
+        stage_group="presentation",
+    )
+    if existing is not None:
+        existing_enqueue = dict((existing.result_json or {}).get("_enqueue") or {})
+        presentation, existing_plan = _existing_presentation_payload(
+            store,
+            user_id=user_id,
+            job=existing,
+        )
+        existing_framework_id = (
+            existing_enqueue.get("framework_version_id")
+            or existing_plan.get("framework_version_id")
+        )
+        existing_plan_id = existing_enqueue.get("presentation_plan_id") or existing_plan.get("id")
+        intended_plan_id = plan.get("id") if plan is not None else None
+        same_requested_plan = str(existing_plan_id or "") == str(intended_plan_id or "")
+        same_stage = str(existing_enqueue.get("journey_stage") or "first_contact") == str(
+            eligibility["requested_journey_stage"]
+        )
+        same_prior = str(existing_enqueue.get("prior_stage_presentation_version_id") or "") == str(
+            eligibility["prior_stage_presentation_version_id"] or ""
+        )
+        if (
+            str(existing_framework_id or "") == str(framework["id"])
+            and same_requested_plan
+            and same_stage
+            and same_prior
+        ):
+            return presentation, existing_plan, existing, True
+
+    if plan is None:
+        assert plan_error is not None
+        raise plan_error
+
     if settings.RENDERER_EXECUTION_MODE == "live":
         _raise_if_plan_not_generatable(plan["plan_json"], as_http=True)
     presentation = store.create_presentation(
@@ -339,6 +379,8 @@ def enqueue_presentation_generate(
         enqueue={
             "user_id": str(user_id),
             "presentation_id": str(presentation["id"]),
+            "framework_version_id": str(framework["id"]),
+            "presentation_plan_id": str(plan["id"]),
             "journey_stage": eligibility["requested_journey_stage"],
             "prior_stage_presentation_version_id": (
                 str(eligibility["prior_stage_presentation_version_id"])

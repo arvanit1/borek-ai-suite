@@ -14,10 +14,29 @@ from app.main import create_app
 from app.schemas.jobs import JobStage, JobStatus
 from app.services import job_service
 from app.services.data.memory_store import get_memory_store
-from app.services.job_service import InvalidJobTransitionError, JobNotRetryableError
+from app.services.job_retry import validate_resume_payload
+from app.services.job_service import InvalidJobTransitionError, Job, JobNotRetryableError
 
 USER_A = uuid.UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
 USER_B = uuid.UUID("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")
+
+
+def test_legacy_regeneration_payload_is_rejected_before_resume() -> None:
+    job = Job(
+        id=uuid.uuid4(),
+        opportunity_id=uuid.uuid4(),
+        job_type="framework_regenerate_chapter",
+        status=JobStatus.FAILED,
+        result_json={
+            "_enqueue": {
+                "framework_version_id": str(uuid.uuid4()),
+                "chapter_id": "3",
+            }
+        },
+    )
+
+    with pytest.raises(JobNotRetryableError, match="predates the append-only contract"):
+        validate_resume_payload(job)
 
 
 def _client() -> TestClient:
@@ -470,6 +489,58 @@ def test_worker_does_not_auto_retry_validation_failure() -> None:
     assert current.error_retryable is False
 
 
+@pytest.mark.parametrize(
+    ("callback_stage", "expected_stage"),
+    [
+        ("knowledge", JobStage.KNOWLEDGE_EXTRACTING),
+        ("synthesis", JobStage.FRAMEWORK_SYNTHESIZING),
+        ("validation", JobStage.FRAMEWORK_VALIDATING),
+    ],
+)
+def test_framework_worker_records_stage_that_actually_failed(callback_stage, expected_stage) -> None:
+    from app.worker import run_framework_generation_task
+
+    client = _client()
+    opportunity_id = _create_opportunity(client)
+    store = get_memory_store()
+    framework_version_id = uuid.uuid4()
+    job = job_service.create_job(
+        uuid.UUID(opportunity_id),
+        "framework_generation",
+        enqueue={
+            "user_id": str(USER_A),
+            "framework_version_id": str(framework_version_id),
+            "transcript_ids": [],
+        },
+        repository=store,
+    )
+
+    class StageFailure(Exception):
+        code = "FRAMEWORK_VALIDATION_FAILED"
+        retryable = False
+
+    def fake_execute(*_args, **kwargs):
+        kwargs["stage_callback"](callback_stage)
+        raise StageFailure("stage failed")
+
+    with patch(
+        "app.services.framework_generation.execute_framework_generate",
+        side_effect=fake_execute,
+    ):
+        with pytest.raises(StageFailure):
+            run_framework_generation_task.run(
+                str(job.id),
+                opportunity_id,
+                str(USER_A),
+                str(framework_version_id),
+            )
+
+    failed = job_service.get_job(job.id, repository=store)
+    assert failed is not None
+    assert failed.failed_stage == expected_stage
+    assert failed.error_retryable is False
+
+
 def test_validation_failure_marked_non_retryable() -> None:
     from app.services.stage_b_orchestration import GroupASlideGenerationError
     from app.worker import _is_retryable_error
@@ -486,6 +557,18 @@ def test_provider_timeout_marked_retryable() -> None:
     exc = TimeoutError("provider timed out")
     exc.code = "PROVIDER_TIMEOUT"  # type: ignore[attr-defined]
     assert _is_retryable_error(exc) is True
+
+
+def test_explicit_provider_rate_limit_is_transient() -> None:
+    from services.framework.synthesis import FrameworkSynthesisError
+    from app.services.job_retry import is_transient_failure
+
+    exc = FrameworkSynthesisError(
+        "rate limited",
+        code="PROVIDER_RATE_LIMIT",
+        retryable=True,
+    )
+    assert is_transient_failure(exc) is True
 
 
 def test_explicit_retryable_false_respected() -> None:

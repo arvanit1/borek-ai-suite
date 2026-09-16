@@ -45,9 +45,17 @@ ClaudeComplete = Callable[[str, str, dict[str, Any]], dict[str, Any]]
 
 
 class KnowledgeExtractionError(ValueError):
-    def __init__(self, message: str) -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        code: str = "KNOWLEDGE_EXTRACTION_FAILED",
+        retryable: bool = False,
+    ) -> None:
         super().__init__(message)
         self.user_message = message
+        self.code = code
+        self.retryable = retryable
 
 
 def load_knowledge_model_schema() -> dict[str, Any]:
@@ -122,13 +130,19 @@ def extract_knowledge_model(
     try:
         model, _attempts = require_valid_source_refs(call=call, collect_violations=collect)
     except SourceRefRetryError as exc:
-        raise KnowledgeExtractionError(exc.user_message) from exc
+        raise KnowledgeExtractionError(
+            exc.user_message,
+            code="FRAMEWORK_VALIDATION_FAILED",
+            retryable=False,
+        ) from exc
     try:
         jsonschema.validate(instance=model, schema=schema)
     except jsonschema.ValidationError as exc:
         path = ".".join(str(part) for part in exc.absolute_path) or "(root)"
         raise KnowledgeExtractionError(
-            f"KnowledgeModel failed schema validation at {path}: {exc.message}"
+            f"KnowledgeModel failed schema validation at {path}: {exc.message}",
+            code="FRAMEWORK_VALIDATION_FAILED",
+            retryable=False,
         ) from exc
     try:
         validate_origins(model)
@@ -157,7 +171,11 @@ def anthropic_structured_complete(
             usage_out=usage_out,
         )
     except ClaudeClientError as exc:
-        raise KnowledgeExtractionError(exc.user_message) from exc
+        raise KnowledgeExtractionError(
+            exc.user_message,
+            code=str(getattr(exc, "code", "KNOWLEDGE_EXTRACTION_FAILED")),
+            retryable=bool(getattr(exc, "retryable", False)),
+        ) from exc
     if not isinstance(raw, dict):
         raise KnowledgeExtractionError("Claude did not return a JSON object for the KnowledgeModel.")
     return raw

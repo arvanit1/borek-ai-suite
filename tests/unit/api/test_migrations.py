@@ -213,3 +213,34 @@ def test_ms32_migration_adds_project_statics_to_owner_scoped_opportunities() -> 
     assert "opportunities_followup_statics_object" in content
     assert "jsonb_typeof(followup_statics) = 'object'" in content
     assert "CREATE TABLE" not in content
+
+
+def test_framework_version_sequence_is_unique_per_opportunity() -> None:
+    content = (MIGRATIONS_DIR / "025_framework_version_sequence.sql").read_text(
+        encoding="utf-8"
+    )
+    assert "CREATE UNIQUE INDEX IF NOT EXISTS framework_versions_opportunity_version_key" in content
+    assert "(opportunity_id, version_number)" in content
+    assert "HAVING COUNT(*) > 1" in content
+    assert "reconcile them before applying migration 025" in content
+    assert "CREATE OR REPLACE FUNCTION public.append_framework_version_transition" in content
+    assert "pg_advisory_xact_lock" in content
+    assert "FOR UPDATE" in content
+    assert "source_row.framework_json <> p_expected_source_json" in content
+    assert "source_row.version_number + 1" in content
+    assert "framework_versions_immutable" in content
+    assert "BEFORE UPDATE OR DELETE" in content
+    assert "REVOKE INSERT, UPDATE, DELETE" in content
+    assert "TO service_role" in content
+
+
+def test_knowledge_model_checkpoints_are_job_scoped_and_owner_protected() -> None:
+    content = (MIGRATIONS_DIR / "026_knowledge_model_checkpoints.sql").read_text(
+        encoding="utf-8"
+    )
+    assert "generation_job_id UUID NOT NULL REFERENCES public.generation_jobs(id)" in content
+    assert "transcript_id UUID NOT NULL REFERENCES public.transcripts(id)" in content
+    assert "PRIMARY KEY (generation_job_id, transcript_id)" in content
+    assert "ENABLE ROW LEVEL SECURITY" in content
+    assert "REVOKE ALL ON public.knowledge_model_checkpoints FROM PUBLIC, anon, authenticated" in content
+    assert "GRANT ALL ON public.knowledge_model_checkpoints TO service_role" in content

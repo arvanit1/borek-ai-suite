@@ -51,6 +51,7 @@ from services.observability.llm_logger import STAGE_LOCALIZE, STAGE_PROCESS_SCOP
 
 from services.framework.localization import make_localize_fn
 from llm.claude.client import sonnet_model
+from packages.contracts.schema_consumer import validate_framework_object
 
 ClaudeComplete = Callable[[str, str, dict[str, Any]], dict[str, Any]]
 
@@ -69,7 +70,10 @@ def generate_customer_framework(
     company_facts: dict[str, Any] | None = None,
     corpus: Any | None = None,
     retrieve_fn: Callable[..., Any] | None = None,
+    stage_callback: Callable[[str], None] | None = None,
 ) -> dict[str, Any]:
+    if stage_callback is not None:
+        stage_callback("synthesis")
     # Live generation must not reject a single process merely because two
     # domain keywords occur in one conversation. ES-29 is decided by Claude's
     # sourced semantic gate below; deterministic tests retain the fast guard.
@@ -242,6 +246,8 @@ def generate_customer_framework(
     attach_company_facts_meta(framework, grounded_facts)
     apply_company_facts_to_chapters(framework, grounded_facts)
 
+    if stage_callback is not None:
+        stage_callback("validation")
     schema = json.loads((repo_root() / "packages" / "contracts" / "framework_object.schema.json").read_text(encoding="utf-8"))
     jsonschema.validate(instance=framework, schema=schema)
     _assert_registry_titles(framework)
@@ -285,6 +291,7 @@ def generate_customer_framework(
         stages=[STAGE_SYNTHESIS, STAGE_LOCALIZE],
     )
     attach_review_insights(framework)
+    validate_framework_object(framework)
     return framework
 
 

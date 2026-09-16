@@ -173,12 +173,16 @@ def _confirm_framework(client: TestClient, opportunity_id: str) -> str:
 def test_duplicate_plan_generate_returns_existing_job() -> None:
     client = _client()
     opportunity_id = _create_opportunity(client)
-    _confirm_framework(client, opportunity_id)
+    framework_version_id = _confirm_framework(client, opportunity_id)
     plan_id = uuid.uuid4()
     job = job_service.create_job(
         uuid.UUID(opportunity_id),
         "presentation_planning",
-        enqueue={"presentation_plan_id": str(plan_id), "user_id": str(USER_A)},
+        enqueue={
+            "presentation_plan_id": str(plan_id),
+            "user_id": str(USER_A),
+            "framework_version_id": framework_version_id,
+        },
         repository=get_memory_store(),
     )
     job = job_service.advance_stage(

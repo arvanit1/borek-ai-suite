@@ -227,6 +227,7 @@ def run_full_pipeline(
         raise AssertionError(f"framework confirm failed: {confirm.status_code} {confirm.text}")
     if confirm.json()["status"] != "confirmed":
         raise AssertionError("framework must be confirmed before planning")
+    framework_version_id = confirm.json()["id"]
 
     plan = client.post(
         f"/opportunities/{opportunity_id}/presentation-plan/generate",
@@ -346,7 +347,7 @@ def generate_and_confirm_framework(
         raise AssertionError(f"framework confirm failed: {confirm.status_code} {confirm.text}")
     if confirm.json()["status"] != "confirmed":
         raise AssertionError("framework must be confirmed before planning")
-    return framework_version_id, framework_job_id, framework_stages
+    return confirm.json()["id"], framework_job_id, framework_stages
 
 
 def run_automated_pipeline(

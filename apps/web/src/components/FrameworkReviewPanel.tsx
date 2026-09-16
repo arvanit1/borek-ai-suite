@@ -821,6 +821,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
     try {
       const reopened = await reopenFrameworkForCorrection(accessToken, opportunityId);
       setFrameworkVersion(reopened);
+      setFrameworkJson(reopened.framework_json);
       setDirty(false);
       setHumanConfirmed(false);
       await applyReview(reopened);

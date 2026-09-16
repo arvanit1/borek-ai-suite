@@ -282,6 +282,7 @@ def test_bt30_in_flight_approve_reuses_generation_job(
         enqueue={
             "user_id": str(USER_ID),
             "presentation_id": str(uuid.uuid4()),
+            "framework_version_id": framework_version_id,
             "journey_stage": "first_contact",
         },
         repository=get_memory_store(),

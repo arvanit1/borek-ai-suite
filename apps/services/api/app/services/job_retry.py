@@ -13,6 +13,7 @@ TRANSIENT_RETRY_BUDGET = 1
 _TRANSIENT_CODES = {
     "PROVIDER_TIMEOUT",
     "PROVIDER_UNAVAILABLE",
+    "PROVIDER_RATE_LIMIT",
     "RENDERER_UNAVAILABLE",
     "RENDERER_TIMEOUT",
     "REDIS_UNAVAILABLE",
@@ -45,6 +46,8 @@ def is_transient_failure(exc: BaseException) -> bool:
     code = str(getattr(exc, "code", "") or "")
     if code in _NON_RETRYABLE_CODES:
         return False
+    if getattr(exc, "retryable", None) is True:
+        return True
     if getattr(exc, "transient", False) is True:
         return True
     if code in _TRANSIENT_CODES:
@@ -80,6 +83,23 @@ def enqueue_payload(job: Job) -> dict[str, Any]:
     return dict(raw) if isinstance(raw, dict) else {}
 
 
+def validate_resume_payload(job: Job) -> None:
+    payload = enqueue_payload(job)
+    if job.job_type == "framework_regenerate_chapter":
+        required = {
+            "user_id",
+            "source_framework_version_id",
+            "source_revision",
+            "framework_version_id",
+            "chapter_id",
+        }
+        missing = sorted(required - payload.keys())
+        if missing:
+            raise JobNotRetryableError(
+                "This chapter-regeneration job predates the append-only contract. Start regeneration again."
+            )
+
+
 def _send(task: Any, *args: str) -> None:
     if settings.API_DATA_BACKEND == "memory":
         task.run(*args)
@@ -109,6 +129,10 @@ def dispatch_resumed_job(job: Job) -> None:
             job_id,
             str(payload["framework_version_id"]),
             str(payload["chapter_id"]),
+            str(job.opportunity_id),
+            str(payload["user_id"]),
+            str(payload["source_framework_version_id"]),
+            str(payload["source_revision"]),
         )
         return
     if job.job_type == "framework_render":

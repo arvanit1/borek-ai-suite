@@ -39,6 +39,7 @@ EXPECTED_TABLES = [
     "knowledge_documents",
     "knowledge_facts",
     "egress_audit",
+    "knowledge_model_checkpoints",
 ]
 
 EXPECTED_COLUMNS = {
@@ -97,6 +98,15 @@ EXPECTED_COLUMNS = {
         "fields",
         "attempt",
     ),
+    "knowledge_model_checkpoints": (
+        "generation_job_id",
+        "transcript_id",
+        "opportunity_id",
+        "conversation_id",
+        "schema_version",
+        "prompt_version",
+        "knowledge_model_json",
+    ),
 }
 
 EXPECTED_FOREIGN_KEYS = {
@@ -111,6 +121,7 @@ EXPECTED_FOREIGN_KEYS = {
     "knowledge_documents": "knowledge_corpus_versions",
     "knowledge_facts": "knowledge_documents",
     "egress_audit": "presentation_versions",
+    "knowledge_model_checkpoints": "generation_jobs",
 }
 
 EXPECTED_INDEXES = (
@@ -127,6 +138,7 @@ EXPECTED_INDEXES = (
     "filed_artifacts_prior_stage_idx",
     "egress_audit_opportunity_idx",
     "egress_audit_version_stage_idx",
+    "framework_versions_opportunity_version_key",
 )
 
 LOCAL_DB_HOSTS = {"localhost", "127.0.0.1", "::1"}

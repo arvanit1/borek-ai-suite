@@ -19,6 +19,7 @@ class SourceStore:
     def __init__(self, *, sources: list[dict[str, Any]]) -> None:
         self.sources = sources
         self.status_updates: list[tuple[uuid.UUID, str]] = []
+        self.checkpoints: dict[tuple[uuid.UUID, uuid.UUID], dict[str, Any]] = {}
 
     def list_transcript_sources(self, **_: Any) -> list[dict[str, Any]]:
         return self.sources
@@ -37,6 +38,33 @@ class SourceStore:
         **_: Any,
     ) -> None:
         self.status_updates.append((transcript_id, processing_status))
+
+    def list_job_knowledge_models(self, *, job_id: uuid.UUID, **_: Any) -> list[dict[str, Any]]:
+        return [row for (stored_job_id, _), row in self.checkpoints.items() if stored_job_id == job_id]
+
+    def upsert_job_knowledge_model(
+        self,
+        *,
+        job_id: uuid.UUID,
+        transcript_id: uuid.UUID,
+        opportunity_id: uuid.UUID,
+        conversation_id: str,
+        knowledge_model_json: dict[str, Any],
+        schema_version: str,
+        prompt_version: str,
+        **_: Any,
+    ) -> dict[str, Any]:
+        row = {
+            "generation_job_id": job_id,
+            "transcript_id": transcript_id,
+            "opportunity_id": opportunity_id,
+            "conversation_id": conversation_id,
+            "knowledge_model_json": knowledge_model_json,
+            "schema_version": schema_version,
+            "prompt_version": prompt_version,
+        }
+        self.checkpoints[(job_id, transcript_id)] = row
+        return row
 
 
 def _source() -> dict[str, Any]:
@@ -111,3 +139,73 @@ def test_live_mode_requires_a_persisted_transcript() -> None:
 
     assert exc_info.value.status_code == 400
     assert exc_info.value.detail["code"] == "TRANSCRIPT_REQUIRED"
+
+
+def test_synthesis_retry_reuses_job_scoped_knowledge_checkpoint() -> None:
+    store = SourceStore(sources=[_source()])
+    job_id = uuid.uuid4()
+    extraction_calls = 0
+    stage_runs: list[list[str]] = []
+
+    def extract(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
+        nonlocal extraction_calls
+        extraction_calls += 1
+        return {"schema_version": "1.0", "conversation_id": "C1", "facts": []}
+
+    def fail_synthesis(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
+        raise RuntimeError("synthesis unavailable")
+
+    first_stages: list[str] = []
+    with pytest.raises(RuntimeError, match="synthesis unavailable"):
+        generate_framework_from_transcripts(
+            store,
+            opportunity_id=OPPORTUNITY_ID,
+            user_id=USER_ID,
+            execution_mode="live",
+            extract_fn=extract,
+            generate_fn=fail_synthesis,
+            job_id=job_id,
+            transcript_ids=[str(TRANSCRIPT_ID)],
+            stage_callback=first_stages.append,
+        )
+    stage_runs.append(first_stages)
+
+    second_stages: list[str] = []
+    result = generate_framework_from_transcripts(
+        store,
+        opportunity_id=OPPORTUNITY_ID,
+        user_id=USER_ID,
+        execution_mode="live",
+        extract_fn=extract,
+        generate_fn=lambda *_args, **_kwargs: {
+            "schema_version": "1.0",
+            "status": "draft",
+            "chapters": [],
+        },
+        job_id=job_id,
+        transcript_ids=[str(TRANSCRIPT_ID)],
+        stage_callback=second_stages.append,
+    )
+    stage_runs.append(second_stages)
+
+    assert extraction_calls == 1
+    assert stage_runs[0] == ["knowledge", "synthesis"]
+    assert stage_runs[1] == ["synthesis", "validation"]
+    assert result["generated_from"] == [str(TRANSCRIPT_ID)]
+
+
+def test_extraction_failure_never_advances_to_synthesis() -> None:
+    stages: list[str] = []
+
+    with pytest.raises(RuntimeError, match="extraction unavailable"):
+        generate_framework_from_transcripts(
+            SourceStore(sources=[_source()]),
+            opportunity_id=OPPORTUNITY_ID,
+            user_id=USER_ID,
+            execution_mode="live",
+            extract_fn=lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("extraction unavailable")),
+            generate_fn=lambda *_args, **_kwargs: pytest.fail("synthesis must not run"),
+            stage_callback=stages.append,
+        )
+
+    assert stages == ["knowledge"]

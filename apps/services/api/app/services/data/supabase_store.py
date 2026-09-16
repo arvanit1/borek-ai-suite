@@ -13,6 +13,7 @@ from typing import Any
 from uuid import UUID
 
 import httpx
+from fastapi import HTTPException
 
 from app.config import settings
 from app.services.api_errors import bad_request, conflict, not_found, service_unavailable
@@ -332,14 +333,25 @@ class SupabaseDataStore:
         *,
         params: dict[str, str] | None = None,
         json_body: dict[str, Any] | list[dict[str, Any]] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> httpx.Response:
         return _request_with_retry(
             method,
             f"{self._base_url}/rest/v1/{table}",
-            headers=self._headers,
+            headers={**self._headers, **(headers or {})},
             params=params,
             json=json_body,
         )
+
+    def _service_role_request(
+        self,
+        method: str,
+        resource: str,
+        *,
+        json_body: dict[str, Any] | list[dict[str, Any]] | None = None,
+    ) -> httpx.Response:
+        service_store = SupabaseDataStore(settings.SUPABASE_SERVICE_ROLE_KEY)
+        return service_store._request(method, resource, json_body=json_body)
 
     def _upload_transcript_content(
         self,
@@ -1010,27 +1022,53 @@ class SupabaseDataStore:
             "GET",
             "framework_versions",
             params={
-                "select": "version_number",
+                "select": "id,version_number",
                 "opportunity_id": f"eq.{opportunity_id}",
                 "order": "version_number.desc",
                 "limit": "1",
             },
         )
         version_number = 1
+        previous_version_id = None
         if latest.status_code == 200 and latest.json():
             version_number = int(latest.json()[0]["version_number"]) + 1
+            previous_version_id = str(latest.json()[0]["id"])
+
+        persisted_json = copy.deepcopy(framework_json)
+        persisted_json["opportunity_id"] = str(opportunity_id)
+        persisted_json["version"] = version_number
+        persisted_json["previous_version_id"] = previous_version_id
+        persisted_json["status"] = status
+        from packages.contracts.schema_consumer import validate_framework_object
+
+        validate_framework_object(persisted_json)
 
         payload = {
             "opportunity_id": str(opportunity_id),
             "version_number": version_number,
             "status": status,
-            "framework_json": framework_json,
+            "framework_json": persisted_json,
             "created_by": str(user_id),
         }
         if framework_version_id is not None:
             payload["id"] = str(framework_version_id)
         response = self._request("POST", "framework_versions", json_body=payload)
         if response.status_code not in (200, 201):
+            if framework_version_id is not None:
+                try:
+                    existing = self.get_framework_version(
+                        framework_version_id=framework_version_id,
+                        user_id=user_id,
+                    )
+                except HTTPException:
+                    existing = None
+                if (
+                    existing is not None
+                    and existing["opportunity_id"] == opportunity_id
+                    and existing["status"] == status
+                    and existing["framework_json"] == persisted_json
+                ):
+                    return existing
             raise bad_request("FRAMEWORK_CREATE_FAILED", response.text)
         return _normalize_framework(response.json()[0])
 
@@ -1193,6 +1231,112 @@ class SupabaseDataStore:
         if response.status_code not in (200, 204) or not response.json():
             raise bad_request("FRAMEWORK_REGENERATE_FAILED", response.text)
         return _normalize_framework(response.json()[0])
+
+    def append_framework_version_transition(
+        self,
+        *,
+        opportunity_id: UUID,
+        user_id: UUID,
+        source_framework_version_id: UUID,
+        framework_version_id: UUID,
+        framework_json: dict[str, Any],
+        status: str,
+        source_revision: str,
+        transition: str,
+    ) -> dict[str, Any]:
+        source = self.get_framework_version(
+            framework_version_id=source_framework_version_id,
+            user_id=user_id,
+        )
+        latest = self.get_latest_framework(opportunity_id=opportunity_id, user_id=user_id)
+        if latest["id"] != source["id"]:
+            raise conflict("FRAMEWORK_VERSION_CONFLICT", "The Framework changed before transition completed")
+        from app.services.framework_versioning import framework_source_revision
+
+        if framework_source_revision(source) != source_revision:
+            raise conflict("FRAMEWORK_VERSION_CONFLICT", "The source Framework changed during transition")
+        payload = {
+            "p_source_framework_version_id": str(source_framework_version_id),
+            "p_framework_version_id": str(framework_version_id),
+            "p_opportunity_id": str(opportunity_id),
+            "p_expected_status": str(source["status"]),
+            "p_expected_source_json": source["framework_json"],
+            "p_transition": transition,
+            "p_successor_status": status,
+            "p_successor_json": framework_json,
+        }
+        response = self._service_role_request(
+            "POST",
+            "rpc/append_framework_version_transition",
+            json_body=payload,
+        )
+        if response.status_code not in (200, 201):
+            raise conflict("FRAMEWORK_VERSION_CONFLICT", "The Framework successor could not be created")
+        return _normalize_framework(response.json()[0])
+
+    def list_job_knowledge_models(
+        self,
+        *,
+        job_id: UUID,
+        opportunity_id: UUID,
+        user_id: UUID,
+    ) -> list[dict[str, Any]]:
+        self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+        job = self.get_generation_job(job_id)
+        if job is None or job["opportunity_id"] != opportunity_id:
+            raise bad_request("KNOWLEDGE_CHECKPOINT_INVALID", "Generation job does not belong to this opportunity")
+        response = self._request(
+            "GET",
+            "knowledge_model_checkpoints",
+            params={
+                "select": "*",
+                "generation_job_id": f"eq.{job_id}",
+                "opportunity_id": f"eq.{opportunity_id}",
+            },
+        )
+        if response.status_code != 200:
+            raise bad_request("KNOWLEDGE_CHECKPOINT_READ_FAILED", response.text)
+        return list(response.json() or [])
+
+    def upsert_job_knowledge_model(
+        self,
+        *,
+        job_id: UUID,
+        transcript_id: UUID,
+        opportunity_id: UUID,
+        user_id: UUID,
+        conversation_id: str,
+        knowledge_model_json: dict[str, Any],
+        schema_version: str,
+        prompt_version: str,
+    ) -> dict[str, Any]:
+        job = self.get_generation_job(job_id)
+        if job is None or job["opportunity_id"] != opportunity_id:
+            raise bad_request("KNOWLEDGE_CHECKPOINT_INVALID", "Generation job does not belong to this opportunity")
+        self.get_transcript(
+            opportunity_id=opportunity_id,
+            transcript_id=transcript_id,
+            user_id=user_id,
+        )
+        payload = {
+            "generation_job_id": str(job_id),
+            "transcript_id": str(transcript_id),
+            "opportunity_id": str(opportunity_id),
+            "conversation_id": conversation_id,
+            "knowledge_model_json": knowledge_model_json,
+            "schema_version": schema_version,
+            "prompt_version": prompt_version,
+        }
+        response = self._request(
+            "POST",
+            "knowledge_model_checkpoints",
+            params={"on_conflict": "generation_job_id,transcript_id"},
+            json_body=payload,
+            headers={"Prefer": "resolution=merge-duplicates,return=representation"},
+        )
+        if response.status_code not in (200, 201) or not response.json():
+            raise bad_request("KNOWLEDGE_CHECKPOINT_WRITE_FAILED", response.text)
+        return dict(response.json()[0])
 
     def generate_framework_stub(
         self,

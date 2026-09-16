@@ -11,6 +11,7 @@ from services.framework.chapter_validators.base import chapter_by_id
 from services.framework.chapter_validators.ch06_how_built import scrub_framework_chapter_6
 from services.framework.pre_confirm_check import prepare_framework_for_confirm
 from services.framework.source_traceability import attach_block_source_refs
+from packages.contracts.schema_consumer import validate_framework_object
 from services.framework.customer_view import build_customer_view
 from services.framework.store import save_framework_version
 from services.framework.guardrails import strip_citations_from_value
@@ -19,9 +20,59 @@ from services.transcript.conversation_ids import CONVERSATION_ID_RE
 
 
 class ChapterRegenError(ValueError):
+    code = "FRAMEWORK_VALIDATION_FAILED"
+    retryable = False
+
     def __init__(self, message: str) -> None:
         super().__init__(message)
         self.user_message = message
+
+
+def build_regenerated_framework(
+    framework: dict[str, Any],
+    chapter_id: str,
+    new_chapter: dict[str, Any],
+    *,
+    source_framework_version_id: str,
+    new_version: int,
+    now: Callable[[], datetime] | None = None,
+) -> dict[str, Any]:
+    """Build an append-only version while preserving every non-target chapter."""
+    if str(framework.get("status") or "") == "confirmed":
+        raise ChapterRegenError("A confirmed customer report cannot be regenerated. Work from a draft.")
+    target_id = str(chapter_id)
+    indices = [
+        index
+        for index, chapter in enumerate(framework.get("chapters") or [])
+        if str(chapter.get("chapter_id")) == target_id
+    ]
+    if len(indices) != 1:
+        raise ChapterRegenError(f"Framework must contain exactly one chapter {target_id}.")
+    index = indices[0]
+    current = framework["chapters"][index]
+    replacement = copy.deepcopy(new_chapter)
+    if str(replacement.get("chapter_id")) != target_id:
+        raise ChapterRegenError(f"Replacement chapter_id must stay {target_id}.")
+    if replacement.get("title") != current.get("title"):
+        raise ChapterRegenError("Chapter titles are fixed by chapter_registry.json.")
+    if replacement == current:
+        raise ChapterRegenError(f"Regenerated chapter {target_id} did not change.")
+
+    updated = copy.deepcopy(framework)
+    updated["chapters"][index] = replacement
+    updated["version"] = new_version
+    updated["previous_version_id"] = source_framework_version_id
+    stamp = (now or (lambda: datetime.now(timezone.utc)))().replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    updated["updated_at"] = stamp
+    updated["change_log"] = list(framework.get("change_log") or []) + [f"Chapter {target_id} regenerated"]
+    lang = str((framework.get("customer_view") or {}).get("render_language") or "en")
+    updated.pop("customer_view", None)
+    updated["customer_view"] = strip_citations_from_value(build_customer_view(updated, lang=lang))
+    validate_framework_object(updated)
+    for other_index, chapter in enumerate(framework["chapters"]):
+        if other_index != index and updated["chapters"][other_index] != chapter:
+            raise ChapterRegenError("Regeneration changed a non-target chapter.")
+    return updated
 
 
 def regenerate_chapter(
