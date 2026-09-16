@@ -82,6 +82,61 @@ def test_internal_metadata_is_not_scanned() -> None:
     assert lint_slide_spec_voice(slide) == []
 
 
+@pytest.mark.parametrize("term", ["Synergy", "Seamless", "Leverage", "Holistic"])
+def test_standalone_banned_word_in_title_fails(term: str) -> None:
+    slide = _minimal_slide(title=term)
+    errors = lint_slide_spec_voice(slide)
+    assert errors
+    assert any("banned marketing term" in error for error in errors)
+    with pytest.raises(PresentationVoiceError, match="banned marketing term"):
+        enforce_slide_spec_voice(slide)
+
+
+def test_standalone_banned_word_in_nested_customer_field_fails() -> None:
+    slide = _minimal_slide(
+        title="Manual matching today",
+        problem={"title": "Seamless", "description": "Checks are manual today."},
+    )
+    errors = lint_slide_spec_voice(slide)
+    assert any("problem.title" in error and "seamless" in error.lower() for error in errors)
+
+
+def test_one_word_customer_title_passes() -> None:
+    slide = _minimal_slide(title="Overview")
+    assert lint_slide_spec_voice(slide) == []
+
+
+def test_urls_in_customer_fields_are_ignored() -> None:
+    slide = _minimal_slide(
+        title="Manual matching today",
+        problem={
+            "title": "Reference",
+            "description": "See https://example.com/file for the source diagram.",
+        },
+    )
+    assert lint_slide_spec_voice(slide) == []
+
+
+def test_metadata_ids_are_not_scanned() -> None:
+    slide = {
+        "schema_version": "1.0",
+        "layoutId": "CONTEXT_01",
+        "slideId": "slide-1",
+        "sourceChapterIds": ["2"],
+        "title": "Clean customer title",
+        "problem": {
+            "title": "Problem",
+            "description": "Checks are manual today.",
+        },
+        "fieldProvenance": {
+            "title": [{"path": "title", "sourceChapterIds": ["2"]}],
+        },
+        "reference": "artifact:abc123",
+        "citation": "urn:test:abc",
+    }
+    assert lint_slide_spec_voice(slide) == []
+
+
 def test_german_localized_prose_passes_voice_linter() -> None:
     slide = _minimal_slide(
         title="Erstpass-Abgleich erreicht 75 Prozent mit menschlicher Prüfung bei Ausnahmen.",

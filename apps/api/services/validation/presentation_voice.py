@@ -82,7 +82,7 @@ def _lint_prose(text: str, path: str) -> list[str]:
 
 def _iter_customer_prose(value: Any, path: str = "$") -> list[tuple[str, str]]:
     if isinstance(value, str):
-        if _looks_like_url_or_identifier(value):
+        if _looks_like_url_or_system_reference(value):
             return []
         return [(path, value)]
     if isinstance(value, list):
@@ -111,10 +111,7 @@ def _looks_like_metadata_key(key: str) -> bool:
     }
 
 
-def _looks_like_url_or_identifier(text: str) -> bool:
+def _looks_like_url_or_system_reference(text: str) -> bool:
+    """Skip only clear URLs and system references — not ordinary customer words."""
     stripped = text.strip()
-    if stripped.startswith(("http://", "https://", "artifact:", "urn:")):
-        return True
-    if re.fullmatch(r"[A-Za-z0-9._-]+", stripped) and len(stripped) <= 64:
-        return True
-    return False
+    return stripped.startswith(("http://", "https://", "artifact:", "urn:"))
