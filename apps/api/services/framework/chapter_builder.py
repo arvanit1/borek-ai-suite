@@ -10,7 +10,7 @@ from typing import Any
 from packages.contracts.validators import chapter_specs_from_registry
 from services.framework.chapter_validators.ch00_about import has_eight_decision_questions
 from services.framework.chapter_validators.ch03_aim_success import has_conservative_marker
-from services.framework.chapter_validators.ch06_how_built import has_building_protection
+from services.framework.chapter_validators.ch06_how_built import has_building_protection, _protection_cell_filled
 
 
 def load_chapter_registry() -> list[tuple[str, str]]:
@@ -52,16 +52,13 @@ def build_chapters(
         },
         {
             "label": "Investment",
-            "value": (
-                f"~EUR {estimate.get('build_cost_eur')} build "
-                f"({weeks.get('likely')} weeks) · ~EUR {bc.get('run_cost_eur_mo')}/month run cost"
-            ),
+            "value": _investment_cell(bc, estimate, weeks, missing_note),
         },
         {
             "label": "Payback",
             "value": (
                 f"{_payback_cell(bc, missing_note)} · ROI over 36 months: ~{bc.get('roi_36m_pct')} %"
-                if bc.get("payback_months") is not None
+                if bc.get("grounded") and bc.get("payback_months") is not None
                 else _payback_cell(bc, missing_note)
             ),
         },
@@ -85,16 +82,15 @@ def build_chapters(
     automation_label = _automation_metric_label(cover.get("title") or cover.get("automation"))
     for key, label in (("low", "Pessimistic"), ("expected", "Expected"), ("high", "Optimistic")):
         row = (bc.get("sensitivity") or {}).get(key) or {}
-        sensitivity_rows.append(
-            {
-                "label": label,
-                "detail": (
-                    f"{automation_label} {_format_automation_rate_pct(row.get('automation_rate'))} · "
-                    f"net ~EUR {row.get('net_eur_mo')}/month · "
-                    f"payback {_payback_cell(row, missing_note)}"
-                ),
-            }
-        )
+        if bc.get("grounded"):
+            detail = (
+                f"{automation_label} {_format_automation_rate_pct(row.get('automation_rate'))} · "
+                f"net ~EUR {row.get('net_eur_mo')}/month · "
+                f"payback {_payback_cell(row, missing_note)}"
+            )
+        else:
+            detail = missing_note
+        sensitivity_rows.append({"label": label, "detail": detail})
 
     as_is = as_is_flow or _default_flow("As-is process", ["Intake", "Capture", "Check", "Post or clarify"])
     to_be = to_be_flow or _default_flow("To-be process (stage 2)", ["Intake", "Extract", "Match", "Post or queue"])
@@ -113,6 +109,7 @@ def build_chapters(
             },
             {
                 "block": "bullets",
+                "kind": "decision_questions",
                 "items": [
                     "What is it? — the task today (chapters 1-2)",
                     "Why do it? — aim, benefit and measurable success (chapter 3)",
@@ -194,6 +191,7 @@ def build_chapters(
             to_be,
             {
                 "block": "table",
+                "kind": "today_vs_agent",
                 "caption": "Today vs with the agent",
                 "columns": ["Today", "With the agent"],
                 "rows": _today_vs_agent_rows(as_is, to_be, cover),
@@ -258,6 +256,7 @@ def build_chapters(
             },
             {
                 "block": "table",
+                "kind": "building_blocks",
                 "caption": "Building blocks",
                 "columns": ["Building block", "Role in the automation", "How it is protected"],
                 "rows": [
@@ -351,24 +350,7 @@ def build_chapters(
                 "block": "table",
                 "caption": "Business case",
                 "columns": ["Item", "Calculation", "Value"],
-                "rows": [
-                    [
-                        "Effort today",
-                        "automatable hours/month from the conversations",
-                        f"~{bc.get('inputs', {}).get('automatable_hours_mo')} h/month",
-                    ],
-                    [
-                        "Automation rate",
-                        *_automation_rate_row(bc, missing_note),
-                    ],
-                    ["Hours saved / month", bc.get("formulas", {}).get("hours_saved_mo", ""), f"~{bc.get('hours_saved_mo')} h"],
-                    ["Gross value", bc.get("formulas", {}).get("gross_eur_mo", ""), f"~EUR {bc.get('gross_eur_mo')}/month"],
-                    ["Run cost", "archetype volume lookup", f"~EUR {bc.get('run_cost_eur_mo')}/month"],
-                    ["Net value", bc.get("formulas", {}).get("net_eur_mo", ""), f"~EUR {bc.get('net_eur_mo')}/month"],
-                    ["Build cost", "effort weeks x builder rate", f"~EUR {estimate.get('build_cost_eur')} one-off"],
-                    ["Payback", bc.get("formulas", {}).get("payback_months", ""), _payback_cell(bc, missing_note)],
-                    ["ROI 36 months", bc.get("formulas", {}).get("roi_36m_pct", ""), f"~{bc.get('roi_36m_pct')} %"],
-                ],
+                "rows": _business_case_rows(bc, estimate, missing_note),
             },
             {"block": "bullets", "items": bc.get("qualitative") or ["Qualitative benefits were not priced in."]},
             {"block": "sensitivity", "rows": sensitivity_rows},
@@ -794,10 +776,18 @@ def _ensure_eight_questions(merged: list[dict[str, Any]], base_body: list[dict[s
     if not canonical:
         return
     existing = _blocks(merged, "bullets")
-    if has_eight_decision_questions({"body": merged}) and len(existing) == 1:
+    typed_ok = (
+        existing
+        and str(existing[0].get("kind") or "") == "decision_questions"
+        and has_eight_decision_questions({"body": merged})
+        and len(existing) == 1
+    )
+    if typed_ok:
         return
     if existing:
         existing[0]["items"] = list(canonical.get("items") or [])
+        if canonical.get("kind"):
+            existing[0]["kind"] = canonical.get("kind")
         for extra in existing[1:]:
             merged.remove(extra)
         return
@@ -963,6 +953,9 @@ def _tag_process_flow_stage(merged: list[dict[str, Any]]) -> None:
 
 
 def _table_purpose(block: dict[str, Any]) -> str:
+    kind = str(block.get("kind") or "").strip()
+    if kind:
+        return kind
     text = f"{block.get('caption', '')} {' '.join(str(col) for col in (block.get('columns') or []))}".lower()
     if "building block" in text:
         return "building_blocks"
@@ -974,8 +967,8 @@ def _table_purpose(block: dict[str, Any]) -> str:
         return "systems"
     if "need" in text or "client" in text:
         return "client_needs"
-    if "today" in text:
-        return "today_vs"
+    if "today" in text and ("agent" in text or "to-be" in text or "to be" in text):
+        return "today_vs_agent"
     if "business case" in text or "calculation" in text:
         return "business_case"
     return str(block.get("caption") or "").lower().strip()
@@ -1016,7 +1009,8 @@ def _repair_building_block_protection(merged: list[dict[str, Any]], base_body: l
     for row in building.get("rows") or []:
         if not isinstance(row, list):
             continue
-        if any("protect" in str(cell).lower() for cell in row):
+        protection_idx = len(row) - 1
+        if protection_idx >= 0 and _protection_cell_filled(row[protection_idx]):
             continue
         protection_idx = len(row) - 1
         if protection_idx < 0:
@@ -1075,10 +1069,10 @@ def _ensure_kpi_table(merged: list[dict[str, Any]], base_body: list[dict[str, An
 
 
 def _ensure_today_vs_agent_table(merged: list[dict[str, Any]], base_body: list[dict[str, Any]]) -> None:
-    if any("today" in str(item).lower() and "agent" in str(item).lower() for item in _blocks(merged, "table")):
+    if any(_table_purpose(item) == "today_vs_agent" for item in _blocks(merged, "table")):
         return
     fallback = next(
-        (item for item in _blocks(base_body, "table") if "today" in str(item).lower() and "agent" in str(item).lower()),
+        (item for item in _blocks(base_body, "table") if _table_purpose(item) == "today_vs_agent"),
         None,
     )
     if fallback is not None:
@@ -1280,20 +1274,89 @@ def _automation_rate_row(bc: dict[str, Any], missing_note: str) -> tuple[str, st
     rate = inputs.get("automation_rate")
     formula = str(bc.get("formulas", {}).get("hours_saved_mo") or "")
     derived = "target remaining hours" in formula
-    if rate is not None and float(rate) > 0:
-        calculation = (
-            "derived from the hour target in the conversations"
-            if derived
-            else "named auto-match / automation target"
-        )
-        return calculation, f"~{_format_automation_rate_pct(rate)}"
-    return "named auto-match / automation target", missing_note
+    if not bc.get("grounded") or rate is None or float(rate) <= 0:
+        return "named auto-match / automation target", missing_note
+    calculation = (
+        "derived from the hour target in the conversations"
+        if derived
+        else "named auto-match / automation target"
+    )
+    return calculation, f"~{_format_automation_rate_pct(rate)}"
+
+
+def _business_case_rows(bc: dict[str, Any], estimate: dict[str, Any], missing_note: str) -> list[list[str]]:
+    grounded = bool(bc.get("grounded"))
+    inputs = bc.get("inputs") or {}
+    hours = inputs.get("automatable_hours_mo") if grounded else None
+    return [
+        [
+            "Effort today",
+            "automatable hours/month from the conversations",
+            f"~{hours} h/month" if hours not in (None, 0, 0.0) else missing_note,
+        ],
+        ["Automation rate", *_automation_rate_row(bc, missing_note)],
+        [
+            "Hours saved / month",
+            str(bc.get("formulas", {}).get("hours_saved_mo") or ""),
+            f"~{bc.get('hours_saved_mo')} h" if grounded and bc.get("hours_saved_mo") else missing_note,
+        ],
+        [
+            "Gross value",
+            str(bc.get("formulas", {}).get("gross_eur_mo") or ""),
+            f"~EUR {bc.get('gross_eur_mo')}/month" if grounded and bc.get("gross_eur_mo") else missing_note,
+        ],
+        [
+            "Run cost",
+            "archetype volume lookup" if grounded else missing_note,
+            f"~EUR {bc.get('run_cost_eur_mo')}/month" if grounded and bc.get("run_cost_eur_mo") else missing_note,
+        ],
+        [
+            "Net value",
+            str(bc.get("formulas", {}).get("net_eur_mo") or ""),
+            f"~EUR {bc.get('net_eur_mo')}/month" if grounded and bc.get("net_eur_mo") is not None else missing_note,
+        ],
+        [
+            "Build cost",
+            "effort weeks x builder rate",
+            f"~EUR {estimate.get('build_cost_eur')} one-off" if estimate.get("build_cost_eur") is not None else missing_note,
+        ],
+        [
+            "Payback",
+            str(bc.get("formulas", {}).get("payback_months") or ""),
+            _payback_cell(bc, missing_note) if grounded else missing_note,
+        ],
+        [
+            "ROI 36 months",
+            str(bc.get("formulas", {}).get("roi_36m_pct") or ""),
+            f"~{bc.get('roi_36m_pct')} %" if grounded and bc.get("roi_36m_pct") is not None else missing_note,
+        ],
+    ]
+
+
+def _investment_cell(
+    bc: dict[str, Any],
+    estimate: dict[str, Any],
+    weeks: dict[str, Any],
+    missing_note: str,
+) -> str:
+    build = estimate.get("build_cost_eur")
+    run = bc.get("run_cost_eur_mo") if bc.get("grounded") else None
+    if build is None and run is None:
+        return missing_note
+    parts: list[str] = []
+    if build is not None:
+        parts.append(f"~EUR {build} build ({weeks.get('likely')} weeks)")
+    if run is not None:
+        parts.append(f"~EUR {run}/month run cost")
+    elif not bc.get("grounded"):
+        parts.append(f"run cost {missing_note}")
+    return " · ".join(parts)
 
 
 def _expected_benefit_cell(bc: dict[str, Any], missing_note: str) -> str:
     hours_saved = bc.get("hours_saved_mo")
     net = bc.get("net_eur_mo")
-    if hours_saved is None or float(hours_saved) <= 0:
+    if not bc.get("grounded") or hours_saved is None or float(hours_saved) <= 0:
         return (
             f"{missing_note} (hours saved/month and net EUR value could not be calculated from the conversation)."
         )

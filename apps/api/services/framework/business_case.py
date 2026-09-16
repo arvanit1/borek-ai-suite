@@ -53,12 +53,23 @@ def compute_business_case(
     horizon = int(cfg["roi_horizon_months"])
     payback_decimals = int(cfg["payback_decimals"])
 
+    grounded = bool(
+        loaded_hourly_cost_eur is not None
+        and automatable_hours_mo > 0
+        and (hours_saved_mo is not None or automation_rate is not None)
+    )
     hours_saved = round(float(hours_saved_mo)) if hours_saved_mo is not None else round(automatable_hours_mo * rate)
     gross_raw = hours_saved * hourly
     gross = int(round(gross_raw / round_to) * round_to) if round_to else int(round(gross_raw))
     net = gross - run_cost
     payback = _round_half_up(build_cost_eur / net, payback_decimals) if net > 0 else None
     roi = round((horizon * net - build_cost_eur) / build_cost_eur * 100) if build_cost_eur else None
+    if not grounded:
+        hours_saved = None
+        gross = None
+        net = None
+        payback = None
+        roi = None
 
     low_rate = float(cfg["sensitivity"]["low_rate"])
     high_rate = float(cfg["sensitivity"]["high_rate"])
@@ -82,9 +93,10 @@ def compute_business_case(
         assumptions.append("loaded_hourly_cost_eur mentioned in conversation but not parsed — gross benefit not computed from config default")
 
     return {
+        "grounded": grounded,
         "hours_saved_mo": hours_saved,
         "gross_eur_mo": gross,
-        "run_cost_eur_mo": run_cost,
+        "run_cost_eur_mo": run_cost if grounded else None,
         "net_eur_mo": net,
         "payback_months": payback,
         "roi_36m_pct": roi,

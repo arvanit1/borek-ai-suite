@@ -105,9 +105,54 @@
         "required": ["description", "item_type", "owner", "consequence_if_different"],
         "properties": {
           "description": { "type": "string" },
-          "item_type": { "type": "string", "enum": ["dependency", "assumption"] },
+          "item_type": { "type": "string", "enum": ["dependency", "assumption", "conflict"] },
           "owner": { "type": "string" },
-          "consequence_if_different": { "type": "string" }
+          "consequence_if_different": { "type": "string" },
+          "conflict": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["topic", "alternatives", "resolution"],
+            "properties": {
+              "topic": { "type": "string", "minLength": 1 },
+              "alternatives": {
+                "type": "array",
+                "minItems": 2,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["value", "source_refs"],
+                  "properties": {
+                    "value": { "type": "string", "minLength": 1 },
+                    "source_refs": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["conversation_id", "speaker_role", "excerpt_pointer"],
+                        "properties": {
+                          "conversation_id": { "type": "string", "pattern": "^C[1-9][0-9]*$" },
+                          "speaker_role": { "type": "string", "minLength": 1 },
+                          "excerpt_pointer": { "type": "string", "pattern": "^turn:[0-9]+$" }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "resolution": {
+                "oneOf": [
+                  { "type": "null" },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["selected_value"],
+                    "properties": { "selected_value": { "type": "string", "minLength": 1 } }
+                  }
+                ]
+              }
+            }
+          }
         }
       }
     },

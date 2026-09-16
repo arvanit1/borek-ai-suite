@@ -1,4 +1,4 @@
-"""ES-28 — attach source_refs per factual block using knowledge-entry overlap."""
+"""ES-28 — exact atomic claim-to-source traceability with legacy compatibility."""
 
 from __future__ import annotations
 
@@ -29,38 +29,142 @@ def attach_block_source_refs(
     framework: dict[str, Any],
     knowledge_entries: list[dict[str, Any]] | None = None,
 ) -> None:
-    """Map each factual block to the best matching knowledge entry refs (ES-28)."""
-    entries = knowledge_entries or []
+    """Materialize model-selected Knowledge entry IDs into server-owned references."""
+    entries = {
+        str(entry.get("entry_id") or ""): entry
+        for entry in knowledge_entries or []
+        if str(entry.get("entry_id") or "")
+    }
+    has_atomic_claims = False
+    required_missing = False
+    llm_used = bool((framework.get("generation_meta") or {}).get("llm_used"))
     for chapter in framework.get("chapters") or []:
         if not isinstance(chapter, dict):
             continue
         body = chapter.get("body")
         if not isinstance(body, list):
             continue
-        updated: list[dict[str, Any]] = []
         for block in body:
             if not isinstance(block, dict):
                 continue
-            if str(block.get("block") or "") not in _FACTUAL_BLOCKS or not _block_has_text(block):
-                updated.append(block)
+            raw_claims = block.get("source_claims")
+            if not isinstance(raw_claims, list) or not raw_claims:
+                if llm_used and _block_requires_traceability(block):
+                    required_missing = True
                 continue
-            if block.get("source_refs"):
-                updated.append(block)
-                continue
-            text = _block_text(block)
-            minimum_overlap = _minimum_overlap(block)
-            matched = _refs_for_text(text, entries, minimum_overlap=minimum_overlap)
-            if matched and _refs_support_text(text, matched, entries, minimum_overlap=minimum_overlap):
-                updated.append({**block, "source_refs": matched})
-            else:
-                updated.append(block)
-        chapter["body"] = updated
-        _rollup_chapter_source_refs(chapter)
+            has_atomic_claims = True
+            materialized: list[dict[str, Any]] = []
+            seen_paths: set[str] = set()
+            for claim in raw_claims:
+                if not isinstance(claim, dict):
+                    raise AtomicTraceabilityError("Atomic source claim must be an object")
+                path = str(claim.get("path") or "")
+                if path in seen_paths:
+                    raise AtomicTraceabilityError(f"Duplicate atomic source path: {path}")
+                seen_paths.add(path)
+                value = _resolve_claim_path(block, path)
+                if _normalized_claim(value) != _normalized_claim(claim.get("claim")):
+                    raise AtomicTraceabilityError(f"Atomic source claim does not match value at {path}")
+                entry_ids = [str(item) for item in claim.get("knowledge_entry_ids") or []]
+                if not entry_ids or any(entry_id not in entries for entry_id in entry_ids):
+                    raise AtomicTraceabilityError(f"Atomic source claim at {path} has an unknown Knowledge entry")
+                if not any(_entry_supports_claim(entries[entry_id], value) for entry_id in entry_ids):
+                    raise AtomicTraceabilityError(
+                        f"Atomic source claim at {path} does not exactly match its Knowledge entry"
+                    )
+                refs = _dedupe_refs(
+                    ref
+                    for entry_id in entry_ids
+                    for ref in entries[entry_id].get("source_refs") or []
+                )
+                if not refs:
+                    raise AtomicTraceabilityError(f"Atomic source claim at {path} has no source references")
+                materialized.append(
+                    {
+                        "path": path,
+                        "claim": value,
+                        "knowledge_entry_ids": sorted(set(entry_ids)),
+                        "source_refs": refs,
+                    }
+                )
+            block["source_claims"] = materialized
+            block["source_refs"] = _dedupe_refs(
+                ref for claim in materialized for ref in claim["source_refs"]
+            )
+        _rollup_chapter_source_refs(chapter, replace=has_atomic_claims)
+    if llm_used and required_missing and not has_atomic_claims:
+        raise AtomicTraceabilityError(
+            "Live Framework synthesis must cite Knowledge entry IDs on factual claims"
+        )
+    if has_atomic_claims or llm_used:
+        framework.setdefault("generation_meta", {})["traceability_version"] = "atomic-v1"
 
 
-def _rollup_chapter_source_refs(chapter: dict[str, Any]) -> None:
+class AtomicTraceabilityError(ValueError):
+    code = "FRAMEWORK_VALIDATION_FAILED"
+    retryable = False
+
+
+def _resolve_claim_path(block: dict[str, Any], path: str) -> Any:
+    if not path.startswith("/"):
+        raise AtomicTraceabilityError("Atomic source path must be a JSON Pointer")
+    parts = [part.replace("~1", "/").replace("~0", "~") for part in path[1:].split("/")]
+    if not parts or parts[0] in {"block", "source_claims", "source_refs"}:
+        raise AtomicTraceabilityError(f"Atomic source path targets metadata: {path}")
+    current: Any = block
+    try:
+        for part in parts:
+            current = current[int(part)] if isinstance(current, list) else current[part]
+    except (KeyError, IndexError, TypeError, ValueError) as exc:
+        raise AtomicTraceabilityError(f"Atomic source path does not exist: {path}") from exc
+    if not isinstance(current, (str, int, float)) or isinstance(current, bool):
+        raise AtomicTraceabilityError(f"Atomic source path must resolve to a scalar claim: {path}")
+    return current
+
+
+def _normalized_claim(value: Any) -> str:
+    return " ".join(str(value).split()).casefold()
+
+
+def _claim_numbers(value: Any) -> list[str]:
+    return re.findall(r"\d[\d,]*(?:\.\d+)?", str(value))
+
+
+def _entry_supports_claim(entry: dict[str, Any], value: Any) -> bool:
+    """Accept exact statement match or the same numeric atom — never a nearby number."""
+    if _normalized_claim(entry.get("statement")) == _normalized_claim(value):
+        return True
+    claim_nums = _claim_numbers(value)
+    if not claim_nums:
+        normalized_claim = _normalized_claim(value)
+        statement = _normalized_claim(entry.get("statement"))
+        return bool(normalized_claim) and len(normalized_claim) >= 12 and normalized_claim in statement
+    entry_nums = _claim_numbers(entry.get("statement"))
+    metric = entry.get("metric") if isinstance(entry.get("metric"), dict) else {}
+    if metric.get("value") is not None:
+        entry_nums.extend(_claim_numbers(metric.get("value")))
+    return bool(entry_nums) and all(number in entry_nums for number in claim_nums)
+
+
+def _dedupe_refs(refs: Any) -> list[dict[str, str]]:
+    values = {
+        (
+            str(ref.get("conversation_id") or ""),
+            str(ref.get("speaker_role") or ""),
+            str(ref.get("excerpt_pointer") or ""),
+        )
+        for ref in refs
+        if isinstance(ref, dict)
+    }
+    return [
+        {"conversation_id": cid, "speaker_role": speaker, "excerpt_pointer": pointer}
+        for cid, speaker, pointer in sorted(values)
+    ]
+
+
+def _rollup_chapter_source_refs(chapter: dict[str, Any], *, replace: bool = False) -> None:
     """Copy block-level citations up so ES-37 sees chapter coverage."""
-    if chapter.get("source_refs"):
+    if chapter.get("source_refs") and not replace:
         return
     collected: list[dict[str, Any]] = []
     seen: set[tuple[str, str]] = set()
@@ -86,7 +190,8 @@ def collect_block_traceability_issues(
     framework: dict[str, Any],
     knowledge_entries: list[dict[str, Any]] | None = None,
 ) -> list[ChapterIssue]:
-    entries = knowledge_entries or []
+    if (framework.get("generation_meta") or {}).get("traceability_version") != "atomic-v1":
+        return []
     issues: list[ChapterIssue] = []
     for chapter in framework.get("chapters") or []:
         if not isinstance(chapter, dict):
@@ -103,29 +208,9 @@ def collect_block_traceability_issues(
                 continue
             if str(block.get("tone") or "") == "open_item":
                 continue
-            refs = block.get("source_refs") or []
-            if not refs:
-                issues.append(
-                    ChapterIssue(
-                        chapter_id,
-                        "block_source_refs",
-                        f"Factual block {index} in chapter {chapter_id} must carry source_refs (ES-28).",
-                    )
-                )
+            claims = block.get("source_claims") or []
+            if not claims:
                 continue
-            if entries and not _refs_support_text(
-                _block_text(block),
-                refs,
-                entries,
-                minimum_overlap=_minimum_overlap(block),
-            ):
-                issues.append(
-                    ChapterIssue(
-                        chapter_id,
-                        "block_source_mismatch",
-                        f"Factual block {index} in chapter {chapter_id} lacks a matching knowledge entry (ES-28).",
-                    )
-                )
     return issues
 
 
@@ -133,10 +218,11 @@ def convert_unsupported_block_claims(
     framework: dict[str, Any],
     knowledge_entries: list[dict[str, Any]] | None = None,
 ) -> None:
-    """ES-28 — claims whose source_refs do not support the text become open items."""
+    """Drop identifier-only leftover claims. Validated atomic claims stay; missing claims are not rewritten into echoing open items."""
     from services.framework.guardrails import _refresh_open_items_table
 
-    entries = knowledge_entries or []
+    if (framework.get("generation_meta") or {}).get("traceability_version") != "atomic-v1":
+        return
     for chapter in framework.get("chapters") or []:
         if not isinstance(chapter, dict):
             continue
@@ -162,37 +248,13 @@ def convert_unsupported_block_claims(
             if str(block.get("block") or "") in {"ai_split", "timeline"}:
                 updated.append(block)
                 continue
-            refs = block.get("source_refs") or []
-            if not refs:
-                reason = "it has no cited conversation excerpt"
-            elif _refs_support_text(claim, refs, entries, minimum_overlap=_minimum_overlap(block)):
+            claims = block.get("source_claims") or []
+            if claims:
                 updated.append(block)
                 continue
-            else:
-                reason = "its cited source does not support the text"
-            framework.setdefault("open_items", []).append(
-                {
-                    "description": (
-                        f"Claim in chapter {chapter_id} is not supported because {reason}: "
-                        f"{claim[:240]}. Recorded as an open item rather than accepted."
-                    ),
-                    "item_type": "assumption",
-                    "owner": "Business",
-                    "consequence_if_different": (
-                        "Unsupported claims are never published. Confirm the statement against the conversation."
-                    ),
-                }
-            )
-            updated.append(
-                {
-                    "block": "callout",
-                    "tone": "open_item",
-                    "text": (
-                        "This point is recorded as an open item because it is not supported "
-                        "by a conversation excerpt."
-                    ),
-                }
-            )
+            if _looks_like_identifier_claim(claim):
+                continue
+            updated.append(block)
         chapter["body"] = updated
     _refresh_open_items_table(framework)
 
@@ -329,6 +391,13 @@ def _block_text(block: dict[str, Any]) -> str:
 
 def _block_has_text(block: dict[str, Any]) -> bool:
     return bool(_block_text(block).strip())
+
+
+def _looks_like_identifier_claim(text: str) -> bool:
+    if re.search(r"\bopp[-_]?\d{3,}\b", text, re.I):
+        return True
+    compact = re.sub(r"[^a-z0-9]+", "", text.lower())
+    return bool(re.fullmatch(r"(?:opp)?\d{5,}", compact))
 
 
 def _minimum_overlap(block: dict[str, Any]) -> int:

@@ -149,7 +149,7 @@ def test_golden_pipeline_has_fourteen_registry_chapters() -> None:
     assert actual == expected
     assert framework["quality_scores"]["opportunity_rating"] == 68
     assert framework["quality_scores"]["conversation_quality"] == 82
-    assert framework["quality_scores"]["build_readiness"] == 94
+    assert framework["quality_scores"]["build_readiness"] == 90
     rationale = framework["quality_scores"]["rationale"]
     for key in ("opportunity_rating", "conversation_quality", "build_readiness"):
         assert rationale[key]

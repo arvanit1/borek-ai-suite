@@ -165,6 +165,33 @@ def test_synthesis_prompt_includes_company_facts_and_forbids_invention() -> None
         "access_needs": base["access_needs"],
         "chapters": base["chapters"],
     }
+    entry = next(
+        (
+            item
+            for item in (base.get("source_entries") or [])
+            if item.get("entry_id") and item.get("source_refs") and item.get("statement")
+        ),
+        None,
+    )
+    if entry is not None:
+        for chapter in draft["chapters"]:
+            if str(chapter.get("chapter_id")) != "2" or not isinstance(chapter.get("body"), list):
+                continue
+            chapter["body"].append(
+                {
+                    "block": "prose",
+                    "text": entry["statement"],
+                    "source_claims": [
+                        {
+                            "path": "/text",
+                            "claim": entry["statement"],
+                            "knowledge_entry_ids": [entry["entry_id"]],
+                            "source_refs": [],
+                        }
+                    ],
+                }
+            )
+            break
 
     def capture(system: str, user: str, schema: dict) -> dict:
         seen["user"] = user

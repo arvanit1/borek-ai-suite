@@ -11,7 +11,18 @@ _CITATION_RE = re.compile(r"\[C\d+\s*:?\s*t?\d*\]", re.I)
 _TURN_POINTER_RE = re.compile(r"\bturn:\d+\b", re.I)
 _SPEAKER_RE = re.compile(r"\bSPEAKER_\d+\b", re.I)
 _CUSTOMER_SKIP_KEYS = frozenset(
-    {"source_refs", "excerpt_pointer", "conversation_id", "generated_from", "source_entries", "transcript_id"}
+    {
+        "source_refs",
+        "source_claims",
+        "knowledge_entry_ids",
+        "entry_id",
+        "path",
+        "excerpt_pointer",
+        "conversation_id",
+        "generated_from",
+        "source_entries",
+        "transcript_id",
+    }
 )
 _PERSON_EVAL = re.compile(
     r"\b(lazy|incompetent|unskilled|careless|resistant|slow worker|underperform(?:er|ing))\b",

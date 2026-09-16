@@ -44,6 +44,14 @@ assert.equal(panelSource.match(/<FrameworkChapterView/g)?.length, 1);
 assert.match(panelSource, /Previous chapter/);
 assert.match(panelSource, /Next chapter/);
 
+const rootSource = readFileSync(
+  fileURLToPath(new URL("./FrameworkRootFieldsPanel.tsx", import.meta.url)),
+  "utf8",
+);
+assert.match(rootSource, /data-testid="framework-conflict-resolution"/);
+assert.match(rootSource, /resolveOpenItemConflict/);
+assert.match(rootSource, /Choose the statement that should stand/);
+
 const summarySource = readFileSync(
   fileURLToPath(new URL("./FrameworkReviewSummary.tsx", import.meta.url)),
   "utf8",

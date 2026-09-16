@@ -27,8 +27,8 @@ from services.knowledge_model.source_refs import (
 from services.observability.llm_logger import STAGE_SYNTHESIS, run_logged_llm_call
 from services.validation.schema_retry import SourceRefRetryError, require_valid_source_refs
 
-PROMPT_VERSION = "framework-synthesis:v1"
-CHAPTER_REGEN_PROMPT_VERSION = "framework-chapter-regeneration:v1"
+PROMPT_VERSION = "framework-synthesis:v2"
+CHAPTER_REGEN_PROMPT_VERSION = "framework-chapter-regeneration:v2"
 _PROMPT_PATH = Path(__file__).resolve().parents[2] / "llm" / "claude" / "prompts" / "synthesis_v1.txt"
 _CHAPTER_REGEN_PROMPT_PATH = Path(__file__).resolve().parents[2] / "llm" / "claude" / "prompts" / "chapter_regeneration_v1.txt"
 _SCHEMA_PATH = Path(__file__).resolve().parents[2] / "llm" / "claude" / "prompts" / "customer_report.schema.json"
@@ -185,6 +185,7 @@ def synthesize_customer_chapter(
     system = _CHAPTER_REGEN_PROMPT_PATH.read_text(encoding="utf-8") + "\n\n" + _format_tone_and_guardrails(tone_voice())
     entries = [
         {
+            "entry_id": entry.get("entry_id"),
             "bucket": bucket,
             "statement": entry.get("statement"),
             "origin": entry.get("origin"),
@@ -397,7 +398,7 @@ def _schema_contract_brief() -> str:
         "- Exactly 14 chapters with ids 0..13; each body is a non-empty block array.",
         f"- Each chapter source_refs entry required: {', '.join(ref_required)}",
         "- cover keys only: tagline, sources_line, how_produced (no extra cover keys).",
-        "- open_items item_type: dependency | assumption.",
+        "- open_items item_type: dependency | assumption | conflict. A conflict needs topic, two alternatives with source_refs, and resolution null until a reviewer selects selected_value.",
     ]
     return "\n".join(lines)
 
@@ -459,6 +460,7 @@ def _user_prompt(
         refs = entry.get("source_refs") or []
         entries.append(
             {
+                "entry_id": entry.get("entry_id"),
                 "bucket": entry.get("bucket"),
                 "statement": entry.get("statement"),
                 "origin": entry.get("origin"),
@@ -558,13 +560,13 @@ def _coerce_system(item: dict[str, Any]) -> dict[str, str]:
     }
 
 
-def _coerce_open_item(item: dict[str, Any]) -> dict[str, str]:
+def _coerce_open_item(item: dict[str, Any]) -> dict[str, Any]:
     from services.framework.assembly import classify_unknown_open_item
 
     description = str(item.get("description") or "")
     raw_type = str(item.get("item_type") or "").strip().lower()
     classified_type, classified_owner, classified_consequence = classify_unknown_open_item(description)
-    if raw_type in {"dependency", "assumption"}:
+    if raw_type in {"dependency", "assumption", "conflict"}:
         item_type = raw_type
         owner = str(item.get("owner") or "") or classified_owner
         consequence = str(item.get("consequence_if_different") or "") or classified_consequence
@@ -572,11 +574,50 @@ def _coerce_open_item(item: dict[str, Any]) -> dict[str, str]:
         item_type = classified_type
         owner = str(item.get("owner") or classified_owner)
         consequence = str(item.get("consequence_if_different") or classified_consequence)
-    return {
+    result: dict[str, Any] = {
         "description": description,
         "item_type": item_type,
         "owner": owner,
         "consequence_if_different": consequence,
+    }
+    if item_type == "conflict":
+        conflict = _coerce_conflict_detail(item.get("conflict"))
+        if conflict is None:
+            result["item_type"] = "assumption"
+        else:
+            result["conflict"] = conflict
+    return result
+
+
+def _coerce_conflict_detail(raw: Any) -> dict[str, Any] | None:
+    if not isinstance(raw, dict):
+        return None
+    alternatives: list[dict[str, Any]] = []
+    for item in raw.get("alternatives") or []:
+        if not isinstance(item, dict):
+            continue
+        value = str(item.get("value") or "").strip()
+        refs = [
+            ref
+            for ref in item.get("source_refs") or []
+            if isinstance(ref, dict)
+            and str(ref.get("conversation_id") or "").strip()
+            and str(ref.get("excerpt_pointer") or "").strip()
+        ]
+        if value and refs:
+            alternatives.append({"value": value, "source_refs": refs})
+    if len(alternatives) < 2:
+        return None
+    resolution = raw.get("resolution")
+    if isinstance(resolution, dict):
+        selected = str(resolution.get("selected_value") or "").strip()
+        resolution = {"selected_value": selected} if selected else None
+    else:
+        resolution = None
+    return {
+        "topic": str(raw.get("topic") or "source evidence").strip() or "source evidence",
+        "alternatives": alternatives,
+        "resolution": resolution,
     }
 
 

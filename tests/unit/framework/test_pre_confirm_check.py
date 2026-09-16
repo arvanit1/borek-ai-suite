@@ -52,6 +52,51 @@ def test_golden_draft_can_be_confirmed() -> None:
     assert confirmed["change_log"][-1] == "Customer report confirmed"
 
 
+def test_unresolved_source_conflict_blocks_confirmation() -> None:
+    framework = _framework()
+    framework["open_items"].append(
+        {
+            "description": "Conflicting monthly volume",
+            "item_type": "conflict",
+            "owner": "Process Manager",
+            "consequence_if_different": "Capacity changes.",
+            "conflict": {
+                "topic": "monthly volume",
+                "alternatives": [
+                    {"value": "100", "source_refs": [{"conversation_id": "C1", "speaker_role": "operator", "excerpt_pointer": "turn:1"}]},
+                    {"value": "200", "source_refs": [{"conversation_id": "C2", "speaker_role": "manager", "excerpt_pointer": "turn:2"}]},
+                ],
+                "resolution": None,
+            },
+        }
+    )
+
+    with pytest.raises(PreConfirmError, match="monthly volume"):
+        pre_confirm_check(framework)
+
+
+def test_resolved_source_conflict_allows_confirmation() -> None:
+    framework = _framework()
+    framework["open_items"].append(
+        {
+            "description": "Conflicting monthly volume",
+            "item_type": "conflict",
+            "owner": "Process Manager",
+            "consequence_if_different": "Capacity changes.",
+            "conflict": {
+                "topic": "monthly volume",
+                "alternatives": [
+                    {"value": "100", "source_refs": [{"conversation_id": "C1", "speaker_role": "operator", "excerpt_pointer": "turn:1"}]},
+                    {"value": "200", "source_refs": [{"conversation_id": "C2", "speaker_role": "manager", "excerpt_pointer": "turn:2"}]},
+                ],
+                "resolution": {"selected_value": "200"},
+            },
+        }
+    )
+
+    pre_confirm_check(framework)
+
+
 def test_used_and_not_used_overlap_blocks_confirm() -> None:
     framework = _framework()
     split = _ai_split(framework)

@@ -50,6 +50,12 @@ def test_later_conversation_wins_and_conflict_is_logged() -> None:
     buckets, open_items = merge_knowledge_models([early, later])
     assert [item["statement"] for item in buckets["facts"]] == ["Tolerance is EUR 0.50."]
     assert open_items
+    assert open_items[0]["item_type"] == "conflict"
+    assert open_items[0]["conflict"]["resolution"] is None
+    assert {item["value"] for item in open_items[0]["conflict"]["alternatives"]} == {
+        "Tolerance is EUR 1.00.",
+        "Tolerance is EUR 0.50.",
+    }
     assert "EUR 1.00" in open_items[0]["description"]
     assert "EUR 0.50" in open_items[0]["description"]
     assert "Later source kept" in open_items[0]["description"]

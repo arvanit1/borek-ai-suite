@@ -2948,6 +2948,44 @@ samp {
   margin: 0 0 0.75rem;
 }
 
+.framework-conflict-card {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.framework-conflict-card h4 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.framework-conflict-card p {
+  margin: 0;
+  color: var(--color-muted);
+}
+
+.framework-conflict-choices {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.framework-conflict-choices legend {
+  padding: 0;
+  font-weight: 600;
+}
+
+.framework-conflict-choice {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
 .framework-review-summary {
   display: grid;
   gap: 1rem;

@@ -56,7 +56,7 @@ def _draft_from_framework(framework: dict) -> dict:
                 "source_refs": refs,
             }
         )
-    return {
+    draft = {
         "title": framework["title"],
         "department": framework["department"],
         "cover": {
@@ -118,6 +118,35 @@ def _draft_from_framework(framework: dict) -> dict:
         ],
         "chapters": chapters,
     }
+    _stamp_live_source_claim(draft, framework)
+    return draft
+
+
+def _stamp_live_source_claim(draft: dict, framework: dict) -> None:
+    entries = framework.get("source_entries") or []
+    entry = next((item for item in entries if item.get("entry_id") and item.get("source_refs") and item.get("statement")), None)
+    if entry is None:
+        return
+    statement = str(entry["statement"]).strip()
+    for chapter in draft.get("chapters") or []:
+        body = chapter.get("body")
+        if str(chapter.get("chapter_id")) != "2" or not isinstance(body, list):
+            continue
+        body.append(
+            {
+                "block": "prose",
+                "text": statement,
+                "source_claims": [
+                    {
+                        "path": "/text",
+                        "claim": statement,
+                        "knowledge_entry_ids": [entry["entry_id"]],
+                        "source_refs": [],
+                    }
+                ],
+            }
+        )
+        return
 
 
 def test_one_claude_call_returns_all_fourteen_registry_chapters() -> None:
@@ -389,7 +418,8 @@ def test_llm_overlay_replaces_wrong_eight_questions_once() -> None:
 
 def test_llm_overlay_restores_every_required_live_validation_field() -> None:
     models, overrides = _golden()
-    draft = _draft_from_framework(_base_framework())
+    base = _base_framework()
+    draft = _draft_from_framework(base)
     draft["kpis"] = [
         {"name": "Manual handling time", "baseline": "named", "target": "named", "measured_via": "named"}
     ]
@@ -424,6 +454,7 @@ def test_llm_overlay_restores_every_required_live_validation_field() -> None:
     draft["chapters"][8]["body"] = [
         {"block": "kv_rows", "caption": "Guardrails", "rows": [{"label": "Audit", "value": "named"}]}
     ]
+    _stamp_live_source_claim(draft, base)
 
     framework = generate_customer_framework(
         models,

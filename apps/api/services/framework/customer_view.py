@@ -32,6 +32,7 @@ def build_customer_view(
             for block in chapter.get("body") or []:
                 if isinstance(block, dict):
                     block.pop("source_refs", None)
+                    block.pop("source_claims", None)
     view = strip_citations_from_value(view)
     view["render_language"] = lang
     view["customer_only"] = True

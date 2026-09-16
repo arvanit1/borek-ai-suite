@@ -169,10 +169,78 @@
         "description": { "type": "string", "minLength": 1 },
         "item_type": {
           "type": "string",
-          "enum": ["dependency", "assumption"]
+          "enum": ["dependency", "assumption", "conflict"]
         },
         "owner": { "type": "string", "minLength": 1 },
-        "consequence_if_different": { "type": "string", "minLength": 1 }
+        "consequence_if_different": { "type": "string", "minLength": 1 },
+        "conflict": { "$ref": "#/$defs/ConflictDetail" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "item_type": { "const": "conflict" } } },
+          "then": { "required": ["conflict"] },
+          "else": { "not": { "required": ["conflict"] } }
+        }
+      ]
+    },
+    "ConflictDetail": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["topic", "alternatives", "resolution"],
+      "properties": {
+        "topic": { "type": "string", "minLength": 1 },
+        "alternatives": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/ConflictAlternative" }
+        },
+        "resolution": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/ConflictResolution" }
+          ]
+        }
+      }
+    },
+    "ConflictAlternative": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "source_refs"],
+      "properties": {
+        "value": { "type": "string", "minLength": 1 },
+        "source_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/ConversationRef" }
+        }
+      }
+    },
+    "ConflictResolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["selected_value"],
+      "properties": {
+        "selected_value": { "type": "string", "minLength": 1 }
+      }
+    },
+    "AtomicSourceClaim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "claim", "knowledge_entry_ids", "source_refs"],
+      "properties": {
+        "path": { "type": "string", "pattern": "^/(?!source_claims(?:/|$)|source_refs(?:/|$)|block(?:/|$)).+" },
+        "claim": { "type": ["string", "number"] },
+        "knowledge_entry_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^KE-[a-f0-9]{24}$" }
+        },
+        "source_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/ConversationRef" }
+        }
       }
     },
     "KpiRecord": {

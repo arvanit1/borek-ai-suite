@@ -136,10 +136,37 @@ def _open_item(topic: str, versions: list[tuple[bool, int, dict[str, Any]]]) -> 
         "description": (
             f"Conflicting statements on '{topic}': {quoted}.{note}{sources} Requires clarification."
         ),
-        "item_type": "assumption",
+        "item_type": "conflict",
         "owner": "Process Manager",
         "consequence_if_different": "Re-run the originating conversation; do not guess a blend.",
+        "conflict": {
+            "topic": topic,
+            "alternatives": [
+                {
+                    "value": str(entry.get("statement") or "").strip(),
+                    "source_refs": _dedupe_refs(entry.get("source_refs") or []),
+                }
+                for _flag, _rank, entry in versions
+            ],
+            "resolution": None,
+        },
     }
+
+
+def _dedupe_refs(refs: list[Any]) -> list[dict[str, str]]:
+    values = {
+        (
+            str(ref.get("conversation_id") or ""),
+            str(ref.get("speaker_role") or ""),
+            str(ref.get("excerpt_pointer") or ""),
+        )
+        for ref in refs
+        if isinstance(ref, dict)
+    }
+    return [
+        {"conversation_id": cid, "speaker_role": speaker, "excerpt_pointer": pointer}
+        for cid, speaker, pointer in sorted(values)
+    ]
 
 
 def _topic_key(statement: str) -> str:

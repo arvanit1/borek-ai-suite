@@ -37,7 +37,10 @@ def detect_contradictions(model: dict[str, Any]) -> list[dict[str, Any]]:
             continue
         values = [str(item["statement"]).strip() for item in unique]
         source_ids: list[str] = []
+        alternatives: list[dict[str, Any]] = []
         for item in unique:
+            refs = _sorted_refs(item.get("source_refs") or [])
+            alternatives.append({"value": str(item["statement"]).strip(), "source_refs": refs})
             for ref in item.get("source_refs") or []:
                 if isinstance(ref, dict):
                     source_ids.append(source_id(ref))
@@ -45,6 +48,7 @@ def detect_contradictions(model: dict[str, Any]) -> list[dict[str, Any]]:
             {
                 "topic": topic,
                 "bucket": bucket,
+                "alternatives": alternatives,
                 "values": values,
                 "source_ids": source_ids,
                 "requires_clarification": True,
@@ -53,13 +57,29 @@ def detect_contradictions(model: dict[str, Any]) -> list[dict[str, Any]]:
     return conflicts
 
 
+def _sorted_refs(refs: list[Any]) -> list[dict[str, str]]:
+    unique = {
+        (
+            str(ref.get("conversation_id") or ""),
+            str(ref.get("speaker_role") or ""),
+            str(ref.get("excerpt_pointer") or ""),
+        )
+        for ref in refs
+        if isinstance(ref, dict)
+    }
+    return [
+        {"conversation_id": cid, "speaker_role": speaker, "excerpt_pointer": pointer}
+        for cid, speaker, pointer in sorted(unique)
+    ]
+
+
 def _unique_by_statement(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     seen: dict[str, dict[str, Any]] = {}
     for entry in entries:
         statement = str(entry.get("statement") or "").strip()
         if statement not in seen:
             seen[statement] = entry
-    return list(seen.values())
+    return [seen[key] for key in sorted(seen)]
 
 
 def _topic_key(statement: str) -> str:

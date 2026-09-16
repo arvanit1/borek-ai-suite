@@ -7,6 +7,7 @@ from typing import Any
 
 from services.framework.conflict_resolution import flatten_entries, merge_knowledge_models
 from services.knowledge_model.contradictions import detect_contradictions
+from services.knowledge_model.entry_ids import ensure_knowledge_entry_ids
 
 _VOLUME_RE = re.compile(
     r"(\d[\d,]*)(?:\s+\w+){0,2}\s+"
@@ -79,6 +80,8 @@ def assemble_from_knowledge(
     opportunity_id: str,
     title_hint: str | None = None,
 ) -> dict[str, Any]:
+    for model in models:
+        ensure_knowledge_entry_ids(model)
     buckets, conflict_items = merge_knowledge_models(models)
     entries = flatten_entries(buckets)
     conflicts: list[dict[str, Any]] = []
@@ -104,6 +107,9 @@ def assemble_from_knowledge(
     ]
     unknowns = [entry["statement"] for entry in buckets.get("unknowns", [])]
     open_items = list(conflict_items)
+    open_items.extend(
+        item for conflict in conflicts if (item := _open_item_from_conflict(conflict)) is not None
+    )
     for entry in buckets.get("unknowns", []):
         open_items.append(_open_item_from_unknown(entry))
     open_items = _dedupe_open_items(open_items)
@@ -134,6 +140,37 @@ def assemble_from_knowledge(
         "numbers": numbers,
         "engine_inputs": engine_inputs,
         "stage3_candidates": _stage3_candidates(buckets),
+    }
+
+
+def _open_item_from_conflict(conflict: dict[str, Any]) -> dict[str, Any] | None:
+    topic = str(conflict.get("topic") or "source evidence").strip()
+    alternatives = []
+    for item in conflict.get("alternatives") or []:
+        if not isinstance(item, dict):
+            continue
+        value = str(item.get("value") or "").strip()
+        refs = [
+            ref
+            for ref in item.get("source_refs") or []
+            if isinstance(ref, dict)
+            and str(ref.get("conversation_id") or "").strip()
+            and str(ref.get("excerpt_pointer") or "").strip()
+        ]
+        if value and refs:
+            alternatives.append({"value": value, "source_refs": refs})
+    if len(alternatives) < 2:
+        return None
+    return {
+        "description": f"Conflicting source statements on '{topic}' require human resolution.",
+        "item_type": "conflict",
+        "owner": "Process Manager",
+        "consequence_if_different": "The selected value changes the Framework and downstream presentation.",
+        "conflict": {
+            "topic": topic,
+            "alternatives": alternatives,
+            "resolution": None,
+        },
     }
 
 
@@ -373,7 +410,134 @@ def build_engine_inputs(
         "qualitative": _qualitative_benefits(entries),
         "unresolved_fields": sorted(unresolved),
     }
+    inputs.update(derive_quality_inputs(entries, systems, rules, merged))
     return inputs, open_items
+
+
+_NEGATIVE_EVIDENCE_RE = re.compile(
+    r"\b(no|not|without|unavailable|denied|cannot|can't|missing)\b",
+    re.I,
+)
+_PENDING_EVIDENCE_RE = re.compile(
+    r"\b(unknown|not stated|not confirmed|not yet|pending|awaiting|needs approval|tbd)\b",
+    re.I,
+)
+
+
+def derive_quality_inputs(
+    entries: list[dict[str, Any]],
+    systems: list[dict[str, Any]],
+    rules: list[dict[str, Any]],
+    financial: dict[str, Any],
+) -> dict[str, Any]:
+    cited = [
+        entry
+        for entry in entries
+        if entry.get("source_refs")
+        and str(entry.get("origin") or "") in {"SOURCE_FACT", "USER_INPUT"}
+    ]
+    affirmative = [entry for entry in cited if _evidence_state(entry) == "affirmative"]
+    confidence_value = {"high": 100.0, "medium": 50.0, "low": 0.0}
+    result_quality = (
+        sum(confidence_value.get(str(entry.get("confidence") or "low"), 0.0) for entry in cited) / len(cited)
+        if cited
+        else 0.0
+    )
+    refs = {
+        (str(ref.get("conversation_id") or ""), str(ref.get("excerpt_pointer") or ""))
+        for entry in cited
+        for ref in entry.get("source_refs") or []
+        if isinstance(ref, dict)
+    }
+    buckets = {str(entry.get("bucket") or "") for entry in affirmative}
+    metric_kinds = {
+        str((entry.get("metric") or {}).get("kind") or "")
+        for entry in affirmative
+        if isinstance(entry.get("metric"), dict)
+    }
+    slots = (
+        bool(buckets & {"facts", "process_steps"}),
+        "stated_requirements" in buckets,
+        "monthly_volume" in metric_kinds,
+        bool(metric_kinds & {"automatable_hours_mo", "team_hours_mo"}),
+        "named_systems" in buckets,
+        "named_rules" in buckets,
+        "named_exceptions" in buckets,
+        "people_and_roles" in buckets,
+        "constraints" in buckets,
+        "risks" in buckets,
+    )
+    statements = [str(entry.get("statement") or "").lower() for entry in affirmative]
+    has_sample = any("sample" in text and re.search(r"\b(available|provided|attached|received)\b", text) for text in statements)
+    has_aim_metric = bool(metric_kinds & {"target_remaining_hours_mo", "exception_rate_pct"}) or any(
+        re.search(r"\b(kpi|target|success metric|acceptance criterion)\b", text) for text in statements
+    )
+    acceptance_complete = has_aim_metric and any(
+        re.search(r"\b(measure|measured|monitor|acceptance|verify)\b", text) for text in statements
+    )
+    intake_read = any(
+        system.get("status") == "available"
+        and system.get("direction") in {"read", "read_write"}
+        and re.search(r"mail|inbox|intake|portal|queue", str(system.get("name") or ""), re.I)
+        for system in systems
+    )
+    system_read = any(
+        system.get("status") == "available" and system.get("direction") in {"read", "read_write"}
+        for system in systems
+    )
+    system_write = any(
+        system.get("status") == "available" and system.get("direction") in {"write", "read_write"}
+        for system in systems
+    )
+    compliance = any(
+        entry.get("bucket") == "constraints"
+        and re.search(r"\b(data|privacy|security|retention|residency|compliance|gdpr)\b", str(entry.get("statement") or ""), re.I)
+        for entry in affirmative
+    )
+    unresolved = [entry for entry in entries if _evidence_state(entry) in {"negative", "pending"}]
+    unresolved.extend(entry for entry in entries if str(entry.get("origin") or "") == "OPEN_QUESTION")
+    requirement_count = sum(1 for entry in affirmative if entry.get("bucket") == "stated_requirements")
+    strategic_fit = 3 if any(re.search(r"\b(priority|committed|recommended|approved scope)\b", text) for text in statements) else (2 if requirement_count else 1)
+    functional = bool(rules) and not any(entry.get("bucket") == "named_rules" for entry in unresolved)
+    feasibility = 3 if functional and has_sample and intake_read and system_read and system_write else (2 if functional and system_read else 1)
+    controls = any(
+        entry.get("bucket") in {"constraints", "risks"}
+        and re.search(r"\b(control|mitigat|monitor|approved|protected)\b", str(entry.get("statement") or ""), re.I)
+        for entry in affirmative
+    )
+    unresolved_risk = any(entry.get("bucket") == "risks" for entry in unresolved)
+    risk_inverted = 3 if controls and not unresolved_risk and "risks" in buckets else (2 if controls and not unresolved_risk else 1)
+    return {
+        "strategic_fit_level": strategic_fit,
+        "feasibility_level": feasibility,
+        "risk_inverted_level": risk_inverted,
+        "result_quality": round(result_quality, 2),
+        "information_richness": sum(slots) * 10,
+        "engagement": min(100, len(refs) * 20),
+        "has_aim_metric": has_aim_metric,
+        "functional_spec_complete": functional,
+        "has_sample": has_sample,
+        "intake_read_available": bool(intake_read),
+        "system_read_available": bool(system_read),
+        "write_available": bool(system_write),
+        "data_compliance_complete": compliance,
+        "estimate_complete": functional and bool(systems),
+        "business_case_complete": financial.get("monthly_volume") is not None
+        and financial.get("automatable_hours_mo") is not None,
+        "acceptance_complete": acceptance_complete,
+        "blocker_open_questions": len({str(entry.get("entry_id") or entry.get("statement") or "") for entry in unresolved}),
+    }
+
+
+def _evidence_state(entry: dict[str, Any]) -> str:
+    text = str(entry.get("statement") or "")
+    if _PENDING_EVIDENCE_RE.search(text):
+        return "pending"
+    if _NEGATIVE_EVIDENCE_RE.search(text):
+        return "negative"
+    if str(entry.get("origin") or "") == "OPEN_QUESTION":
+        return "pending"
+    return "affirmative"
 
 
 def _engine_inputs(
@@ -899,19 +1063,25 @@ def _join_unique(left: str, right: str) -> str:
 def _system_from_entry(entry: dict[str, Any]) -> dict[str, Any]:
     text = entry["statement"]
     lower = text.lower()
-    if "mailbox" in lower or "outlook" in lower or "graph" in lower:
+    if "read_write" in lower or "read/write" in lower or ("read" in lower and ("write" in lower or "posting" in lower)):
+        direction = "read_write"
+        role = "Read and write integration"
+    elif "mailbox" in lower or "outlook" in lower or "graph" in lower or "read access" in lower:
         direction = "read"
         role = "Source of invoices or intake documents"
     elif "write" in lower or "posting" in lower:
         direction = "write"
         role = "Posting / write-back"
     elif "erp" in lower:
-        direction = "read"
+        direction = "internal"
         role = "System of record"
     else:
         direction = "internal"
         role = text
-    status = "open_dependency" if any(word in lower for word in ("open", "pending", "approval", "not yet")) else "available"
+    blocked = bool(_NEGATIVE_EVIDENCE_RE.search(lower) or _PENDING_EVIDENCE_RE.search(lower))
+    if "approval granted" in lower or "approval was granted" in lower:
+        blocked = False
+    status = "open_dependency" if blocked else "available"
     classification = "Confidential" if "confidential" in lower else "as reported"
     return {
         "name": _short_name(text),

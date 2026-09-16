@@ -14,6 +14,33 @@ FIXTURE_PATH = CONTRACTS_DIR / "fixtures" / "framework_object.minimal.json"
 
 REQUIRED_CHAPTER_IDS = [str(i) for i in range(14)]
 
+
+def _conflict_item(resolution=None) -> dict:
+    return {
+        "description": "Conflicting monthly volume",
+        "item_type": "conflict",
+        "owner": "Process Manager",
+        "consequence_if_different": "Capacity changes.",
+        "conflict": {
+            "topic": "monthly volume",
+            "alternatives": [
+                {
+                    "value": "Volume is 100 per month.",
+                    "source_refs": [
+                        {"conversation_id": "C1", "speaker_role": "operator", "excerpt_pointer": "turn:1"}
+                    ],
+                },
+                {
+                    "value": "Volume is 200 per month.",
+                    "source_refs": [
+                        {"conversation_id": "C2", "speaker_role": "manager", "excerpt_pointer": "turn:2"}
+                    ],
+                },
+            ],
+            "resolution": resolution,
+        },
+    }
+
 # Technical plan section 7 - FrameworkObject top-level fields
 SECTION7_TOP_LEVEL_FIELDS = {
     "schema_version",
@@ -51,6 +78,27 @@ SECTION7_NESTED_TYPES = {
     "QualityScores",
     "Chapter",
 }
+
+
+def test_schema_accepts_structured_unresolved_and_resolved_conflicts() -> None:
+    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    fixture = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
+    fixture["open_items"] = [_conflict_item()]
+    jsonschema.validate(fixture, schema)
+
+    fixture["open_items"] = [_conflict_item({"selected_value": "Volume is 200 per month."})]
+    jsonschema.validate(fixture, schema)
+
+
+def test_schema_rejects_conflict_without_structured_detail() -> None:
+    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    fixture = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
+    item = _conflict_item()
+    item.pop("conflict")
+    fixture["open_items"] = [item]
+
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(fixture, schema)
 
 
 @pytest.fixture(scope="module")

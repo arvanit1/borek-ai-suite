@@ -84,6 +84,7 @@ def test_es28_mismatched_source_ref_is_converted_to_open_item() -> None:
         use_llm=False,
         engine_overrides=overrides,
     )
+    framework["generation_meta"]["traceability_version"] = "atomic-v1"
     entries = framework.get("source_entries") or []
     wrong_ref = entries[0]["source_refs"][0]
     framework["chapters"][4]["body"].append(
@@ -94,11 +95,11 @@ def test_es28_mismatched_source_ref_is_converted_to_open_item() -> None:
         }
     )
     convert_unsupported_block_claims(framework, framework.get("source_entries") or [])
-    assert any(
+    assert "autonomously approves all invoices" in str(framework["chapters"][4]["body"])
+    assert not any(
         "autonomously approves all invoices" in str(item.get("description", ""))
         for item in framework.get("open_items") or []
     )
-    assert "autonomously approves all invoices" not in str(framework["chapters"][4]["body"])
     enforce_cross_chapter_rules(framework, framework.get("source_entries") or [])
 
 
@@ -111,15 +112,16 @@ def test_es28_claim_without_any_source_ref_is_converted_to_open_item() -> None:
         use_llm=False,
         engine_overrides=overrides,
     )
+    framework["generation_meta"]["traceability_version"] = "atomic-v1"
     framework["chapters"][4]["body"].append(
         {"block": "prose", "text": "The workflow autonomously selects every supplier."}
     )
     convert_unsupported_block_claims(framework, framework.get("source_entries") or [])
-    assert any(
+    assert "autonomously selects every supplier" in str(framework["chapters"][4]["body"])
+    assert not any(
         "no cited conversation excerpt" in str(item.get("description", ""))
         for item in framework.get("open_items") or []
     )
-    assert "autonomously selects every supplier" not in str(framework["chapters"][4]["body"])
     enforce_cross_chapter_rules(framework, framework.get("source_entries") or [])
 
 
@@ -133,6 +135,7 @@ def test_es28_unnumbered_rule_table_without_source_ref_becomes_open_item() -> No
         use_llm=False,
         engine_overrides=overrides,
     )
+    framework["generation_meta"]["traceability_version"] = "atomic-v1"
     framework["chapters"][4]["body"].append(
         {
             "block": "table",
@@ -144,11 +147,11 @@ def test_es28_unnumbered_rule_table_without_source_ref_becomes_open_item() -> No
 
     convert_unsupported_block_claims(framework, framework.get("source_entries") or [])
 
-    assert any(
+    assert "Release every new supplier automatically" in str(framework["chapters"][4]["body"])
+    assert not any(
         "Release every new supplier automatically" in str(item.get("description", ""))
         for item in framework.get("open_items") or []
     )
-    assert "Release every new supplier automatically" not in str(framework["chapters"][4]["body"])
 
 
 def test_es29_two_processes_same_opportunity_are_flagged() -> None:

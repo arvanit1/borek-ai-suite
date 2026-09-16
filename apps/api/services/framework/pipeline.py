@@ -313,7 +313,7 @@ def run_engines(skeleton: dict[str, Any], *, overrides: dict[str, Any]) -> dict[
     timeline = float(inputs.get("timeline_weeks") or 3)
     archetype = str(inputs.get("archetype") or "doc_extraction")
     data_readiness = str(inputs.get("data_readiness") or ("ready" if inputs.get("write_available") else "partial"))
-    reuse = list(inputs.get("reuse") or ["library_component"])
+    reuse = list(inputs.get("reuse") or [])
 
     estimate = estimate_effort(
         archetype=archetype,
@@ -333,31 +333,38 @@ def run_engines(skeleton: dict[str, Any], *, overrides: dict[str, Any]) -> dict[
     opportunity = score_opportunity(
         hours_mo=impact_hours,
         timeline_weeks=timeline,
-        strategic_fit_level=int(inputs.get("strategic_fit_level") or 3),
-        feasibility_level=int(inputs.get("feasibility_level") or 2),
-        risk_inverted_level=int(inputs.get("risk_inverted_level") or 2),
+        strategic_fit_level=int(inputs["strategic_fit_level"]) if inputs.get("strategic_fit_level") is not None else 1,
+        feasibility_level=int(inputs["feasibility_level"]) if inputs.get("feasibility_level") is not None else 1,
+        risk_inverted_level=int(inputs["risk_inverted_level"]) if inputs.get("risk_inverted_level") is not None else 1,
     )
     conversation = score_conversation_quality(
-        result_quality=float(inputs.get("result_quality") or 90),
-        information_richness=float(inputs.get("information_richness") or 85),
-        engagement=float(inputs.get("engagement") or 65),
+        result_quality=float(inputs["result_quality"]) if inputs.get("result_quality") is not None else 0.0,
+        information_richness=float(inputs["information_richness"]) if inputs.get("information_richness") is not None else 0.0,
+        engagement=float(inputs["engagement"]) if inputs.get("engagement") is not None else 0.0,
     )
     systems = skeleton.get("systems") or []
     intake_read = any("mailbox" in str(item.get("name", "")).lower() or item.get("direction") == "read" for item in systems)
     system_read = any(item.get("direction") in {"read", "read_write"} for item in systems)
     system_write = bool(inputs.get("write_available"))
     readiness = score_build_readiness(
-        has_aim_metric=bool(skeleton.get("kpis")),
-        functional_spec_complete=bool(skeleton.get("rules")),
+        has_aim_metric=bool(inputs.get("has_aim_metric", False)),
+        functional_spec_complete=bool(inputs.get("functional_spec_complete", False)),
         has_sample=bool(inputs.get("has_sample")),
-        intake_read_available=bool(intake_read or systems),
-        system_read_available=bool(system_read or systems),
+        intake_read_available=bool(inputs.get("intake_read_available", False)),
+        system_read_available=bool(inputs.get("system_read_available", False)),
         system_write_available=system_write,
-        data_compliance_complete=bool(skeleton.get("constraints")),
-        estimate_complete=True,
-        business_case_complete=automatable > 0 and volume > 0,
-        acceptance_complete=bool(skeleton.get("kpis")),
-        blocker_open_questions=sum(1 for item in skeleton.get("open_items") or [] if item.get("item_type") == "dependency"),
+        data_compliance_complete=bool(inputs.get("data_compliance_complete", False)),
+        estimate_complete=bool(inputs.get("estimate_complete", False)),
+        business_case_complete=bool(inputs.get("business_case_complete", False)),
+        acceptance_complete=bool(inputs.get("acceptance_complete", False)),
+        blocker_open_questions=max(
+            int(inputs.get("blocker_open_questions") or 0),
+            sum(
+                1
+                for item in skeleton.get("open_items") or []
+                if item.get("item_type") in {"dependency", "conflict"}
+            ),
+        ),
     )
     business = compute_business_case(
         automatable_hours_mo=automatable,

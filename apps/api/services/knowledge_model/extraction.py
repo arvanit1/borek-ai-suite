@@ -18,6 +18,7 @@ from llm.claude.client import (
     sonnet_model,
 )
 from services.knowledge_model.contradictions import detect_contradictions
+from services.knowledge_model.entry_ids import ensure_knowledge_entry_ids
 from services.knowledge_model.origin_classification import (
     CONFIDENCE_VALUES,
     ORIGIN_VALUES,
@@ -148,7 +149,17 @@ def extract_knowledge_model(
         validate_origins(model)
     except OriginClassificationError as exc:
         raise KnowledgeExtractionError(exc.user_message) from exc
+    ensure_knowledge_entry_ids(model)
     model["conflicts"] = detect_contradictions(model)
+    try:
+        jsonschema.validate(instance=model, schema=schema)
+    except jsonschema.ValidationError as exc:
+        path = ".".join(str(part) for part in exc.absolute_path) or "(root)"
+        raise KnowledgeExtractionError(
+            f"KnowledgeModel failed final schema validation at {path}: {exc.message}",
+            code="FRAMEWORK_VALIDATION_FAILED",
+            retryable=False,
+        ) from exc
     return model
 
 

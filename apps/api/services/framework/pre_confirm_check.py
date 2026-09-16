@@ -72,6 +72,25 @@ class PreConfirmError(ValueError):
 
 def pre_confirm_check(framework: dict[str, Any]) -> None:
     """Raise if the customer report must not be signed yet."""
+    unresolved: list[str] = []
+    for item in framework.get("open_items") or []:
+        if not isinstance(item, dict) or item.get("item_type") != "conflict":
+            continue
+        detail = item.get("conflict") if isinstance(item.get("conflict"), dict) else {}
+        topic = str(detail.get("topic") or item.get("description") or "source conflict").strip()
+        alternatives = [
+            str(alternative.get("value") or "").strip()
+            for alternative in detail.get("alternatives") or []
+            if isinstance(alternative, dict)
+        ]
+        resolution = detail.get("resolution") if isinstance(detail.get("resolution"), dict) else None
+        selected = str((resolution or {}).get("selected_value") or "").strip()
+        if not selected or alternatives.count(selected) != 1:
+            unresolved.append(topic)
+    if unresolved:
+        topics = "; ".join(sorted(set(unresolved)))
+        raise PreConfirmError(f"Source conflicts must be resolved before confirmation: {topics}.")
+
     chapter = chapter_by_id(framework, "6")
     splits = blocks_of(chapter, "ai_split")
     if not splits:
@@ -656,6 +675,8 @@ def _neutralize_body(body: Any, not_used: list[str], *, chapter_id: str | None =
 
 
 def _is_today_vs_agent_table(block: dict[str, Any]) -> bool:
+    if str(block.get("kind") or "") == "today_vs_agent":
+        return True
     text = " ".join(
         [str(block.get("caption") or ""), *(str(item) for item in (block.get("columns") or []))]
     ).lower()

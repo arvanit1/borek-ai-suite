@@ -4,6 +4,8 @@ import { FrameworkNestedValue } from "@/components/FrameworkNestedValue";
 import { isEditableContentKey } from "@/lib/frameworkEvidence";
 import { customerFieldLabel } from "@/lib/frameworkLabels";
 import {
+  replaceNonConflictOpenItems,
+  resolveOpenItemConflict,
   updateFrameworkArrayField,
   updateQualityRationale,
   updateQualityScore,
@@ -159,14 +161,112 @@ export function FrameworkRootFieldsPanel({
           onChange(updateFrameworkArrayField(framework, "evolution_stages", records))
         }
       />
-      <RecordSection
-        title="Assumptions and open items"
+      <ConflictResolutionSection
         records={framework.open_items}
         editable={editable}
         onChange={(records) =>
           onChange(updateFrameworkArrayField(framework, "open_items", records))
         }
       />
+      <RecordSection
+        title="Assumptions and open items"
+        records={framework.open_items.filter((item) => item.item_type !== "conflict")}
+        editable={editable}
+        onChange={(records) =>
+          onChange(
+            updateFrameworkArrayField(
+              framework,
+              "open_items",
+              replaceNonConflictOpenItems(framework.open_items, records),
+            ),
+          )
+        }
+      />
     </div>
+  );
+}
+
+interface ConflictAlternative {
+  value?: unknown;
+  source_refs?: unknown;
+}
+
+interface ConflictDetail {
+  topic?: unknown;
+  alternatives?: unknown;
+  resolution?: unknown;
+}
+
+function conflictDetail(record: Record<string, unknown>): ConflictDetail | null {
+  if (record.item_type !== "conflict" || typeof record.conflict !== "object" || record.conflict === null) {
+    return null;
+  }
+  return record.conflict as ConflictDetail;
+}
+
+interface RecordListProps {
+  records: Record<string, unknown>[];
+  editable: boolean;
+  onChange: (records: Record<string, unknown>[]) => void;
+}
+
+function ConflictResolutionSection({
+  records,
+  editable,
+  onChange,
+}: RecordListProps) {
+  const conflicts = records
+    .map((record, index) => ({ record, index, detail: conflictDetail(record) }))
+    .filter((item): item is { record: Record<string, unknown>; index: number; detail: ConflictDetail } => {
+      return item.detail !== null;
+    });
+  if (conflicts.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="framework-record-section" data-testid="framework-conflict-resolution">
+      <h3>Source conflicts</h3>
+      <p className="upload-hint">
+        Choose the statement that should stand. Confirmation stays blocked until every conflict has a selected value.
+      </p>
+      {conflicts.map(({ record, index, detail }) => {
+        const alternatives = Array.isArray(detail.alternatives)
+          ? (detail.alternatives as ConflictAlternative[])
+          : [];
+        const resolution =
+          typeof detail.resolution === "object" && detail.resolution !== null
+            ? (detail.resolution as { selected_value?: unknown })
+            : {};
+        const selected = String(resolution.selected_value ?? "");
+        const topic = String(detail.topic || record.description || "source conflict");
+        return (
+          <article key={`conflict-${index}`} className="framework-conflict-card">
+            <h4>{topic}</h4>
+            <p>{String(record.description || "")}</p>
+            <fieldset disabled={!editable} className="framework-conflict-choices">
+              <legend>Selected value</legend>
+              {alternatives.map((alternative, alternativeIndex) => {
+                const value = String(alternative.value ?? "");
+                const choiceId = `conflict-${index}-option-${alternativeIndex}`;
+                return (
+                  <label key={choiceId} htmlFor={choiceId} className="framework-conflict-choice">
+                    <input
+                      id={choiceId}
+                      type="radio"
+                      name={`conflict-${index}`}
+                      value={value}
+                      checked={selected === value}
+                      onChange={() => onChange(resolveOpenItemConflict(records, index, value))}
+                    />
+                    <span>{value}</span>
+                  </label>
+                );
+              })}
+            </fieldset>
+          </article>
+        );
+      })}
+    </section>
   );
 }

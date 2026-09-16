@@ -30,8 +30,24 @@ def validate(framework: dict[str, Any], chapter: dict[str, Any]) -> list[Chapter
         issues.append(
             ChapterIssue("4", "to_be_stage", "Chapter 4 must show the to-be process at the chosen evolution stage.")
         )
-    tables = blocks_of(chapter, "table")
-    table_blob = str(tables).lower()
-    if not tables or "today" not in table_blob or "agent" not in table_blob:
+    if not _today_vs_agent_table(chapter):
         issues.append(ChapterIssue("4", "today_vs_agent", "Chapter 4 must compare today vs with the agent."))
     return issues
+
+
+def _today_vs_agent_table(chapter: dict[str, Any]) -> dict[str, Any] | None:
+    for table in blocks_of(chapter, "table"):
+        if str(table.get("kind") or "") == "today_vs_agent":
+            rows = [row for row in (table.get("rows") or []) if isinstance(row, list) and row]
+            if len(table.get("columns") or []) >= 2 and rows:
+                return table
+            continue
+        columns = [str(column).lower() for column in (table.get("columns") or [])]
+        if (
+            len(columns) >= 2
+            and any("today" in column or "current" in column for column in columns)
+            and any("agent" in column or "to-be" in column or "to be" in column for column in columns)
+            and any(isinstance(row, list) and row for row in (table.get("rows") or []))
+        ):
+            return table
+    return None

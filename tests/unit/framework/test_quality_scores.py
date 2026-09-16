@@ -135,6 +135,7 @@ def test_business_case_golden_figures() -> None:
     assert result["net_eur_mo"] == 2400
     assert result["payback_months"] == 6.3
     assert result["roi_36m_pct"] == 476
+    assert result["grounded"] is True
     assert set(result["sensitivity"]) == {"low", "expected", "high"}
     assert result["sensitivity"]["low"]["automation_rate"] == 0.70
     assert result["sensitivity"]["high"]["automation_rate"] == 0.92

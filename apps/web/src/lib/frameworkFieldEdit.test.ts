@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 
 import {
+  replaceNonConflictOpenItems,
+  resolveOpenItemConflict,
   updateFrameworkArrayField,
   updateQualityRationale,
   updateQualityScore,
@@ -63,5 +65,46 @@ assert.equal(rulesUpdated[0].logic, "Updated rule logic");
 
 const withRules = updateFrameworkArrayField(base, "rules", rulesUpdated);
 assert.equal((withRules.rules[0] as { logic: string }).logic, "Updated rule logic");
+
+const conflictItems: Record<string, unknown>[] = [
+  {
+    description: "Conflicting monthly volume",
+    item_type: "conflict",
+    owner: "Process Manager",
+    consequence_if_different: "Capacity changes.",
+    conflict: {
+      topic: "monthly volume",
+      alternatives: [
+        { value: "100", source_refs: [{ conversation_id: "C1", speaker_role: "operator", excerpt_pointer: "turn:1" }] },
+        { value: "200", source_refs: [{ conversation_id: "C2", speaker_role: "manager", excerpt_pointer: "turn:2" }] },
+      ],
+      resolution: null,
+    },
+  },
+  {
+    description: "Confirm mailbox access",
+    item_type: "dependency",
+    owner: "IT",
+    consequence_if_different: "Build waits.",
+  },
+];
+
+const resolved = resolveOpenItemConflict(conflictItems, 0, "200");
+assert.equal(
+  ((resolved[0].conflict as { resolution: { selected_value: string } }).resolution.selected_value),
+  "200",
+);
+assert.equal(resolved[1].item_type, "dependency");
+
+const merged = replaceNonConflictOpenItems(conflictItems, [
+  {
+    description: "Updated mailbox access",
+    item_type: "dependency",
+    owner: "IT",
+    consequence_if_different: "Build waits.",
+  },
+]);
+assert.equal(merged[0].item_type, "conflict");
+assert.equal(merged[1].description, "Updated mailbox access");
 
 console.log("frameworkFieldEdit tests passed");

@@ -54,7 +54,7 @@ def _draft_from_framework(framework: dict) -> dict:
                 "source_refs": refs,
             }
         )
-    return {
+    draft = {
         "title": framework["title"],
         "department": framework["department"],
         "cover": {
@@ -70,6 +70,37 @@ def _draft_from_framework(framework: dict) -> dict:
         "open_items": copy.deepcopy(framework.get("open_items") or []),
         "chapters": chapters,
     }
+    return draft
+
+
+def _stamp_live_source_claim(draft: dict, framework: dict) -> None:
+    entries = framework.get("source_entries") or []
+    entry = next(
+        (item for item in entries if item.get("entry_id") and item.get("source_refs") and item.get("statement")),
+        None,
+    )
+    if entry is None:
+        return
+    statement = str(entry["statement"]).strip()
+    for chapter in draft.get("chapters") or []:
+        body = chapter.get("body")
+        if str(chapter.get("chapter_id")) != "2" or not isinstance(body, list):
+            continue
+        body.append(
+            {
+                "block": "prose",
+                "text": statement,
+                "source_claims": [
+                    {
+                        "path": "/text",
+                        "claim": statement,
+                        "knowledge_entry_ids": [entry["entry_id"]],
+                        "source_refs": [],
+                    }
+                ],
+            }
+        )
+        return
 
 
 def _chapter(chapters: list[dict], chapter_id: str) -> dict:
@@ -202,6 +233,7 @@ def test_pipeline_live_style_mutations_do_not_fail_chapter_validation() -> None:
     base = _base_framework()
     draft = _draft_from_framework(base)
     _break_live_style_chapters(draft)
+    _stamp_live_source_claim(draft, base)
     calls: list[int] = []
 
     def complete(system: str, user: str, schema: dict) -> dict:

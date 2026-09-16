@@ -417,7 +417,8 @@ def _blocking_items(
             }
         )
     for item in framework.get("open_items") or []:
-        if item.get("item_type") == "conflict":
+        detail = item.get("conflict") if isinstance(item.get("conflict"), dict) else {}
+        if item.get("item_type") == "conflict" and not detail.get("resolution"):
             items.append(
                 {
                     "kind": "contradiction",

@@ -46,22 +46,59 @@ def scrub_framework_chapter_6(framework: dict[str, Any]) -> dict[str, Any]:
 
 
 def _building_blocks_tables(chapter: dict[str, Any]) -> list[dict[str, Any]]:
-    return [
-        table
-        for table in blocks_of(chapter, "table")
-        if "building block" in str(table).lower() or "building-block" in str(table).lower()
-    ]
+    tables: list[dict[str, Any]] = []
+    for table in blocks_of(chapter, "table"):
+        if str(table.get("kind") or "") == "building_blocks":
+            tables.append(table)
+            continue
+        if "building block" in str(table).lower() or "building-block" in str(table).lower():
+            tables.append(table)
+    return tables
 
 
 def has_building_protection(chapter: dict[str, Any]) -> bool:
-    """True when at least one building-block row cell uses protection wording."""
-    for table in _building_blocks_tables(chapter):
-        for row in table.get("rows") or []:
-            if not isinstance(row, list):
-                continue
-            if any("protect" in str(cell).lower() for cell in row):
-                return True
-    return False
+    """True when each building-block row has a non-empty protection cell."""
+    tables = _building_blocks_tables(chapter)
+    if not tables:
+        return False
+    for table in tables:
+        columns = [str(column).lower() for column in (table.get("columns") or [])]
+        if not columns:
+            return False
+        named_protection = next(
+            (index for index, column in enumerate(columns) if "protect" in column),
+            None,
+        )
+        if named_protection is not None:
+            protection_idx = named_protection
+        elif len(columns) >= 3:
+            protection_idx = len(columns) - 1
+        else:
+            return False
+        rows = [row for row in (table.get("rows") or []) if isinstance(row, list) and row]
+        if not rows:
+            return False
+        for row in rows:
+            if protection_idx >= len(row) or not _protection_cell_filled(row[protection_idx]):
+                return False
+    return True
+
+
+def _protection_cell_filled(value: Any) -> bool:
+    text = str(value or "").strip()
+    if not text:
+        return False
+    return text.casefold() not in {
+        "—",
+        "-",
+        "n/a",
+        "na",
+        "tbd",
+        "todo",
+        "human review",
+        "open",
+        "open item",
+    }
 
 
 def validate(framework: dict[str, Any], chapter: dict[str, Any]) -> list[ChapterIssue]:
@@ -71,7 +108,8 @@ def validate(framework: dict[str, Any], chapter: dict[str, Any]) -> list[Chapter
     if not (framework.get("systems") or "system" in table_blob):
         issues.append(ChapterIssue("6", "systems", "Chapter 6 must include the systems landscape."))
     if "building block" not in table_blob and "building-block" not in table_blob:
-        issues.append(ChapterIssue("6", "building_blocks", "Chapter 6 must include the building-blocks table."))
+        if not any(str(table.get("kind") or "") == "building_blocks" for table in tables):
+            issues.append(ChapterIssue("6", "building_blocks", "Chapter 6 must include the building-blocks table."))
     if not has_building_protection(chapter):
         issues.append(
             ChapterIssue("6", "building_protection", "Chapter 6 building blocks must include how each block is protected.")

@@ -6,31 +6,26 @@ from typing import Any
 
 from services.framework.chapter_validators.base import ChapterIssue, blocks_of, chapter_blob
 
-DECISION_QUESTION_MARKERS = (
-    "what is it",
-    "why do it",
-    "how does it work",
-    "how is it built",
-    "what do we need",
-    "is it safe",
-    "does it pay",
-    "can we trust",
-)
-
 
 def decision_question_items(chapter: dict[str, Any]) -> list[str]:
     items: list[str] = []
     for block in blocks_of(chapter, "bullets"):
+        if str(block.get("kind") or "") not in {"", "decision_questions"}:
+            continue
         items.extend(str(item) for item in (block.get("items") or []))
     return items
 
 
 def has_eight_decision_questions(chapter: dict[str, Any]) -> bool:
+    typed = [
+        block
+        for block in blocks_of(chapter, "bullets")
+        if str(block.get("kind") or "") == "decision_questions"
+    ]
+    if typed:
+        return len(typed[0].get("items") or []) == 8
     items = decision_question_items(chapter)
-    if len(items) < 8:
-        return False
-    joined = " ".join(items).lower()
-    return all(marker in joined for marker in DECISION_QUESTION_MARKERS)
+    return len(items) == 8
 
 
 def validate(framework: dict[str, Any], chapter: dict[str, Any]) -> list[ChapterIssue]:
