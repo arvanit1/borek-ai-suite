@@ -25,6 +25,11 @@ from services.slides.group_a_compression import (
 from services.framework.customer_view import presentation_chapter_excerpt
 from services.validation.compression_retry import CompressionResult
 from services.validation.compression_retry import get_value_at_path
+from services.presentation.ci_contract import ci_voice_instruction_block
+from services.validation.presentation_voice import (
+    PresentationVoiceError,
+    enforce_slide_spec_voice,
+)
 from services.validation.source_chapter_enforcement import (
     SourceChapterEnforcementError,
     validate_field_provenance,
@@ -363,6 +368,11 @@ def _validate_slide_spec(
         provenance_by_path,
     )
 
+    try:
+        enforce_slide_spec_voice(slide_spec)
+    except PresentationVoiceError as exc:
+        raise SlideSpecValidationError(str(exc)) from exc
+
 
 def _find_commercial_paths(value: Any, path: str = "$") -> list[str]:
     hits: list[str] = []
@@ -419,7 +429,8 @@ def _generation_instructions(config: GroupAGenerationConfig) -> str:
 
     allowed = ", ".join(config.allowed_chapter_ids)
     return (
-        f"{config.instructions}{layout_limit_instruction(config.layout_id)} "
+        f"{config.instructions} {ci_voice_instruction_block()}"
+        f"{layout_limit_instruction(config.layout_id)} "
         "Include fieldProvenance in the generated SlideSpec. "
         "Use the same dotted/array path syntax as AT-8 (for example, "
         "problem.description or items[0].title). Include exactly one provenance "

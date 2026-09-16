@@ -25,7 +25,12 @@ from services.slides.group_c_compression import (
     validate_and_compress_group_c_slide_spec,
 )
 from services.framework.customer_view import presentation_chapter_excerpt
+from services.presentation.ci_contract import ci_voice_instruction_block
 from services.validation.compression_retry import CompressionResult
+from services.validation.presentation_voice import (
+    PresentationVoiceError,
+    enforce_slide_spec_voice,
+)
 from services.validation.compression_retry import get_value_at_path, set_value_at_path
 from services.validation.source_chapter_enforcement import (
     SourceChapterEnforcementError,
@@ -363,6 +368,11 @@ def _validate_slide_spec(
     except (ArchitectureMinComponentsError, ProhibitedCurrencyContentError) as exc:
         raise GroupCBusinessValidationError(str(exc)) from exc
 
+    try:
+        enforce_slide_spec_voice(slide_spec)
+    except PresentationVoiceError as exc:
+        raise SlideSpecValidationError(str(exc)) from exc
+
 
 def _find_commercial_paths(value: Any, path: str = "$") -> list[str]:
     hits: list[str] = []
@@ -536,7 +546,8 @@ def _generation_instructions(config: GroupCGenerationConfig) -> str:
     allowed = ", ".join(config.allowed_chapter_ids)
     monetary_rule = _EXCLUDED_MONETARY_PROMPT if config.exclude_monetary_fields else ""
     return (
-        f"{config.instructions}{monetary_rule}{layout_limit_instruction(config.layout_id)} "
+        f"{config.instructions}{monetary_rule} {ci_voice_instruction_block()}"
+        f"{layout_limit_instruction(config.layout_id)} "
         "Include fieldProvenance in the generated SlideSpec. "
         "Use the same dotted/array path syntax as AT-8 (for example, "
         "components[0].title or left.items[0]). Include exactly one provenance "

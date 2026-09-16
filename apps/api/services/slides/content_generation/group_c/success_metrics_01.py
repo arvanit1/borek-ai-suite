@@ -21,8 +21,9 @@ CONFIG = GroupCGenerationConfig(
         "and criteria[i].description"
     ),
     instructions=(
-        "Create SUCCESS_METRICS_01 criteria using only chapters 3 and 9. Prefer "
-        "non-monetary success measures from chapter 3. Chapter 9 may supply "
+        "Create SUCCESS_METRICS_01 criteria using only chapters 3 and 9. The title "
+        "must state the KPI takeaway or conclusion, not a generic topic label. "
+        "Prefer non-monetary success measures from chapter 3. Chapter 9 may supply "
         "qualitative aims only after monetary values have been removed. Never "
         "output currency, investment, pricing, ROI, payback, costs, savings, or "
         "other monetary content. Do not invent metrics. AI must not set PowerPoint "
