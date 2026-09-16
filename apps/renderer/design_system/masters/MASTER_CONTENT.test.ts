@@ -41,7 +41,7 @@ const { marginX, marginTop, footerHeight } = BorekSpacing;
 const { rowGap } = BorekGrid;
 const contentWidth = BorekSlide.widthInches - marginX * 2;
 
-const sectionLabelY = marginTop + BorekBranding.logo.height + rowGap;
+const sectionLabelY = marginTop + rowGap;
 const sectionLabelH = footerHeight;
 const slideTitleY = sectionLabelY + sectionLabelH + rowGap;
 const slideTitleH = marginTop * 2;
@@ -118,7 +118,8 @@ assert.match(
 
 assert.match(contentLayoutXml, /type="body"/, "content label, title, and footer body placeholders must be present");
 assert.match(contentLayoutXml, /type="sldNum"/i, "page-number placeholder must be present on content master");
-assert.match(contentLayoutXml, /idx="100"/, "logo placeholder region must be registered on the content master");
+assert.ok(!contentLayoutXml.includes('name="logo"'), "content master must not define a Borek logo placeholder");
+assert.ok(!/type="pic"/.test(contentLayoutXml), "content master must not register image/logo placeholders");
 
 const titleCount = (contentLayoutXml.match(/type="title"/g) ?? []).length;
 assert.equal(titleCount, 0, "content master must not use title-type placeholders");

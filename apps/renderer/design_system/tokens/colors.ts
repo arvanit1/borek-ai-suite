@@ -1,5 +1,5 @@
 /**
- * AT-11: Borek brand color tokens (technical plan v2 §16 — BorekTheme.colors).
+ * Borek brand color tokens (Brand Guide 2.0 / presentation_ci.json).
  *
  * Single source for every brand color used in the renderer. Layout and component
  * implementations must import by token name — never hardcode hex values.
@@ -9,12 +9,17 @@
 
 export const BorekColors = {
   background: "FFFFFF",
-  text: "182230",
-  mutedText: "667085",
-  border: "E4E7EC",
-  primary: "0057B8",
-  /** Dark navy cover slide field — same hex as text for now; calibrate at AT-55 golden deck. */
-  coverBackground: "182230",
+  text: "0D1240",
+  mutedText: "5C6178",
+  border: "E2E4EC",
+  primary: "0D1240",
+  /** Indigo full-bleed cover and closing field. */
+  coverBackground: "0D1240",
+  mist: "F3F4F8",
+  spirit: "124F94",
+  splashOrange: "E07E00",
+  splashRed: "DD3D00",
+  splashTeal: "02A69F",
 } as const;
 
 export type BorekColorToken = keyof typeof BorekColors;

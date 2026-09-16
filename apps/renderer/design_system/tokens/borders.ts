@@ -21,7 +21,8 @@ export type BorekBorderLineWidthPt = (typeof BorekBorderLineWidths)[BorekBorderL
 export const BorekBorders = {
   card: {
     borderColor: BorekColors.border,
-    borderRadiusInches: BorekGrid.rowGap / 2,
+    /** Brand Guide 2.0 — 0px corner radius; no rounded cards. */
+    borderRadiusInches: 0,
     lineWidthPt: BorekBorderLineWidths.card,
   },
   divider: {

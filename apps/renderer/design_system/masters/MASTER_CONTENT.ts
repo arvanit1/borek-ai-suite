@@ -67,7 +67,7 @@ export function computeMasterContentLayout(): MasterContentLayout {
   const { widthInches } = BorekSlide;
   const contentWidth = widthInches - marginX * 2;
 
-  const sectionLabelY = marginTop + BorekBranding.logo.height + rowGap;
+  const sectionLabelY = marginTop + rowGap;
   const sectionLabelH = footerHeight;
   const slideTitleY = sectionLabelY + sectionLabelH + rowGap;
   const slideTitleH = marginTop * 2;
@@ -112,18 +112,6 @@ export function registerMasterContent(pptx: PptxGenJS): void {
       align: branding.slideNumber.align,
     },
     objects: [
-      {
-        placeholder: {
-          options: {
-            name: BorekBranding.logo.placeholderName,
-            type: "pic",
-            x: branding.logo.x,
-            y: branding.logo.y,
-            w: branding.logo.w,
-            h: branding.logo.h,
-          },
-        },
-      },
       {
         placeholder: {
           options: {

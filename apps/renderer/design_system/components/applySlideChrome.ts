@@ -48,6 +48,11 @@ export function logoVariantForSlide(options: SlideChromeOptions): LogoVariant {
   return "light";
 }
 
+/** Brand Guide: Borek logo on cover and closing only — never on content slides. */
+export function shouldShowBorekLogo(options: SlideChromeOptions): boolean {
+  return options.layoutId === "COVER_01" || usesClosingMaster(options);
+}
+
 export function leftoverPlaceholdersForSlide(options: SlideChromeOptions): readonly string[] {
   if (options.layoutId === "COVER_01") {
     return [
@@ -68,7 +73,9 @@ export function leftoverPlaceholdersForSlide(options: SlideChromeOptions): reado
 }
 
 export function applySlideChrome(slide: PptxGenJS.Slide, options: SlideChromeOptions): void {
-  addLogo(slide, logoVariantForSlide(options));
+  if (shouldShowBorekLogo(options)) {
+    addLogo(slide, logoVariantForSlide(options));
+  }
   addFooter(
     slide,
     formatFooterLabel({

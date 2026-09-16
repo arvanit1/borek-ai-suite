@@ -13,10 +13,10 @@ import {
   type BorekFontRole,
 } from "./typography.js";
 
-/** Technical plan v2 §16 — BorekTheme.fonts seed families (expected values for tests only). */
-const TECHNICAL_PLAN_V2_FONT_FAMILIES: Record<BorekFontRole, string> = {
-  heading: "Aptos Display",
-  body: "Aptos",
+/** Brand Guide 2.0 — Inter primary typeface (expected values for tests only). */
+const PRESENTATION_CI_FONT_FAMILIES: Record<BorekFontRole, string> = {
+  heading: "Inter",
+  body: "Inter",
 };
 
 const FONT_FAMILY_PATTERNS = [
@@ -104,13 +104,15 @@ function findTypographyViolations(roots: string[]): Array<{ file: string; match:
   return violations;
 }
 
-for (const role of Object.keys(TECHNICAL_PLAN_V2_FONT_FAMILIES) as BorekFontRole[]) {
+for (const role of Object.keys(PRESENTATION_CI_FONT_FAMILIES) as BorekFontRole[]) {
   assert.equal(
     BorekFontFamilies[role],
-    TECHNICAL_PLAN_V2_FONT_FAMILIES[role],
-    `font family ${role} must match technical plan v2 §16`,
+    PRESENTATION_CI_FONT_FAMILIES[role],
+    `font family ${role} must match presentation CI contract`,
   );
 }
+
+assert.ok(BorekDefaultFontSizes.body >= 18, "body size must meet Brand Guide minimum slide text");
 
 assert.deepEqual(Object.keys(BorekDefaultFontSizes).sort(), Object.keys(BorekFontFamilies).sort());
 for (const size of Object.values(BorekDefaultFontSizes)) {
