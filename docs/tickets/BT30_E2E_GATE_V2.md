@@ -350,8 +350,79 @@ backend authoritative active-job lookup (`getActiveJob` → `inspectActiveJob` �
 `monitorJobUntilTerminal` in `startPipelineParallelLoad`). Does not depend on
 transient React in-memory job state alone.
 
-**Gate status:** Reconnect / reload success-path **PASS**. BT-30 E2E gate
-remains **open** only for German live smoke (external Anthropic credit blocker).
+**Gate status:** Reconnect / reload success-path **PASS**.
+
+### German live acceptance (2026-09-15)
+
+**Prior failure (2026-09-14):** German live smoke failed because ES-32
+`customer_view` was tagged `render_language=de` but persisted English prose;
+planner and SlideSpec generation read canonical English chapters. Boundary probe
+confirmed the root cause and validated the localization fix before this final
+run.
+
+**Localization fix summary (uncommitted on `blenard`):**
+
+- Confirm rebuilds `customer_view` with `make_localize_fn()` for DE.
+- Planner receives `presentationRenderLanguage=de` plus
+  `customerLocalizedChapters` (canonical `frameworkObject` unchanged for schema
+  validation).
+- Group A/B/C slide generation uses localized chapter excerpts.
+- ES-32 nested payloads (`localized_json`, tool-parameter wrappers) unwrapped in
+  `customer_view.py`.
+- OpenAI egress allowlist extended for `/customerLocalizedChapters`.
+- DE guardrails: comma decimals and grouped thousands (`1,7`, `13 500`) parsed
+  correctly before number lint.
+
+**Final live run (fresh opportunity, `first_contact`, `tmp/german_minimal_invoice_match.txt`):**
+
+| Field | Value |
+|-------|-------|
+| Opportunity | `00abe829-23b9-47ef-8e7f-4e6d5be90eb2` |
+| Transcript | `9d85643c-ec4c-4883-863e-cc5ac3ad2fff` |
+| Framework | `11c1ebf5-e4e3-4b1c-ba04-ba457b3f7dd4` |
+| Framework job | `0326e3b7-d0cb-48c6-aa01-0a19e6f9bcf0` |
+| Presentation | `ab66413e-f616-4cf6-85c8-771b35c968df` |
+| Plan | `9ae48579-7e1c-49b9-a8c7-1a11084035cd` |
+| Planning job | `c5541f6c-cc75-4db1-8d2f-b9994266980b` |
+| Generation job | `9fb6cce3-7fd1-4cf5-87d7-bc21c5145b30` |
+| Version | `15791f7b-c56a-452a-894f-7e86bf17f470` |
+| Gamma generation ID | `dDJcQAg3Fe5twuzFP46ey` |
+
+**Framework evidence:** `language_master=en`, confirmed, `customer_view.render_language=de`,
+German samples (Ch0 *Über dieses Dokument*, Ch1 *Management-Zusammenfassung*, Ch5
+*Wie es im Detail funktioniert*, Ch13 *Nächste Schritte & Glossar*). Canonical
+validators unchanged; Ch5 autonomy semantics preserved.
+
+**Planner evidence:** `presentationRenderLanguage=de`, 14
+`customerLocalizedChapters` with German titles; canonical Ch0 remains English
+(*About this document*) for grounding only.
+
+**SlideSpec evidence:** 13 slides, all customer-facing fields German except one
+title fragment on index 6 (`Requirements Overview from Chapter five` — English
+chapter-reference leak in one Group B title; bodies remain German). No matches
+for the prior failed-run English phrase list.
+
+**Generation stages observed:** `SLIDE_GENERATING` → `GAMMA_RENDERING` →
+`PREVIEW_RENDERING` → `COMPLETED`. Final job status `COMPLETED`; deck version
+`ready`.
+
+**Artifacts:** PPTX HTTP 200 (245 314 bytes, 13 slides), PDF HTTP 200 (296 867
+bytes, 13 pages). Previews index 0 / 6 / 12 → HTTP 200. Extracted PPTX/PDF text
+predominantly German (cover + body); Gamma template retains some fixed English
+labels (e.g. tier/HITL markers) alongside German customer prose.
+
+**Card counts (evidence only):** SlideSpecs 13 · Gamma/PPTX slides 13 · PDF pages
+13 · previews 13 — aligned for this `first_contact` run; not reopened as a new
+blocker.
+
+**Security / egress:** Planning completed live after `/customerLocalizedChapters`
+allowlist addition; no egress block on this run. Durable `egress_audit` table not
+present on deployed Supabase (404); planning success + localized-chapter payload
+treated as indirect evidence.
+
+**German live smoke:** **PASS**
+
+**BT-30 STATUS:** **COMPLETE**
 
 ## Proof
 
