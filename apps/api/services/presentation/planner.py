@@ -26,6 +26,7 @@ from services.presentation.chapter_layout_guidance import (
     prepare_chapter_layout_guidance_for_planner,
 )
 from services.presentation.generatable_layouts import planning_target_schema
+from services.framework.customer_view import localized_planning_chapters
 from services.presentation.registry_validation import (
     validate_registry_layout_selection,
 )
@@ -82,6 +83,10 @@ def plan_presentation(
         "chapterLayoutGuidance": prepare_chapter_layout_guidance_for_planner(),
         "targetSchema": planning_target_schema(),
     }
+    localized_chapters = localized_planning_chapters(confirmed_framework)
+    if localized_chapters:
+        planning_input_base["customerLocalizedChapters"] = localized_chapters
+        planning_input_base["presentationRenderLanguage"] = "de"
     client = planner if planner is not None else LlmClient()
     last_validation_error: PresentationPlanValidationError | None = None
     duplicate_layout_ids: list[str] = []

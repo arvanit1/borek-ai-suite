@@ -21,7 +21,88 @@ _SUPERLATIVE = re.compile(
     r"\b(best-in-class|world-class|revolutionary|guaranteed|unique(?:ly)? unmatched)\b",
     re.I,
 )
-_NUMBER_RE = re.compile(r"(?<![A-Za-z0-9.,-])(\d+(?:[.,]\d+)?)(?![A-Za-z0-9.,-])")
+_NUMBER_RE = re.compile(r"(?<![A-Za-z0-9.,-])(\d+(?:[.,]\d+)?)(?![0-9])")
+_SPACED_THOUSANDS_RE = re.compile(r"\d{1,3}(?:\s\d{3})+")
+_ENGLISH_THOUSANDS_COMMA_RE = re.compile(r"^\d{1,3}(,\d{3})+$")
+_EU_DOT_THOUSANDS_RE = re.compile(r"^\d{1,3}(\.\d{3})+$")
+_GERMAN_DECIMAL_COMMA_RE = re.compile(r"^\d+,\d{1,2}$")
+
+
+def _numeric_token(raw: str) -> float:
+    """Normalize locale-specific numeric tokens to a float for grounding checks."""
+    text = raw.strip()
+    if not text:
+        raise ValueError("empty numeric token")
+
+    has_comma = "," in text
+    has_dot = "." in text
+
+    if has_comma and has_dot:
+        # The rightmost separator is the decimal mark.
+        if text.rfind(",") > text.rfind("."):
+            normalized = text.replace(".", "").replace(",", ".")
+        else:
+            normalized = text.replace(",", "")
+        return float(normalized)
+
+    if has_comma:
+        if _ENGLISH_THOUSANDS_COMMA_RE.match(text):
+            return float(text.replace(",", ""))
+        if _GERMAN_DECIMAL_COMMA_RE.match(text):
+            return float(text.replace(",", "."))
+        return float(text.replace(",", ""))
+
+    if has_dot:
+        if _EU_DOT_THOUSANDS_RE.match(text):
+            return float(text.replace(".", ""))
+        return float(text)
+
+    return float(text)
+
+
+def _parse_spaced_thousands(raw: str) -> float:
+    return float(raw.replace(" ", ""))
+
+
+def _is_spaced_thousands_token(raw: str) -> bool:
+    """True when a space-separated token is grouped thousands, not separate scores."""
+    if not _SPACED_THOUSANDS_RE.fullmatch(raw):
+        return False
+    # Patterns such as "68 100" are score-out-of-100 pairs, not 68_100 grouped values.
+    if re.search(r"\d{1,3}\s100\b", raw):
+        return False
+    return True
+
+
+def _span_overlaps(start: int, end: int, spans: list[tuple[int, int]]) -> bool:
+    return any(start < span_end and span_start < end for span_start, span_end in spans)
+
+
+def _iter_numeric_occurrences(text: str):
+    """Yield (raw_token, normalized_value, start, end) for each grounded numeric claim."""
+    spaced_spans: list[tuple[int, int]] = []
+    for match in _SPACED_THOUSANDS_RE.finditer(text):
+        raw = match.group(0)
+        if not _is_spaced_thousands_token(raw):
+            continue
+        spaced_spans.append((match.start(), match.end()))
+        yield raw, _parse_spaced_thousands(raw), match.start(), match.end()
+
+    for match in _NUMBER_RE.finditer(text):
+        if _span_overlaps(match.start(), match.end(), spaced_spans):
+            continue
+        raw = match.group(1)
+        try:
+            value = _numeric_token(raw)
+        except ValueError:
+            continue
+        yield raw, value, match.start(), match.end()
+
+
+def _register_allowed_number(allowed: set[str], value: float) -> None:
+    allowed.add(_norm(value))
+    if 0 < value <= 1:
+        allowed.add(_norm(value * 100))
 
 
 class GuardrailError(ValueError):
@@ -75,28 +156,17 @@ def lint_numbers(framework: dict[str, Any], customer_text: str) -> list[str]:
         framework.get("exceptions"),
         framework.get("access_needs"),
     ):
-        for token in re.findall(r"\d+(?:[.,]\d+)?", _flatten_customer_text(bucket or {})):
-            allowed.add(_norm(token.replace(",", "")))
-            try:
-                raw = float(token.replace(",", ""))
-            except ValueError:
-                continue
-            if 0 < raw <= 1:
-                allowed.add(_norm(raw * 100))
+        for _raw, value, _start, _end in _iter_numeric_occurrences(_flatten_customer_text(bucket or {})):
+            _register_allowed_number(allowed, value)
     errors: list[str] = []
-    for match in _NUMBER_RE.finditer(customer_text):
-        token = match.group(1).replace(",", "")
-        try:
-            number = float(token)
-        except ValueError:
-            continue
+    for raw, number, start, end in _iter_numeric_occurrences(customer_text):
         if number in {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 24, 36}:
             continue
         if _norm(number) in allowed or _norm(int(number) if number.is_integer() else number) in allowed:
             continue
-        nearby = customer_text[max(0, match.start() - 24) : match.end() + 24]
-        prefix = customer_text[max(0, match.start() - 6) : match.start()].lower()
-        if prefix.endswith("turn:"):
+        nearby = customer_text[max(0, start - 24) : end + 24]
+        prefix = customer_text[max(0, start - 8) : start]
+        if prefix.endswith("turn:") or prefix.lower().endswith("turn:"):
             continue
         if any(
             word in nearby.lower()
@@ -110,7 +180,7 @@ def lint_numbers(framework: dict[str, Any], customer_text: str) -> list[str]:
         ):
             continue
         errors.append(
-            f"Number {match.group(1)} appears in the customer view but is not in the model ({nearby!r})."
+            f"Number {raw} appears in the customer view but is not in the model ({nearby!r})."
         )
     return errors
 

@@ -22,6 +22,7 @@ from services.slides.group_a_compression import (
     GroupACompressFieldsFn,
     validate_and_compress_group_a_slide_spec,
 )
+from services.framework.customer_view import presentation_chapter_excerpt
 from services.validation.compression_retry import CompressionResult
 from services.validation.compression_retry import get_value_at_path
 from services.validation.source_chapter_enforcement import (
@@ -268,19 +269,14 @@ def _extract_allowed_chapters(
     }
     selected: list[dict[str, Any]] = []
     for chapter_id in allowed_chapter_ids:
-        chapter = chapters_by_id.get(chapter_id)
-        if chapter is None:
+        if chapter_id not in chapters_by_id:
             raise FrameworkObjectValidationError(
                 f"FrameworkObject is missing required chapter {chapter_id}"
             )
         # Deliberately expose only Framework chapter content. Root opportunity data,
         # generated_from transcript ids, and transcript source pointers stay outside
         # the structured-generation boundary.
-        selected_chapter = {
-            "chapter_id": chapter["chapter_id"],
-            "title": chapter["title"],
-            "body": copy.deepcopy(chapter["body"]),
-        }
+        selected_chapter = presentation_chapter_excerpt(framework_object, str(chapter_id))
         selected_chapter["body"] = _sanitize_commercial_value(
             selected_chapter["body"]
         )
