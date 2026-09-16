@@ -5,9 +5,12 @@
   "template_version": "v1",
   "branding": {
     "locked": true,
-    "owner": "Borek CI sheet",
+    "owner": "Borek Brand Guide 2.0 / presentation_ci.json",
     "ci_sheet": "docs/gamma/JJ26_BOREK_GAMMA_TEMPLATE.md#ci-sheet",
+    "presentation_ci": "packages/contracts/presentation_ci.json",
+    "official_theme_id": "y7pjh5eetjgbiym",
     "theme_id_setting": "GAMMA_THEME_ID",
+    "borek_logo_on_content_slides": false,
     "template_id_setting": "GAMMA_TEMPLATE_ID",
     "locked_keys": [
       "brand_color",

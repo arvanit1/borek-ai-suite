@@ -207,7 +207,9 @@ def test_unsignable_logo_falls_back_to_the_wordmark(monkeypatch, tmp_path) -> No
     assert result["client_logo"]["fallback"] == FALLBACK_WORDMARK
 
 
-def test_live_payload_places_the_signed_url_bottom_right_and_keeps_borek_left(monkeypatch) -> None:
+def test_live_payload_places_the_signed_url_bottom_right_without_deck_wide_borek_logo(
+    monkeypatch,
+) -> None:
     from app.config import settings
 
     monkeypatch.setattr(settings, "PUBLIC_API_BASE_URL", OWNED_BASE)
@@ -218,7 +220,7 @@ def test_live_payload_places_the_signed_url_bottom_right_and_keeps_borek_left(mo
         _request(client_logo_ref=signed, client_logo_placement=decision.placement),
     )
     footer = payload["cardOptions"]["headerFooter"]
-    assert footer["bottomLeft"]["source"] == "themeLogo"
+    assert "bottomLeft" not in footer
     assert footer["bottomRight"] == {
         "type": "image",
         "source": "custom",
@@ -233,8 +235,7 @@ def test_live_payload_omits_a_private_reference_even_when_the_gate_passed() -> N
     payload = client._generation_payload(  # noqa: SLF001
         _request(client_logo_ref=decision.reference, client_logo_placement=decision.placement),
     )
-    assert "bottomRight" not in payload["cardOptions"]["headerFooter"]
-    assert payload["cardOptions"]["headerFooter"]["bottomLeft"]["source"] == "themeLogo"
+    assert "cardOptions" not in payload
 
 
 def test_supabase_storage_sign_url_is_public_and_owned(monkeypatch) -> None:

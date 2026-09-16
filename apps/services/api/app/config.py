@@ -88,9 +88,9 @@ class Settings(BaseSettings):
         min_length=1,
     )
     GAMMA_THEME_ID: str = Field(
-        default="4kv51cbpy4xonmj",
+        default="y7pjh5eetjgbiym",
         min_length=1,
-        description="Borek Pitch Theme id recorded from the Phase 2 spike",
+        description="Official Borek presentation Gamma theme (packages/contracts/presentation_ci.json)",
     )
     GAMMA_TEMPLATE_ID: str = Field(
         default="",
