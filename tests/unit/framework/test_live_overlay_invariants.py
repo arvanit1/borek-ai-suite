@@ -10,10 +10,14 @@ from services.framework.chapter_builder import overlay_llm_chapters, reconcile_c
 from services.framework.chapter_validators import validate_all_chapters
 from services.framework.chapter_validators.ch00_about import has_eight_decision_questions
 from services.framework.chapter_validators.ch03_aim_success import has_conservative_marker, validate as validate_ch03
+from services.framework.chapter_validators.ch05_how_it_works import has_never_autonomous_statement
 from services.framework.chapter_validators.ch06_how_built import has_building_protection, validate as validate_ch06
+from services.framework.chapter_validators.base import chapter_blob
+from services.framework.cross_chapter_rules import enforce_cross_chapter_rules
+from services.framework.guardrails import convert_unsourced_claims
+from services.framework.pre_confirm_check import prepare_framework_for_confirm
 from services.framework.company_facts import ground_company_facts
 from services.framework.pipeline import generate_customer_framework
-from services.framework.pre_confirm_check import prepare_framework_for_confirm
 from services.framework.source_traceability import convert_unsupported_block_claims
 from services.framework.synthesis import apply_draft_to_chapters
 
@@ -310,6 +314,131 @@ def test_minimal_ch6_protection_repair_keeps_other_blocks() -> None:
     ch6 = _chapter(merged, "6")
     assert has_building_protection(ch6)
     assert next(block for block in ch6["body"] if block.get("block") == "ai_split") == ai_split
+
+
+def _post_prepare_chain(framework: dict, base: dict, base_chapters: list[dict]) -> None:
+    framework["chapters"] = reconcile_chapter_invariants(framework["chapters"], base_chapters)
+    convert_unsupported_block_claims(framework, base.get("source_entries") or [])
+    enforce_cross_chapter_rules(framework, base.get("source_entries") or [])
+    convert_unsourced_claims(framework)
+    framework["chapters"] = reconcile_chapter_invariants(framework["chapters"], base_chapters)
+
+
+def _minimal_framework() -> dict:
+    model = json.loads((FIXTURES / "knowledge_model.minimal.json").read_text(encoding="utf-8"))
+    return generate_customer_framework(
+        [model],
+        opportunity_id=str(model["opportunity_id"]),
+        title_hint="Invoice Automation",
+        use_llm=False,
+    )
+
+
+def test_chapter_5_never_autonomous_survives_full_post_processing_chain() -> None:
+    framework = _minimal_framework()
+    base_chapters = copy.deepcopy(framework["chapters"])
+    ch5 = _chapter(framework["chapters"], "5")
+    ch5["body"] = [block for block in ch5["body"] if block.get("block") != "callout"]
+    prepare_framework_for_confirm(framework)
+    _post_prepare_chain(framework, framework, base_chapters)
+    assert has_never_autonomous_statement(_chapter(framework["chapters"], "5"))
+    validate_all_chapters(framework)
+
+
+def test_chapter_5_never_autonomous_restored_before_final_validation() -> None:
+    framework = _minimal_framework()
+    base_chapters = copy.deepcopy(framework["chapters"])
+    ch5 = _chapter(framework["chapters"], "5")
+    ch5["body"] = [block for block in ch5["body"] if block.get("block") != "callout"]
+    prepare_framework_for_confirm(framework)
+    framework["chapters"] = reconcile_chapter_invariants(framework["chapters"], base_chapters)
+    convert_unsupported_block_claims(framework, framework.get("source_entries") or [])
+    assert not has_never_autonomous_statement(_chapter(framework["chapters"], "5"))
+    framework["chapters"] = reconcile_chapter_invariants(framework["chapters"], base_chapters)
+    assert has_never_autonomous_statement(_chapter(framework["chapters"], "5"))
+
+
+def test_chapter_5_valid_wording_is_not_overwritten() -> None:
+    framework = _base_framework()
+    base_chapters = copy.deepcopy(framework["chapters"])
+    ch5_before = copy.deepcopy(_chapter(framework["chapters"], "5"))
+    merged = reconcile_chapter_invariants(framework["chapters"], base_chapters)
+    assert _chapter(merged, "5") == ch5_before
+
+
+def test_chapter_10_ch12_alignment_survives_full_post_processing_chain() -> None:
+    framework = _minimal_framework()
+    base_chapters = copy.deepcopy(framework["chapters"])
+    ch10 = _chapter(framework["chapters"], "10")
+    ch10["body"] = [
+        block
+        for block in ch10["body"]
+        if block.get("block") not in {"prose", "timeline"}
+    ] + [
+        {
+            "block": "prose",
+            "text": "Phased delivery over three weeks with go-live approval at the end.",
+        },
+        {
+            "block": "timeline",
+            "weeks": [{"id": "W1", "items": ["Sprint work"]}],
+        },
+    ]
+    prepare_framework_for_confirm(framework)
+    _post_prepare_chain(framework, framework, base_chapters)
+    blob = chapter_blob(_chapter(framework["chapters"], "10")).lower()
+    assert "chapter 12" in blob or "ch.12" in blob
+    validate_all_chapters(framework)
+
+
+def test_chapter_10_ch12_alignment_restored_before_final_validation() -> None:
+    framework = _minimal_framework()
+    base_chapters = copy.deepcopy(framework["chapters"])
+    ch10 = _chapter(framework["chapters"], "10")
+    ch10["body"] = [
+        {
+            "block": "prose",
+            "text": "Phased delivery over three weeks with go-live approval at the end.",
+        },
+        {
+            "block": "timeline",
+            "weeks": [{"id": "W1", "items": ["Sprint work"]}],
+        },
+    ]
+    merged = reconcile_chapter_invariants(framework["chapters"], base_chapters)
+    blob = chapter_blob(_chapter(merged, "10")).lower()
+    assert "chapter 12" in blob or "ch.12" in blob
+
+
+def test_chapter_10_valid_alignment_prose_is_not_duplicated() -> None:
+    framework = _base_framework()
+    base_chapters = copy.deepcopy(framework["chapters"])
+    ch10_before = copy.deepcopy(_chapter(framework["chapters"], "10"))
+    merged = reconcile_chapter_invariants(framework["chapters"], base_chapters)
+    assert _chapter(merged, "10") == ch10_before
+
+
+def test_chapter_5_and_10_unrelated_content_unchanged_after_reconcile() -> None:
+    framework = _base_framework()
+    base_chapters = copy.deepcopy(framework["chapters"])
+    ch5 = _chapter(framework["chapters"], "5")
+    for block in ch5["body"]:
+        if block.get("block") == "table" and "rule" in str(block).lower():
+            block["rows"] = [["Custom rule", "From transcript"]]
+    ch10 = _chapter(framework["chapters"], "10")
+    drivers = next(
+        row
+        for block in ch10["body"]
+        if block.get("block") == "kv_rows"
+        for row in (block.get("rows") or [])
+        if isinstance(row, dict) and "driver" in str(row.get("label", "")).lower()
+    )
+    drivers["value"] = "custom-driver-token"
+    merged = reconcile_chapter_invariants(framework["chapters"], base_chapters)
+    merged_ch5 = _chapter(merged, "5")
+    merged_ch10 = _chapter(merged, "10")
+    assert any("Custom rule" in str(block) for block in merged_ch5["body"])
+    assert any("custom-driver-token" in str(block) for block in merged_ch10["body"])
 
 
 def test_pipeline_reconciliation_survives_es28_second_pass() -> None:
