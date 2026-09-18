@@ -397,24 +397,19 @@ def _apply_compression_number_forms(
     rewritten: str,
     limit: int | None,
 ) -> str:
-    """Restore source digits, then spell invented ones without breaking max_length."""
+    """Restore grounded digit forms and reject rewrites that invent new numbers."""
     restored = _restore_source_number_forms(original, rewritten)
-    spelled = _spell_introduced_number_tokens(original, restored)
-    if limit is None or len(spelled) <= limit:
-        return spelled
-    if len(restored) <= limit:
-        return restored
-    return spelled
+    if _introduced_semantic_numbers(original, restored):
+        return original
+    return restored
 
 
-def _spell_introduced_number_tokens(original: str, rewritten: str) -> str:
-    """Spell out digits that AT-8 introduced and that were not in the source field."""
-    introduced = _number_token_set(rewritten) - _number_token_set(original)
-    if not introduced:
-        return rewritten
-    from llm.live_slide_repair import _sanitize_ungrounded_digit_compounds
+def _introduced_semantic_numbers(original: str, rewritten: str) -> set[float]:
+    from services.framework.guardrails import semantic_numeric_values_in_text
 
-    return _sanitize_ungrounded_digit_compounds(rewritten, {}, introduced)
+    original_values = semantic_numeric_values_in_text(original, pattern=_NUMBER_TOKEN)
+    rewritten_values = semantic_numeric_values_in_text(rewritten, pattern=_NUMBER_TOKEN)
+    return rewritten_values - original_values
 
 
 def _restore_source_number_forms(original: str, rewritten: str) -> str:
