@@ -10,6 +10,10 @@ from typing import Any
 from packages.contracts.validators import chapter_specs_from_registry
 from services.framework.chapter_validators.ch00_about import has_eight_decision_questions
 from services.framework.chapter_validators.ch03_aim_success import has_conservative_marker
+from services.framework.chapter_validators.ch05_how_it_works import (
+    ensure_never_autonomous_statement,
+    has_never_autonomous_statement,
+)
 from services.framework.chapter_validators.ch06_how_built import has_building_protection
 
 
@@ -549,10 +553,10 @@ def reconcile_chapter_invariants(
     current_chapters: list[dict[str, Any]],
     base_chapters: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    """Surgically restore Ch0/Ch3/Ch6 hard invariants without broad overlay side-effects."""
+    """Surgically restore Ch0/Ch3/Ch5/Ch6/Ch10 hard invariants without broad overlay side-effects."""
     result = copy.deepcopy(current_chapters)
     base_by_id = {str(chapter.get("chapter_id")): chapter for chapter in base_chapters}
-    for chapter_id in ("0", "3", "6"):
+    for chapter_id in ("0", "3", "5", "6", "10"):
         chapter = next((item for item in result if str(item.get("chapter_id")) == chapter_id), None)
         base = base_by_id.get(chapter_id)
         if chapter is None or base is None:
@@ -563,10 +567,46 @@ def reconcile_chapter_invariants(
             _repair_chapter_0_invariants(body, base_body)
         elif chapter_id == "3":
             _repair_chapter_3_invariants(body, base_body)
+        elif chapter_id == "5":
+            _repair_chapter_5_invariants(chapter, body)
+            body = list(chapter.get("body") or [])
         elif chapter_id == "6":
             _repair_chapter_6_invariants(body, base_body)
+        elif chapter_id == "10":
+            _repair_chapter_10_invariants(body, base_body)
         chapter["body"] = body
     return result
+
+
+def _repair_chapter_5_invariants(chapter: dict[str, Any], body: list[dict[str, Any]]) -> None:
+    """ES-19 — restore the never-autonomous callout after ES-28 conversion may remove it."""
+    chapter["body"] = body
+    if has_never_autonomous_statement(chapter):
+        return
+    ensure_never_autonomous_statement(chapter)
+
+
+def _repair_chapter_10_invariants(body: list[dict[str, Any]], base_body: list[dict[str, Any]]) -> None:
+    """ES-24 — restore explicit chapter-12 alignment prose when post-processing removed it."""
+    blob = str(body).lower()
+    if "chapter 12" in blob or "ch.12" in blob:
+        return
+    base_prose = _first_block(base_body, "prose")
+    if not base_prose:
+        return
+    addition = str(base_prose.get("text") or "").strip()
+    if not addition:
+        return
+    lower_addition = addition.lower()
+    if "chapter 12" not in lower_addition and "ch.12" not in lower_addition:
+        return
+    prose = _first_block(body, "prose")
+    if prose:
+        current = str(prose.get("text") or "")
+        if lower_addition not in current.lower():
+            prose["text"] = (current.rstrip() + " " + addition).strip()
+        return
+    body.insert(0, copy.deepcopy(base_prose))
 
 
 def _repair_chapter_0_invariants(body: list[dict[str, Any]], base_body: list[dict[str, Any]]) -> None:
