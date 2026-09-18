@@ -535,11 +535,12 @@ def _grounded_non_commercial_fallback(
 
 
 def _generation_instructions(config: GroupCGenerationConfig) -> str:
+    from llm.ci_prompt import with_ci_prompt
     from llm.json_schema_bundle import layout_limit_instruction
 
     allowed = ", ".join(config.allowed_chapter_ids)
     monetary_rule = _EXCLUDED_MONETARY_PROMPT if config.exclude_monetary_fields else ""
-    return (
+    return with_ci_prompt(
         f"{config.instructions}{monetary_rule}{layout_limit_instruction(config.layout_id)} "
         "Include fieldProvenance in the generated SlideSpec. "
         "Use the same dotted/array path syntax as AT-8 (for example, "

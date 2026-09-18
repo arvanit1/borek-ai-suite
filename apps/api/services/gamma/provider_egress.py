@@ -24,6 +24,7 @@ GAMMA_LIVE_HTTP_KEYS = frozenset(
         "exportAs",
         "cardSplit",
         "numCards",
+        "additionalInstructions",
         "cardOptions",
         "gammaId",
     }

@@ -78,7 +78,7 @@ def test_live_factory_without_key_fails_closed_on_generate() -> None:
     provider = build_gamma_provider(
         execution_mode="live",
         api_key="",
-        theme_id="4kv51cbpy4xonmj",
+        theme_id="blue-steel",
     )
     with pytest.raises(GammaAuthError) as exc:
         provider.generate(_request())
@@ -104,7 +104,7 @@ def test_live_client_creates_polls_and_stores_owned_bytes(tmp_path: Path) -> Non
     )
     client = LiveGammaClient(
         api_key="sk-gamma-test",
-        theme_id="4kv51cbpy4xonmj",
+        theme_id="blue-steel",
         http_client=http,  # type: ignore[arg-type]
     )
     with patch("services.gamma.live_client.time.sleep"):
@@ -145,7 +145,7 @@ def test_live_client_second_format_export_sends_export_as() -> None:
     )
     client = LiveGammaClient(
         api_key="sk-gamma-test",
-        theme_id="4kv51cbpy4xonmj",
+        theme_id="blue-steel",
         http_client=http,  # type: ignore[arg-type]
     )
     with patch("services.gamma.live_client.time.sleep"):

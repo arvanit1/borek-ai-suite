@@ -9,6 +9,7 @@ from typing import Any, Callable
 
 import jsonschema
 
+from llm.ci_prompt import with_ci_prompt
 from llm.claude.client import (
     CLAUDE_STRUCTURED_MAX_TOKENS,
     ClaudeClientError,
@@ -194,7 +195,7 @@ def build_synthesis_system_prompt() -> str:
     """ES-30 — role + schema contract + ES-14..27 checklist + tone/guardrails from config."""
     template = _PROMPT_PATH.read_text(encoding="utf-8")
     titles = "\n".join(f"{chapter_id}. {title}" for chapter_id, title in _registry_specs())
-    return (
+    return with_ci_prompt(
         template
         + "\n\nSCHEMA CONTRACT (CustomerReportDraft — enforced by submit_customer_report tool):\n"
         + _schema_contract_brief()

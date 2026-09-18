@@ -50,3 +50,4 @@ CHAPTER CHECKLIST (do not skip a chapter):
 13 Next steps & glossary — numbered steps table (#, Step, Who, When); who/when filled or listed as open; glossary.
 
 Cover fields in the tool: tagline, sources_line, how_produced. Do not add extra cover keys.
+how_produced is one sentence that the report was generated from the captured conversations. Do not name the model, prompt version, or temperature.

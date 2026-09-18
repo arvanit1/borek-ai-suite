@@ -21,6 +21,7 @@ import {
   confirmFramework,
   downloadFrameworkRender,
   generateFramework,
+  generatePresentation,
   generatePresentationPlan,
   getActiveJob,
   getFrameworkReview,
@@ -78,6 +79,7 @@ import {
   approveAndBuildPresentation,
   deckResultHref,
   recoverPresentationPipeline,
+  restartPresentationGeneration,
 } from "@/lib/presentationPipeline";
 import type {
   PresentationPipelineApi,
@@ -161,6 +163,13 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
           opportunityId,
           frameworkVersionId,
           autoContinue,
+          journeyStageForGenerate(opportunityId),
+        ),
+      generatePresentation: () =>
+        generatePresentation(
+          token,
+          opportunityId,
+          undefined,
           journeyStageForGenerate(opportunityId),
         ),
       getLatestPresentationPlan: () => getLatestPresentationPlan(token, opportunityId),
@@ -737,8 +746,43 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
     }
   }
 
+  async function handleGeneratePresentationAgain() {
+    if (!accessToken || !frameworkVersion || presentationPipelineRunningRef.current) {
+      return;
+    }
+    presentationPipelineRunningRef.current = true;
+    setRecoveryTarget("presentation-pipeline");
+    setBusy(true);
+    setNotice(null);
+    setInfo(null);
+    setRetryJobId(null);
+    setPipelineActive(true);
+    setPipelineJobSnapshot(null);
+    setPipelineHandoff(false);
+    try {
+      const result = await restartPresentationGeneration({
+        frameworkVersionId: frameworkVersion.id,
+        api: presentationPipelineApi(accessToken),
+        onProgress: reportPresentationProgress,
+      });
+      setNotice(null);
+      setInfo("Presentation is ready. Opening the deck…");
+      openPresentationResult(result);
+    } catch (pipelineError) {
+      reportPresentationFailure(pipelineError);
+    } finally {
+      presentationPipelineRunningRef.current = false;
+      setPipelineActive(false);
+      setBusy(false);
+    }
+  }
+
   function handleRecoveryAction() {
     if (notice?.action?.kind === "GENERATE") {
+      if (recoveryTarget === "presentation-pipeline" && frameworkVersion) {
+        void handleGeneratePresentationAgain();
+        return;
+      }
       void handleGenerate();
       return;
     }

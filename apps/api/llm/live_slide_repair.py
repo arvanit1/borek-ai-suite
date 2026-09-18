@@ -265,6 +265,7 @@ def _sanitize_ungrounded_digit_compounds(
             continue
         word = _number_to_words(digit)
         if word is None:
+            text = _strip_ungrounded_number_token(text, digit)
             continue
         text = re.sub(
             rf"(?<![0-9]){re.escape(digit)}%(?![\w])",
@@ -291,6 +292,31 @@ def _sanitize_ungrounded_digit_compounds(
             flags=re.IGNORECASE,
         )
     return text
+
+
+def _strip_ungrounded_number_token(text: str, digit: str) -> str:
+    """Drop invented numeric tokens that cannot be spelled without fabricating a value."""
+    text = re.sub(
+        rf"(?<![0-9]){re.escape(digit)}%(?![\w])",
+        "",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(
+        rf"(?<![0-9]){re.escape(digit)}(?=-)",
+        "",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(
+        rf"(?<![\w]){re.escape(digit)}(?![\w])",
+        "",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(r"[ \t]{2,}", " ", text)
+    text = re.sub(r"\s+([,.;:])", r"\1", text)
+    return text.strip()
 
 
 def _sanitize_ungrounded_leaves(

@@ -419,10 +419,11 @@ def _validate_numeric_grounding(
 
 
 def _generation_instructions(config: GroupAGenerationConfig) -> str:
+    from llm.ci_prompt import with_ci_prompt
     from llm.json_schema_bundle import layout_limit_instruction
 
     allowed = ", ".join(config.allowed_chapter_ids)
-    return (
+    return with_ci_prompt(
         f"{config.instructions}{layout_limit_instruction(config.layout_id)} "
         "Include fieldProvenance in the generated SlideSpec. "
         "Use the same dotted/array path syntax as AT-8 (for example, "

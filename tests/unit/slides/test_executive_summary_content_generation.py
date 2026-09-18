@@ -145,3 +145,19 @@ def test_executive_summary_source_chapters_must_stay_in_chapter_1() -> None:
             structured_generate=CapturingGenerator(output=invalid),
             compress_fields=_no_op_compressor,
         )
+
+
+def test_ungrounded_headline_number_is_stripped_before_validation() -> None:
+    invalid = _slide()
+    invalid["headline"] = "Confirm 1.800 monthly purchase orders in Order Management."
+
+    result = generate_executive_summary_01(
+        _framework(),
+        structured_generate=CapturingGenerator(output=invalid),
+        compress_fields=_no_op_compressor,
+    )
+
+    assert result.status == "VALID"
+    assert result.slide_spec is not None
+    assert "1.800" not in result.slide_spec["headline"]
+    assert "Confirm monthly purchase orders in Order Management." == result.slide_spec["headline"]

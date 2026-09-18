@@ -269,7 +269,12 @@ export function DeckCenterPanel({
     setInfo(null);
     setRetryJobId(null);
     try {
-      const generated = await generatePresentation(accessToken, opportunityId);
+      const generated = await generatePresentation(
+        accessToken,
+        opportunityId,
+        undefined,
+        journeyStageForGenerate(opportunityId),
+      );
       setInfo(generationProgressMessage("deck", Boolean(generated.is_existing_job)));
       setNotice(runningRecoveryNotice("deck", generated.job_id));
       setJobPolling(true);

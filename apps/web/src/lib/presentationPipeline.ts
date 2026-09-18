@@ -56,6 +56,13 @@ interface ConfirmedFramework {
   status: string;
 }
 
+export interface PresentationGenerateEnqueueResponse {
+  job_id: string;
+  presentation_id: string | null;
+  presentation_plan_id: string | null;
+  is_existing_job?: boolean;
+}
+
 export interface PresentationPipelineApi {
   getActivePresentationJob(): Promise<ActiveJobResponse | null>;
   getJob(jobId: string): Promise<JobResponse>;
@@ -64,6 +71,7 @@ export interface PresentationPipelineApi {
     frameworkVersionId: string,
     autoContinue: boolean,
   ): Promise<PresentationPlanGenerateResponse>;
+  generatePresentation(): Promise<PresentationGenerateEnqueueResponse>;
   getLatestPresentationPlan(): Promise<PresentationPlanResponse>;
   getPresentationPlan(presentationPlanId: string): Promise<PresentationPlanResponse>;
   getPresentation(presentationId: string): Promise<PresentationResponse>;
@@ -335,6 +343,12 @@ async function waitForBackendGeneration(
       throw errorFor("generation", error, planningJobId);
     }
     if (active?.job_type === "presentation_generation") {
+      if (active.status === "FAILED") {
+        // A previous slide-generation failure stays visible as the latest job.
+        // Keep polling until the new generation job appears.
+        await handoffDelay();
+        continue;
+      }
       const recovered = await recoverActivePipeline(options, active);
       if (recovered.presentationPlanId !== plan.id) {
         throw new PresentationPipelineError(
@@ -501,6 +515,60 @@ export async function buildPresentationPipeline(
     return recoverActivePipeline(options, active);
   }
   return generateNewPipeline(options);
+}
+
+export async function restartPresentationGeneration(
+  options: PresentationPipelineOptions,
+): Promise<PresentationPipelineResult> {
+  let generated: PresentationGenerateEnqueueResponse;
+  try {
+    generated = await options.api.generatePresentation();
+  } catch (error) {
+    throw errorFor("generation", error);
+  }
+  options.onProgress?.({
+    phase: "generation",
+    state: "waiting",
+    jobId: generated.job_id,
+    reused: Boolean(generated.is_existing_job),
+  });
+  let completed: JobResponse;
+  try {
+    completed = await options.api.waitForJob(
+      generated.job_id,
+      jobObserver("generation", options.onProgress),
+    );
+  } catch (error) {
+    throw errorFor("generation", error, generated.job_id);
+  }
+  requireJobType(completed, "presentation_generation", "generation");
+  const presentationId =
+    resultId(completed, "presentation_id") ?? generated.presentation_id ?? undefined;
+  if (!presentationId) {
+    throw new PresentationPipelineError(
+      "generation",
+      "The presentation-generation job is missing its presentation identifier",
+      { code: "PRESENTATION_ID_MISSING", jobId: completed.job_id },
+    );
+  }
+  let presentation: PresentationResponse;
+  let plan: PresentationPlanResponse;
+  try {
+    presentation = await options.api.getPresentation(presentationId);
+    plan = await options.api.getPresentationPlan(
+      generated.presentation_plan_id ?? presentation.presentation_plan_id,
+    );
+  } catch (error) {
+    throw errorFor("generation", error, completed.job_id);
+  }
+  return resolvePresentation(
+    options,
+    completed,
+    plan,
+    presentationId,
+    plan.id,
+    presentation,
+  );
 }
 
 export async function approveAndBuildPresentation(options: {

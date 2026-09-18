@@ -419,6 +419,7 @@ def test_technical_provider_fields_are_internal_not_silently_allowlisted() -> No
         "/provider/textMode",
         "/provider/format",
         "/provider/exportAs",
+        "/provider/additionalInstructions",
     ):
         assert fields[path] == "internal"
     safe = enforce_external_egress(

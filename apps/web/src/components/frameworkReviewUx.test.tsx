@@ -39,6 +39,11 @@ assert.match(
 assert.match(panelSource, /framework-chapter-list/);
 assert.match(panelSource, /aria-expanded={isOpen}/);
 assert.match(panelSource, /isOpen \? closeChapter\(item\.chapterId\) : openChapter\(item\.chapterId\)/);
+assert.match(panelSource, /restartPresentationGeneration/);
+assert.match(
+  panelSource,
+  /kind === "GENERATE"[\s\S]*recoveryTarget === "presentation-pipeline"[\s\S]*handleGeneratePresentationAgain/,
+);
 assert.equal(panelSource.match(/<FrameworkChapterView/g)?.length, 1);
 assert.match(panelSource, /Previous chapter/);
 assert.match(panelSource, /Next chapter/);

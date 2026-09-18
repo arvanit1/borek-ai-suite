@@ -88,7 +88,7 @@ class Settings(BaseSettings):
         min_length=1,
     )
     GAMMA_THEME_ID: str = Field(
-        default="4kv51cbpy4xonmj",
+        default="blue-steel",
         min_length=1,
         description="Borek Pitch Theme id recorded from the Phase 2 spike",
     )

@@ -159,7 +159,10 @@ def generate_customer_framework(
             company_facts=grounded_facts,
         )
         chapters = apply_draft_to_chapters(chapters, draft)
+        produced_line = cover.get("how_produced")
         cover.update(draft.get("cover") or {})
+        if produced_line:
+            cover["how_produced"] = produced_line
         if draft.get("kpis"):
             skeleton["kpis"] = _merge_required_kpis(skeleton.get("kpis") or [], draft["kpis"])
         if draft.get("systems"):

@@ -75,6 +75,7 @@ field_classifications:
   "/provider/exportAs": internal
   "/provider/cardSplit": internal
   "/provider/numCards": internal
+  "/provider/additionalInstructions": internal
   # BT-33 follow-up extraction (JJ-32) — client-confidential transcript leaves via anthropic only.
   "/transcript": client_confidential
   "/calendar_meeting_date": internal

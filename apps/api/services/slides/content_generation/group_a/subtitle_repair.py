@@ -37,6 +37,50 @@ def repair_empty_subtitle(
     return repaired
 
 
+def repair_ungrounded_numeric_headline(
+    slide_spec: dict[str, Any],
+    chapters: tuple[dict[str, Any], ...],
+) -> dict[str, Any]:
+    """Strip invented numbers from headline, or replace it with grounded chapter prose."""
+    from services.slides.content_generation.group_a.common import _number_tokens
+
+    repaired = copy.deepcopy(slide_spec)
+    headline = repaired.get("headline")
+    if not isinstance(headline, str):
+        return repaired
+
+    grounded_numbers = _number_tokens(chapters)
+    invented = _number_tokens(headline) - grounded_numbers
+    if not invented:
+        return repaired
+
+    stripped = headline
+    for token in sorted(invented, key=len, reverse=True):
+        stripped = re.sub(rf"(?<![\w]){re.escape(token)}%?(?![\w])", " ", stripped)
+    stripped = re.sub(r"[ \t]{2,}", " ", stripped)
+    stripped = re.sub(r"\s+([,.;:])", r"\1", stripped).strip()
+    if stripped and not (_number_tokens(stripped) - grounded_numbers):
+        repaired["headline"] = stripped
+        return repaired
+
+    fallback = _deterministic_grounded_headline(chapters)
+    if fallback is not None:
+        text, source_ids = fallback
+        repaired["headline"] = text
+        _set_provenance_path(repaired, "headline", source_ids)
+        sync_root_source_chapter_ids_from_field_provenance(repaired)
+    return repaired
+
+
+def repair_executive_summary_slide_spec(
+    slide_spec: dict[str, Any],
+    chapters: tuple[dict[str, Any], ...],
+) -> dict[str, Any]:
+    """Keep EXECUTIVE_SUMMARY_01 subtitle and headline grounded before validation."""
+    repaired = repair_empty_subtitle(slide_spec, chapters)
+    return repair_ungrounded_numeric_headline(repaired, chapters)
+
+
 def format_empty_subtitle_retry_message(message: str) -> str:
     if "subtitle" not in message:
         return message
@@ -82,6 +126,35 @@ def _deterministic_grounded_subtitle(
 
 def _fits_subtitle(text: str) -> bool:
     return 1 <= len(text) <= SUBTITLE_MAX_LENGTH
+
+
+HEADLINE_MAX_LENGTH = 180
+
+
+def _deterministic_grounded_headline(
+    chapters: tuple[dict[str, Any], ...],
+) -> tuple[str, tuple[str, ...]] | None:
+    from services.slides.content_generation.group_a.common import _number_tokens
+
+    for chapter in chapters:
+        if not isinstance(chapter, dict):
+            continue
+        chapter_id = chapter.get("chapter_id")
+        if not isinstance(chapter_id, str):
+            continue
+        source_text = _chapter_source_text(chapter)
+        if not source_text.strip():
+            continue
+        grounded_numbers = _number_tokens(chapter)
+        for sentence in _sentences(source_text):
+            candidate = sentence.strip()
+            if not (1 <= len(candidate) <= HEADLINE_MAX_LENGTH):
+                continue
+            if _number_tokens(candidate) - grounded_numbers:
+                continue
+            if candidate.casefold() in source_text.casefold():
+                return candidate, (chapter_id,)
+    return None
 
 
 def _sentences(text: str):

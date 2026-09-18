@@ -8,6 +8,7 @@ import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable
 
+from llm.ci_prompt import with_ci_prompt
 from services.observability.llm_logger import LlmStage, invoke_llm
 from services.validation.compression_retry import compression_target_length
 
@@ -99,6 +100,11 @@ class LlmClient:
         retry_count: int = 0,
     ) -> dict[str, Any]:
         filtered_input = self._filter_external_request(planning_input, stage="planning")
+        if isinstance(filtered_input, dict):
+            instructions = filtered_input.get("instructions")
+            if isinstance(instructions, str):
+                filtered_input = copy.deepcopy(filtered_input)
+                filtered_input["instructions"] = with_ci_prompt(instructions)
         result = invoke_llm(
             stage=LlmStage.PLANNING,
             model=self._model,
@@ -126,7 +132,7 @@ class LlmClient:
         def generate(request: StructuredGenerationRequest) -> dict[str, Any]:
             payload = self._filter_external_request(
                 {
-                    "instructions": request.instructions,
+                    "instructions": with_ci_prompt(request.instructions),
                     "layoutId": request.layout_id,
                     "chapters": [copy.deepcopy(chapter) for chapter in request.chapters],
                     "targetSchema": copy.deepcopy(request.target_schema),
@@ -215,7 +221,9 @@ class LlmClient:
                     f"compression target {target} characters — stay comfortably "
                     f"below the maximum"
                 )
-            bound_instructions = f"{prompt_instructions}\n\n{_COMPRESSION_NUMBER_RULE}"
+            bound_instructions = (
+                f"{with_ci_prompt(prompt_instructions)}\n\n{_COMPRESSION_NUMBER_RULE}"
+            )
             if any(item >= 2 for item in attempt_by_path.values()):
                 bound_instructions = (
                     f"{bound_instructions}\n\nThe previous rewrite still exceeded "

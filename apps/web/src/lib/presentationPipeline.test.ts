@@ -10,6 +10,7 @@ import {
   buildPresentationPipeline,
   deckResultHref,
   recoverPresentationPipeline,
+  restartPresentationGeneration,
 } from "./presentationPipeline.js";
 import type {
   PresentationPipelineApi,
@@ -144,6 +145,10 @@ function successfulApi(
         presentation_plan_id: PLAN_ID,
         is_existing_job: false,
       };
+    },
+    async generatePresentation() {
+      events.push("generate-presentation");
+      throw new Error("unexpected presentation generate");
     },
     async getLatestPresentationPlan() {
       events.push("get-latest-plan");
@@ -461,6 +466,42 @@ async function main() {
       error.code === "PRESENTATION_PLAN_NOT_GENERATABLE" &&
       error.jobId === GENERATION_JOB_ID,
   );
+}
+
+{
+  const RESTARTED_JOB_ID = "generation-job-restart";
+  let generateCalls = 0;
+  const result = await restartPresentationGeneration({
+    frameworkVersionId: FRAMEWORK_ID,
+    api: successfulApi([], {
+      async getActivePresentationJob() {
+        return activeJob("presentation_generation", "FAILED");
+      },
+      async generatePresentation() {
+        generateCalls += 1;
+        return {
+          job_id: RESTARTED_JOB_ID,
+          presentation_id: PRESENTATION_ID,
+          presentation_plan_id: PLAN_ID,
+          is_existing_job: false,
+        };
+      },
+      async waitForJob(jobId) {
+        assert.equal(jobId, RESTARTED_JOB_ID);
+        return {
+          ...completedJob("presentation_generation"),
+          job_id: RESTARTED_JOB_ID,
+        };
+      },
+      async generatePresentationPlan() {
+        throw new Error("Generate again after slide failure must reuse the plan");
+      },
+    }),
+  });
+  assert.equal(generateCalls, 1);
+  assert.equal(result.presentationGenerationJobId, RESTARTED_JOB_ID);
+  assert.equal(result.presentationId, PRESENTATION_ID);
+  assert.equal(result.planningJobId, null);
 }
 
 {

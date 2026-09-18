@@ -25,6 +25,7 @@ from services.gamma.contract import (
     gamma_egress_reference,
 )
 from services.gamma.fixture_client import validate_generate_request
+from llm.ci_prompt import gamma_additional_instructions, gamma_from_template_prompt
 from services.gamma.input_text import (
     CARD_SPLIT_INPUT_TEXT_BREAKS,
     align_slots_with_planned_slides,
@@ -152,7 +153,7 @@ class LiveGammaClient:
             # POST /v1.0/generations/from-template requires prompt + gammaId.
             # cardOptions/headerFooter are not documented on this endpoint.
             payload: dict[str, Any] = {
-                "prompt": input_text,
+                "prompt": gamma_from_template_prompt(input_text),
                 "gammaId": self._template_id,
                 "themeId": self._theme_id,
                 "exportAs": request.output_formats[0],
@@ -184,6 +185,7 @@ class LiveGammaClient:
             "exportAs": request.output_formats[0],
             "cardSplit": CARD_SPLIT_INPUT_TEXT_BREAKS,
             "numCards": num_cards,
+            "additionalInstructions": gamma_additional_instructions(),
             "cardOptions": {"headerFooter": header_footer},
         }
         if title:

@@ -841,6 +841,21 @@ def test_sanitizer_spells_ungrounded_3000() -> None:
     assert "three thousand" in result
 
 
+def test_sanitizer_strips_ungrounded_european_thousands() -> None:
+    from llm.live_slide_repair import _sanitize_ungrounded_digit_compounds
+
+    result = _sanitize_ungrounded_digit_compounds(
+        text="Confirm 1.800 monthly purchase orders in Order Management.",
+        allowed_chapter_bodies={
+            "1": "Order Management confirms about 1,850 incoming customer purchase orders every month."
+        },
+        ungrounded_tokens={"1.800"},
+    )
+    assert "1.800" not in result
+    assert "1,850" not in result
+    assert "Confirm monthly purchase orders in Order Management." == result
+
+
 def _overflow_cover(extra_count: int) -> dict[str, Any]:
     cover = _slide(CASES["cover"])
     extras = [

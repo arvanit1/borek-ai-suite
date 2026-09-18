@@ -10,6 +10,7 @@ from pydantic import ValidationError
 
 from generated.python.contracts.framework_object import Status
 from generated.python.contracts.presentation_plan import PresentationPlan
+from llm.ci_prompt import with_ci_prompt
 from llm.client import LlmClient, load_prompt_version
 from packages.contracts.schema_consumer import (
     SchemaVersionMismatchError,
@@ -77,7 +78,7 @@ def plan_presentation(
     """Create one validated PresentationPlan from one confirmed FrameworkObject."""
     framework_payload = _confirmed_framework_payload(confirmed_framework)
     planning_input_base = {
-        "instructions": PROMPT_PATH.read_text(encoding="utf-8"),
+        "instructions": with_ci_prompt(PROMPT_PATH.read_text(encoding="utf-8")),
         "frameworkObject": framework_payload,
         "chapterLayoutGuidance": prepare_chapter_layout_guidance_for_planner(),
         "targetSchema": planning_target_schema(),

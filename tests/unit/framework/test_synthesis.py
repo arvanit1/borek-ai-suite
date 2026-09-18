@@ -217,6 +217,25 @@ def test_pipeline_uses_single_llm_call() -> None:
     assert "pseudocode" not in ch6
 
 
+def test_pipeline_keeps_deterministic_how_produced() -> None:
+    models, overrides = _golden()
+    base = _base_framework()
+    draft = _draft_from_framework(base)
+    draft["cover"]["how_produced"] = "framework-synthesis v1 · Claude Sonnet 4.5 · temperature 0 · BOREK"
+
+    framework = generate_customer_framework(
+        models,
+        opportunity_id="OPP-142",
+        title_hint="Invoice 3-Way Match",
+        use_llm=True,
+        complete=lambda _system, _user, _schema: draft,
+        engine_overrides=overrides,
+    )
+    produced = framework["cover"]["how_produced"]
+    assert "Claude Sonnet 4.5" not in produced
+    assert "Generated automatically from the captured conversations" in produced
+
+
 def test_llm_overlay_keeps_required_chapter_blocks() -> None:
     models, overrides = _golden()
     base = _base_framework()

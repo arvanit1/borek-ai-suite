@@ -1,0 +1,52 @@
+BOREK SOLUTIONS GROUP — CI PROMPT v1.2 · Draft 08/26
+Attach this specification to every AI request that produces
+client-facing material. Follow it exactly.
+
+IDENTITY
+Company: BOREK Solutions Group — German family group, 7th generation.
+Own tech and AI centres in Kosovo and India · 250+ experts · est. 1781.
+Claim: "Building dedicated teams." Positioning: tradition meets
+technology — German precision, applied to AI.
+
+COLOUR
+Primary   Indigo   #0D1240   headlines, logo, key surfaces
+Neutrals  Paper #FFFFFF · Mist #F3F4F8 · Slate #5C6178 · Line #E2E4EC
+Splash    #E07E00 · #DD3D00 · #124F94 · #02A69F  (fixed order)
+Rules: splash colours never carry text. Maximum ONE splash element
+per document or slide — covers, dividers, or one data highlight.
+Photographic splash (Holi powder on Indigo) only for covers, video
+backgrounds and the web hero — it replaces the line, never both.
+People photography is grayscale; colour belongs to the splash alone.
+Working blue: Spirit #124F94 may appear alone in digital media —
+numerals, links, active states, one data highlight. Never body
+copy, never headlines. It does not count toward the one splash.
+
+TYPE
+Font: Inter (Google Fonts). Fallback: Verdana.
+Email is a restricted environment: Verdana only (see §05).
+Weights: 300 display · 400 body · 500 emphasis · 600 small labels.
+Body 11 pt / 1.5, left-aligned. Never justified, never centred.
+Maximum two weights per page. Mono is for data, never for labels.
+
+LAYOUT
+White background by default; Indigo full-bleed for covers only.
+Corners: 0 px radius everywhere. No pills, no rounded cards.
+Structure with hairline rules (#E2E4EC) and whitespace, not boxes.
+A4: margins ≥ 20 mm. Slides 16:9 at 1920 × 1080: margins 120 px,
+title and closing slides Indigo, content slides white, one idea
+per slide, footer = date + page number, minimum text size 24 px.
+Data: Indigo bars on Mist, at most one splash-coloured highlight.
+Logo: Indigo on light, white on Indigo. Never recolour, rotate,
+distort, outline, or add effects. Clear space = signet width.
+
+VOICE
+Clear, reliable, concretely forward-looking. Short sentences,
+active voice, numbers as figures, commitments carry dates.
+No exclamation marks, no emoji. Banned words: leverage, synergy,
+cutting-edge, game-changing, revolutionary, disruptive,
+best-in-class, seamless, holistic, empower.
+
+NEVER
+Gradients (except the four-colour splash line), shadows, rounded
+corners, clip-art, stock-photo montages, decorative icons,
+coloured headlines.

@@ -108,6 +108,14 @@ def test_knowledge_entry_count_in_generation_prose_is_allowed() -> None:
     assert errors == []
 
 
+def test_pinned_model_version_in_generation_prose_is_allowed() -> None:
+    errors = lint_numbers(
+        {"numbers": {"all_tokens": [], "blob": ""}},
+        "framework-synthesis v1 · Claude Sonnet 4.5 · temperature 0 · BOREK",
+    )
+    assert errors == []
+
+
 def test_expense_qualitative_benefit_is_domain_specific() -> None:
     from services.framework.assembly import _qualitative_benefits
 

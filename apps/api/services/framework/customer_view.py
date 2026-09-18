@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 from typing import Any, Callable
 
+from llm.ci_prompt import with_ci_prompt
 from services.framework.config_loader import glossary
 from services.framework.guardrails import strip_citations_from_value
 
@@ -66,7 +67,7 @@ def _localize_de(view: dict[str, Any], *, localize: ClaudeComplete | None) -> di
     if localize is None:
         return view
     terms = glossary()
-    system = _PROMPT_PATH.read_text(encoding="utf-8")
+    system = with_ci_prompt(_PROMPT_PATH.read_text(encoding="utf-8"))
     user = (
         "Target language: German (DE).\n"
         f"Untranslated tokens: {json.dumps(terms.get('untranslated', []), ensure_ascii=False)}\n"

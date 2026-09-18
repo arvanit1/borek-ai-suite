@@ -98,9 +98,30 @@ def lint_numbers(framework: dict[str, Any], customer_text: str) -> list[str]:
         prefix = customer_text[max(0, match.start() - 6) : match.start()].lower()
         if prefix.endswith("turn:"):
             continue
+        nearby_lower = nearby.lower()
         if any(
-            word in nearby.lower()
-            for word in ("chapter", "page", "week", "w1", "w2", "w3", "stage", "v2", "opp-", "fw-", "turn:", "speaker_")
+            word in nearby_lower
+            for word in (
+                "chapter",
+                "page",
+                "week",
+                "w1",
+                "w2",
+                "w3",
+                "stage",
+                "v2",
+                "opp-",
+                "fw-",
+                "turn:",
+                "speaker_",
+                # Generation fingerprint (prompt version / pinned model), not a customer figure.
+                "claude",
+                "sonnet",
+                "opus",
+                "haiku",
+                "temperature",
+                "framework-synthesis",
+            )
         ):
             continue
         if re.search(

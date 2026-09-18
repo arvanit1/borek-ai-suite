@@ -12,7 +12,7 @@ from services.slides.content_generation.group_a.common import (
 )
 from services.slides.content_generation.group_a.subtitle_repair import (
     format_empty_subtitle_retry_message,
-    repair_empty_subtitle,
+    repair_executive_summary_slide_spec,
 )
 from services.slides.group_a_compression import GroupACompressFieldsFn
 from services.slides.summary_compression import validate_and_compress_summary_slide_spec
@@ -44,7 +44,7 @@ CONFIG = GroupAGenerationConfig(
         "for quantities that appear as digits in the chapter text you were given."
     ),
     schema_dir=SUMMARY_SCHEMA_DIR,
-    pre_validate_repair=repair_empty_subtitle,
+    pre_validate_repair=repair_executive_summary_slide_spec,
     format_retry_message=format_empty_subtitle_retry_message,
 )
 
