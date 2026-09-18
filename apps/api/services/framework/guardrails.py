@@ -28,6 +28,28 @@ _EU_DOT_THOUSANDS_RE = re.compile(r"^\d{1,3}(\.\d{3})+$")
 _GERMAN_DECIMAL_COMMA_RE = re.compile(r"^\d+,\d{1,2}$")
 
 
+def numeric_token_value(raw: str) -> float:
+    """Parse a locale-aware numeric token to its semantic value."""
+    return _numeric_token(raw.strip().rstrip("%"))
+
+
+def semantic_numeric_values_in_text(
+    text: str,
+    *,
+    pattern: re.Pattern[str] | None = None,
+) -> set[float]:
+    """Collect semantic values for every digit token matched in ``text``."""
+    regex = pattern or _NUMBER_RE
+    values: set[float] = set()
+    for match in regex.finditer(text):
+        token = match.group(1) if match.lastindex else match.group(0)
+        try:
+            values.add(_numeric_token(token.rstrip("%")))
+        except ValueError:
+            continue
+    return values
+
+
 def _numeric_token(raw: str) -> float:
     """Normalize locale-specific numeric tokens to a float for grounding checks."""
     text = raw.strip()

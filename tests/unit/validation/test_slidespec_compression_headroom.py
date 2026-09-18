@@ -268,9 +268,12 @@ def test_number_form_restoration_does_not_clip_and_can_retry() -> None:
     assert len(executor.calls) == 2
 
 
-def test_invented_digits_remain_sanitized_on_shared_compressor() -> None:
-    compress, _executor = _compress_with(
-        [{"problem.title": "3-way match exceptions"}]
+def test_invented_digit_rewrites_are_rejected_by_shared_compressor() -> None:
+    compress, executor = _compress_with(
+        [
+            {"problem.title": "3-way match exceptions"},
+            {"problem.title": "3-way match exceptions"},
+        ]
     )
 
     result = validate_and_compress_group_a_slide_spec(
@@ -278,12 +281,16 @@ def test_invented_digits_remain_sanitized_on_shared_compressor() -> None:
         compress_fields=compress,
     )
 
-    assert result.status == "VALID"
-    assert result.slide_spec is not None
-    accepted = result.slide_spec["problem"]["title"]
-    assert "3" not in accepted
-    assert "three" in accepted
-    assert len(accepted) <= 32
+    assert result.status == "VALIDATION_FAILED"
+    assert result.compression_attempts == MAX_COMPRESSION_ATTEMPTS
+    assert result.slide_spec is None
+    assert len(executor.calls) == 2
+    fitted = _apply_compression_number_forms(
+        CONTEXT_TITLE_39,
+        "3-way match exceptions",
+        32,
+    )
+    assert fitted == CONTEXT_TITLE_39
 
 
 def test_shared_compressor_has_no_slice_clipping() -> None:

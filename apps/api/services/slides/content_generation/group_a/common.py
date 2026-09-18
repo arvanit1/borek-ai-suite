@@ -23,6 +23,10 @@ from services.slides.group_a_compression import (
     validate_and_compress_group_a_slide_spec,
 )
 from services.framework.customer_view import presentation_chapter_excerpt
+from services.framework.guardrails import (
+    numeric_token_value,
+    semantic_numeric_values_in_text,
+)
 from services.validation.compression_retry import CompressionResult
 from services.validation.compression_retry import get_value_at_path
 from services.presentation.ci_contract import ci_voice_instruction_block
@@ -409,18 +413,23 @@ def _validate_numeric_grounding(
 ) -> None:
     chapters_by_id = {chapter["chapter_id"]: chapter for chapter in chapters}
     for path, source_chapter_ids in provenance_by_path.items():
-        generated_numbers = _number_tokens(get_value_at_path(slide_spec, path))
-        if not generated_numbers:
+        field_value = get_value_at_path(slide_spec, path)
+        generated_semantic = _semantic_number_values(field_value)
+        if not generated_semantic:
             continue
         attributed_chapters = tuple(
             chapters_by_id[chapter_id] for chapter_id in source_chapter_ids
         )
-        grounded_numbers = _number_tokens(attributed_chapters)
-        invented = sorted(generated_numbers - grounded_numbers)
-        if invented:
+        grounded_semantic = _semantic_number_values(attributed_chapters)
+        invented_semantic = generated_semantic - grounded_semantic
+        if invented_semantic:
+            display_token = _first_ungrounded_display_token(
+                field_value,
+                grounded_semantic,
+            )
             raise UngroundedContentError(
                 f"{layout_id} contains numeric content at {path} absent from its "
-                f"field-attributed chapters: {invented[0]}"
+                f"field-attributed chapters: {display_token}"
             )
 
 
@@ -451,6 +460,26 @@ def _number_tokens(value: Any) -> set[str]:
         for match in _NUMBER_TOKEN.finditer(text):
             tokens.add(match.group(0).rstrip("%").replace(",", "."))
     return tokens
+
+
+def _semantic_number_values(value: Any) -> set[float]:
+    values: set[float] = set()
+    for text in _iter_content_strings(value):
+        values |= semantic_numeric_values_in_text(text, pattern=_NUMBER_TOKEN)
+    return values
+
+
+def _first_ungrounded_display_token(value: Any, grounded_semantic: set[float]) -> str:
+    for text in _iter_content_strings(value):
+        for match in _NUMBER_TOKEN.finditer(text):
+            raw = match.group(0).rstrip("%")
+            try:
+                semantic = numeric_token_value(raw)
+            except ValueError:
+                continue
+            if semantic not in grounded_semantic:
+                return raw.replace(",", ".")
+    return "?"
 
 
 def _iter_content_strings(value: Any):

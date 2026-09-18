@@ -490,15 +490,11 @@ def test_scope_compression_preserves_included_and_later_semantics() -> None:
     assert set(result) == set(request["offendingValues"])
 
 
-def test_compression_number_forms_do_not_break_max_length() -> None:
+def test_compression_number_forms_reject_new_digits_from_word_only_field() -> None:
     original = "Manual invoice matching exceptions"
     rewritten = "3-way match exception handling"
-    spelled = "three-way match exception handling"
-    assert len(rewritten) <= 32
-    assert len(spelled) > 32
     fitted = _apply_compression_number_forms(original, rewritten, 32)
-    assert fitted == rewritten
-    assert len(fitted) <= 32
+    assert fitted == original
 
 
 def test_layout_limit_instruction_includes_context_title_bounds() -> None:
