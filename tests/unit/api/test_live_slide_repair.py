@@ -525,6 +525,56 @@ def test_sanitizer_runs_for_all_layouts() -> None:
     assert "ten weeks" in timeline["phases"][0]["description"]
 
 
+def test_wrapper_cover_ungrounded_title_retry_uses_word_only_guidance() -> None:
+    word_only_request = StructuredGenerationRequest(
+        layout_id="COVER_01",
+        chapters=(
+            {
+                "chapter_id": "1",
+                "title": "Management summary",
+                "body": "about twelve thousand invoices per month in SAP",
+            },
+        ),
+        target_schema={
+            "type": "object",
+            "required": [
+                "schema_version",
+                "layoutId",
+                "title",
+                "subtitle",
+                "sourceChapterIds",
+                "statBadges",
+            ],
+        },
+        instructions="Generate COVER_01.",
+    )
+    bad = _cover(
+        title="Automatisierung für 12.000 Rechnungen pro Monat",
+        statBadges=[{"value": "Human", "label": "Exceptions stay controlled"}],
+        provenance=[
+            {"path": "title", "sourceChapterIds": ["1"]},
+            {"path": "subtitle", "sourceChapterIds": ["1"]},
+            {"path": "statBadges[0].value", "sourceChapterIds": ["1"]},
+            {"path": "statBadges[0].label", "sourceChapterIds": ["1"]},
+        ],
+    )
+    good = copy.deepcopy(bad)
+    good["title"] = "Kontrollierte Rechnungsautomatisierung"
+    responses = [bad, good]
+    requests: list[StructuredGenerationRequest] = []
+
+    def regenerate(request: StructuredGenerationRequest) -> dict[str, Any]:
+        requests.append(request)
+        return copy.deepcopy(responses[len(requests) - 1])
+
+    result = wrap_live_structured_generator(regenerate)(word_only_request)
+
+    assert len(requests) == 2
+    assert "word-form quantities" in requests[1].instructions
+    assert "title" in requests[1].instructions.casefold()
+    assert result["title"] == "Kontrollierte Rechnungsautomatisierung"
+
+
 def test_wrapper_retries_then_returns_repaired_cover() -> None:
     calls: list[str] = []
 
