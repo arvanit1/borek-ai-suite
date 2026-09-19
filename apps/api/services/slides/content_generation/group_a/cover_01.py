@@ -251,7 +251,38 @@ def _resync_cover_stat_badge_provenance(
         slide_spec["sourceChapterIds"] = union
 
 
+_COVER_UNGROUNDED_NUMERIC = re.compile(
+    r"contains numeric content at (?P<path>[^\s]+) absent",
+    re.IGNORECASE,
+)
+_COVER_GROUNDED_CONTENT_FIELDS = frozenset({"title", "subtitle", "sectionLabel"})
+
+
+def _cover_ungrounded_numeric_retry_message(message: str) -> str | None:
+    match = _COVER_UNGROUNDED_NUMERIC.search(message)
+    if match is None:
+        return None
+    field_path = match.group("path")
+    if not (
+        field_path in _COVER_GROUNDED_CONTENT_FIELDS
+        or field_path.startswith("statBadges[")
+    ):
+        return None
+    return (
+        f"{message} Every populated COVER_01 field (title, subtitle, sectionLabel, "
+        "and statBadges) must be grounded in its field-attributed chapter. Do not "
+        "introduce digit-form numbers when the attributed chapter contains only "
+        "word-form quantities. If you cannot keep a numerical claim safely grounded, "
+        "write a shorter non-numeric value for that field that remains faithful to "
+        "the chapter. Do not copy digit-form numbers from other chapters. Do not "
+        "invent metrics, commercial values, or spell unsupported numbers as words."
+    )
+
+
 def _cover_retry_message(message: str) -> str:
+    ungrounded = _cover_ungrounded_numeric_retry_message(message)
+    if ungrounded is not None:
+        return ungrounded
     if "statBadges" not in message or "minimum" not in message.casefold():
         return message
     return (
@@ -272,9 +303,14 @@ CONFIG = GroupAGenerationConfig(
         "statBadges[i].value and statBadges[i].label"
     ),
     instructions=(
-        "Create COVER_01 content using only chapter 1. Include at least 1 and at "
-        "most 3 statBadges. Prefer grounded quantitative facts only when the "
-        "supplied chapter title or body contains the exact number. If the chapter "
+        "Create COVER_01 content using only chapter 1. Every populated field "
+        "(title, subtitle, sectionLabel, and statBadges) must be grounded in "
+        "chapter 1. Do not introduce digit-form numbers when the chapter contains "
+        "only word-form quantities. If a numerical claim cannot be grounded safely, "
+        "use a shorter non-numeric title or field value that remains faithful to "
+        "the chapter instead of inventing digits. Include at least 1 and at most 3 "
+        "statBadges. Prefer grounded quantitative facts only when the supplied "
+        "chapter title or body contains the exact number as digits. If the chapter "
         "contains no grounded numbers, include at least one short non-numeric "
         "statBadge whose value is copied verbatim from the chapter title or body. "
         "Select only grounded, non-commercial facts. Never output currency, "

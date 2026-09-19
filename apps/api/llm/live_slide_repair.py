@@ -26,6 +26,7 @@ from typing import Any, Callable
 
 from llm.client import ungrounded_content_retry_instruction
 from llm.json_schema_bundle import layout_constraint_config
+from services.slides.content_generation.group_a.cover_01 import _cover_retry_message
 from services.slides.content_generation.group_a.common import (
     ProhibitedCommercialContentError,
     UngroundedContentError,
@@ -419,9 +420,15 @@ def _ungrounded_retry_message(
     slide_spec: dict[str, Any],
     request: Any,
 ) -> str:
-    match = _UNGROUNDED_MESSAGE.search(str(exc))
+    error_text = str(exc)
+    layout_id = str(getattr(request, "layout_id", ""))
+    if layout_id == "COVER_01":
+        cover_message = _cover_retry_message(error_text)
+        if cover_message != error_text:
+            return cover_message
+    match = _UNGROUNDED_MESSAGE.search(error_text)
     field_path = match.group("path") if match and match.group("path") else "the slide content"
-    token = match.group("token").strip() if match else str(exc)
+    token = match.group("token").strip() if match else error_text
     attributed: list[str] = []
     for entry in _provenance_entries(slide_spec.get("fieldProvenance")):
         if entry["path"] == field_path:

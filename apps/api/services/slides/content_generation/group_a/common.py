@@ -195,7 +195,10 @@ def generate_group_a_slide_spec(
             _validate_slide_spec(candidate, config, chapters)
         except UngroundedContentError as exc:
             if attempt + 1 < _MAX_AT8_REGENERATION_ATTEMPTS:
-                request = _with_at8_rejection(request, str(exc))
+                retry_message = str(exc)
+                if config.format_retry_message is not None:
+                    retry_message = config.format_retry_message(retry_message)
+                request = _with_at8_rejection(request, retry_message)
                 continue
             raise
         except SlideSpecValidationError as exc:
