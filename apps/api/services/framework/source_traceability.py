@@ -39,7 +39,7 @@ def attach_block_source_refs(
     required_missing = False
     llm_used = bool((framework.get("generation_meta") or {}).get("llm_used"))
     if llm_used:
-        _stamp_supported_atomic_claims(framework, list(entries.values()))
+        _stamp_supported_atomic_claims(framework, entries)
     for chapter in framework.get("chapters") or []:
         if not isinstance(chapter, dict):
             continue
@@ -67,9 +67,13 @@ def attach_block_source_refs(
                 except AtomicTraceabilityError:
                     continue
                 seen_paths.add(path)
-                entry_ids = [str(item) for item in claim.get("knowledge_entry_ids") or []]
-                if not entry_ids or any(entry_id not in entries for entry_id in entry_ids):
-                    raise AtomicTraceabilityError(f"Atomic source claim at {path} has an unknown Knowledge entry")
+                entry_ids = [
+                    str(item)
+                    for item in claim.get("knowledge_entry_ids") or []
+                    if str(item) in entries
+                ]
+                if not entry_ids:
+                    continue
                 if not any(_entry_supports_claim(entries[entry_id], value) for entry_id in entry_ids):
                     raise AtomicTraceabilityError(
                         f"Atomic source claim at {path} does not exactly match its Knowledge entry"
@@ -112,10 +116,12 @@ class AtomicTraceabilityError(ValueError):
     retryable = False
 
 
-def _stamp_supported_atomic_claims(framework: dict[str, Any], entries: list[dict[str, Any]]) -> None:
+def _stamp_supported_atomic_claims(framework: dict[str, Any], entries: dict[str, dict[str, Any]]) -> None:
     """Bind live cells to Knowledge entries that actually support them. Claude often omits source_claims."""
     if not entries:
         return
+    known_ids = set(entries)
+    entry_list = list(entries.values())
     for chapter in framework.get("chapters") or []:
         if not isinstance(chapter, dict):
             continue
@@ -126,18 +132,28 @@ def _stamp_supported_atomic_claims(framework: dict[str, Any], entries: list[dict
             if not isinstance(block, dict) or not _block_requires_traceability(block):
                 continue
             existing = block.get("source_claims")
-            claimed_paths = {
-                _coerce_source_path(item.get("path"))
-                for item in existing or []
-                if isinstance(item, dict)
-            }
-            stamped = list(existing) if isinstance(existing, list) else []
+            claimed_paths: set[str] = set()
+            stamped: list[Any] = []
+            if isinstance(existing, list):
+                for item in existing:
+                    if not isinstance(item, dict):
+                        continue
+                    path = _coerce_source_path(item.get("path"))
+                    known = [
+                        str(entry_id)
+                        for entry_id in item.get("knowledge_entry_ids") or []
+                        if str(entry_id) in known_ids
+                    ]
+                    if not path or not known:
+                        continue
+                    claimed_paths.add(path)
+                    stamped.append(item)
             for path, value in _iter_scalar_claim_paths(block):
                 if path in claimed_paths:
                     continue
                 matches = [
                     str(entry.get("entry_id"))
-                    for entry in entries
+                    for entry in entry_list
                     if str(entry.get("entry_id") or "") and _entry_supports_claim(entry, value)
                 ]
                 if not matches:

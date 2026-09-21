@@ -27,6 +27,7 @@ from services.knowledge_model.origin_classification import (
 )
 from services.knowledge_model.source_refs import (
     KNOWLEDGE_BUCKETS,
+    coerce_knowledge_bucket,
     collect_knowledge_model_source_ref_violations,
 )
 from services.transcript.conversation_ids import TranscriptIdentity
@@ -222,13 +223,9 @@ def _stamp_identity(raw: dict[str, Any], identity: TranscriptIdentity) -> dict[s
     model["transcript_id"] = identity.transcript_id
     model["conversation_id"] = identity.conversation_id
     for bucket in KNOWLEDGE_BUCKETS:
-        entries = model.get(bucket)
-        if entries is None:
-            model[bucket] = []
-            continue
-        if not isinstance(entries, list):
-            raise KnowledgeExtractionError(f"Knowledge bucket '{bucket}' must be a list.")
-        model[bucket] = [_coerce_entry(entry, identity) for entry in entries]
+        model[bucket] = [
+            _coerce_entry(entry, identity) for entry in coerce_knowledge_bucket(model.get(bucket))
+        ]
     return model
 
 

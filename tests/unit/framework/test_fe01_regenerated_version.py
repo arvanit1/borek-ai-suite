@@ -109,6 +109,50 @@ def test_chapter_synthesis_requests_and_validates_only_target_chapter() -> None:
     assert "chapters" not in calls[0]["properties"]
 
 
+def test_chapter_synthesis_coerces_numeric_chapter_id() -> None:
+    framework = _framework()
+    title = framework["chapters"][11]["title"]
+
+    def complete(_system: str, _user: str, _schema: dict) -> dict:
+        return {
+            "chapter_id": 11,
+            "title": title,
+            "body": [{"block": "prose", "text": "Three independent quality gates apply before go-live."}],
+            "source_refs": [
+                {
+                    "conversation_id": "C1",
+                    "speaker_role": "operator",
+                    "excerpt_pointer": 0,
+                }
+            ],
+        }
+
+    chapter = synthesize_customer_chapter(
+        framework=framework,
+        knowledge_models=[
+            {
+                "facts": [
+                    {
+                        "statement": "Three independent quality gates apply before go-live.",
+                        "source_refs": [
+                            {
+                                "conversation_id": "C1",
+                                "speaker_role": "operator",
+                                "excerpt_pointer": "turn:0",
+                            }
+                        ],
+                    }
+                ]
+            }
+        ],
+        chapter_id="11",
+        complete=complete,
+    )
+
+    assert chapter["chapter_id"] == "11"
+    assert chapter["source_refs"][0]["excerpt_pointer"] == "turn:0"
+
+
 def test_chapter_synthesis_rejects_reference_outside_knowledge_model() -> None:
     framework = _framework()
 

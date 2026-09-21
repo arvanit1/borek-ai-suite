@@ -87,7 +87,7 @@ import type {
 import {
   inputRequiredRecoveryNotice,
   jobFailureRecoveryNotice,
-  recoveryActionHref,
+  recoveryBannerNotice,
   recoveryNoticeFromError,
   recoverySurfacePrecedence,
   retryingRecoveryNotice,
@@ -742,6 +742,13 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
       void handleGenerate();
       return;
     }
+    if (notice?.action?.kind === "REVIEW") {
+      const hashTarget = notice.action.href?.startsWith("#")
+        ? notice.action.href.slice(1)
+        : "framework-review-content";
+      document.getElementById(hashTarget)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
     if (notice?.action?.kind === "RETRY") {
       void handleRetry();
       return;
@@ -1107,17 +1114,7 @@ export function FrameworkReviewPanel({ opportunityId }: FrameworkReviewPanelProp
         <div className="framework-review-main" id="framework-review-content">
             {notice && surfacePrecedence.showRecovery ? (
               <RecoveryBanner
-                notice={
-                  recoveryActionHref(notice, opportunityId)
-                    ? {
-                        ...notice,
-                        action: {
-                          ...notice.action!,
-                          href: recoveryActionHref(notice, opportunityId),
-                        },
-                      }
-                    : notice
-                }
+                notice={recoveryBannerNotice(notice, opportunityId, "framework")}
                 busy={busy}
                 onAction={handleRecoveryAction}
               />

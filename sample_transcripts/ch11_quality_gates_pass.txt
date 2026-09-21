@@ -1,0 +1,19 @@
+Agent: Discovery for vendor invoice three-way matching in Accounts Payable. Use only what we name in this conversation. Do not invent Borek day rates, list prices, headcount, or currency amounts we do not state.
+
+Maria: I am Maria Keller, AP lead at Nordlicht Components in Leipzig. This is approved scope and a committed priority for the next quarter. We process 850 vendor invoices per month. Clerks spend 210 staff-hours on the matchable portion each month. The full AP desk is about 310 hours each month. Mismatches run 8 percent of the batch.
+
+Maria: Goal is to reduce clerical load from 210 hours to 25 hours per month. Fully loaded clerk rate is 52 euros an hour. At 52 euros an hour the full AP desk is 16,120 euros each month. Finance started this initiative in March 2024. The estimated build is four weeks.
+
+Maria: Today a clerk opens the invoice in SAP S/4HANA, finds the purchase order, waits for the goods receipt, and posts when the three documents agree. With the agent, the same clerk sees a suggested match, the three documents, and a one-click confirm.
+
+Maria: Straight-through cases are a clean three-way match when purchase order, goods receipt, and invoice agree on vendor, amount, and quantity. Quantity matches exactly across invoice, purchase order, and goods receipt. Unit price matches exactly when a stored discount agreement applies. Total rounding tolerance is 0.50 euros. Amount deviation versus the purchase order greater than 2 percent is held for review. An invoice number already posted is flagged as a duplicate.
+
+Maria: Exceptions are mixed-line invoices, missing goods receipts, and price variances. Those cases are 8 percent of the batch and go to the AP supervisor queue. Human one-click confirmation is required before any SAP posting or supplier mail.
+
+IT: SAP S/4HANA read and write access is live via BAPI. Approval was granted. Outlook mailbox read access is live for the AP inbox via Microsoft Graph. The vendor portal is available for certificate read over HTTPS. A sample of 200 anonymized invoices from last quarter is available. SSO is already configured with Microsoft Entra ID. The rule-confirmation workshop is scheduled for 2 October 2026.
+
+Quality: Classification is internal confidential. Personal data stays in the EU. GDPR retention is 30 days for logs. Least-privilege service account. Every suggested match is logged with a reason code and monitored. Processing is protected. Kill switch is required.
+
+Maria: Success is measured via SAP posting logs. Target remaining hours is 25 hours per month. Wrong-post rate today is 3 percent; target is under 1 percent, measured via reversed postings. Cycle time today is 18 hours median; target is under 6 hours on business days, measured via invoice-received to posted timestamps. Automation rate for clean matches is a signed 0.70 once the four-week path is live.
+
+Maria: Stage 1 is assistive suggested match. Stage 2 is one-click posting with human control on every exception. We are not discussing Borek commercial terms, day rates, or FTE in this conversation.

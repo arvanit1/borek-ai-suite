@@ -258,7 +258,12 @@ export function recoveryNoticeFromError(
     };
   }
 
-  if (context === "framework" && value.code != null && FRAMEWORK_REGENERATE_CODES.has(value.code)) {
+  if (
+    context === "framework" &&
+    (FRAMEWORK_REGENERATE_CODES.has(value.code ?? "") ||
+      value.code === "FRAMEWORK_VALIDATION_FAILED" ||
+      value.stage === "FRAMEWORK_VALIDATING")
+  ) {
     return {
       category: "TERMINAL_FAILURE",
       title: "We could not complete your framework",
@@ -330,4 +335,26 @@ export function recoveryActionHref(
     return `/${page}?opportunityId=${opportunityId}`;
   }
   return undefined;
+}
+
+export function recoveryBannerNotice(
+  notice: RecoveryNotice,
+  opportunityId: string,
+  currentPage?: RecoveryContext,
+): RecoveryNotice {
+  if (!notice.action || notice.action.href) {
+    return notice;
+  }
+  if (
+    currentPage === "framework" &&
+    notice.action.kind === "REVIEW" &&
+    notice.action.target === "framework"
+  ) {
+    return notice;
+  }
+  const href = recoveryActionHref(notice, opportunityId);
+  if (!href) {
+    return notice;
+  }
+  return { ...notice, action: { ...notice.action, href } };
 }

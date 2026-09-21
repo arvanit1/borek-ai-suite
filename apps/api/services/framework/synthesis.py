@@ -282,6 +282,9 @@ def synthesize_customer_chapter(
         )
     else:
         raw = invoke()
+    if not isinstance(raw, dict):
+        raise ChapterSynthesisValidationError("Regenerated chapter must be a JSON object.")
+    raw = _coerce_regenerated_chapter(raw, chapter_id=target_id, title=str(target.get("title") or ""))
     try:
         jsonschema.validate(instance=raw, schema=schema)
     except jsonschema.ValidationError as exc:
@@ -298,6 +301,23 @@ def synthesize_customer_chapter(
     if violations:
         raise ChapterSynthesisValidationError(violations[0].message)
     return raw
+
+
+def _coerce_regenerated_chapter(raw: dict[str, Any], *, chapter_id: str, title: str) -> dict[str, Any]:
+    """Claude often returns numeric chapter_id; the registry const is a string."""
+    refs = raw.get("source_refs")
+    if isinstance(refs, dict):
+        refs = [refs]
+    body = raw.get("body")
+    returned_id = raw.get("chapter_id")
+    if returned_id is None or returned_id == "":
+        returned_id = chapter_id
+    return {
+        "chapter_id": str(returned_id),
+        "title": str(raw.get("title") or title).strip() or title,
+        "body": body if isinstance(body, (list, str)) else [],
+        "source_refs": [_coerce_ref(ref) for ref in refs or [] if isinstance(ref, dict)],
+    }
 
 
 def _chapter_regeneration_schema(chapter_id: str, title: str) -> dict[str, Any]:

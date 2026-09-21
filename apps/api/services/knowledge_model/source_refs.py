@@ -39,11 +39,24 @@ class SourceRefError(ValueError):
         self.user_message = message
 
 
+def coerce_knowledge_bucket(entries: Any) -> list[Any]:
+    """Claude often returns one object (or a keyed map) instead of a list."""
+    if entries is None:
+        return []
+    if isinstance(entries, list):
+        return entries
+    if isinstance(entries, dict):
+        if any(key in entries for key in ("statement", "text", "source_refs", "entry_id", "origin")):
+            return [entries]
+        return [value for value in entries.values() if isinstance(value, dict)]
+    if isinstance(entries, str) and entries.strip():
+        return [{"statement": entries.strip()}]
+    return []
+
+
 def iter_knowledge_entries(model: dict[str, Any]) -> Iterable[tuple[str, int, dict[str, Any]]]:
     for bucket in KNOWLEDGE_BUCKETS:
-        entries = model.get(bucket) or []
-        if not isinstance(entries, list):
-            raise SourceRefError(f"Knowledge bucket '{bucket}' must be a list.")
+        entries = coerce_knowledge_bucket(model.get(bucket))
         for index, entry in enumerate(entries):
             if not isinstance(entry, dict):
                 raise SourceRefError(f"{bucket}[{index}] must be an object.")

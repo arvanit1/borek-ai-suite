@@ -127,6 +127,18 @@ def test_claude_shape_quirks_are_coerced() -> None:
                     },
                 }
             ],
+            "named_rules": {
+                "statement": "Match the PO, receipt, and invoice.",
+                "origin": "SOURCE_FACT",
+                "confidence": "high",
+                "source_refs": [
+                    {
+                        "conversation_id": "C1",
+                        "speaker_role": "Sandra",
+                        "excerpt_pointer": "turn:0",
+                    }
+                ],
+            },
             "conflicts": [{"topic": "x", "values": ["a"], "source_ids": [], "requires_clarification": False}],
         }
 
@@ -141,6 +153,7 @@ def test_claude_shape_quirks_are_coerced() -> None:
     assert fact["source_refs"][0]["conversation_id"] == "C1"
     assert fact["source_refs"][0]["excerpt_pointer"] == "turn:0"
     assert fact["source_refs"][0]["speaker_role"] == "Sandra"
+    assert model["named_rules"][0]["statement"] == "Match the PO, receipt, and invoice."
     assert all(isinstance(model[bucket], list) for bucket in KNOWLEDGE_BUCKETS)
 
 

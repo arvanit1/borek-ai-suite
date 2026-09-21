@@ -4,6 +4,7 @@ import { ApiRequestError } from "./api.js";
 import {
   inputRequiredRecoveryNotice,
   recoveryActionHref,
+  recoveryBannerNotice,
   recoveryNoticeFromError,
   recoverySurfacePrecedence,
   retryingRecoveryNotice,
@@ -153,6 +154,29 @@ const extractionFailed = recoveryNoticeFromError(
   "framework",
 );
 assert.equal(extractionFailed.action?.kind, "GENERATE");
+
+const frameworkValidationFailed = recoveryNoticeFromError(
+  new ApiRequestError("Atomic source claim at /text has an unknown Knowledge entry", 422, "FRAMEWORK_VALIDATION_FAILED", {
+    retryable: false,
+    jobId: "job-validate",
+    stage: "FRAMEWORK_VALIDATING",
+  }),
+  "framework",
+);
+assert.equal(frameworkValidationFailed.category, "TERMINAL_FAILURE");
+assert.equal(frameworkValidationFailed.action?.kind, "GENERATE");
+assert.equal(frameworkValidationFailed.action?.label, "Generate again");
+assert.equal(frameworkValidationFailed.action?.href, undefined);
+assert.equal(recoveryActionHref(frameworkValidationFailed, "opportunity-1"), undefined);
+assert.equal(
+  recoveryBannerNotice(frameworkValidationFailed, "opportunity-1", "framework").action?.kind,
+  "GENERATE",
+);
+assert.doesNotMatch(frameworkValidationFailed.message, /unknown Knowledge entry|contact support/i);
+assert.equal(
+  frameworkValidationFailed.technical?.message,
+  "Atomic source claim at /text has an unknown Knowledge entry",
+);
 
 const frameworkInput = recoveryNoticeFromError(
   new ApiRequestError("Framework must be confirmed", 409, "FRAMEWORK_NOT_CONFIRMED"),
