@@ -1,0 +1,238 @@
+{
+  "description": "Offline regression snapshot: generated summary, its field-attributed Chapter 1, and raw English CONTEXT_01 from presentation-stage acceptance 2026-09-21. No provider calls or persistence identifiers.",
+  "chapter_1": {
+    "chapter_id": "1",
+    "title": "Management-Zusammenfassung",
+    "body": [
+      {
+        "text": "Das Team erhält etwa 200 Lieferantenrechnungen pro Monat. Jeder saubere Fall dauert etwa fünf Minuten zur Bearbeitung. Rechnungen kommen per E-Mail und werden manuell mit Bestellungen im ERP abgeglichen, bevor sie gebucht werden.",
+        "block": "prose"
+      },
+      {
+        "rows": [
+          {
+            "label": "Automatisierung",
+            "value": "BT30 DE Final E2E a252ce22"
+          },
+          {
+            "label": "Erwarteter Nutzen",
+            "value": "In den Gesprächen nicht genannt. Als offener Punkt erfasst, nicht geschätzt. (eingesparte Stunden/Monat und EUR-Nettowert konnten aus dem Gespräch nicht berechnet werden)."
+          },
+          {
+            "label": "Investition",
+            "value": "~EUR 8500 Build (1,7 Wochen) · ~EUR 150/Monat Betriebskosten"
+          },
+          {
+            "label": "Amortisation",
+            "value": "In den Gesprächen nicht genannt. Als offener Punkt erfasst, nicht geschätzt."
+          },
+          {
+            "label": "Komplexität",
+            "value": "Tier T1 · 1 Systeme · 1 genannte Regeln"
+          },
+          {
+            "label": "Human in the Loop",
+            "value": "Ausnahmen werden immer von Menschen entschieden."
+          },
+          {
+            "label": "Sicherheit",
+            "value": "Daten sind vertraulich. Daten müssen in der EU verbleiben."
+          },
+          {
+            "label": "Datenbasis",
+            "value": "Opportunity-Rating 50/100 · Gesprächsqualität 82/100 · Build-Readiness 86/100"
+          }
+        ],
+        "block": "kv_rows",
+        "caption": "Auf einen Blick"
+      },
+      {
+        "kind": "recommendation",
+        "text": "Fortfahren zu Stufe 2 (autonom mit HITL). Der blockierende Punkt sind Musterrechnungen, die noch nicht geliefert wurden. Nächste Schritte sind in Kapitel 13 aufgeführt.",
+        "block": "callout"
+      }
+    ]
+  },
+  "summary": {
+    "title": "Automatisierung der Lieferantenrechnungsverarbeitung fördern",
+    "slideId": "slide_02",
+    "headline": "Die manuelle Verarbeitung von 200 Lieferantenrechnungen pro Monat dauert zu lange und bietet Potenzial für Automatisierung mit Human in the Loop.",
+    "layoutId": "EXECUTIVE_SUMMARY_01",
+    "subtitle": "Das Team bearbeitet monatlich 200 Lieferantenrechnungen mit manueller Kontrolle und ERP-Abgleich.",
+    "highlights": [
+      {
+        "title": "Mittlere Bearbeitungszeit",
+        "description": "Jede saubere Rechnung benötigt fünf Minuten zur manuellen Prüfung und Buchung."
+      },
+      {
+        "title": "Derzeitiger Prozessablauf",
+        "description": "Rechnungen kommen per E-Mail und werden manuell mit Bestellungen im ERP abgeglichen."
+      },
+      {
+        "title": "Automatisierungsstatus",
+        "description": "Die erste Automatisierungsstufe ist implementiert, mit einem Human in the Loop für Ausnahmen."
+      },
+      {
+        "title": "Nächste Schritte",
+        "description": "Fortfahren zu Stufe zwei; blockiert durch Musterrechnungen, Details in Kapitel 13."
+      }
+    ],
+    "sectionLabel": "MANAGEMENT-ZUSAMMENFASSUNG",
+    "schema_version": "1.0",
+    "fieldProvenance": [
+      {
+        "path": "headline",
+        "sourceChapterIds": [
+          "1"
+        ]
+      },
+      {
+        "path": "highlights[0].description",
+        "sourceChapterIds": [
+          "1"
+        ]
+      },
+      {
+        "path": "highlights[0].title",
+        "sourceChapterIds": [
+          "1"
+        ]
+      },
+      {
+        "path": "highlights[1].description",
+        "sourceChapterIds": [
+          "1"
+        ]
+      },
+      {
+        "path": "highlights[1].title",
+        "sourceChapterIds": [
+          "1"
+        ]
+      },
+      {
+        "path": "highlights[2].description",
+        "sourceChapterIds": [
+          "1"
+        ]
+      },
+      {
+        "path": "highlights[2].title",
+        "sourceChapterIds": [
+          "1"
+        ]
+      },
+      {
+        "path": "highlights[3].description",
+        "sourceChapterIds": [
+          "1"
+        ]
+      },
+      {
+        "path": "highlights[3].title",
+        "sourceChapterIds": [
+          "1"
+        ]
+      },
+      {
+        "path": "sectionLabel",
+        "sourceChapterIds": [
+          "1"
+        ]
+      },
+      {
+        "path": "subtitle",
+        "sourceChapterIds": [
+          "1"
+        ]
+      },
+      {
+        "path": "title",
+        "sourceChapterIds": [
+          "1"
+        ]
+      }
+    ],
+    "sourceChapterIds": [
+      "1"
+    ]
+  },
+  "context": {
+    "schema_version": "1.0",
+    "slideId": "context_01_invoice_process_001",
+    "layoutId": "CONTEXT_01",
+    "sectionLabel": "PROCESS OVERVIEW",
+    "title": "Current Invoice Processing Challenges and Next Steps",
+    "subtitle": "Manual handling of 200 monthly invoices with high exception rate",
+    "sourceChapterIds": [
+      "1",
+      "2"
+    ],
+    "problem": {
+      "title": "Manual invoice processing delays",
+      "description": "About two hundred supplier invoices arrive monthly. Each standard case takes five minutes. Invoices come by email and must be matched manually with ERP orders before booking."
+    },
+    "solution": {
+      "title": "Autonomous process with human oversight",
+      "description": "Proceed to stage two with autonomous automation including human in the loop. Next steps detailed in chapter 13 after delivery of pattern invoices."
+    },
+    "currentState": {
+      "title": "Manual email invoice workflow",
+      "description": "Team downloads PDFs, checks ERP orders, and manually books matching invoices. Seventy percent of cases require exception handling."
+    },
+    "targetState": {
+      "title": "Automated ERP invoice booking",
+      "description": "Automate end-to-end booking with exceptions handled by people, ensuring data stays confidential within the EU."
+    },
+    "fieldProvenance": [
+      {
+        "path": "problem.title",
+        "sourceChapterIds": [
+          "1"
+        ]
+      },
+      {
+        "path": "problem.description",
+        "sourceChapterIds": [
+          "1"
+        ]
+      },
+      {
+        "path": "solution.title",
+        "sourceChapterIds": [
+          "1"
+        ]
+      },
+      {
+        "path": "solution.description",
+        "sourceChapterIds": [
+          "1"
+        ]
+      },
+      {
+        "path": "currentState.title",
+        "sourceChapterIds": [
+          "2"
+        ]
+      },
+      {
+        "path": "currentState.description",
+        "sourceChapterIds": [
+          "2"
+        ]
+      },
+      {
+        "path": "targetState.title",
+        "sourceChapterIds": [
+          "1"
+        ]
+      },
+      {
+        "path": "targetState.description",
+        "sourceChapterIds": [
+          "1"
+        ]
+      }
+    ]
+  }
+}

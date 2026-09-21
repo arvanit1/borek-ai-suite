@@ -22,7 +22,17 @@ from services.slides.group_a_compression import (
     GroupACompressFieldsFn,
     validate_and_compress_group_a_slide_spec,
 )
-from services.framework.customer_view import presentation_chapter_excerpt
+from services.framework.customer_view import (
+    presentation_chapter_excerpt,
+    presentation_render_language,
+)
+from services.validation.slide_content_policy import (
+    ContentPolicyError,
+    STATUS_INSTRUCTION,
+    compression_language,
+    language_instruction,
+    validate_content_policy,
+)
 from services.framework.guardrails import (
     numeric_token_value,
     semantic_numeric_values_in_text,
@@ -66,6 +76,10 @@ class SlideSpecValidationError(GroupAContentGenerationError):
     """Generated content does not satisfy the canonical layout contract."""
 
 
+class ContentPolicyValidationError(SlideSpecValidationError):
+    """Source status or required prose language failed validation."""
+
+
 class SourceChapterValidationError(SlideSpecValidationError):
     """Generated provenance does not match the layout's allowed Framework chapters."""
 
@@ -86,6 +100,7 @@ class StructuredGenerationRequest:
     chapters: tuple[dict[str, Any], ...]
     target_schema: dict[str, Any]
     instructions: str
+    render_language: str = "en"
 
 
 StructuredGenerator = Callable[[StructuredGenerationRequest], dict[str, Any]]
@@ -166,11 +181,16 @@ def generate_group_a_slide_spec(
         config.allowed_chapter_ids,
     )
     schema = _load_json(config.schema_path)
+    render_language = presentation_render_language(framework_object)
     request = StructuredGenerationRequest(
         layout_id=config.layout_id,
         chapters=chapters,
         target_schema=copy.deepcopy(schema),
-        instructions=_generation_instructions(config),
+        instructions=(
+            _generation_instructions(config) + "\n\n"
+            + STATUS_INSTRUCTION + language_instruction(render_language)
+        ),
+        render_language=render_language,
     )
 
     compress_slide = validate_and_compress or validate_and_compress_group_a_slide_spec
@@ -192,8 +212,8 @@ def generate_group_a_slide_spec(
         if config.pre_validate_repair is not None:
             candidate = config.pre_validate_repair(candidate, chapters)
         try:
-            _validate_slide_spec(candidate, config, chapters)
-        except UngroundedContentError as exc:
+            _validate_slide_spec(candidate, config, chapters, request.render_language)
+        except (UngroundedContentError, ContentPolicyValidationError) as exc:
             if attempt + 1 < _MAX_AT8_REGENERATION_ATTEMPTS:
                 retry_message = str(exc)
                 if config.format_retry_message is not None:
@@ -214,11 +234,23 @@ def generate_group_a_slide_spec(
                 request = _with_at8_rejection(request, retry_message)
                 continue
             raise
-        result = compress_slide(
-            candidate,
-            compress_fields=compress_fields,
-        )
+        with compression_language(request.render_language):
+            result = compress_slide(
+                candidate,
+                compress_fields=compress_fields,
+            )
         if result.status == "VALID":
+            if result.slide_spec is None:
+                break  # The defensive check below rejects VALID without a spec.
+            try:
+                _validate_slide_spec(
+                    result.slide_spec, config, chapters, request.render_language
+                )
+            except ContentPolicyValidationError as exc:
+                if attempt + 1 < _MAX_AT8_REGENERATION_ATTEMPTS:
+                    request = _with_at8_rejection(request, str(exc))
+                    continue
+                raise
             break
         if attempt + 1 < _MAX_AT8_REGENERATION_ATTEMPTS and result.message:
             retry_message = result.message
@@ -237,7 +269,7 @@ def generate_group_a_slide_spec(
         raise SlideSpecValidationError(
             f"{config.layout_id} validation returned no SlideSpec"
         )
-    _validate_slide_spec(result.slide_spec, config, chapters)
+    _validate_slide_spec(result.slide_spec, config, chapters, request.render_language)
     return result
 
 
@@ -256,6 +288,7 @@ def _with_at8_rejection(
         chapters=request.chapters,
         target_schema=request.target_schema,
         instructions=f"{request.instructions}{extra}",
+        render_language=request.render_language,
     )
 
 
@@ -329,6 +362,7 @@ def _validate_slide_spec(
     slide_spec: dict[str, Any],
     config: GroupAGenerationConfig,
     chapters: tuple[dict[str, Any], ...],
+    render_language: str = "en",
 ) -> None:
     try:
         _slide_validator(str(config.schema_path)).validate(slide_spec)
@@ -379,6 +413,11 @@ def _validate_slide_spec(
         enforce_slide_spec_voice(slide_spec)
     except PresentationVoiceError as exc:
         raise SlideSpecValidationError(str(exc)) from exc
+
+    try:
+        validate_content_policy(slide_spec, chapters, render_language)
+    except ContentPolicyError as exc:
+        raise ContentPolicyValidationError(str(exc)) from exc
 
 
 def _find_commercial_paths(value: Any, path: str = "$") -> list[str]:
