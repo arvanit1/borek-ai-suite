@@ -116,7 +116,22 @@ def extract_knowledge_model(
                 usage_out=usage_holder,
                 invoke=invoke,
             )
-        raw = runner(system, user, _extraction_tool_schema(schema))
+        try:
+            raw = runner(system, user, _extraction_tool_schema(schema))
+        except KnowledgeExtractionError:
+            raise
+        except ClaudeClientError as exc:
+            raise KnowledgeExtractionError(
+                exc.user_message,
+                code=str(getattr(exc, "code", "KNOWLEDGE_EXTRACTION_FAILED")),
+                retryable=bool(getattr(exc, "retryable", False)),
+            ) from exc
+        except TimeoutError as exc:
+            raise KnowledgeExtractionError(
+                "Claude timed out before the KnowledgeModel was complete.",
+                code="PROVIDER_TIMEOUT",
+                retryable=True,
+            ) from exc
         if not isinstance(raw, dict):
             raise KnowledgeExtractionError("Claude did not return a JSON object for the KnowledgeModel.")
         return _stamp_identity(raw, identity)
@@ -186,6 +201,12 @@ def anthropic_structured_complete(
             exc.user_message,
             code=str(getattr(exc, "code", "KNOWLEDGE_EXTRACTION_FAILED")),
             retryable=bool(getattr(exc, "retryable", False)),
+        ) from exc
+    except TimeoutError as exc:
+        raise KnowledgeExtractionError(
+            "Claude timed out before the KnowledgeModel was complete.",
+            code="PROVIDER_TIMEOUT",
+            retryable=True,
         ) from exc
     if not isinstance(raw, dict):
         raise KnowledgeExtractionError("Claude did not return a JSON object for the KnowledgeModel.")

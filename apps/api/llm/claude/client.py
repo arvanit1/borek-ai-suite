@@ -100,6 +100,12 @@ def structured_complete(
             lowered = str(exc).lower()
             if "api_key" in lowered or "authentication" in lowered or "unauthorized" in lowered:
                 raise ClaudeClientError(message, code="CLAUDE_AUTH", retryable=False) from exc
+            if "credit" in lowered or "billing" in lowered or "quota" in lowered:
+                raise ClaudeClientError(
+                    "Claude has no remaining API credits. Add billing credit and retry generate.",
+                    code="PROVIDER_BILLING",
+                    retryable=False,
+                ) from exc
             if "timeout" in lowered or "timed out" in lowered:
                 raise ClaudeClientError(message, code="PROVIDER_TIMEOUT", retryable=True) from exc
             if "rate" in lowered and "limit" in lowered:
@@ -150,6 +156,8 @@ def _public_claude_error(exc: Exception) -> str:
         return "Claude needs a streaming request for the 14-chapter draft. Retry generate."
     if "api_key" in text.lower() or "authentication" in text.lower():
         return "Claude rejected the API key. Check ANTHROPIC_API_KEY in .env."
+    if "credit" in text.lower() or "billing" in text.lower() or "quota" in text.lower():
+        return "Claude has no remaining API credits. Add billing credit and retry generate."
     if "rate" in text.lower() and "limit" in text.lower():
         return "Claude rate-limited the request. Wait a minute and retry generate."
     return text or "Claude request failed."

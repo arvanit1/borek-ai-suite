@@ -14,6 +14,16 @@ _FIXTURE_WITH_SUPABASE_WARNING = (
     "deterministic fixtures (same plan/slide content every run). Set "
     "AI_EXECUTION_MODE=live in .env for API and worker when testing real transcripts."
 )
+_PRODUCTION_FIXTURE_REFUSAL = (
+    "RUNTIME_PROFILE=production cannot use AI_EXECUTION_MODE=fixture. "
+    "Fixture Frameworks are for tests and local development only."
+)
+
+
+class ProductionFixtureModeError(RuntimeError):
+    """Production must not silently serve the stub Framework template."""
+
+    code = "UNSAFE_RUNTIME_PROFILE"
 
 
 def runtime_profile(current: Settings | None = None) -> dict[str, str]:
@@ -29,9 +39,22 @@ def runtime_profile(current: Settings | None = None) -> dict[str, str]:
     }
 
 
+def assert_live_frameworks_in_production(
+    current: Settings | None = None,
+    *,
+    execution_mode: str | None = None,
+) -> None:
+    """Refuse production processes that would silently emit the stub Framework."""
+    cfg = current or settings
+    mode = execution_mode if execution_mode is not None else cfg.AI_EXECUTION_MODE
+    if cfg.RUNTIME_PROFILE == "production" and mode != "live":
+        raise ProductionFixtureModeError(_PRODUCTION_FIXTURE_REFUSAL)
+
+
 def log_runtime_profile(*, component: str, current: Settings | None = None) -> None:
     """Log execution modes at process startup and warn on common misconfiguration."""
     cfg = current or settings
+    assert_live_frameworks_in_production(cfg)
     profile = runtime_profile(cfg)
     logger.info(
         "%s runtime profile: ai_execution_mode=%s renderer_execution_mode=%s "
@@ -53,6 +76,8 @@ def runtime_warnings(current: Settings | None = None) -> list[str]:
     """Human-readable warnings for /health/runtime and ops checks."""
     cfg = current or settings
     warnings: list[str] = []
+    if cfg.RUNTIME_PROFILE == "production" and cfg.AI_EXECUTION_MODE != "live":
+        warnings.append(_PRODUCTION_FIXTURE_REFUSAL)
     if cfg.API_DATA_BACKEND == "supabase" and cfg.AI_EXECUTION_MODE == "fixture":
         warnings.append(_FIXTURE_WITH_SUPABASE_WARNING)
     if cfg.AI_EXECUTION_MODE == "live" and not cfg.OPENAI_API_KEY.strip():

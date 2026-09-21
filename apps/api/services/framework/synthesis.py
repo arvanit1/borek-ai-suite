@@ -21,6 +21,7 @@ from services.framework.config_loader import repo_root, tone_voice
 from services.framework.client_pack import format_client_pack_for_prompt
 from services.framework.company_facts import format_company_facts_for_prompt
 from services.knowledge_model.source_refs import (
+    SourceRefViolation,
     collect_customer_report_source_ref_violations,
     parse_turn_index,
 )
@@ -112,6 +113,12 @@ def synthesize_customer_draft(
                     code=str(getattr(exc, "code", "FRAMEWORK_GENERATION_FAILED")),
                     retryable=bool(getattr(exc, "retryable", False)),
                 ) from exc
+            except TimeoutError as exc:
+                raise FrameworkSynthesisError(
+                    "Claude timed out before the customer report was complete.",
+                    code="PROVIDER_TIMEOUT",
+                    retryable=True,
+                ) from exc
             if not isinstance(raw, dict):
                 raise FrameworkSynthesisError("Claude did not return a JSON object for the customer report.")
             return _coerce_draft(raw)
@@ -126,12 +133,35 @@ def synthesize_customer_draft(
                 usage_out=usage_holder,
                 invoke=invoke,
             )
-        raw = runner(system, user, schema)
+        try:
+            raw = runner(system, user, schema)
+        except FrameworkSynthesisError:
+            raise
+        except ClaudeClientError as exc:
+            raise FrameworkSynthesisError(
+                exc.user_message,
+                code=str(getattr(exc, "code", "FRAMEWORK_GENERATION_FAILED")),
+                retryable=bool(getattr(exc, "retryable", False)),
+            ) from exc
+        except TimeoutError as exc:
+            raise FrameworkSynthesisError(
+                "Claude timed out before the customer report was complete.",
+                code="PROVIDER_TIMEOUT",
+                retryable=True,
+            ) from exc
         if not isinstance(raw, dict):
             raise FrameworkSynthesisError("Claude did not return a JSON object for the customer report.")
         return _coerce_draft(raw)
 
     def collect(draft: dict[str, Any]) -> list:
+        chapters = draft.get("chapters") if isinstance(draft.get("chapters"), list) else []
+        if len(chapters) != 14:
+            return [
+                SourceRefViolation(
+                    path="chapters",
+                    message="Return exactly 14 chapters with registry ids 0..13 and titles, in order.",
+                )
+            ]
         return collect_customer_report_source_ref_violations(
             draft,
             allowed_conversation_ids=sorted(allowed_cids) if allowed_cids else None,

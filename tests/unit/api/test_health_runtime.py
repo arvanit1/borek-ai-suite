@@ -3,10 +3,16 @@
 from __future__ import annotations
 
 from fastapi.testclient import TestClient
+import pytest
 
 from app.config import Settings
 from app.main import create_app
-from app.runtime_profile import runtime_health_payload, runtime_warnings
+from app.runtime_profile import (
+    ProductionFixtureModeError,
+    log_runtime_profile,
+    runtime_health_payload,
+    runtime_warnings,
+)
 
 
 def test_health_runtime_reports_execution_modes() -> None:
@@ -73,3 +79,47 @@ def test_runtime_warnings_flag_live_gamma_without_key() -> None:
         )
     )
     assert any("GAMMA_API_KEY" in warning for warning in warnings)
+
+
+def test_production_fixture_mode_refuses_startup() -> None:
+    cfg = Settings(
+        _env_file=None,
+        RUNTIME_PROFILE="production",
+        AI_EXECUTION_MODE="fixture",
+        API_DATA_BACKEND="memory",
+    )
+    with pytest.raises(ProductionFixtureModeError, match="cannot use AI_EXECUTION_MODE=fixture"):
+        log_runtime_profile(component="api", current=cfg)
+
+
+def test_production_live_mode_starts() -> None:
+    cfg = Settings(
+        _env_file=None,
+        RUNTIME_PROFILE="production",
+        AI_EXECUTION_MODE="live",
+        API_DATA_BACKEND="supabase",
+        OPENAI_API_KEY="test-openai-key",
+    )
+    log_runtime_profile(component="api", current=cfg)
+
+
+def test_development_fixture_mode_still_starts() -> None:
+    cfg = Settings(
+        _env_file=None,
+        RUNTIME_PROFILE="development",
+        AI_EXECUTION_MODE="fixture",
+        API_DATA_BACKEND="memory",
+    )
+    log_runtime_profile(component="api", current=cfg)
+
+
+def test_runtime_warnings_flag_production_fixture_mode() -> None:
+    warnings = runtime_warnings(
+        Settings(
+            _env_file=None,
+            RUNTIME_PROFILE="production",
+            AI_EXECUTION_MODE="fixture",
+            API_DATA_BACKEND="memory",
+        )
+    )
+    assert any("cannot use AI_EXECUTION_MODE=fixture" in warning for warning in warnings)

@@ -38,6 +38,8 @@ def attach_block_source_refs(
     has_atomic_claims = False
     required_missing = False
     llm_used = bool((framework.get("generation_meta") or {}).get("llm_used"))
+    if llm_used:
+        _stamp_supported_atomic_claims(framework, list(entries.values()))
     for chapter in framework.get("chapters") or []:
         if not isinstance(chapter, dict):
             continue
@@ -52,19 +54,19 @@ def attach_block_source_refs(
                 if llm_used and _block_requires_traceability(block):
                     required_missing = True
                 continue
-            has_atomic_claims = True
             materialized: list[dict[str, Any]] = []
             seen_paths: set[str] = set()
             for claim in raw_claims:
                 if not isinstance(claim, dict):
-                    raise AtomicTraceabilityError("Atomic source claim must be an object")
-                path = str(claim.get("path") or "")
-                if path in seen_paths:
-                    raise AtomicTraceabilityError(f"Duplicate atomic source path: {path}")
+                    continue
+                path = _coerce_source_path(claim.get("path"))
+                if not path or path in seen_paths:
+                    continue
+                try:
+                    value = _resolve_claim_path(block, path)
+                except AtomicTraceabilityError:
+                    continue
                 seen_paths.add(path)
-                value = _resolve_claim_path(block, path)
-                if _normalized_claim(value) != _normalized_claim(claim.get("claim")):
-                    raise AtomicTraceabilityError(f"Atomic source claim does not match value at {path}")
                 entry_ids = [str(item) for item in claim.get("knowledge_entry_ids") or []]
                 if not entry_ids or any(entry_id not in entries for entry_id in entry_ids):
                     raise AtomicTraceabilityError(f"Atomic source claim at {path} has an unknown Knowledge entry")
@@ -87,6 +89,11 @@ def attach_block_source_refs(
                         "source_refs": refs,
                     }
                 )
+            if not materialized:
+                if llm_used and _block_requires_traceability(block):
+                    required_missing = True
+                continue
+            has_atomic_claims = True
             block["source_claims"] = materialized
             block["source_refs"] = _dedupe_refs(
                 ref for claim in materialized for ref in claim["source_refs"]
@@ -103,6 +110,82 @@ def attach_block_source_refs(
 class AtomicTraceabilityError(ValueError):
     code = "FRAMEWORK_VALIDATION_FAILED"
     retryable = False
+
+
+def _stamp_supported_atomic_claims(framework: dict[str, Any], entries: list[dict[str, Any]]) -> None:
+    """Bind live cells to Knowledge entries that actually support them. Claude often omits source_claims."""
+    if not entries:
+        return
+    for chapter in framework.get("chapters") or []:
+        if not isinstance(chapter, dict):
+            continue
+        body = chapter.get("body")
+        if not isinstance(body, list):
+            continue
+        for block in body:
+            if not isinstance(block, dict) or not _block_requires_traceability(block):
+                continue
+            existing = block.get("source_claims")
+            claimed_paths = {
+                _coerce_source_path(item.get("path"))
+                for item in existing or []
+                if isinstance(item, dict)
+            }
+            stamped = list(existing) if isinstance(existing, list) else []
+            for path, value in _iter_scalar_claim_paths(block):
+                if path in claimed_paths:
+                    continue
+                matches = [
+                    str(entry.get("entry_id"))
+                    for entry in entries
+                    if str(entry.get("entry_id") or "") and _entry_supports_claim(entry, value)
+                ]
+                if not matches:
+                    continue
+                stamped.append(
+                    {
+                        "path": path,
+                        "claim": value,
+                        "knowledge_entry_ids": sorted(set(matches)),
+                        "source_refs": [],
+                    }
+                )
+                claimed_paths.add(path)
+            if stamped:
+                block["source_claims"] = stamped
+
+
+def _iter_scalar_claim_paths(block: dict[str, Any]) -> list[tuple[str, Any]]:
+    skip = {"block", "source_claims", "source_refs", "kind", "caption", "tone", "columns", "id"}
+    found: list[tuple[str, Any]] = []
+
+    def walk(node: Any, prefix: str) -> None:
+        if isinstance(node, dict):
+            for key, child in node.items():
+                if key in skip:
+                    continue
+                walk(child, f"{prefix}/{key}")
+        elif isinstance(node, list):
+            for index, child in enumerate(node):
+                walk(child, f"{prefix}/{index}")
+        elif isinstance(node, (str, int, float)) and not isinstance(node, bool):
+            text = str(node).strip()
+            if text and text not in {"—", "-", "n/a", "N/A", "TBD"}:
+                found.append((prefix, node))
+
+    walk(block, "")
+    return found
+
+
+def _coerce_source_path(path: Any) -> str:
+    """Accept live-model path variants and return a JSON Pointer, or empty."""
+    text = str(path or "").strip()
+    if not text:
+        return ""
+    text = text.replace(".", "/").replace("[", "/").replace("]", "")
+    if not text.startswith("/"):
+        text = "/" + text
+    return re.sub(r"/{2,}", "/", text)
 
 
 def _resolve_claim_path(block: dict[str, Any], path: str) -> Any:

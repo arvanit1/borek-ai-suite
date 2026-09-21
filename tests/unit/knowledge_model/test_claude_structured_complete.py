@@ -115,6 +115,27 @@ def test_still_truncated_after_retry_fails_closed(monkeypatch: pytest.MonkeyPatc
     assert "truncated" in str(exc_info.value).lower()
 
 
+def test_credit_balance_error_is_not_retryable(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+
+    def fake(kwargs, api_key):
+        raise RuntimeError("Your credit balance is too low to access the Anthropic API.")
+
+    monkeypatch.setattr(client_module, "_stream_final_message", fake)
+
+    with pytest.raises(ClaudeClientError) as exc_info:
+        structured_complete(
+            "system",
+            "user",
+            {},
+            tool_name="submit_knowledge_model",
+            tool_description="Submit the KnowledgeModel JSON for this transcript.",
+        )
+    assert exc_info.value.code == "PROVIDER_BILLING"
+    assert exc_info.value.retryable is False
+    assert "credits" in str(exc_info.value).lower()
+
+
 def test_live_extraction_requests_model_output_ceiling(monkeypatch: pytest.MonkeyPatch) -> None:
     captured: dict[str, int] = {}
 

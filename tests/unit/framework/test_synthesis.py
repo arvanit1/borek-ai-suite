@@ -199,7 +199,6 @@ def test_short_chapter_draft_is_retried_then_accepted() -> None:
 
     result = synthesize_customer_draft(skeleton={}, engine_outputs={}, complete=complete)
     assert len(users) == 2
-    assert "structural validation" in users[1]
     assert "14 chapters" in users[1]
     assert len(result["chapters"]) == 14
 

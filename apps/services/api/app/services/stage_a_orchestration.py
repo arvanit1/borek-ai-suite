@@ -13,6 +13,7 @@ from typing import Any
 from uuid import UUID
 
 from app.config import settings
+from app.runtime_profile import assert_live_frameworks_in_production
 from app.services.api_errors import bad_request
 from app.services.framework_stub_template import load_framework_stub_template
 from services.framework.pipeline import generate_customer_framework
@@ -56,6 +57,7 @@ def generate_framework_from_transcripts(
     invokes the existing ES-5 and ES-9 entrypoints without changing them.
     """
     mode = execution_mode or settings.AI_EXECUTION_MODE
+    assert_live_frameworks_in_production(execution_mode=mode)
     sources = store.list_transcript_sources(
         opportunity_id=opportunity_id,
         user_id=user_id,
@@ -198,6 +200,7 @@ def regenerate_framework_chapter_from_transcripts(
         raise bad_request("INVALID_CHAPTER_ID", f"Chapter {chapter_id} was not found")
     current = matches[0]
     mode = execution_mode or settings.AI_EXECUTION_MODE
+    assert_live_frameworks_in_production(execution_mode=mode)
     if mode != "live":
         replacement = copy.deepcopy(current)
         body = replacement.get("body")
