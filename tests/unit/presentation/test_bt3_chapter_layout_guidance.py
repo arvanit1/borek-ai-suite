@@ -82,7 +82,7 @@ def test_canonical_map_is_runtime_source_and_preserves_semantics() -> None:
     )
     assert guidance == raw
     assert "guidance only" in guidance["description"].lower()
-    assert "at most once" in guidance["description"].lower()
+    assert "at most one slide per layoutid" in guidance["description"].lower()
     assert _mapping_for("1")["layoutIds"] == [
         "COVER_01",
         "EXECUTIVE_SUMMARY_01",
@@ -269,12 +269,13 @@ def test_bt2_registry_validation_still_rejects_runtime_drift_once(
 
 def test_prompt_declares_guidance_grounding_and_commercial_rules() -> None:
     prompt = PROMPT_PATH.read_text(encoding="utf-8")
-    lowered = prompt.lower()
+    lowered = " ".join(prompt.lower().split())
 
     assert PROMPT_PATH.name == "presentation_planner_v2.txt"
     assert "guidance, not a mandatory" in lowered
     assert "do not force every mapped layout" in lowered
-    assert "one slide per chapter for the same layoutid" in lowered
+    assert "each layoutid is a global slide slot and may appear at most once" in lowered
+    assert "do not emit one slide per chapter per layout" in lowered
     assert "omit unnecessary, thin" in lowered
     assert "collectively feed those layout slots" in lowered
     assert "retryvalidationerrors.duplicatelayoutids" in lowered

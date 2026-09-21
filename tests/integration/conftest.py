@@ -28,6 +28,8 @@ _PRESERVE_WHEN_SUPABASE = frozenset(
     }
 )
 
+TEST_JWT_SECRET = "test-supabase-jwt-secret-with-32-byte-minimum-length"
+
 _TEST_ENV = {
     "ANTHROPIC_API_KEY": "test-anthropic-key",
     "OPENAI_API_KEY": "test-openai-key",
@@ -37,7 +39,7 @@ _TEST_ENV = {
     "API_DATA_BACKEND": "memory",
     "AI_EXECUTION_MODE": "fixture",
     "RENDERER_EXECUTION_MODE": "fixture",
-    "SUPABASE_JWT_SECRET": "test-supabase-jwt-secret-with-32-byte-minimum-length",
+    "SUPABASE_JWT_SECRET": TEST_JWT_SECRET,
     "REDIS_URL": "redis://localhost:6379/0",
     "DATABASE_URL": "postgresql://postgres:postgres@localhost:5432/borek",
     "RENDERER_URL": "http://localhost:4000",
@@ -57,6 +59,10 @@ from tests.fixtures.stage_b_test_providers import install_stage_b_test_providers
 
 @pytest.fixture(autouse=True)
 def _reset_in_memory_backends(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.config import settings
+
+    if not _RUN_SUPABASE:
+        monkeypatch.setattr(settings, "SUPABASE_JWT_SECRET", TEST_JWT_SECRET)
     reset_memory_store()
     reset_job_store()
     install_stage_b_test_providers(monkeypatch)
