@@ -10,6 +10,11 @@ from typing import TYPE_CHECKING, Any, Callable
 
 from services.observability.llm_logger import LlmStage, invoke_llm
 from services.validation.compression_retry import compression_target_length
+from services.validation.slide_content_policy import (
+    STATUS_INSTRUCTION,
+    current_compression_language,
+    language_instruction,
+)
 
 if TYPE_CHECKING:
     from services.slides.content_generation.group_a.common import (
@@ -128,6 +133,7 @@ class LlmClient:
                 {
                     "instructions": request.instructions,
                     "layoutId": request.layout_id,
+                    "renderLanguage": getattr(request, "render_language", "en"),
                     "chapters": [copy.deepcopy(chapter) for chapter in request.chapters],
                     "targetSchema": copy.deepcopy(request.target_schema),
                 },
@@ -215,7 +221,12 @@ class LlmClient:
                     f"compression target {target} characters — stay comfortably "
                     f"below the maximum"
                 )
-            bound_instructions = f"{prompt_instructions}\n\n{_COMPRESSION_NUMBER_RULE}"
+            required_language = current_compression_language()
+            bound_instructions = (
+                f"{prompt_instructions}\n\n{_COMPRESSION_NUMBER_RULE} {STATUS_INSTRUCTION}"
+            )
+            if required_language is not None:
+                bound_instructions += language_instruction(required_language)
             if any(item >= 2 for item in attempt_by_path.values()):
                 bound_instructions = (
                     f"{bound_instructions}\n\nThe previous rewrite still exceeded "
@@ -231,6 +242,7 @@ class LlmClient:
                 {
                     "instructions": bound_instructions,
                     "offendingValues": copy.deepcopy(offending_values),
+                    **({"renderLanguage": required_language} if required_language else {}),
                     "violations": [_violation_payload(item) for item in violations],
                     "targetSchema": {
                         "type": "object",

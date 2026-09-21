@@ -40,6 +40,7 @@ from services.slides.content_generation.group_b.common import (
 )
 from services.validation.compression_retry import get_value_at_path, set_value_at_path
 from services.validation.constraint_validator import collect_constraint_violations
+from services.validation.slide_content_policy import ContentPolicyError, validate_content_policy
 from services.validation.source_chapter_enforcement import (
     SourceChapterEnforcementError,
     populated_content_leaf_paths,
@@ -135,6 +136,7 @@ def wrap_live_structured_generator(
                 rewrite_path = _ungrounded_field_path(exc)
                 _ = attempt
             except (
+                ContentPolicyError,
                 LiveSlideRepairError,
                 SourceChapterEnforcementError,
                 ProhibitedCommercialContentError,
@@ -249,6 +251,8 @@ def _assert_live_slide_is_acceptable(slide_spec: dict[str, Any], request: Any) -
         raise LiveSlideRepairError(
             f"prohibited commercial content at {commercial[0]}"
         )
+
+    validate_content_policy(slide_spec, chapters, getattr(request, "render_language", "en"))
 
 
 def _sanitize_ungrounded_digit_compounds(
@@ -497,6 +501,10 @@ def _with_rejection(request: Any, error: str) -> Any:
         chapters=request.chapters,
         target_schema=request.target_schema,
         instructions=f"{request.instructions}{extra}",
+        **(
+            {"render_language": request.render_language}
+            if hasattr(request, "render_language") else {}
+        ),
     )
 
 
