@@ -11,6 +11,7 @@ const CONTRACTS = path.join(ROOT, "packages", "contracts");
 const OUT_DIR = path.join(ROOT, "generated", "typescript", "contracts");
 
 const SCHEMAS = [
+  ["stage1_research.schema.json", "stage1_research.ts"],
   ["framework_object.schema.json", "framework_object.ts"],
   ["presentation_plan.schema.json", "presentation_plan.ts"],
   ["slide_spec/base.schema.json", "slide_spec_base.ts"],
@@ -97,6 +98,7 @@ function patchFrameworkObjectTypes(source, registry) {
 
 function writeIndex() {
   const indexContent = `export * from "./framework_object";
+export type { Stage1Research } from "./stage1_research";
 export type {
   LayoutId,
   FrameworkReference,

@@ -1,0 +1,74 @@
+{
+  "schema_version": "1.0",
+  "opportunity_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "client_name": "Acme",
+  "company_facts": {
+    "description": {
+      "status": "unknown",
+      "origin": "UNKNOWN",
+      "value": null,
+      "source_refs": []
+    },
+    "headquarters": {
+      "status": "unknown",
+      "origin": "UNKNOWN",
+      "value": null,
+      "source_refs": []
+    },
+    "employee_headcount": {
+      "status": "unknown",
+      "origin": "UNKNOWN",
+      "value": null,
+      "source_refs": []
+    },
+    "decision_makers": {
+      "status": "unknown",
+      "origin": "UNKNOWN",
+      "value": null,
+      "source_refs": []
+    },
+    "revenue": {
+      "status": "unknown",
+      "origin": "UNKNOWN",
+      "value": null,
+      "source_refs": []
+    }
+  },
+  "user_statements": {
+    "origin": "USER_INPUT",
+    "fields": {
+      "client_name": "Acme",
+      "client_website": "https://example.com",
+      "sales_topic_description": "Explore invoice matching",
+      "about_company": "Sales reports that the company distributes equipment."
+    }
+  },
+  "borek_offering": {
+    "status": "verified",
+    "origin": "SOURCE_FACT",
+    "value": "Invoice 3-way Match matches supplier invoices to purchase orders and goods receipts before payment release.",
+    "source_refs": [
+      {
+        "source_id": "service.invoice-3way.definition",
+        "locator": "2026.09.03/SVC-INV3WAY-v1",
+        "excerpt": "Invoice 3-way Match matches supplier invoices to purchase orders and goods receipts before payment release."
+      }
+    ]
+  },
+  "hypothesis": {
+    "status": "unknown",
+    "origin": "AI_INFERENCE",
+    "text": null,
+    "basis": []
+  },
+  "product_relevance": {
+    "status": "unknown",
+    "origin": "AI_INFERENCE",
+    "text": null,
+    "basis": []
+  },
+  "dependencies": [
+    "COMPANY_RESEARCH_PROVIDER_UNAVAILABLE",
+    "HYPOTHESIS_GENERATION_NOT_RUN"
+  ]
+}

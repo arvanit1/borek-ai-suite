@@ -27,6 +27,7 @@ from services.framework.company_facts import (
     ground_company_facts,
     query_text_from_opportunity,
 )
+from services.framework.stage1_intake import intake_from_opportunity, safe_intake_for_llm
 from services.knowledge_model.extraction import extract_knowledge_model
 from services.transcript.conversation_ids import TranscriptIdentity
 from services.transcript.speaker_turns import SpeakerTurn
@@ -55,6 +56,10 @@ def generate_framework_from_transcripts(
         user_id=user_id,
     )
     opportunity = store.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
+    stage1_intake = safe_intake_for_llm(
+        intake_from_opportunity(opportunity),
+        redact=opportunity_pii_redaction_enabled(opportunity),
+    )
     client_pack = normalize_client_pack(opportunity.get("additional_client_information"))
     company_facts = ground_company_facts(
         query_text_from_opportunity(opportunity),
@@ -93,6 +98,7 @@ def generate_framework_from_transcripts(
                     identity,
                     redact=redact,
                     client_pack=client_pack,
+                    stage1_intake=stage1_intake,
                 )
             )
         except Exception as exc:
@@ -115,6 +121,7 @@ def generate_framework_from_transcripts(
             use_llm=True,
             client_pack=client_pack,
             company_facts=company_facts,
+            stage1_intake=stage1_intake,
         )
     except Exception as exc:
         user_message = getattr(exc, "user_message", str(exc))

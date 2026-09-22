@@ -267,6 +267,15 @@ def test_state_changing_endpoints_emit_required_audit_actions() -> None:
     )
     assert record_followup.status_code == 200
 
+    research = client.post(
+        f"/opportunities/{opportunity_id}/stage1-research", headers=_headers(),
+    )
+    assert research.status_code == 200
+    voice = client.post(
+        f"/opportunities/{opportunity_id}/stage1-voice", headers=_headers(),
+    )
+    assert voice.status_code == 200
+
     recorded = set(_audit_actions())
     assert CANONICAL_AUDIT_ACTIONS.issubset(recorded)
 

@@ -66,6 +66,7 @@ def generate_customer_framework(
     process_complete: ProcessComplete | None = None,
     engine_overrides: dict[str, Any] | None = None,
     client_pack: dict[str, Any] | None = None,
+    stage1_intake: dict[str, Any] | None = None,
     company_facts: dict[str, Any] | None = None,
     corpus: Any | None = None,
     retrieve_fn: Callable[..., Any] | None = None,
@@ -157,6 +158,7 @@ def generate_customer_framework(
             opportunity_id=opportunity_id,
             client_pack=normalize_client_pack(client_pack) or skeleton.get("client_pack"),
             company_facts=grounded_facts,
+            stage1_intake=stage1_intake,
         )
         chapters = apply_draft_to_chapters(chapters, draft)
         cover.update(draft.get("cover") or {})

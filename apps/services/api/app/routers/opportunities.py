@@ -6,10 +6,11 @@ from pathlib import Path
 from typing import Literal
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, File, Query, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import Response
 
 from app.auth import get_current_user
+from app.config import settings
 from app.dependencies import AuthUserDep, DataStoreDep
 from app.schemas.jobs import ActiveJobResponse, JobResponse
 from app.schemas.opportunities import (
@@ -25,6 +26,14 @@ from app.services import job_service
 from app.services.api_errors import not_found
 from app.services.audit import AuditAction, AuditObjectType, record_audit_event
 from app.services.client_logos import MAX_CLIENT_LOGO_BYTES, validate_client_logo
+from app.services.api_errors import service_unavailable
+from app.services.knowledge_access import resolve_active_corpus
+from app.services.stage1 import get_company_research_provider
+from services.framework.stage1_research import (
+    CompanyResearchProvider,
+    generate_stage1_research,
+)
+from services.observability.llm_logger import llm_observability_scope
 
 router = APIRouter(dependencies=[Depends(get_current_user)])
 
@@ -51,6 +60,9 @@ def create_opportunity(
             if body.additional_client_information is not None
             else None
         ),
+        stage1_intake=(
+            body.stage1_intake.model_dump() if body.stage1_intake is not None else None
+        ),
         followup_statics=(
             body.followup_statics.model_dump()
             if body.followup_statics is not None
@@ -71,6 +83,66 @@ def create_opportunity(
 def list_opportunities(user: AuthUserDep, store: DataStoreDep) -> list[OpportunityResponse]:
     rows = store.list_opportunities(user_id=user.id)
     return [_to_response(row) for row in rows]
+
+
+@router.post("/{opportunity_id}/stage1-research")
+def generate_company_research(
+    opportunity_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+    provider: CompanyResearchProvider | None = Depends(get_company_research_provider),
+) -> dict:
+    opportunity = store.get_opportunity(opportunity_id=opportunity_id, user_id=user.id)
+    record_audit_event(
+        store,
+        actor_id=user.id,
+        action=AuditAction.STAGE1_RESEARCH_GENERATE,
+        object_type=AuditObjectType.OPPORTUNITY,
+        object_id=opportunity_id,
+    )
+    try:
+        with llm_observability_scope(opportunity_id=opportunity_id, store=store):
+            return generate_stage1_research(
+                opportunity,
+                corpus=resolve_active_corpus(store),
+                provider=provider,
+                use_llm=settings.AI_EXECUTION_MODE == "live",
+            )
+    except Exception as exc:
+        # Provider output/validation details may contain client source data.
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "code": "STAGE1_RESEARCH_FAILED",
+                "message": "Company research could not be validated. Please retry.",
+            },
+        ) from exc
+
+
+@router.post("/{opportunity_id}/stage1-voice")
+async def stage1_voice_intake(
+    opportunity_id: UUID,
+    user: AuthUserDep,
+    store: DataStoreDep,
+    file: UploadFile | None = File(default=None),
+) -> dict:
+    store.get_opportunity(opportunity_id=opportunity_id, user_id=user.id)
+    record_audit_event(
+        store,
+        actor_id=user.id,
+        action=AuditAction.STAGE1_VOICE_REQUEST,
+        object_type=AuditObjectType.OPPORTUNITY,
+        object_id=opportunity_id,
+    )
+    if file is None or not await file.read(1):
+        return {"status": "not_provided", "transcript": None}
+    # Explicit dependency response: never funnel voice into meeting transcripts,
+    # overwrite the sales topic, or send raw audio/text to a generation prompt.
+    raise service_unavailable(
+        "STAGE1_VOICE_UNAVAILABLE",
+        "No approved voice transcription provider is configured. "
+        "Save text intake without a recording. Downstream voice use also requires BT-36 summarization.",
+    )
 
 
 @router.get("/recent-work", response_model=list[RecentWorkSnapshot])

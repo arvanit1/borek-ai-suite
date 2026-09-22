@@ -13,6 +13,7 @@ OUT_DIR = ROOT / "generated" / "python" / "contracts"
 
 # Single registry for AT-4 scope. Extend when new core schemas land (e.g. layout SlideSpecs).
 SCHEMAS = [
+    ("stage1_research.schema.json", "stage1_research.py"),
     ("framework_object.schema.json", "framework_object.py"),
     ("presentation_plan.schema.json", "presentation_plan.py"),
     ("slide_spec/base.schema.json", "slide_spec_base.py"),

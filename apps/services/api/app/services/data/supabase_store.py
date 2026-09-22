@@ -140,6 +140,7 @@ def _normalize_opportunity(row: dict[str, Any]) -> dict[str, Any]:
         "pii_redaction_enabled": bool(row.get("pii_redaction_enabled", True)),
         "additional_client_information": row.get("additional_client_information"),
         "followup_statics": row.get("followup_statics"),
+        "stage1_intake": row.get("stage1_intake"),
     }
 
 
@@ -389,6 +390,7 @@ class SupabaseDataStore:
         pii_redaction_enabled: bool = True,
         additional_client_information: dict[str, Any] | None = None,
         followup_statics: dict[str, Any] | None = None,
+        stage1_intake: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         payload = {
             "client_name": client_name,
@@ -399,6 +401,7 @@ class SupabaseDataStore:
             "pii_redaction_enabled": bool(pii_redaction_enabled),
             "additional_client_information": additional_client_information,
             "followup_statics": followup_statics,
+            "stage1_intake": stage1_intake,
             "created_by": str(user_id),
         }
         response = self._request("POST", "opportunities", json_body=payload)
@@ -589,7 +592,7 @@ class SupabaseDataStore:
         payload = {
             key: value
             for key, value in updates.items()
-            if value is not None or key in {"additional_client_information", "followup_statics"}
+            if value is not None or key in {"additional_client_information", "followup_statics", "stage1_intake"}
         }
         payload["updated_at"] = datetime.now(UTC).isoformat()
         response = self._request(

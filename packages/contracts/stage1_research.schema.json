@@ -1,0 +1,307 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://borek.ai/contracts/stage1_research.schema.json",
+  "title": "Stage1Research",
+  "description": "BT-34 v1: verified provider evidence is separate from sales statements and AI hypotheses. Unknown means no established fact.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "opportunity_id",
+    "client_name",
+    "company_facts",
+    "user_statements",
+    "borek_offering",
+    "hypothesis",
+    "product_relevance",
+    "dependencies"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "opportunity_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "client_name": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "company_facts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "description",
+        "headquarters",
+        "employee_headcount",
+        "decision_makers",
+        "revenue"
+      ],
+      "properties": {
+        "description": {
+          "$ref": "#/$defs/Fact"
+        },
+        "headquarters": {
+          "$ref": "#/$defs/Fact"
+        },
+        "employee_headcount": {
+          "$ref": "#/$defs/Fact"
+        },
+        "decision_makers": {
+          "$ref": "#/$defs/Fact"
+        },
+        "revenue": {
+          "$ref": "#/$defs/Fact"
+        }
+      }
+    },
+    "user_statements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "origin",
+        "fields"
+      ],
+      "properties": {
+        "origin": {
+          "const": "USER_INPUT"
+        },
+        "fields": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "client_name": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            },
+            "client_website": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            },
+            "poc_name": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            },
+            "poc_position": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            },
+            "sales_topic_description": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            },
+            "about_company": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            }
+          }
+        }
+      }
+    },
+    "borek_offering": {
+      "$ref": "#/$defs/Fact"
+    },
+    "hypothesis": {
+      "$ref": "#/$defs/Hypothesis"
+    },
+    "product_relevance": {
+      "$ref": "#/$defs/Hypothesis"
+    },
+    "dependencies": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "COMPANY_RESEARCH_PROVIDER_UNAVAILABLE",
+          "BOREK_OFFERING_UNAVAILABLE",
+          "HYPOTHESIS_GENERATION_NOT_RUN"
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "SourceRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_id",
+        "locator",
+        "excerpt"
+      ],
+      "properties": {
+        "source_id": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "locator": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "excerpt": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        }
+      }
+    },
+    "Fact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "origin",
+        "value",
+        "source_refs"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "verified",
+            "unknown"
+          ]
+        },
+        "origin": {
+          "enum": [
+            "SOURCE_FACT",
+            "UNKNOWN"
+          ]
+        },
+        "value": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SourceRef"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "verified"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "origin": {
+                "const": "SOURCE_FACT"
+              },
+              "value": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "source_refs": {
+                "minItems": 1
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "origin": {
+                "const": "UNKNOWN"
+              },
+              "value": {
+                "type": "null"
+              },
+              "source_refs": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ]
+    },
+    "Hypothesis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "origin",
+        "text",
+        "basis"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "generated",
+            "unknown"
+          ]
+        },
+        "origin": {
+          "const": "AI_INFERENCE"
+        },
+        "text": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 4000,
+          "pattern": "\\S"
+        },
+        "basis": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "generated"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "basis": {
+                "minItems": 1
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "text": {
+                "type": "null"
+              },
+              "basis": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

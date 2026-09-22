@@ -46,6 +46,7 @@ EXPECTED_COLUMNS = {
         "pii_redaction_enabled",
         "additional_client_information",
         "followup_statics",
+        "stage1_intake",
         "demo_marker",
     ),
     "generation_jobs": (
