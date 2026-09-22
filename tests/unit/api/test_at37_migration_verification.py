@@ -133,7 +133,7 @@ def test_verify_db_covers_llm_calls_table() -> None:
     assert '"egress_audit"' in content
 
 
-def test_apply_migrations_script_covers_001_through_024() -> None:
+def test_apply_migrations_script_covers_001_through_025() -> None:
     assert APPLY_MIGRATIONS.is_file()
     content = APPLY_MIGRATIONS.read_text(encoding="utf-8")
     compile(content, str(APPLY_MIGRATIONS), "exec")
@@ -144,8 +144,13 @@ def test_apply_migrations_script_covers_001_through_024() -> None:
         for name in names
         if re.match(r"^\d{3}_", name)
     )
-    assert numbers == list(range(1, 25)), f"expected 001-024 with no gaps, got {numbers}"
+    # The existing chain has two distinct 024 files; do not rename applied migrations.
+    assert numbers == sorted([*range(1, 26), 24]), f"unexpected migration chain: {numbers}"
     assert names == sorted(names)
+    intake = (MIGRATIONS_DIR / "025_bt34_stage1_intake.sql").read_text(encoding="utf-8")
+    assert "ADD COLUMN IF NOT EXISTS stage1_intake JSONB" in intake
+    assert "stage1_intake IS NULL" in intake
+    assert "stage1_intake" in VERIFY_DB.read_text(encoding="utf-8")
 
 
 def test_verify_db_script_exists_and_is_executable() -> None:

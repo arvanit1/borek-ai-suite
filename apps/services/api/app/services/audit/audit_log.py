@@ -14,6 +14,8 @@ logger = logging.getLogger(__name__)
 class AuditAction(StrEnum):
     OPPORTUNITY_CREATE = "opportunity.create"
     OPPORTUNITY_UPDATE = "opportunity.update"
+    STAGE1_RESEARCH_GENERATE = "stage1_research.generate"
+    STAGE1_VOICE_REQUEST = "stage1_voice.request"
     CLIENT_LOGO_UPLOAD = "client_logo.upload"
     CLIENT_LOGO_REPLACE = "client_logo.replace"
     CLIENT_LOGO_DELETE = "client_logo.delete"

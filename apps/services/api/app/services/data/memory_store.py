@@ -274,6 +274,7 @@ class MemoryDataStore:
         pii_redaction_enabled: bool = True,
         additional_client_information: dict[str, Any] | None = None,
         followup_statics: dict[str, Any] | None = None,
+        stage1_intake: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         opportunity_id = uuid.uuid4()
         now = _now()
@@ -287,6 +288,7 @@ class MemoryDataStore:
             "pii_redaction_enabled": bool(pii_redaction_enabled),
             "additional_client_information": copy.deepcopy(additional_client_information),
             "followup_statics": copy.deepcopy(followup_statics),
+            "stage1_intake": copy.deepcopy(stage1_intake),
             "created_by": user_id,
             "created_at": now,
             "updated_at": now,
@@ -394,7 +396,7 @@ class MemoryDataStore:
     ) -> dict[str, Any]:
         row = self.get_opportunity(opportunity_id=opportunity_id, user_id=user_id)
         for key, value in updates.items():
-            if value is not None or key in {"additional_client_information", "followup_statics"}:
+            if value is not None or key in {"additional_client_information", "followup_statics", "stage1_intake"}:
                 row[key] = value
         row["updated_at"] = _now()
         return row

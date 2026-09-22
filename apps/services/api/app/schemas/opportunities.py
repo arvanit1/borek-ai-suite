@@ -9,6 +9,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.schemas.stage1 import Stage1Intake
+
 _EMAIL_PATTERN = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 
@@ -114,6 +116,7 @@ class OpportunityCreateRequest(BaseModel):
     pii_redaction_enabled: bool = True
     additional_client_information: AdditionalClientInformation | None = None
     followup_statics: FollowupProjectStatics | None = None
+    stage1_intake: Stage1Intake | None = None
 
 
 class OpportunityUpdateRequest(BaseModel):
@@ -125,6 +128,7 @@ class OpportunityUpdateRequest(BaseModel):
     pii_redaction_enabled: bool | None = None
     additional_client_information: AdditionalClientInformation | None = None
     followup_statics: FollowupProjectStatics | None = None
+    stage1_intake: Stage1Intake | None = None
 
 
 class OpportunityResponse(BaseModel):
@@ -137,6 +141,7 @@ class OpportunityResponse(BaseModel):
     pii_redaction_enabled: bool = True
     additional_client_information: AdditionalClientInformation | None = None
     followup_statics: FollowupProjectStatics | None = None
+    stage1_intake: Stage1Intake | None = None
     demo_marker: str | None = None
     created_by: UUID
     created_at: datetime
